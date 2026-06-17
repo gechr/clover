@@ -12,13 +12,17 @@ import (
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
+	"github.com/gechr/clover/internal/tag"
 )
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"         predictor:"path" clib:"terse='Paths to scan'"`
-	DryRun bool          `                               help:"Resolve and render but write nothing"                  clib:"terse='Dry run'"       short:"n" aliases:"dry"`
-	Output report.Output `                               help:"Output detail"                                         clib:"terse='Output detail'" short:"o"               enum:"text,wide" default:"text"`
+	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                      predictor:"path" clib:"terse='Paths to scan'"`
+	Tags           []string      `                   name:"tag"  help:"Only process directives carrying these tags (a,b = and; a/b = or)"                  clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun         bool          `                               help:"Resolve and render but write nothing"                                               clib:"terse='Dry run'"           short:"n" aliases:"dry"`
+	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                clib:"terse='Allow downgrades'"                                               negatable:""`
+	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                clib:"terse='Allow prereleases'"                                              negatable:""`
+	Output         report.Output `                               help:"Output detail"                                                                      clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -26,9 +30,17 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default)
 
+	filter := tag.Parse(c.Tags)
+	if !filter.Empty() {
+		clog.Info().Str("tags", filter.String()).Msg("Filtering by tags")
+	}
+
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
 		pipeline.WithReporter(reporter),
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
+		pipeline.WithTagFilter(filter),
+		pipeline.WithAllowDowngrade(c.AllowDowngrade),
+		pipeline.WithPrerelease(c.Prerelease),
 	)
 	if err != nil {
 		return err
