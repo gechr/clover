@@ -2,8 +2,8 @@ package match
 
 import (
 	"fmt"
-	"path/filepath"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
@@ -48,20 +48,19 @@ type Context struct {
 	Value    string
 }
 
-// conditions guards a route; every set field must match (AND). It reuses the
-// pattern engine, so file and line matching share one glob/regex dialect.
+// conditions guards a route; every set field must match (AND). path uses a
+// doublestar (**-aware) glob - the right dialect for file paths, where **
+// spans directories - while lineMatch reuses the token pattern engine for the
+// target line's content. Both are optional; an empty field matches any.
 type conditions struct {
-	path      *pattern.Pattern
-	fileName  *pattern.Pattern
+	path      string
 	lineMatch *pattern.Pattern
 	provider  string
 }
 
 func (c conditions) match(ctx Context) bool {
 	switch {
-	case c.path != nil && !c.path.Matches(ctx.Path):
-		return false
-	case c.fileName != nil && !c.fileName.Matches(filepath.Base(ctx.Path)):
+	case c.path != "" && !matchPath(c.path, ctx.Path):
 		return false
 	case c.lineMatch != nil && !c.lineMatch.Matches(ctx.Line):
 		return false
@@ -70,6 +69,13 @@ func (c conditions) match(ctx Context) bool {
 	default:
 		return true
 	}
+}
+
+// matchPath reports whether path matches the doublestar glob. A malformed glob
+// (only a programmer error for the built-in routes) never matches.
+func matchPath(glob, path string) bool {
+	ok, err := doublestar.Match(glob, path)
+	return err == nil && ok
 }
 
 // route pairs a guard with the rewriter to use when it matches.
@@ -84,7 +90,10 @@ type route struct {
 var routes = []route{
 	{
 		when: conditions{
-			path:      mustPattern(".github/workflows/*"),
+			// ** spans any leading directories, so this matches a workflow file
+			// whether the scan root is the repo, an absolute path, or a sub-dir,
+			// while .github stays a real path segment (not hello.github).
+			path:      "**/.github/workflows/*.{yml,yaml}",
 			lineMatch: mustPattern("* uses: *"),
 			provider:  constant.ProviderGithub,
 		},

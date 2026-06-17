@@ -85,21 +85,42 @@ func TestActionPinRenderRequiresFullCommit(t *testing.T) {
 func TestForRoutesWorkflowToActionPin(t *testing.T) {
 	t.Parallel()
 
-	rw := match.For(match.Context{
-		Path:     ".github/workflows/ci.yml",
-		Line:     "  - uses: actions/checkout@" + oldSHA + " # v4.1.0",
-		Provider: "github",
-	})
-	require.IsType(t, match.ActionPin{}, rw)
+	line := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0"
+	// .github/workflows matches as a path component however the path is rooted.
+	for _, path := range []string{
+		".github/workflows/ci.yml",
+		"/abs/repo/.github/workflows/ci.yml",
+		"sub/dir/.github/workflows/release.yaml",
+	} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			rw := match.For(match.Context{Path: path, Line: line, Provider: "github"})
+			require.IsType(t, match.ActionPin{}, rw)
+		})
+	}
 }
 
 func TestForLeavesNonWorkflowToSmart(t *testing.T) {
 	t.Parallel()
 
-	rw := match.For(match.Context{
-		Path:     "Dockerfile",
-		Line:     "FROM nginx:1.27.0",
-		Provider: "github",
-	})
-	require.IsType(t, match.Smart{}, rw)
+	pinLine := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0"
+	tests := map[string]match.Context{
+		"dockerfile": {Path: "Dockerfile", Line: "FROM nginx:1.27.0", Provider: "github"},
+		"stray github dir": {
+			Path:     "hello.github/workflows/x.yml",
+			Line:     pinLine,
+			Provider: "github",
+		},
+		"workflow non-github": {
+			Path:     ".github/workflows/ci.yml",
+			Line:     pinLine,
+			Provider: "docker",
+		},
+	}
+	for name, ctx := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.IsType(t, match.Smart{}, match.For(ctx))
+		})
+	}
 }
