@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/ignore"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/follow"
 	"github.com/gechr/clover/internal/registry"
@@ -61,10 +63,17 @@ type config struct {
 	maxSize     int64
 	now         time.Time
 	ignoreFiles []string
+	reporter    progress.Reporter
 }
 
 // Option configures [Run].
 type Option func(*config)
+
+// WithReporter sets the progress reporter that observes markers as they resolve.
+// The default discards everything; the CLI supplies a live display.
+func WithReporter(r progress.Reporter) Option {
+	return func(c *config) { c.reporter = r }
+}
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
 func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
@@ -123,7 +132,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, err
 // newConfig applies opts over the defaults, clamping the worker count and
 // defaulting the clock so cooldown has a reference time.
 func newConfig(opts ...Option) config {
-	cfg := config{workers: runtime.NumCPU()}
+	cfg := config{workers: runtime.NumCPU(), reporter: progress.Nop{}}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -132,6 +141,9 @@ func newConfig(opts ...Option) config {
 	}
 	if cfg.now.IsZero() {
 		cfg.now = time.Now()
+	}
+	if cfg.reporter == nil {
+		cfg.reporter = progress.Nop{}
 	}
 	return cfg
 }
@@ -165,13 +177,14 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 	if err != nil {
 		return nil, nil, err
 	}
-	return newPlan(files, resolver, cfg.now, cfg.workers), files, nil
+	return newPlan(files, resolver, cfg), files, nil
 }
 
 // plan holds the state a run threads between seams: the flattened markers, each
-// file's lines for rendering, the run-scoped registry follow markers read, and
-// one result slot per marker. Each task writes only its own slot, so the slice
-// needs no lock - the same discipline the executor uses internally.
+// file's lines for rendering, the run-scoped registry follow markers read, the
+// progress reporter, and one result slot per marker. Each task writes only its
+// own slot, so the slice needs no lock - the same discipline the executor uses
+// internally.
 type plan struct {
 	markers  []Marker
 	lines    map[string][]string
@@ -179,13 +192,15 @@ type plan struct {
 	smart    match.Smart
 	now      time.Time
 	workers  int
+	reporter progress.Reporter
+	tasks    []progress.Task
 	results  []Result
 }
 
 // newPlan flattens the scanned files into markers and pre-seeds a result per
 // marker, namespacing ids by repository so the same id in two repositories does
 // not collide.
-func newPlan(files []scan.File, resolver *vcs.Resolver, now time.Time, workers int) *plan {
+func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	lines := make(map[string][]string, len(files))
 	var markers []Marker
 	for _, f := range files {
@@ -203,16 +218,28 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, now time.Time, workers i
 		lines:    lines,
 		registry: registry.New(),
 		smart:    match.NewSmart(),
-		now:      now,
-		workers:  workers,
+		now:      cfg.now,
+		workers:  cfg.workers,
+		reporter: cfg.reporter,
 		results:  results,
 	}
 }
 
-// resolve schedules every marker through the follow-edge executor, then folds
-// the executor's per-task verdict (skipped/errored) back onto each result.
+// resolve schedules every marker through the follow-edge executor, reporting
+// each one's progress, then folds the executor's per-task verdict
+// (skipped/errored) back onto each result. The closures report Done/Fail as each
+// marker finishes; skipped markers never run a closure, so resolve reports their
+// Skip here.
 func (p *plan) resolve(ctx context.Context, workers int) {
-	tasks := make([]exec.Task, len(p.markers))
+	names := make([]string, len(p.markers))
+	for i, m := range p.markers {
+		names[i] = label(m)
+	}
+	tasks, wait := p.reporter.Begin(names)
+	defer wait()
+	p.tasks = tasks
+
+	execTasks := make([]exec.Task, len(p.markers))
 	for i, m := range p.markers {
 		task := exec.Task{ID: m.ID, From: m.From}
 		if m.IsFollower() {
@@ -220,14 +247,15 @@ func (p *plan) resolve(ctx context.Context, workers int) {
 		} else {
 			task.Run = p.producer(i)
 		}
-		tasks[i] = task
+		execTasks[i] = task
 	}
 
-	for i, r := range exec.Execute(ctx, tasks, workers) {
+	for i, r := range exec.Execute(ctx, execTasks, workers) {
 		switch {
 		case r.Skipped:
 			p.results[i].Skipped = true
 			p.results[i].Reason = r.Reason
+			p.tasks[i].Skip(r.Reason)
 		case r.Err != nil:
 			p.results[i].Err = r.Err
 		}
@@ -235,75 +263,104 @@ func (p *plan) resolve(ctx context.Context, workers int) {
 }
 
 // producer returns the closure that resolves marker i from its upstream
-// provider: locate the current token, select the newest allowed candidate, and
-// publish it under the marker's id so followers can reuse it.
+// provider, reporting the outcome to the marker's progress task.
 func (p *plan) producer(i int) func(context.Context) error {
-	m := p.markers[i]
 	return func(ctx context.Context) error {
-		prov, ok := provider.Get(m.Provider)
-		if !ok {
-			return fmt.Errorf("unknown provider %q", m.Provider)
-		}
-		resource, err := prov.Resource(m.Directive)
-		if err != nil {
-			return err
-		}
-
-		line, current, token, err := p.locate(m)
-		if err != nil {
-			return err
-		}
-
-		candidates, err := prov.Discover(ctx, resource)
-		if err != nil {
-			return err
-		}
-
-		opts, err := rule.Compile(m.Directive, current)
-		if err != nil {
-			return err
-		}
-		opts = append(opts, version.WithNow(p.now))
-
-		chosen, ok := version.Select(current, candidates, attrs, opts...)
-		if !ok {
-			return fmt.Errorf("no candidate satisfies the rule")
-		}
-
-		if m.ID != "" {
-			old := model.Candidate{Version: token.Current, Semver: current}
-			p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
-		}
-		p.render(i, line, token, chosen.Version)
-		return nil
+		p.tasks[i].Update("resolving")
+		err := p.resolveProducer(ctx, i)
+		p.report(i, err)
+		return err
 	}
 }
 
-// follower returns the closure that resolves marker i from the marker it
-// follows, projecting the requested value and rendering it onto the target line.
-func (p *plan) follower(i int) func(context.Context) error {
+// resolveProducer locates the current token, selects the newest allowed
+// candidate, publishes it under the marker's id for followers, and renders it.
+func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
-	return func(context.Context) error {
-		resolved, err := follow.Resolve(p.registry, m.From, m.Value, m.Select)
-		if err != nil {
-			return err
-		}
 
-		line, _, token, err := p.locate(m)
-		if err != nil {
-			return err
-		}
-
-		// A follower carrying its own id republishes the producer it reads, so a
-		// chain (A→B→C) resolves the version through every hop.
-		if m.ID != "" {
-			if entry, ok := p.registry.Get(m.From); ok {
-				p.registry.Set(m.ID, entry)
-			}
-		}
-		p.render(i, line, token, resolved)
-		return nil
+	prov, ok := provider.Get(m.Provider)
+	if !ok {
+		return fmt.Errorf("unknown provider %q", m.Provider)
 	}
+	resource, err := prov.Resource(m.Directive)
+	if err != nil {
+		return err
+	}
+
+	line, current, token, err := p.locate(m)
+	if err != nil {
+		return err
+	}
+
+	candidates, err := prov.Discover(ctx, resource)
+	if err != nil {
+		return err
+	}
+
+	opts, err := rule.Compile(m.Directive, current)
+	if err != nil {
+		return err
+	}
+	opts = append(opts, version.WithNow(p.now))
+
+	chosen, ok := version.Select(current, candidates, attrs, opts...)
+	if !ok {
+		return fmt.Errorf("no candidate satisfies the rule")
+	}
+
+	if m.ID != "" {
+		old := model.Candidate{Version: token.Current, Semver: current}
+		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
+	}
+	p.render(i, line, token, chosen.Version)
+	return nil
+}
+
+// follower returns the closure that resolves marker i from the marker it
+// follows, reporting the outcome to the marker's progress task.
+func (p *plan) follower(i int) func(context.Context) error {
+	return func(_ context.Context) error {
+		p.tasks[i].Update("following")
+		err := p.resolveFollower(i)
+		p.report(i, err)
+		return err
+	}
+}
+
+// resolveFollower projects the requested value from the producer marker i
+// follows and renders it onto the target line.
+func (p *plan) resolveFollower(i int) error {
+	m := p.markers[i]
+
+	resolved, err := follow.Resolve(p.registry, m.From, m.Value, m.Select)
+	if err != nil {
+		return err
+	}
+
+	line, _, token, err := p.locate(m)
+	if err != nil {
+		return err
+	}
+
+	// A follower carrying its own id republishes the producer it reads, so a
+	// chain (A→B→C) resolves the version through every hop.
+	if m.ID != "" {
+		if entry, ok := p.registry.Get(m.From); ok {
+			p.registry.Set(m.ID, entry)
+		}
+	}
+	p.render(i, line, token, resolved)
+	return nil
+}
+
+// report sends a marker's terminal progress event: the resolved value on
+// success, or the error on failure.
+func (p *plan) report(i int, err error) {
+	if err != nil {
+		p.tasks[i].Fail(err.Error())
+		return
+	}
+	p.tasks[i].Done(p.results[i].Resolved)
 }
 
 // located carries the current token's text alongside the parsed token, so a
@@ -375,4 +432,10 @@ func targetLine(lines map[string][]string, m Marker) string {
 // attrs maps a discovered candidate onto the slice the selection chain reads.
 func attrs(c model.Candidate) version.Attrs {
 	return version.Attrs{Tag: c.Version, Semver: c.Semver, PublishedAt: c.PublishedAt}
+}
+
+// label is the progress display name for a marker: its file and directive line,
+// where the user will see the change.
+func label(m Marker) string {
+	return fmt.Sprintf("%s:%d", filepath.Base(m.File), m.Line+1)
 }
