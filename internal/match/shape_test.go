@@ -3,7 +3,7 @@ package match_test
 import (
 	"testing"
 
-	"github.com/gechr/cusp/internal/match"
+	"github.com/gechr/clover/internal/match"
 	"github.com/stretchr/testify/require"
 )
 

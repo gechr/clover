@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/mode"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/version"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +54,7 @@ func TestRunWritesChanges(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "run", candidates: []model.Candidate{candidate(t, "1.5.0")}},
 	)
-	dir := write(t, "# cusp: provider=run repo=x/y\nversion: 1.2.0\n")
+	dir := write(t, "# clover: provider=run repo=x/y\nversion: 1.2.0\n")
 
 	summary, err := mode.Run(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -64,14 +64,14 @@ func TestRunWritesChanges(t *testing.T) {
 
 	got, err := os.ReadFile(filepath.Join(dir, "app.txt"))
 	require.NoError(t, err)
-	require.Equal(t, "# cusp: provider=run repo=x/y\nversion: 1.5.0\n", string(got))
+	require.Equal(t, "# clover: provider=run repo=x/y\nversion: 1.5.0\n", string(got))
 }
 
 func TestRunDryRunWritesNothing(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "dry", candidates: []model.Candidate{candidate(t, "1.5.0")}},
 	)
-	original := "# cusp: provider=dry repo=x/y\nversion: 1.2.0\n"
+	original := "# clover: provider=dry repo=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
 	summary, err := mode.Run(context.Background(), []string{dir}, true)
@@ -92,7 +92,7 @@ func TestRunPreservesFileMode(t *testing.T) {
 	path := filepath.Join(dir, "run.sh")
 	require.NoError(
 		t,
-		os.WriteFile(path, []byte("# cusp: provider=perm repo=x/y\nv=1.0.0\n"), 0o644),
+		os.WriteFile(path, []byte("# clover: provider=perm repo=x/y\nv=1.0.0\n"), 0o644),
 	)
 	// chmod after writing so umask does not reduce the mode under test.
 	require.NoError(t, os.Chmod(path, 0o777))
@@ -102,14 +102,14 @@ func TestRunPreservesFileMode(t *testing.T) {
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o777), info.Mode().Perm()) // cusp never changes perms
+	require.Equal(t, os.FileMode(0o777), info.Mode().Perm()) // clover never changes perms
 }
 
 func TestRunLeavesUnchangedFileUntouched(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "same", candidates: []model.Candidate{candidate(t, "1.2.0")}},
 	)
-	original := "# cusp: provider=same repo=x/y\nversion: 1.2.0\n"
+	original := "# clover: provider=same repo=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
 	summary, err := mode.Run(context.Background(), []string{dir}, false)
@@ -123,7 +123,7 @@ func TestRunLeavesUnchangedFileUntouched(t *testing.T) {
 }
 
 func TestRunErroredMarkerNotWritten(t *testing.T) {
-	original := "# cusp: provider=ghost repo=x/y\nversion: 1.0.0\n"
+	original := "# clover: provider=ghost repo=x/y\nversion: 1.0.0\n"
 	dir := write(t, original)
 
 	summary, err := mode.Run(context.Background(), []string{dir}, false)

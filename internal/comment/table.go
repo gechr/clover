@@ -33,7 +33,7 @@ var (
 	semi   = Syntax{Line: []string{markerSemi}}
 
 	// generic is the fallback for unrecognised files: the two near-universal
-	// line-comment markers. cusp is format-agnostic, so an unknown text file can
+	// line-comment markers. clover is format-agnostic, so an unknown text file can
 	// still carry a directive after a # or //.
 	generic = Syntax{Line: []string{markerHash, markerSlash}}
 )

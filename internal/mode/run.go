@@ -3,7 +3,7 @@ package mode
 import (
 	"context"
 
-	"github.com/gechr/cusp/internal/pipeline"
+	"github.com/gechr/clover/internal/pipeline"
 )
 
 // Run resolves every marker under roots against its provider and rewrites each

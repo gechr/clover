@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/mode"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,7 +38,7 @@ func (p offlineProvider) Discover(context.Context, provider.Resource) ([]model.C
 
 func TestLintCleanIsOK(t *testing.T) {
 	provider.Register(offlineProvider{name: "lint"})
-	dir := write(t, "# cusp: provider=lint repo=x/y\nversion: 1.2.0\n")
+	dir := write(t, "# clover: provider=lint repo=x/y\nversion: 1.2.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestLintCleanIsOK(t *testing.T) {
 
 func TestLintMissingRequiredKeyErrors(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintreq"})
-	dir := write(t, "# cusp: provider=lintreq\nversion: 1.2.0\n")
+	dir := write(t, "# clover: provider=lintreq\nversion: 1.2.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestLintMissingRequiredKeyErrors(t *testing.T) {
 
 func TestLintAmbiguousTargetErrors(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintambig"})
-	dir := write(t, "# cusp: provider=lintambig repo=x/y\nfrom 1.0.0 to 2.0.0\n")
+	dir := write(t, "# clover: provider=lintambig repo=x/y\nfrom 1.0.0 to 2.0.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestLintAmbiguousTargetErrors(t *testing.T) {
 
 func TestLintBadConstraintErrors(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintc"})
-	dir := write(t, "# cusp: provider=lintc repo=x/y constraint=not-a-range\nversion: 1.2.0\n")
+	dir := write(t, "# clover: provider=lintc repo=x/y constraint=not-a-range\nversion: 1.2.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestLintBadConstraintErrors(t *testing.T) {
 }
 
 func TestLintDanglingFollowSkips(t *testing.T) {
-	dir := write(t, "# cusp: from=ghost value=version\nversion: 1.2.0\n")
+	dir := write(t, "# clover: from=ghost value=version\nversion: 1.2.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestLintDanglingFollowSkips(t *testing.T) {
 
 func TestLintWritesNothing(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintw"})
-	original := "# cusp: provider=lintw repo=x/y\nversion: 1.2.0\n"
+	original := "# clover: provider=lintw repo=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
 	_, err := mode.Lint(context.Background(), []string{dir})

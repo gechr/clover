@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/cusp/internal/ratelimit"
+	"github.com/gechr/clover/internal/ratelimit"
 	"github.com/stretchr/testify/require"
 )
 

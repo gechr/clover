@@ -8,11 +8,11 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/auth"
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/httpcache"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/ratelimit"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/httpcache"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/ratelimit"
 )
 
 // host is the GitHub host go-gh resolves credentials for and sends requests to.

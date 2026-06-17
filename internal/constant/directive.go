@@ -5,9 +5,9 @@ package constant
 // string is needed (e.g. rendering a directive in format mode).
 const DirectiveEqual = '='
 
-// DirectiveKeyword is the sigil cusp scans for inside a comment. Everything
+// DirectiveKeyword is the sigil clover scans for inside a comment. Everything
 // after it on the line is the directive the user wrote.
-const DirectiveKeyword = "cusp:"
+const DirectiveKeyword = "clover:"
 
 // Directive targeting and control keys: who resolves the marker and how it
 // relates to others.

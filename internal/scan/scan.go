@@ -39,7 +39,7 @@ func WithIgnore(fn func(path string, isDir bool) bool) Option {
 	return func(c *config) { c.ignore = fn }
 }
 
-// Scan walks roots and returns the files carrying a cusp: directive, sorted by
+// Scan walks roots and returns the files carrying a clover: directive, sorted by
 // path for deterministic output. A single walker produces paths that a pool of
 // workers reads and scans concurrently.
 func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, error) {

@@ -6,17 +6,17 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/gechr/cusp/internal/exec"
-	"github.com/gechr/cusp/internal/ignore"
-	"github.com/gechr/cusp/internal/match"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/provider/follow"
-	"github.com/gechr/cusp/internal/registry"
-	"github.com/gechr/cusp/internal/rule"
-	"github.com/gechr/cusp/internal/scan"
-	"github.com/gechr/cusp/internal/vcs"
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/exec"
+	"github.com/gechr/clover/internal/ignore"
+	"github.com/gechr/clover/internal/match"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/follow"
+	"github.com/gechr/clover/internal/registry"
+	"github.com/gechr/clover/internal/rule"
+	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/clover/internal/version"
 )
 
 // Result is the outcome of resolving one marker: the version it found in the

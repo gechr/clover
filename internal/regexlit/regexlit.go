@@ -1,4 +1,4 @@
-// Package regexlit defines cusp's /regex/ literal syntax: a value bracketed by
+// Package regexlit defines clover's /regex/ literal syntax: a value bracketed by
 // slashes is a regular expression, anything else is not. It is the single source
 // of truth shared by the directive grammar (which parses and renders such
 // values) and the pattern engine (which compiles them), so the two can never

@@ -3,7 +3,7 @@ package version
 import (
 	"fmt"
 
-	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/clover/internal/constant"
 	goversion "github.com/hashicorp/go-version"
 )
 
@@ -33,11 +33,11 @@ const (
 	kindRange               // a go-version range expression
 )
 
-// Constraint bounds which candidate versions are eligible. It unifies cusp's
+// Constraint bounds which candidate versions are eligible. It unifies clover's
 // two constraint dialects behind a single [Constraint.Allowed] predicate:
 //
 //   - keyword (major/minor/patch): a [Bound] ceiling relative to the current
-//     version - the part go-version cannot express, and cusp's reason to own
+//     version - the part go-version cannot express, and clover's reason to own
 //     this type at all;
 //   - range (>=1.2,<2.0, ~>1.4, =, !=, >, <): delegated to go-version, the
 //     Terraform engine, deliberately not npm-style caret/tilde semantics.

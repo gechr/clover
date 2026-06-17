@@ -6,11 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gechr/cusp/internal/vcs"
+	"github.com/gechr/clover/internal/vcs"
 )
 
-// defaultFiles are the per-directory ignore files cusp reads, lowest priority
-// first. All use gitignore syntax. A future .cuspignore (or .ignore) is added by
+// defaultFiles are the per-directory ignore files clover reads, lowest priority
+// first. All use gitignore syntax. A future .cloverignore (or .ignore) is added by
 // extending this list via [WithFiles]; later names override earlier ones.
 var defaultFiles = []string{".gitignore"}
 
@@ -30,7 +30,7 @@ type Matcher struct {
 type Option func(*Matcher)
 
 // WithFiles sets the ignore file names read in each directory, lowest priority
-// first (default: .gitignore). This is the seam for a future .cuspignore.
+// first (default: .gitignore). This is the seam for a future .cloverignore.
 func WithFiles(names ...string) Option {
 	return func(m *Matcher) { m.files = names }
 }

@@ -3,12 +3,12 @@ package mode
 import (
 	"context"
 
-	"github.com/gechr/cusp/internal/comment"
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/pipeline"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/scan"
+	"github.com/gechr/clover/internal/comment"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/scan"
 )
 
 // FormatChange is a directive comment line format would rewrite: its 0-based

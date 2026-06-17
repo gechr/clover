@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/mode"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +46,7 @@ func TestFormatReordersAndWrites(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtp"})
 	dir, path := formatDir(
 		t,
-		"# cusp: source=tags constraint=patch repo=a/b provider=fmtp\nversion: 1.0.0\n",
+		"# clover: source=tags constraint=patch repo=a/b provider=fmtp\nversion: 1.0.0\n",
 	)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, false)
@@ -57,14 +57,14 @@ func TestFormatReordersAndWrites(t *testing.T) {
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t,
-		"# cusp: provider=fmtp repo=a/b source=tags constraint=patch\nversion: 1.0.0\n",
+		"# clover: provider=fmtp repo=a/b source=tags constraint=patch\nversion: 1.0.0\n",
 		string(got),
 	)
 }
 
 func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtv"})
-	dir, path := formatDir(t, "# cusp: repo=a/b provider=fmtv\nversion: 1.2.3-rc.1\n")
+	dir, path := formatDir(t, "# clover: repo=a/b provider=fmtv\nversion: 1.2.3-rc.1\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 
 func TestFormatCheckWritesNothing(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtc"})
-	original := "# cusp: repo=a/b provider=fmtc\nversion: 1.0.0\n"
+	original := "# clover: repo=a/b provider=fmtc\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, true)
@@ -92,7 +92,7 @@ func TestFormatCheckWritesNothing(t *testing.T) {
 
 func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtn"})
-	original := "# cusp: provider=fmtn repo=a/b\nversion: 1.0.0\n"
+	original := "# clover: provider=fmtn repo=a/b\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, false)
@@ -107,7 +107,7 @@ func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 
 func TestFormatIsIdempotent(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmti"})
-	dir, path := formatDir(t, "# cusp: source=tags repo=a/b provider=fmti\nv: 1.0.0\n")
+	dir, path := formatDir(t, "# clover: source=tags repo=a/b provider=fmti\nv: 1.0.0\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestFormatIsIdempotent(t *testing.T) {
 
 func TestFormatNormalisesQuoting(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtq"})
-	dir, path := formatDir(t, `# cusp: provider=fmtq repo="a/b"`+"\nv: 1.0.0\n")
+	dir, path := formatDir(t, `# clover: provider=fmtq repo="a/b"`+"\nv: 1.0.0\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 	path := filepath.Join(dir, "index.html")
 	require.NoError(
 		t,
-		os.WriteFile(path, []byte("<!-- cusp: repo=a/b provider=fmtb -->\nv: 1.0.0\n"), 0o644),
+		os.WriteFile(path, []byte("<!-- clover: repo=a/b provider=fmtb -->\nv: 1.0.0\n"), 0o644),
 	)
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
@@ -148,12 +148,12 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Equal(t, "<!-- cusp: provider=fmtb repo=a/b -->\nv: 1.0.0\n", string(got))
+	require.Equal(t, "<!-- clover: provider=fmtb repo=a/b -->\nv: 1.0.0\n", string(got))
 }
 
 func TestFormatPreservesFileMode(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtperm"})
-	dir, path := formatDir(t, "# cusp: repo=a/b provider=fmtperm\nv: 1.0.0\n")
+	dir, path := formatDir(t, "# clover: repo=a/b provider=fmtperm\nv: 1.0.0\n")
 	require.NoError(t, os.Chmod(path, 0o777))
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
@@ -161,17 +161,17 @@ func TestFormatPreservesFileMode(t *testing.T) {
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o777), info.Mode().Perm()) // cusp never changes perms
+	require.Equal(t, os.FileMode(0o777), info.Mode().Perm()) // clover never changes perms
 }
 
 func TestFormatFollowerReordersCommonKeys(t *testing.T) {
 	// No provider= ⇒ a follower; only common keys, reordered (from before value).
-	dir, path := formatDir(t, "# cusp: value=version from=app\nv: 1.0.0\n")
+	dir, path := formatDir(t, "# clover: value=version from=app\nv: 1.0.0\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Equal(t, "# cusp: from=app value=version\nv: 1.0.0\n", string(got))
+	require.Equal(t, "# clover: from=app value=version\nv: 1.0.0\n", string(got))
 }

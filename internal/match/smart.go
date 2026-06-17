@@ -3,7 +3,7 @@ package match
 import (
 	"strings"
 
-	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/clover/internal/constant"
 )
 
 // Smart is the default rewriter. It locates a version by shape - no provider

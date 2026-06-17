@@ -3,7 +3,7 @@ package comment_test
 import (
 	"testing"
 
-	"github.com/gechr/cusp/internal/comment"
+	"github.com/gechr/clover/internal/comment"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,44 +68,44 @@ func TestSyntaxBody(t *testing.T) {
 		{
 			name:     "hash trailing",
 			syntax:   hash,
-			line:     "FROM nginx:1.25 # cusp: x",
-			wantBody: " cusp: x",
+			line:     "FROM nginx:1.25 # clover: x",
+			wantBody: " clover: x",
 			wantOK:   true,
 		},
 		{
 			name:     "hash own line",
 			syntax:   hash,
-			line:     "# cusp: x",
-			wantBody: " cusp: x",
+			line:     "# clover: x",
+			wantBody: " clover: x",
 			wantOK:   true,
 		},
 		{name: "no comment", syntax: hash, line: "FROM nginx:1.25", wantOK: false},
 		{
 			name:     "slash line",
 			syntax:   slash,
-			line:     "const v = 1 // cusp: x",
-			wantBody: " cusp: x",
+			line:     "const v = 1 // clover: x",
+			wantBody: " clover: x",
 			wantOK:   true,
 		},
 		{
 			name:     "slash block same line",
 			syntax:   slash,
-			line:     "/* cusp: x */",
-			wantBody: " cusp: x ",
+			line:     "/* clover: x */",
+			wantBody: " clover: x ",
 			wantOK:   true,
 		},
 		{
 			name:     "block open no close",
 			syntax:   xml,
-			line:     "<!-- cusp: x",
-			wantBody: " cusp: x",
+			line:     "<!-- clover: x",
+			wantBody: " clover: x",
 			wantOK:   true,
 		},
 		{
 			name:     "block closed",
 			syntax:   xml,
-			line:     "<!-- cusp: x -->",
-			wantBody: " cusp: x ",
+			line:     "<!-- clover: x -->",
+			wantBody: " clover: x ",
 			wantOK:   true,
 		},
 		{

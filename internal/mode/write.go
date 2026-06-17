@@ -9,7 +9,7 @@ import (
 )
 
 // writeFile atomically replaces path's contents with lines joined by newlines,
-// preserving the file's existing mode exactly. cusp never changes a file's
+// preserving the file's existing mode exactly. clover never changes a file's
 // permissions - managing those is the user's responsibility - so a file's mode
 // is read and re-applied verbatim, and a file whose mode cannot be read is left
 // untouched (an error) rather than written with an invented one.

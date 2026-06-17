@@ -3,7 +3,7 @@ package registry
 import (
 	"sync"
 
-	"github.com/gechr/cusp/internal/model"
+	"github.com/gechr/clover/internal/model"
 )
 
 // Entry pairs a producer's value before the run with the value it resolved, so a

@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gechr/cusp/internal/exec"
+	"github.com/gechr/clover/internal/exec"
 	"github.com/stretchr/testify/require"
 )
 

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/ignore"
-	"github.com/gechr/cusp/internal/vcs"
+	"github.com/gechr/clover/internal/ignore"
+	"github.com/gechr/clover/internal/vcs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,16 +94,16 @@ func TestMultipleIgnoreFilesOverride(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("*.log\n"), 0o644))
 	require.NoError(
 		t,
-		os.WriteFile(filepath.Join(root, ".cuspignore"), []byte("!keep.log\n"), 0o644),
+		os.WriteFile(filepath.Join(root, ".cloverignore"), []byte("!keep.log\n"), 0o644),
 	)
 
-	// .cuspignore is listed last, so it overrides .gitignore - the seam a real
-	// .cuspignore will use.
-	matcher := ignore.New(vcs.NewResolver(), ignore.WithFiles(".gitignore", ".cuspignore"))
+	// .cloverignore is listed last, so it overrides .gitignore - the seam a real
+	// .cloverignore will use.
+	matcher := ignore.New(vcs.NewResolver(), ignore.WithFiles(".gitignore", ".cloverignore"))
 
 	require.True(t, matcher.Ignore(filepath.Join(root, "app.log"), false))
 	require.False(t, matcher.Ignore(filepath.Join(root, "keep.log"), false),
-		".cuspignore negation overrides .gitignore")
+		".cloverignore negation overrides .gitignore")
 }
 
 func TestOutsideRepoNeverIgnored(t *testing.T) {

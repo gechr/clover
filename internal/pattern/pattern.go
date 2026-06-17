@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gechr/cusp/internal/regexlit"
+	"github.com/gechr/clover/internal/regexlit"
 	"github.com/gobwas/glob"
 )
 

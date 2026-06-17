@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/pipeline"
-	"github.com/gechr/cusp/internal/provider"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +29,7 @@ func TestValidateCleanMarker(t *testing.T) {
 		candidates: []model.Candidate{candidate(t, "1.0.0")},
 	})
 	dir := write(t, map[string]string{
-		"app.txt": "# cusp: provider=vfake repo=x/y\nversion: 1.2.0\n",
+		"app.txt": "# clover: provider=vfake repo=x/y\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Validate(context.Background(), []string{dir})
@@ -43,7 +43,7 @@ func TestValidateStaysOffline(t *testing.T) {
 	// validation never calls it, so a clean marker validates regardless.
 	provider.Register(fakeProvider{name: "voffline", err: context.Canceled})
 	dir := write(t, map[string]string{
-		"app.txt": "# cusp: provider=voffline repo=x/y\nversion: 1.2.0\n",
+		"app.txt": "# clover: provider=voffline repo=x/y\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Validate(context.Background(), []string{dir})
@@ -53,7 +53,7 @@ func TestValidateStaysOffline(t *testing.T) {
 
 func TestValidateUnknownProviderErrors(t *testing.T) {
 	dir := write(t, map[string]string{
-		"app.txt": "# cusp: provider=nosuch repo=x/y\nversion: 1.2.0\n",
+		"app.txt": "# clover: provider=nosuch repo=x/y\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Validate(context.Background(), []string{dir})
@@ -63,7 +63,7 @@ func TestValidateUnknownProviderErrors(t *testing.T) {
 
 func TestValidateDanglingFollowSkips(t *testing.T) {
 	dir := write(t, map[string]string{
-		"app.txt": "# cusp: from=ghost value=version\nversion: 1.2.0\n",
+		"app.txt": "# clover: from=ghost value=version\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Validate(context.Background(), []string{dir})
@@ -74,8 +74,8 @@ func TestValidateDanglingFollowSkips(t *testing.T) {
 
 func TestValidateUnsupportedFollowValueErrors(t *testing.T) {
 	dir := write(t, map[string]string{
-		"a.txt": "# cusp: provider=vfake repo=x/y id=p\nlead: 1.0.0\n",
-		"b.txt": "# cusp: from=p value=sha256\ndigest: 1.0.0\n",
+		"a.txt": "# clover: provider=vfake repo=x/y id=p\nlead: 1.0.0\n",
+		"b.txt": "# clover: from=p value=sha256\ndigest: 1.0.0\n",
 	})
 
 	files, err := pipeline.Validate(context.Background(), []string{dir})

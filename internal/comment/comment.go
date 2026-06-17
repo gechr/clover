@@ -22,9 +22,9 @@ type Syntax struct {
 // falls on a later line. The earliest-starting delimiter wins, so
 // `code // note` yields " note".
 //
-// Matching is byte-literal: cusp is line-based and does not parse the host
+// Matching is byte-literal: clover is line-based and does not parse the host
 // format, so a delimiter sitting inside a string literal is not distinguished
-// from a real comment. The distinctive cusp: keyword keeps false positives
+// from a real comment. The distinctive clover: keyword keeps false positives
 // rare in practice.
 func (s Syntax) Body(line string) (string, bool) {
 	m, ok := s.locate(line)

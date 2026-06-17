@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/scan"
+	"github.com/gechr/clover/internal/scan"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,11 +33,11 @@ func TestScanFindsDirectives(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"Dockerfile":       "# cusp: provider=github repo=owner/name\nFROM nginx:1.27\n",
+		"Dockerfile":       "# clover: provider=github repo=owner/name\nFROM nginx:1.27\n",
 		"README.md":        "no directives here\n",
-		".git/config":      "# cusp: provider=github repo=should/skip\n",
-		"sub/deploy.yaml":  "image: redis:7.2 # cusp: provider=github repo=redis/redis\n",
-		"vendored/bin.dat": "\x00\x01# cusp: provider=github repo=bin/ary\x00",
+		".git/config":      "# clover: provider=github repo=should/skip\n",
+		"sub/deploy.yaml":  "image: redis:7.2 # clover: provider=github repo=redis/redis\n",
+		"vendored/bin.dat": "\x00\x01# clover: provider=github repo=bin/ary\x00",
 	})
 
 	files, err := scan.Scan(t.Context(), []string{root})
@@ -65,7 +65,7 @@ func TestScanReportsParseErrors(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"Dockerfile": `# cusp: repo="unterminated` + "\n",
+		"Dockerfile": `# clover: repo="unterminated` + "\n",
 	})
 
 	files, err := scan.Scan(t.Context(), []string{root})
@@ -79,8 +79,8 @@ func TestScanIgnoreSeam(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"keep/a.yaml":         "# cusp: provider=github repo=keep/a\n",
-		"node_modules/b.yaml": "# cusp: provider=github repo=skip/b\n",
+		"keep/a.yaml":         "# clover: provider=github repo=keep/a\n",
+		"node_modules/b.yaml": "# clover: provider=github repo=skip/b\n",
 	})
 
 	ignore := func(path string, _ bool) bool {

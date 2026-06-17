@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/cusp/internal/directive"
+	"github.com/gechr/clover/internal/directive"
 	"github.com/stretchr/testify/require"
 )
 

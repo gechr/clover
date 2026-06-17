@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/registry"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/registry"
 	"github.com/stretchr/testify/require"
 )
 

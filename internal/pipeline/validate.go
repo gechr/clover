@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/exec"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/rule"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/exec"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/rule"
 )
 
 // validate checks each marker offline, then asks the executor - running no-op

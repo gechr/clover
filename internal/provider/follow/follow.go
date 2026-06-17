@@ -3,9 +3,9 @@ package follow
 import (
 	"fmt"
 
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/registry"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/registry"
 )
 
 // Resolve projects a value from the producer that from names, reading the

@@ -1,4 +1,4 @@
-// Package constant holds cusp's shared string vocabulary - the literal
+// Package constant holds clover's shared string vocabulary - the literal
 // spellings of directive grammar that appear across more than one package
 // (constraint keywords now; provider names, source selectors, and value kinds
 // as they land). Centralising them turns a misspelling into a compile error

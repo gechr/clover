@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/pipeline"
-	"github.com/gechr/cusp/internal/scan"
-	"github.com/gechr/cusp/internal/vcs"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/clover/internal/vcs"
 	"github.com/stretchr/testify/require"
 )
 

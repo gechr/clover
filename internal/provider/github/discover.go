@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/gechr/cusp/internal/model"
-	"github.com/gechr/cusp/internal/provider"
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/version"
 )
 
 // perPage is the page size; the first page of newest entries is enough for
@@ -17,7 +17,7 @@ import (
 // limit. Deep history is a future refinement.
 const perPage = 100
 
-// tag is the subset of the /tags response cusp reads.
+// tag is the subset of the /tags response clover reads.
 type tag struct {
 	Name   string `json:"name"`
 	Commit struct {
@@ -25,7 +25,7 @@ type tag struct {
 	} `json:"commit"`
 }
 
-// release is the subset of the /releases response cusp reads.
+// release is the subset of the /releases response clover reads.
 type release struct {
 	TagName     string    `json:"tag_name"`
 	PublishedAt time.Time `json:"published_at"`

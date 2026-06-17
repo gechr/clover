@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gechr/cusp/internal/comment"
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/directive"
+	"github.com/gechr/clover/internal/comment"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
 )
 
 // Located is a directive found on a line of a file.

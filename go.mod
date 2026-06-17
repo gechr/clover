@@ -1,4 +1,4 @@
-module github.com/gechr/cusp
+module github.com/gechr/clover
 
 go 1.26.2
 

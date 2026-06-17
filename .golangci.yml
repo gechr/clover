@@ -145,7 +145,7 @@ linters:
         path: _test\.go
       - linters:
           - cyclop
-        path: cmd/cusp/main\.go
+        path: cmd/clover/main\.go
     paths:
       - third_party$
       - builtin$

@@ -3,7 +3,7 @@ package pattern_test
 import (
 	"testing"
 
-	"github.com/gechr/cusp/internal/pattern"
+	"github.com/gechr/clover/internal/pattern"
 	"github.com/stretchr/testify/require"
 )
 

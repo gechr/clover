@@ -3,7 +3,7 @@ package mode
 import (
 	"context"
 
-	"github.com/gechr/cusp/internal/pipeline"
+	"github.com/gechr/clover/internal/pipeline"
 )
 
 // Lint validates every marker under roots offline - no network, no writes -

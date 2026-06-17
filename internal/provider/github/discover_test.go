@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/provider/github"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/provider/github"
 	"github.com/stretchr/testify/require"
 )
 

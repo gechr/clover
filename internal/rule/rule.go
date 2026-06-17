@@ -3,10 +3,10 @@ package rule
 import (
 	"fmt"
 
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/pattern"
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/pattern"
+	"github.com/gechr/clover/internal/version"
 )
 
 // Compile turns a directive's rule keys into options for [version.Select].

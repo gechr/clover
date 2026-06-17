@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/cusp/internal/httpcache"
+	"github.com/gechr/clover/internal/httpcache"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,9 +3,9 @@ package rule_test
 import (
 	"testing"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/rule"
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/rule"
+	"github.com/gechr/clover/internal/version"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,17 +3,17 @@ package model
 import (
 	"time"
 
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/version"
 )
 
 // Candidate is one version a provider discovered, enriched with whatever
-// metadata the provider's API returned for free at discovery. cusp carries this
+// metadata the provider's API returned for free at discovery. clover carries this
 // whole record forward - never collapsing it to a bare version string - so a
 // later stage (rendering a side value, verifying a commit) already has what it
 // needs in hand and no stage has to reach backwards. Providers fill the fields
 // they can; the rest stay zero.
 //
-// Typed fields cover the metadata cusp expects to use; the open Meta bag holds
+// Typed fields cover the metadata clover expects to use; the open Meta bag holds
 // provider-specific extras without growing the struct.
 type Candidate struct {
 	// Version is the raw tag or release name as published, e.g. "v1.27.0" or

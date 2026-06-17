@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/cusp/internal/version"
+	"github.com/gechr/clover/internal/version"
 	"github.com/stretchr/testify/require"
 )
 

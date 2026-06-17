@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/regexlit"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/regexlit"
 )
 
 // canonicalLeading and canonicalTrailing are the fixed zones of a directive's

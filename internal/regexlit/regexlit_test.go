@@ -3,7 +3,7 @@ package regexlit_test
 import (
 	"testing"
 
-	"github.com/gechr/cusp/internal/regexlit"
+	"github.com/gechr/clover/internal/regexlit"
 	"github.com/stretchr/testify/require"
 )
 

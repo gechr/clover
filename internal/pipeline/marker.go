@@ -1,10 +1,10 @@
 package pipeline
 
 import (
-	"github.com/gechr/cusp/internal/constant"
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/scan"
-	"github.com/gechr/cusp/internal/vcs"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/clover/internal/vcs"
 )
 
 // nsSep joins a repository root and an id into a namespaced key. It is a NUL so

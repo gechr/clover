@@ -1,6 +1,6 @@
 package mode
 
-import "github.com/gechr/cusp/internal/pipeline"
+import "github.com/gechr/clover/internal/pipeline"
 
 // Outcome pairs a file's resolution results with what the mode did to it on
 // disk: whether it was rewritten, and any error from that write. A mode that

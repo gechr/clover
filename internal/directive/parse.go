@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/clover/internal/constant"
 )
 
-// Parse reads a comment body, scans for the cusp: keyword, and parses the
+// Parse reads a comment body, scans for the clover: keyword, and parses the
 // directive that follows. found is false when the body carries no keyword (the
 // common case for most lines), in which case there is no error. A keyword
 // followed by malformed text - an unterminated quoted or /regex/ value, or an
 // empty key - yields found=true and an error so callers can surface it.
 //
 // The keyword must lead the comment (after optional whitespace), so an
-// incidental "cusp:" inside prose is not mistaken for a directive.
+// incidental "clover:" inside prose is not mistaken for a directive.
 func Parse(body string) (Directive, bool, error) {
 	trimmed := strings.TrimLeft(body, " \t")
 	if !strings.HasPrefix(trimmed, constant.DirectiveKeyword) {

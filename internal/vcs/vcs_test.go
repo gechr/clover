@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gechr/cusp/internal/vcs"
+	"github.com/gechr/clover/internal/vcs"
 	"github.com/stretchr/testify/require"
 )
 

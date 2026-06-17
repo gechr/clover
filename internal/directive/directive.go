@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/x/human"
 )
 
@@ -15,7 +15,7 @@ type KV struct {
 	Value string
 }
 
-// Directive is a parsed cusp: directive: its key/value pairs in source order.
+// Directive is a parsed clover: directive: its key/value pairs in source order.
 // Order is preserved (a slice, not a map) because keys repeat - include and
 // exclude may appear several times - and because format mode reorders the
 // pairs into a canonical sequence, which it can only do from the original.

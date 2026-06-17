@@ -3,12 +3,12 @@ package provider
 import (
 	"context"
 
-	"github.com/gechr/cusp/internal/directive"
-	"github.com/gechr/cusp/internal/model"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/model"
 )
 
 // Resource is a provider-specific, validated descriptor built from a directive.
-// Each provider creates and consumes its own concrete type; to the rest of cusp
+// Each provider creates and consumes its own concrete type; to the rest of clover
 // it is opaque, so a single registry can hold heterogeneous providers.
 type Resource any
 
@@ -38,7 +38,7 @@ type Provider interface {
 }
 
 // Authenticator is an optional capability for providers that need credentials.
-// cusp type-asserts for it during the authenticate phase; a provider without it
+// clover type-asserts for it during the authenticate phase; a provider without it
 // is treated as needing no authentication.
 type Authenticator interface {
 	// Authenticate loads and verifies credentials, without blocking on a prompt.

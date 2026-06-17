@@ -3,7 +3,7 @@ package match
 import (
 	"strings"
 
-	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/clover/internal/constant"
 )
 
 // maxComponents is the most numeric components a version core may have. Four or
