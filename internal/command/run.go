@@ -17,12 +17,12 @@ import (
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                      predictor:"path" clib:"terse='Paths to scan'"`
-	Tags           []string      `                   name:"tag"  help:"Only process directives carrying these tags (a,b = and; a/b = or)"                  clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun         bool          `                               help:"Resolve and render but write nothing"                                               clib:"terse='Dry run'"           short:"n" aliases:"dry"`
-	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                clib:"terse='Allow downgrades'"                                               negatable:""`
-	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                clib:"terse='Allow prereleases'"                                              negatable:""`
-	Output         report.Output `                               help:"Output detail"                                                                      clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
+	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                        predictor:"path" clib:"terse='Paths to scan'"`
+	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                          clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun         bool          `                               help:"Resolve and render but write nothing"                                 clib:"terse='Dry run'"           short:"n" aliases:"dry"`
+	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                  clib:"terse='Allow downgrades'"                                               negatable:""`
+	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                  clib:"terse='Allow prereleases'"                                              negatable:""`
+	Output         report.Output `                               help:"Output detail"                                                        clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
