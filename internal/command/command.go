@@ -35,6 +35,7 @@ type cli struct {
 	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\" clib:\"terse='Skip config'\""
 
 	Init    initCmd    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\" clib:\"terse='Scaffold a config'\""
+	Login   loginCmd   `cmd:"" help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"`
 	Run     runCmd     `cmd:"" help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
 	Lint    lintCmd    `cmd:"" help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
 	Format  formatCmd  `cmd:"" help:"Canonicalise directive comments"                             clib:"terse='Format comments'"`
