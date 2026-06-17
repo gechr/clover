@@ -36,6 +36,18 @@ func TestLoadAbsentIsNil(t *testing.T) {
 	require.Nil(t, cfg)
 }
 
+// TestLoadEmptyDocument confirms a present but content-free config (only
+// comments, so YAML parses to null) is valid and yields a zero Config, since an
+// empty config means "all defaults" - and init can legitimately write one.
+func TestLoadEmptyDocument(t *testing.T) {
+	dir := writeConfig(t, ".clover.yaml", "# just a comment, no settings\n")
+	cfg, err := config.Load(dir, "")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Empty(t, cfg.RequiredVersion)
+	require.Empty(t, cfg.ExcludeGlobs())
+}
+
 func TestLoadYmlExtension(t *testing.T) {
 	dir := writeConfig(t, ".clover.yml", "paths:\n  exclude: [build/**]\n")
 	cfg, err := config.Load(dir, "")

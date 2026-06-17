@@ -3,7 +3,7 @@
   "$id": "https://raw.githubusercontent.com/gechr/clover/main/internal/config/schema.json",
   "title": "clover configuration",
   "description": "Schema for Clover YAML configuration (.clover.yaml / .clover.yml).",
-  "type": "object",
+  "type": ["object", "null"],
   "additionalProperties": false,
   "properties": {
     "required-version": {
