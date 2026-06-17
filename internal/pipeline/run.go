@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/ignore"
 	"github.com/gechr/clover/internal/match"
@@ -63,6 +64,7 @@ type config struct {
 	maxSize     int64
 	now         time.Time
 	ignoreFiles []string
+	exclude     []string
 	reporter    progress.Reporter
 }
 
@@ -73,6 +75,12 @@ type Option func(*config)
 // The default discards everything; the CLI supplies a live display.
 func WithReporter(r progress.Reporter) Option {
 	return func(c *config) { c.reporter = r }
+}
+
+// WithExclude adds doublestar globs whose matching paths are skipped during the
+// scan, in addition to the ignore files.
+func WithExclude(globs []string) Option {
+	return func(c *config) { c.exclude = globs }
 }
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
@@ -160,13 +168,29 @@ func scanRoots(
 
 	scanOpts := []scan.Option{
 		scan.WithWorkers(cfg.workers),
-		scan.WithIgnore(matcher.Ignore),
+		scan.WithIgnore(ignoreFunc(matcher, cfg.exclude)),
 	}
 	if cfg.maxSize > 0 {
 		scanOpts = append(scanOpts, scan.WithMaxSize(cfg.maxSize))
 	}
 	files, err := scan.Scan(ctx, roots, scanOpts...)
 	return resolver, files, err
+}
+
+// ignoreFunc combines the ignore-file matcher with the configured exclude globs:
+// a path is skipped if either rejects it.
+func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bool {
+	return func(path string, isDir bool) bool {
+		if matcher.Ignore(path, isDir) {
+			return true
+		}
+		for _, glob := range exclude {
+			if ok, _ := doublestar.Match(glob, path); ok {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 // build scans roots and binds the discovered directives into a plan ready for
