@@ -6,7 +6,9 @@ tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 require (
 	github.com/alecthomas/kong v1.15.0
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/huh v1.0.0
+	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.5.4
@@ -21,7 +23,6 @@ require (
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7 // indirect
 	github.com/charmbracelet/bubbletea v1.3.10 // indirect

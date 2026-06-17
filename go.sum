@@ -187,6 +187,8 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/ckaznocha/intrange v0.3.1 h1:j1onQyXvHUsPWujDH6WIjhyH26gkRt/txNlV7LspvJs=
 github.com/ckaznocha/intrange v0.3.1/go.mod h1:QVepyz1AkUoFQkpEqksSYpNpUo3c5W7nWh/s6SHIJJk=
 github.com/cli/browser v1.0.0/go.mod h1:IEWkHYbLjkhtjwwWlwTHW2lGxeS5gezEQBMLTwDHf5Q=
+github.com/cli/browser v1.3.0 h1:LejqCrpWr+1pRqmEPDGnTZOjsMe7sehifLynZJuqJpo=
+github.com/cli/browser v1.3.0/go.mod h1:HH8s+fOAxjhQoBUAsKuPCbqUuxZDhQ2/aD+SzsEfBTk=
 github.com/cli/go-gh/v2 v2.13.0 h1:jEHZu/VPVoIJkciK3pzZd3rbT8J90swsK5Ui4ewH1ys=
 github.com/cli/go-gh/v2 v2.13.0/go.mod h1:Us/NbQ8VNM0fdaILgoXSz6PKkV5PWaEzkJdc9vR2geM=
 github.com/cli/oauth v1.2.2 h1:/qG/wok8jzu66tx7q+duGOIp4DT5P/ACXrdc33UoNUQ=
