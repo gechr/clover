@@ -18,11 +18,15 @@ func TestSetGet(t *testing.T) {
 	_, ok := reg.Get("missing")
 	require.False(t, ok)
 
-	reg.Set("tool", model.Candidate{Version: "1.2.3", Commit: "abc"})
+	reg.Set("tool", registry.Entry{
+		Old: model.Candidate{Version: "1.2.0"},
+		New: model.Candidate{Version: "1.2.3", Commit: "abc"},
+	})
 	got, ok := reg.Get("tool")
 	require.True(t, ok)
-	require.Equal(t, "1.2.3", got.Version)
-	require.Equal(t, "abc", got.Commit)
+	require.Equal(t, "1.2.0", got.Old.Version)
+	require.Equal(t, "1.2.3", got.New.Version)
+	require.Equal(t, "abc", got.New.Commit)
 }
 
 func TestConcurrentSet(t *testing.T) {
@@ -36,7 +40,10 @@ func TestConcurrentSet(t *testing.T) {
 	for i := range writers {
 		go func() {
 			defer wg.Done()
-			reg.Set("id"+strconv.Itoa(i), model.Candidate{Version: strconv.Itoa(i)})
+			reg.Set(
+				"id"+strconv.Itoa(i),
+				registry.Entry{New: model.Candidate{Version: strconv.Itoa(i)}},
+			)
 		}()
 	}
 	wg.Wait()
@@ -44,6 +51,6 @@ func TestConcurrentSet(t *testing.T) {
 	for i := range writers {
 		got, ok := reg.Get("id" + strconv.Itoa(i))
 		require.True(t, ok)
-		require.Equal(t, strconv.Itoa(i), got.Version)
+		require.Equal(t, strconv.Itoa(i), got.New.Version)
 	}
 }

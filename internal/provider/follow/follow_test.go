@@ -13,20 +13,28 @@ func TestResolve(t *testing.T) {
 	t.Parallel()
 
 	reg := registry.New()
-	reg.Set("tool", model.Candidate{Version: "1.4.0", Commit: "abc123"})
+	reg.Set("tool", registry.Entry{
+		Old: model.Candidate{Version: "1.3.0", Commit: "old111"},
+		New: model.Candidate{Version: "1.4.0", Commit: "abc123"},
+	})
 
 	tests := []struct {
 		name    string
 		from    string
 		value   string
+		when    string
 		want    string
 		wantErr bool
 	}{
-		{name: "version", from: "tool", value: "version", want: "1.4.0"},
-		{name: "empty defaults to version", from: "tool", value: "", want: "1.4.0"},
-		{name: "commit", from: "tool", value: "commit", want: "abc123"},
+		{name: "version defaults to new", from: "tool", value: "version", want: "1.4.0"},
+		{name: "empty value defaults to version", from: "tool", value: "", want: "1.4.0"},
+		{name: "commit new", from: "tool", value: "commit", want: "abc123"},
+		{name: "version old", from: "tool", value: "version", when: "old", want: "1.3.0"},
+		{name: "commit old", from: "tool", value: "commit", when: "old", want: "old111"},
+		{name: "explicit new", from: "tool", value: "version", when: "new", want: "1.4.0"},
 		{name: "unknown producer", from: "missing", value: "version", wantErr: true},
 		{name: "unknown value", from: "tool", value: "digest", wantErr: true},
+		{name: "unknown selector", from: "tool", value: "version", when: "previous", wantErr: true},
 		{name: "sha256 not yet", from: "tool", value: "sha256", wantErr: true},
 	}
 
@@ -34,7 +42,7 @@ func TestResolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := follow.Resolve(reg, tt.from, tt.value)
+			got, err := follow.Resolve(reg, tt.from, tt.value, tt.when)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -49,8 +57,8 @@ func TestResolveCommitMissing(t *testing.T) {
 	t.Parallel()
 
 	reg := registry.New()
-	reg.Set("tool", model.Candidate{Version: "1.4.0"}) // no commit
+	reg.Set("tool", registry.Entry{New: model.Candidate{Version: "1.4.0"}}) // no commit
 
-	_, err := follow.Resolve(reg, "tool", "commit")
+	_, err := follow.Resolve(reg, "tool", "commit", "")
 	require.Error(t, err)
 }

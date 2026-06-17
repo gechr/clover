@@ -4,21 +4,28 @@ import (
 	"fmt"
 
 	"github.com/gechr/cusp/internal/constant"
+	"github.com/gechr/cusp/internal/model"
 	"github.com/gechr/cusp/internal/registry"
 )
 
 // Resolve projects a value from the producer that from names, reading the
-// producer's resolved candidate out of the run-scoped registry. The executor
-// calls it only after the producer's edge has resolved, so a missing producer
-// is a real error (a dangling from=, or a cycle the validator should have
-// caught). An empty value defaults to the version.
+// producer's entry out of the run-scoped registry. The executor calls it only
+// after the producer's edge has resolved, so a missing producer is a real error
+// (a dangling from=, or a cycle the validator should have caught).
 //
-// version and commit are direct projections; sha256 is fetched using the
-// producer's version and is not yet implemented here.
-func Resolve(reg *registry.Registry, from, value string) (string, error) {
-	candidate, ok := reg.Get(from)
+// when selects the producer's value before the run (old) or after it resolved
+// (new, the default). value selects what to project from that candidate: an
+// empty value defaults to version; version and commit are direct projections;
+// sha256 is fetched using the producer's version and is not yet implemented.
+func Resolve(reg *registry.Registry, from, value, when string) (string, error) {
+	entry, ok := reg.Get(from)
 	if !ok {
 		return "", fmt.Errorf("follow: producer %q has not resolved", from)
+	}
+
+	candidate, err := selectCandidate(entry, when)
+	if err != nil {
+		return "", err
 	}
 
 	if value == "" {
@@ -36,4 +43,15 @@ func Resolve(reg *registry.Registry, from, value string) (string, error) {
 		return candidate.Version, nil
 	}
 	return "", fmt.Errorf("follow: unknown value %q", value)
+}
+
+// selectCandidate picks the producer's old or new candidate.
+func selectCandidate(entry registry.Entry, when string) (model.Candidate, error) {
+	switch when {
+	case "", constant.FollowNew:
+		return entry.New, nil
+	case constant.FollowOld:
+		return entry.Old, nil
+	}
+	return model.Candidate{}, fmt.Errorf("follow: unknown selector %q", when)
 }
