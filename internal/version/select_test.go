@@ -1,0 +1,207 @@
+package version_test
+
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gechr/cusp/internal/version"
+	"github.com/stretchr/testify/require"
+)
+
+// cand is a minimal candidate the tests select over, mapped to version.Attrs by
+// attrsOf.
+type cand struct {
+	tag       string
+	published time.Time
+}
+
+func attrsOf(c cand) version.Attrs {
+	v, _ := version.Parse(c.tag)
+	return version.Attrs{Tag: c.tag, Semver: v, PublishedAt: c.published}
+}
+
+func candidates(tags ...string) []cand {
+	cands := make([]cand, len(tags))
+	for i, tag := range tags {
+		cands[i] = cand{tag: tag}
+	}
+	return cands
+}
+
+// contains is an include/exclude predicate matching tags containing sub.
+func contains(sub string) version.Predicate {
+	return func(tag string) bool { return strings.Contains(tag, sub) }
+}
+
+func TestSelectPicksNewest(t *testing.T) {
+	t.Parallel()
+
+	got, ok := version.Select(nil, candidates("1.2.0", "1.4.0", "1.3.0"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.4.0", got.tag)
+}
+
+func TestSelectEmpty(t *testing.T) {
+	t.Parallel()
+
+	_, ok := version.Select(nil, candidates(), attrsOf)
+	require.False(t, ok)
+}
+
+func TestSelectSkipsUnparseable(t *testing.T) {
+	t.Parallel()
+
+	got, ok := version.Select(nil, candidates("latest", "1.2.0", "nightly"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag)
+}
+
+func TestSelectPrerelease(t *testing.T) {
+	t.Parallel()
+
+	cands := candidates("1.2.0", "1.3.0-rc.1")
+
+	got, ok := version.Select(nil, cands, attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag, "prereleases excluded by default")
+
+	got, ok = version.Select(nil, cands, attrsOf, version.WithPrerelease(true))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0-rc.1", got.tag)
+}
+
+func TestSelectIncludeExclude(t *testing.T) {
+	t.Parallel()
+
+	// include/exclude match on the raw tag, independent of the parsed semver.
+	// (Variant suffixes like -alpine are stripped to a core semver upstream in
+	// the match package before selection; here the tags are already clean.)
+	cands := candidates("1.2.0", "1.3.0", "1.4.0")
+
+	got, ok := version.Select(nil, cands, attrsOf, version.WithInclude(contains("1.3")))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag, "include keeps only matching tags")
+
+	got, ok = version.Select(nil, cands, attrsOf, version.WithExclude(contains("1.4")))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag, "exclude drops matching tags")
+}
+
+func TestSelectConstraint(t *testing.T) {
+	t.Parallel()
+
+	cands := candidates("1.2.0", "1.3.0", "2.0.0")
+	current := mustParse(t, "1.2.0")
+
+	c, err := version.NewConstraint("minor", current)
+	require.NoError(t, err)
+
+	got, ok := version.Select(current, cands, attrsOf, version.WithConstraint(c))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag, "major bump excluded by minor ceiling")
+}
+
+func TestSelectBehind(t *testing.T) {
+	t.Parallel()
+
+	cands := candidates("1.2.0", "1.3.0", "1.4.0")
+
+	got, ok := version.Select(nil, cands, attrsOf, version.WithBehind(1))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag)
+
+	_, ok = version.Select(nil, cands, attrsOf, version.WithBehind(5))
+	require.False(t, ok, "behind past the end selects nothing")
+}
+
+func TestSelectBehindCountsOnlyEligible(t *testing.T) {
+	t.Parallel()
+
+	// The prerelease is filtered before behind indexes, so it must not occupy a
+	// slot: behind=1 steps from 2.0.0 straight to 1.2.0, skipping the rc.
+	cands := candidates("1.2.0", "1.3.0-rc.1", "2.0.0")
+
+	got, ok := version.Select(nil, cands, attrsOf, version.WithBehind(1))
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag)
+}
+
+func TestSelectBehindRespectsDowngrade(t *testing.T) {
+	t.Parallel()
+
+	cands := candidates("1.2.0", "1.3.0", "1.4.0")
+	current, err := version.Parse("1.4.0") // already on the newest
+	require.NoError(t, err)
+
+	// behind would step below current, which is a downgrade: refused by default so
+	// a manual bump is never silently reverted.
+	_, ok := version.Select(current, cands, attrsOf, version.WithBehind(1))
+	require.False(t, ok, "behind must not downgrade a current pin")
+
+	// Opting into downgrades lets behind step back.
+	got, ok := version.Select(current, cands, attrsOf,
+		version.WithBehind(1), version.WithAllowDowngrade(true))
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag)
+}
+
+func TestSelectNaturalPrerelease(t *testing.T) {
+	t.Parallel()
+
+	// beta10 is newer than beta9: a lexical sort would pick beta9.
+	got, ok := version.Select(nil, candidates("1.0.0-beta9", "1.0.0-beta10"), attrsOf,
+		version.WithPrerelease(true))
+	require.True(t, ok)
+	require.Equal(t, "1.0.0-beta10", got.tag)
+}
+
+func TestSelectDowngrade(t *testing.T) {
+	t.Parallel()
+
+	cands := candidates("1.2.0", "1.1.0")
+	current := mustParse(t, "1.2.0")
+
+	_, ok := version.Select(current, cands, attrsOf)
+	require.True(t, ok)
+
+	// Only an older candidate, downgrades disallowed → nothing.
+	_, ok = version.Select(current, candidates("1.1.0"), attrsOf)
+	require.False(t, ok)
+
+	got, ok := version.Select(
+		current,
+		candidates("1.1.0"),
+		attrsOf,
+		version.WithAllowDowngrade(true),
+	)
+	require.True(t, ok)
+	require.Equal(t, "1.1.0", got.tag)
+}
+
+func TestSelectCooldown(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.June, 17, 0, 0, 0, 0, time.UTC)
+	cands := []cand{
+		{tag: "1.2.0", published: now.Add(-10 * 24 * time.Hour)},
+		{tag: "1.3.0", published: now.Add(-1 * time.Hour)},
+	}
+
+	got, ok := version.Select(nil, cands, attrsOf,
+		version.WithCooldown(3*24*time.Hour), version.WithNow(now))
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag, "fresh 1.3.0 held back by cooldown")
+}
+
+func TestSelectTieBreakDeterministic(t *testing.T) {
+	t.Parallel()
+
+	// 1.2 and 1.2.0 are semver-equal; the tag tie-break makes the pick stable
+	// regardless of input order.
+	got1, ok := version.Select(nil, candidates("1.2", "1.2.0"), attrsOf)
+	require.True(t, ok)
+	got2, ok := version.Select(nil, candidates("1.2.0", "1.2"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, got1.tag, got2.tag)
+}
