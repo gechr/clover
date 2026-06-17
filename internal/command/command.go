@@ -31,9 +31,10 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config   string `help:"Path to a .clover.yaml config file (default: search the current directory)." placeholder:"<path>"`
-	NoConfig bool   `help:"Do not load any .clover.yaml config."`
+	Config   string "help:\"Path to a `.clover.yaml` config file (default: search the current directory).\" placeholder:\"<path>\""
+	NoConfig bool   "help:\"Do not load any `.clover.yaml` config.\""
 
+	Init    initCmd    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively.\""
 	Run     runCmd     `cmd:"" help:"Resolve version references and update them in place."`
 	Lint    lintCmd    `cmd:"" help:"Check every directive resolves, offline and without writing."`
 	Format  formatCmd  `cmd:"" help:"Canonicalise directive comments."`
