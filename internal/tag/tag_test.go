@@ -15,12 +15,21 @@ func TestParse(t *testing.T) {
 		values  []string
 		wantAll []string
 		wantAny []string
+		wantNot []string
 	}{
 		{name: "empty", values: nil},
 		{name: "and via comma", values: []string{"prod,ci"}, wantAll: []string{"prod", "ci"}},
 		{name: "or via slash", values: []string{"eu/us"}, wantAny: []string{"eu", "us"}},
 		{name: "three-way or", values: []string{"a/b/c"}, wantAny: []string{"a", "b", "c"}},
 		{name: "three-way and", values: []string{"a,b,c"}, wantAll: []string{"a", "b", "c"}},
+		{name: "exclusion", values: []string{"!legacy"}, wantNot: []string{"legacy"}},
+		{
+			name:    "include and exclude mixed",
+			values:  []string{"prod,!legacy"},
+			wantAll: []string{"prod"},
+			wantNot: []string{"legacy"},
+		},
+		{name: "bare bang dropped", values: []string{"!"}},
 		{name: "single bare value is AND", values: []string{"prod"}, wantAll: []string{"prod"}},
 		{
 			name:    "repeated flags accumulate",
@@ -41,6 +50,7 @@ func TestParse(t *testing.T) {
 			f := tag.Parse(tc.values)
 			require.Equal(t, tc.wantAll, f.All)
 			require.Equal(t, tc.wantAny, f.Any)
+			require.Equal(t, tc.wantNot, f.Not)
 		})
 	}
 }
@@ -80,6 +90,31 @@ func TestMatch(t *testing.T) {
 		{name: "untagged never matches a filter", values: []string{"prod"}, tags: nil, want: false},
 		{name: "case-insensitive", values: []string{"Prod"}, tags: []string{"prod"}, want: true},
 		{
+			name:   "exclusion vetoes",
+			values: []string{"!legacy"},
+			tags:   []string{"legacy"},
+			want:   false,
+		},
+		{
+			name:   "exclusion keeps others",
+			values: []string{"!legacy"},
+			tags:   []string{"prod"},
+			want:   true,
+		},
+		{name: "pure exclusion keeps untagged", values: []string{"!legacy"}, tags: nil, want: true},
+		{
+			name:   "include with exclusion",
+			values: []string{"prod,!legacy"},
+			tags:   []string{"prod", "legacy"},
+			want:   false,
+		},
+		{
+			name:   "include satisfied, not excluded",
+			values: []string{"prod,!legacy"},
+			tags:   []string{"prod"},
+			want:   true,
+		},
+		{
 			name:   "combined AND and OR both required",
 			values: []string{"prod,ci", "eu/us"},
 			tags:   []string{"prod", "ci", "us"},
@@ -113,6 +148,17 @@ func TestString(t *testing.T) {
 		{name: "single AND", values: []string{"prod"}, want: "prod"},
 		{name: "AND", values: []string{"prod,ci"}, want: "prod AND ci"},
 		{name: "OR", values: []string{"eu/us"}, want: "eu OR us"},
+		{name: "pure exclusion", values: []string{"!legacy"}, want: "NOT legacy"},
+		{
+			name:   "include and exclusion",
+			values: []string{"prod,!legacy"},
+			want:   "prod AND NOT legacy",
+		},
+		{
+			name:   "OR with exclusion parenthesised",
+			values: []string{"eu/us", "!legacy"},
+			want:   "(eu OR us) AND NOT legacy",
+		},
 		{
 			name:   "combined parenthesised",
 			values: []string{"prod,ci", "eu/us"},

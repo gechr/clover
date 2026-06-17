@@ -1,41 +1,66 @@
-// Package tag parses and evaluates the --tags marker filter. A marker carries
-// its own labels (tags=prod,ci); a filter built from one or more --tags values
-// decides which markers a run touches. Within a single --tags value, "/"
-// separates OR alternatives and "," separates AND requirements; repeated values
-// accumulate. The filter is pure and the rendering is human-readable, so the CLI
-// can log exactly what it will act on.
+// Package tag parses and evaluates the --tag marker filter. A marker carries
+// its own labels (tags=prod,ci); a filter built from one or more --tag values
+// decides which markers a run touches. Within a single --tag value, "/"
+// separates OR alternatives and "," separates AND requirements, and a "!" prefix
+// excludes a tag; repeated values accumulate. The filter is pure and the
+// rendering is human-readable, so the CLI can log exactly what it will act on.
 package tag
 
 import "strings"
 
-// orSeparator splits a --tags value into OR alternatives; andSeparator splits it
+// orSeparator splits a --tag value into OR alternatives; andSeparator splits it
 // into AND requirements. A value is read as OR when it contains a slash, else as
-// AND, so prod/ci means "prod or ci" and prod,ci means "prod and ci".
+// AND, so prod/ci means "prod or ci" and prod,ci means "prod and ci". A term
+// carrying notPrefix is an exclusion regardless of the separator.
 const (
 	orSeparator  = "/"
 	andSeparator = ","
+	notPrefix    = "!"
 )
 
-// Filter selects markers by tag. A marker matches when it carries every tag in
-// All (AND) and at least one tag in Any (OR). Either list being empty drops that
-// requirement, so the zero Filter matches everything. Matching is
-// case-insensitive.
+// Tokens of the human-readable expression rendered by [Filter.String].
+const (
+	logicalAnd = " AND "
+	logicalOr  = " OR "
+	logicalNot = "NOT "
+	parenOpen  = "("
+	parenClose = ")"
+)
+
+// Filter selects markers by tag. A marker matches when it carries none of Not
+// (exclusions veto), every tag in All (AND), and at least one tag in Any (OR).
+// An empty list drops that requirement, so the zero Filter matches everything.
+// Matching is case-insensitive.
 type Filter struct {
 	All []string
 	Any []string
+	Not []string
 }
 
-// Parse builds a Filter from raw --tags values. A value containing "/" splits on
+// Parse builds a Filter from raw --tag values. A value containing "/" splits on
 // it into OR alternatives; any other value splits on "," into AND requirements.
+// A term prefixed with "!" is an exclusion, collected regardless of separator.
 // Surrounding whitespace is trimmed and empty items dropped; repeated flags
-// accumulate, so --tags a,b --tags c/d yields All=[a b], Any=[c d].
+// accumulate, so --tag a,b --tag c/d yields All=[a b], Any=[c d].
 func Parse(values []string) Filter {
 	var f Filter
 	for _, value := range values {
-		if strings.Contains(value, orSeparator) {
-			f.Any = append(f.Any, split(value, orSeparator)...)
-		} else {
-			f.All = append(f.All, split(value, andSeparator)...)
+		or := strings.Contains(value, orSeparator)
+		sep := andSeparator
+		if or {
+			sep = orSeparator
+		}
+		for _, term := range split(value, sep) {
+			switch {
+			case strings.HasPrefix(term, notPrefix):
+				if excluded := strings.TrimSpace(term[len(notPrefix):]); excluded != "" {
+					f.Not = append(f.Not, excluded)
+				}
+			case or:
+				f.Any = append(f.Any, term)
+			default:
+				f.All = append(f.All, term)
+			}
 		}
 	}
 	return f
@@ -44,13 +69,20 @@ func Parse(values []string) Filter {
 // Empty reports whether the filter constrains nothing, in which case every
 // marker matches.
 func (f Filter) Empty() bool {
-	return len(f.All) == 0 && len(f.Any) == 0
+	return len(f.All) == 0 && len(f.Any) == 0 && len(f.Not) == 0
 }
 
 // Match reports whether a marker carrying tags satisfies the filter. An empty
-// filter matches everything; a marker with no tags never matches a non-empty
-// filter, so --tags targets exactly the tagged markers.
+// filter matches everything. An exclusion vetoes a marker carrying that tag;
+// an include requirement (All/Any) is never satisfied by an untagged marker, so
+// a filter with includes targets exactly the tagged markers, while a
+// pure-exclusion filter keeps everything except the excluded.
 func (f Filter) Match(tags []string) bool {
+	for _, excluded := range f.Not {
+		if contains(tags, excluded) {
+			return false
+		}
+	}
 	for _, want := range f.All {
 		if !contains(tags, want) {
 			return false
@@ -68,24 +100,36 @@ func (f Filter) Match(tags []string) bool {
 }
 
 // String renders the filter as a boolean expression, e.g. "prod AND ci",
-// "eu OR us", or "(prod AND ci) AND (eu OR us)". The zero Filter renders empty.
+// "eu OR us", "(prod AND ci) AND (eu OR us)", or "prod AND NOT legacy". The zero
+// Filter renders empty.
 func (f Filter) String() string {
+	groups := len(f.Not)
+	if len(f.All) > 0 {
+		groups++
+	}
+	if len(f.Any) > 0 {
+		groups++
+	}
+
 	var parts []string
 	if len(f.All) > 0 {
-		allPart := strings.Join(f.All, " AND ")
-		if len(f.All) > 1 && len(f.Any) > 0 {
-			allPart = "(" + allPart + ")"
+		allPart := strings.Join(f.All, logicalAnd)
+		if len(f.All) > 1 && groups > 1 {
+			allPart = parenOpen + allPart + parenClose
 		}
 		parts = append(parts, allPart)
 	}
 	if len(f.Any) > 0 {
-		anyPart := strings.Join(f.Any, " OR ")
-		if len(f.Any) > 1 && len(f.All) > 0 {
-			anyPart = "(" + anyPart + ")"
+		anyPart := strings.Join(f.Any, logicalOr)
+		if len(f.Any) > 1 && groups > 1 {
+			anyPart = parenOpen + anyPart + parenClose
 		}
 		parts = append(parts, anyPart)
 	}
-	return strings.Join(parts, " AND ")
+	for _, excluded := range f.Not {
+		parts = append(parts, logicalNot+excluded)
+	}
+	return strings.Join(parts, logicalAnd)
 }
 
 // split divides value on sep, trimming each item and dropping empties.
