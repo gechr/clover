@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/report"
 )
 
 // lintCmd checks every directive resolves, offline and without writing. It is
@@ -23,10 +24,7 @@ func (c *lintCmd) Run() error {
 		return err
 	}
 
-	clog.Info().
-		Int("errored", summary.Errored()).
-		Int("skipped", summary.Skipped()).
-		Msg("Lint complete")
+	report.Lint(clog.Default, summary)
 	if !summary.OK() {
 		return fmt.Errorf("%d errored, %d skipped", summary.Errored(), summary.Skipped())
 	}

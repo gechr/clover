@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/report"
 )
 
 // runCmd resolves every directive's version and rewrites it in place.
@@ -25,14 +26,6 @@ func (c *runCmd) Run() error {
 		return err
 	}
 
-	event := clog.Info()
-	if c.DryRun {
-		event = clog.Dry()
-	}
-	event.
-		Int("changed", summary.Changed()).
-		Int("skipped", summary.Skipped()).
-		Int("failed", summary.Errored()).
-		Msg("Run complete")
+	report.Run(clog.Default, summary, c.DryRun)
 	return nil
 }
