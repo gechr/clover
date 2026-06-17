@@ -111,10 +111,19 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 	return p.group(files), nil
 }
 
-// build resolves options, scans roots honouring ignore files, and binds the
-// discovered directives into a plan ready for either resolution or validation.
-func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, error) {
-	cfg := config{workers: runtime.NumCPU(), maxSize: 0}
+// Scan walks roots offline - honouring ignore files, never resolving - and
+// returns the files that carry a directive. It is the front half Run and
+// Validate build on, exposed for format mode, which rewrites directive comments
+// without ever binding markers or touching the network.
+func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, error) {
+	_, files, err := scanRoots(ctx, roots, newConfig(opts...))
+	return files, err
+}
+
+// newConfig applies opts over the defaults, clamping the worker count and
+// defaulting the clock so cooldown has a reference time.
+func newConfig(opts ...Option) config {
+	cfg := config{workers: runtime.NumCPU()}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -124,7 +133,16 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 	if cfg.now.IsZero() {
 		cfg.now = time.Now()
 	}
+	return cfg
+}
 
+// scanRoots walks roots, pruning ignored paths, and returns the VCS resolver
+// (for marker namespacing) alongside the files found.
+func scanRoots(
+	ctx context.Context,
+	roots []string,
+	cfg config,
+) (*vcs.Resolver, []scan.File, error) {
 	resolver := vcs.NewResolver()
 	matcher := ignore.New(resolver, ignore.WithFiles(cfg.ignoreFiles...))
 
@@ -136,10 +154,17 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 		scanOpts = append(scanOpts, scan.WithMaxSize(cfg.maxSize))
 	}
 	files, err := scan.Scan(ctx, roots, scanOpts...)
+	return resolver, files, err
+}
+
+// build scans roots and binds the discovered directives into a plan ready for
+// either resolution or validation.
+func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, error) {
+	cfg := newConfig(opts...)
+	resolver, files, err := scanRoots(ctx, roots, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return newPlan(files, resolver, cfg.now, cfg.workers), files, nil
 }
 
