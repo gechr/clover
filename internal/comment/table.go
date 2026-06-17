@@ -5,19 +5,37 @@ import (
 	"strings"
 )
 
+// Comment delimiter literals, named once because the lookup tables reuse them
+// across many formats.
+const (
+	markerHash  = "#"
+	markerSlash = "//"
+	markerDash  = "--"
+	markerSemi  = ";"
+
+	blockCOpen    = "/*"
+	blockCClose   = "*/"
+	blockXMLOpen  = "<!--"
+	blockXMLClose = "-->"
+)
+
+// cBlock is the /* */ pair shared by every C-family syntax.
+var cBlock = Block{Open: blockCOpen, Close: blockCClose}
+
 // Reusable comment syntaxes, shared across the lookup tables below.
 var (
-	hash  = Syntax{Line: []string{"#"}}
-	slash = Syntax{Line: []string{"//"}, Blocks: []Block{{Open: "/*", Close: "*/"}}}
-	hcl   = Syntax{Line: []string{"#", "//"}, Blocks: []Block{{Open: "/*", Close: "*/"}}}
-	xml   = Syntax{Blocks: []Block{{Open: "<!--", Close: "-->"}}}
-	dash  = Syntax{Line: []string{"--"}}
-	semi  = Syntax{Line: []string{";"}}
+	hash   = Syntax{Line: []string{markerHash}}
+	slash  = Syntax{Line: []string{markerSlash}, Blocks: []Block{cBlock}}
+	hcl    = Syntax{Line: []string{markerHash, markerSlash}, Blocks: []Block{cBlock}}
+	cstyle = Syntax{Blocks: []Block{cBlock}}
+	xml    = Syntax{Blocks: []Block{{Open: blockXMLOpen, Close: blockXMLClose}}}
+	dash   = Syntax{Line: []string{markerDash}}
+	semi   = Syntax{Line: []string{markerSemi}}
 
 	// generic is the fallback for unrecognised files: the two near-universal
 	// line-comment markers. cusp is format-agnostic, so an unknown text file can
 	// still carry a directive after a # or //.
-	generic = Syntax{Line: []string{"#", "//"}}
+	generic = Syntax{Line: []string{markerHash, markerSlash}}
 )
 
 // byExt maps a lowercased file extension (with leading dot) to its syntax.
@@ -61,6 +79,8 @@ var byExt = map[string]Syntax{
 
 	".hcl": hcl,
 	".tf":  hcl,
+
+	".css": cstyle,
 
 	".htm":      xml,
 	".html":     xml,

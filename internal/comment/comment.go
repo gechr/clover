@@ -27,27 +27,23 @@ type Syntax struct {
 // from a real comment. The distinctive cusp: keyword keeps false positives
 // rare in practice.
 func (s Syntax) Body(line string) (string, bool) {
-	start, body, found := -1, "", false
-
-	for _, marker := range s.Line {
-		i := strings.Index(line, marker)
-		if i < 0 || (found && i >= start) {
-			continue
-		}
-		start, body, found = i, line[i+len(marker):], true
+	m, ok := s.locate(line)
+	if !ok {
+		return "", false
 	}
+	return m.body(line), true
+}
 
-	for _, block := range s.Blocks {
-		i := strings.Index(line, block.Open)
-		if i < 0 || (found && i >= start) {
-			continue
-		}
-		rest := line[i+len(block.Open):]
-		if j := strings.Index(rest, block.Close); j >= 0 {
-			rest = rest[:j]
-		}
-		start, body, found = i, rest, true
+// body extracts the comment text the match delimits: for a line comment, the
+// rest of the line; for a block, the text up to the close delimiter, or
+// everything after the open when the close falls on a later line.
+func (m match) body(line string) string {
+	rest := line[m.start+m.openLen:]
+	if m.close == "" || !m.hasClose {
+		return rest
 	}
-
-	return body, found
+	if j := strings.Index(rest, m.close); j >= 0 {
+		return rest[:j]
+	}
+	return rest
 }
