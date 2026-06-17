@@ -59,11 +59,11 @@ func (p *plan) checkProducer(m Marker) error {
 		return err
 	}
 
-	_, current, _, err := p.locate(m)
+	_, _, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
-	if _, err := rule.Compile(m.Directive, current); err != nil {
+	if _, err := rule.Compile(m.Directive, located.Semver); err != nil {
 		return err
 	}
 	return nil

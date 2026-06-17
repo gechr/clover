@@ -189,7 +189,6 @@ type plan struct {
 	markers  []Marker
 	lines    map[string][]string
 	registry *registry.Registry
-	smart    match.Smart
 	now      time.Time
 	workers  int
 	reporter progress.Reporter
@@ -217,7 +216,6 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		markers:  markers,
 		lines:    lines,
 		registry: registry.New(),
-		smart:    match.NewSmart(),
 		now:      cfg.now,
 		workers:  cfg.workers,
 		reporter: cfg.reporter,
@@ -287,7 +285,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 
-	line, current, token, err := p.locate(m)
+	line, rewriter, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
@@ -297,23 +295,22 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 
-	opts, err := rule.Compile(m.Directive, current)
+	opts, err := rule.Compile(m.Directive, located.Semver)
 	if err != nil {
 		return err
 	}
 	opts = append(opts, version.WithNow(p.now))
 
-	chosen, ok := version.Select(current, candidates, attrs, opts...)
+	chosen, ok := version.Select(located.Semver, candidates, attrs, opts...)
 	if !ok {
 		return fmt.Errorf("no candidate satisfies the rule")
 	}
 
 	if m.ID != "" {
-		old := model.Candidate{Version: token.Current, Semver: current}
+		old := model.Candidate{Version: located.Raw, Semver: located.Semver}
 		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
 	}
-	p.render(i, line, token, chosen.Version)
-	return nil
+	return p.render(i, line, rewriter, located, chosen)
 }
 
 // follower returns the closure that resolves marker i from the marker it
@@ -337,7 +334,7 @@ func (p *plan) resolveFollower(i int) error {
 		return err
 	}
 
-	line, _, token, err := p.locate(m)
+	line, rewriter, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
@@ -349,8 +346,12 @@ func (p *plan) resolveFollower(i int) error {
 			p.registry.Set(m.ID, entry)
 		}
 	}
-	p.render(i, line, token, resolved)
-	return nil
+
+	// The projected value is rendered through the same rewriter seam. For
+	// value=version (the shape the smart rewriter handles) the projection is a
+	// version; value=commit/sha256 will route to a commit-aware rewriter rather
+	// than reuse this field.
+	return p.render(i, line, rewriter, located, model.Candidate{Version: resolved})
 }
 
 // report sends a marker's terminal progress event: the resolved value on
@@ -363,41 +364,46 @@ func (p *plan) report(i int, err error) {
 	p.tasks[i].Done(p.results[i].Resolved)
 }
 
-// located carries the current token's text alongside the parsed token, so a
-// caller has both the raw string (for the old value) and its decomposed parts.
-type located struct {
-	match.Token
-
-	Current string
-}
-
-// locate reads marker m's target line and finds the single version token on it,
-// failing loud when the line is absent or the token is ambiguous.
-func (p *plan) locate(m Marker) (string, *version.Version, located, error) {
+// locate reads marker m's target line, selects the rewriter for it, and locates
+// the current version, failing loud when the line is absent or the rewriter
+// cannot act on it. The chosen rewriter is returned so Render reuses the same
+// located spans and style.
+func (p *plan) locate(m Marker) (string, match.Rewriter, match.Located, error) {
 	line := targetLine(p.lines, m)
 	if line == "" {
-		return "", nil, located{}, fmt.Errorf("no target line for directive")
+		return "", nil, match.Located{}, fmt.Errorf("no target line for directive")
 	}
 
-	token, ok := p.smart.Locate(line)
-	if !ok {
-		return "", nil, located{}, fmt.Errorf("ambiguous or missing version on target line")
-	}
-
-	current, err := version.Parse(token.Core)
+	rewriter := match.For(match.Context{
+		Path:     m.File,
+		Line:     line,
+		Provider: m.Provider,
+		Value:    m.Value,
+	})
+	located, err := rewriter.Locate(line)
 	if err != nil {
-		current = nil // an unparseable core only matters to a keyword constraint
+		return "", nil, match.Located{}, err
 	}
-	return line, current, located{Token: token, Current: line[token.Span.Start:token.Span.End]}, nil
+	return line, rewriter, located, nil
 }
 
-// render restyles resolved onto the located token and records the result.
-func (p *plan) render(i int, line string, token located, resolved string) {
-	newLine, changed := p.smart.Render(line, token.Token, resolved)
-	p.results[i].Current = token.Current
-	p.results[i].Resolved = resolved
+// render rewrites candidate onto the located target and records the result.
+func (p *plan) render(
+	i int,
+	line string,
+	rewriter match.Rewriter,
+	located match.Located,
+	candidate model.Candidate,
+) error {
+	newLine, changed, err := rewriter.Render(line, located, candidate)
+	if err != nil {
+		return err
+	}
+	p.results[i].Current = located.Raw
+	p.results[i].Resolved = candidate.Version
 	p.results[i].NewLine = newLine
 	p.results[i].Changed = changed
+	return nil
 }
 
 // group buckets the resolved markers back into their files, preserving file
