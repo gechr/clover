@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/tui"
+	"github.com/gechr/clover/internal/version"
 	xos "github.com/gechr/x/os"
 	"github.com/gechr/x/terminal"
 )
@@ -45,7 +47,15 @@ func (c *initCmd) Run() error {
 		return err
 	}
 
-	settings, err := tui.Configure(authSummary(context.Background(), providers), path, exists)
+	settings, err := tui.Configure(tui.ConfigureInput{
+		AuthSummary:     authSummary(context.Background(), providers),
+		Path:            path,
+		Exists:          exists,
+		DefaultVersion:  defaultConstraint(),
+		ValidateVersion: validateConstraint,
+		ExcludeOptions:  config.CommonExcludes(),
+		DefaultExcludes: config.DefaultExcludes(),
+	})
 	if err != nil {
 		return err
 	}
@@ -54,11 +64,40 @@ func (c *initCmd) Run() error {
 		return nil
 	}
 
-	starter := config.Starter(strings.TrimSpace(settings.RequiredVersion))
+	starter := config.Starter(settings.RequiredVersion, settings.Excludes)
 	if err := xos.AtomicWrite(path, starter, configPerm); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	clog.Info().Str("path", path).Msg("Wrote config")
+	return nil
+}
+
+// defaultConstraint suggests ">=<current>" when clover is a clean tagged release,
+// or "" for a dev build whose version would not make a sensible constraint.
+func defaultConstraint() string {
+	v, err := version.Parse(clive.Current())
+	if err != nil || v.Prerelease() != "" {
+		return ""
+	}
+	return ">=" + v.Core().String()
+}
+
+// validateConstraint reports whether s is a usable required-version constraint,
+// for the wizard's live input validation. A blank value is allowed (no gate).
+func validateConstraint(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	// A keyword constraint (major/minor/patch) needs a current version to measure
+	// against; clover's own version, or a benign fallback, serves for validation.
+	current, err := version.Parse(clive.Current())
+	if err != nil {
+		current, _ = version.Parse("0.0.0")
+	}
+	if _, err := version.NewConstraint(s, current); err != nil {
+		return errors.New("not a valid version constraint (e.g. >=0.1.0, ~>0.1, minor)")
+	}
 	return nil
 }
 
