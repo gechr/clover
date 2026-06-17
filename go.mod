@@ -5,6 +5,7 @@ go 1.26.2
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 require (
+	github.com/alecthomas/kong v1.15.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/gechr/clog v0.11.3
 	github.com/gechr/x v0.1.4

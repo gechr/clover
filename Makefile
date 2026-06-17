@@ -13,7 +13,7 @@ all: fmt lint test
 
 .PHONY: build
 build:
-	@$(GO) build -ldflags "$(GO_LDFLAGS)" -o $(DIST_DIR)/clover ./cmd/clover
+	@$(GO) build -ldflags "$(GO_LDFLAGS)" -o $(DIST_DIR)/clover .
 
 .PHONY: fmt
 fmt:
@@ -25,7 +25,7 @@ fmt:
 
 .PHONY: install
 install:
-	@$(GO) install -ldflags "$(GO_LDFLAGS)" ./cmd/clover
+	@$(GO) install -ldflags "$(GO_LDFLAGS)" .
 	@$(GO_BIN)/clover --install-completion
 
 .PHONY: lint
