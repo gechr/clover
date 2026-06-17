@@ -89,6 +89,31 @@ func WithIgnoreFiles(names ...string) Option {
 // caller's choice. Results are grouped by file in path order, markers in line
 // order, so the output is deterministic.
 func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, error) {
+	p, files, err := build(ctx, roots, opts...)
+	if err != nil {
+		return nil, err
+	}
+	p.resolve(ctx, p.workers)
+	return p.group(files), nil
+}
+
+// Validate is the offline counterpart of [Run]: it scans, binds, and checks
+// every marker - that its provider and keys are valid, its target line carries
+// an unambiguous version, its rule compiles, and its follow edges resolve -
+// without any network or writes. It is the engine behind lint, surfacing each
+// marker's own problem rather than cascading one failure into the next.
+func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult, error) {
+	p, files, err := build(ctx, roots, opts...)
+	if err != nil {
+		return nil, err
+	}
+	p.validate(ctx, p.workers)
+	return p.group(files), nil
+}
+
+// build resolves options, scans roots honouring ignore files, and binds the
+// discovered directives into a plan ready for either resolution or validation.
+func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, error) {
 	cfg := config{workers: runtime.NumCPU(), maxSize: 0}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -112,12 +137,10 @@ func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, err
 	}
 	files, err := scan.Scan(ctx, roots, scanOpts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	p := newPlan(files, resolver, cfg.now)
-	p.resolve(ctx, cfg.workers)
-	return p.group(files), nil
+	return newPlan(files, resolver, cfg.now, cfg.workers), files, nil
 }
 
 // plan holds the state a run threads between seams: the flattened markers, each
@@ -130,13 +153,14 @@ type plan struct {
 	registry *registry.Registry
 	smart    match.Smart
 	now      time.Time
+	workers  int
 	results  []Result
 }
 
 // newPlan flattens the scanned files into markers and pre-seeds a result per
 // marker, namespacing ids by repository so the same id in two repositories does
 // not collide.
-func newPlan(files []scan.File, resolver *vcs.Resolver, now time.Time) *plan {
+func newPlan(files []scan.File, resolver *vcs.Resolver, now time.Time, workers int) *plan {
 	lines := make(map[string][]string, len(files))
 	var markers []Marker
 	for _, f := range files {
@@ -155,6 +179,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, now time.Time) *plan {
 		registry: registry.New(),
 		smart:    match.NewSmart(),
 		now:      now,
+		workers:  workers,
 		results:  results,
 	}
 }
