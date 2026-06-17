@@ -12,7 +12,7 @@ import (
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
 	Paths  []string `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
-	DryRun bool     `                               help:"Resolve and render but write nothing."                                       short:"n"`
+	DryRun bool     `                               help:"Resolve and render but write nothing."                                       short:"n" aliases:"dry"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
