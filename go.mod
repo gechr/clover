@@ -5,6 +5,7 @@ go 1.26.0
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 require (
+	github.com/gobwas/glob v0.2.3
 	github.com/hashicorp/go-version v1.9.0
 	github.com/maruel/natural v1.3.0
 	github.com/stretchr/testify v1.11.1
@@ -85,7 +86,6 @@ require (
 	github.com/go-toolsmith/typep v1.1.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
-	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/godoc-lint/godoc-lint v0.11.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
