@@ -62,16 +62,16 @@ func (d Directive) Bool(key string) (bool, error) {
 		return false, nil
 	}
 	switch v {
-	case constant.True:
+	case constant.BoolTrue:
 		return true, nil
-	case constant.False:
+	case constant.BoolFalse:
 		return false, nil
 	default:
 		return false, fmt.Errorf(
 			"%s must be %s or %s, got %q",
 			key,
-			constant.True,
-			constant.False,
+			constant.BoolTrue,
+			constant.BoolFalse,
 			v,
 		)
 	}

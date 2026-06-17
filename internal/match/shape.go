@@ -104,7 +104,7 @@ func scanToken(line string, start int) (Token, int, bool) {
 	}
 
 	var prerelease, suffix string
-	if i < len(line) && line[i] == constant.Dash {
+	if i < len(line) && line[i] == constant.VersionDash {
 		if seg, end := scanSegment(line, i+1); seg != "" {
 			if isVariant(seg) {
 				suffix = seg
@@ -180,7 +180,7 @@ func scanSegment(line string, start int) (string, int) {
 // dash-delimited word with any trailing version digits stripped, so alpine3.19
 // and slim-bookworm both register as variants.
 func isVariant(segment string) bool {
-	word, _, _ := strings.Cut(segment, string(constant.Dash))
+	word, _, _ := strings.Cut(segment, string(constant.VersionDash))
 	word = strings.TrimRight(word, "0123456789.")
 	return variants[strings.ToLower(word)]
 }
@@ -191,4 +191,4 @@ func isAlnum(b byte) bool {
 	return isDigit(b) || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
-func isSegmentByte(b byte) bool { return isAlnum(b) || b == '.' || b == constant.Dash }
+func isSegmentByte(b byte) bool { return isAlnum(b) || b == '.' || b == constant.VersionDash }

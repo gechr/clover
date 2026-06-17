@@ -55,11 +55,11 @@ func restyle(current Token, resolved string) string {
 	b.WriteString(current.Prefix)
 	b.WriteString(reprecision(candidate.Core, components(current.Core)))
 	if current.Prerelease != "" && candidate.Prerelease != "" {
-		b.WriteByte(constant.Dash)
+		b.WriteByte(constant.VersionDash)
 		b.WriteString(candidate.Prerelease)
 	}
 	if current.Suffix != "" {
-		b.WriteByte(constant.Dash)
+		b.WriteByte(constant.VersionDash)
 		b.WriteString(current.Suffix)
 	}
 	return b.String()

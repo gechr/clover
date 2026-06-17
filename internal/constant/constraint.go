@@ -5,7 +5,7 @@ package constant
 // keyword dialect. Referenced by the version package's constraint parser today
 // and, as they land, the format canonicaliser and the CLI --constraint enum.
 const (
-	Major = "major"
-	Minor = "minor"
-	Patch = "patch"
+	ConstraintMajor = "major"
+	ConstraintMinor = "minor"
+	ConstraintPatch = "patch"
 )

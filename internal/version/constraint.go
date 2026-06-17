@@ -109,11 +109,11 @@ func (c *Constraint) allowedByBound(candidate *Version) bool {
 // through to range parsing.
 func parseBound(expr string) (Bound, bool) {
 	switch expr {
-	case constant.Major:
+	case constant.ConstraintMajor:
 		return BoundMajor, true
-	case constant.Minor:
+	case constant.ConstraintMinor:
 		return BoundMinor, true
-	case constant.Patch:
+	case constant.ConstraintPatch:
 		return BoundPatch, true
 	}
 	return BoundMajor, false

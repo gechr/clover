@@ -18,11 +18,11 @@ import (
 // incidental "cusp:" inside prose is not mistaken for a directive.
 func Parse(body string) (Directive, bool, error) {
 	trimmed := strings.TrimLeft(body, " \t")
-	if !strings.HasPrefix(trimmed, constant.Keyword) {
+	if !strings.HasPrefix(trimmed, constant.DirectiveKeyword) {
 		return Directive{}, false, nil
 	}
 
-	pairs, err := parsePairs([]rune(trimmed[len(constant.Keyword):]))
+	pairs, err := parsePairs([]rune(trimmed[len(constant.DirectiveKeyword):]))
 	if err != nil {
 		return Directive{}, true, fmt.Errorf("parse directive: %w", err)
 	}
@@ -45,14 +45,14 @@ func parsePairs(rs []rune) ([]KV, error) {
 		}
 
 		start := pos
-		for pos < end && rs[pos] != constant.Equal && !isSpace(rs[pos]) {
+		for pos < end && rs[pos] != constant.DirectiveEqual && !isSpace(rs[pos]) {
 			pos++
 		}
 		key := string(rs[start:pos])
 		if key == "" {
 			return nil, errors.New("empty key")
 		}
-		if pos >= end || rs[pos] != constant.Equal {
+		if pos >= end || rs[pos] != constant.DirectiveEqual {
 			return nil, fmt.Errorf("key %q must have a value", key)
 		}
 

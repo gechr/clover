@@ -66,7 +66,7 @@ func New(opts ...Option) *Provider {
 }
 
 // Name identifies the provider.
-func (p *Provider) Name() string { return constant.Github }
+func (p *Provider) Name() string { return constant.ProviderGithub }
 
 // Keys reports the directive keys GitHub accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
@@ -108,7 +108,7 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)
 	if !ok {
-		return constant.Github
+		return constant.ProviderGithub
 	}
 	return fmt.Sprintf("%s/%s/%s (%s)", host, res.owner, res.name, res.source)
 }
