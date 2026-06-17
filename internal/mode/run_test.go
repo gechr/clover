@@ -92,15 +92,17 @@ func TestRunPreservesFileMode(t *testing.T) {
 	path := filepath.Join(dir, "run.sh")
 	require.NoError(
 		t,
-		os.WriteFile(path, []byte("# cusp: provider=perm repo=x/y\nv=1.0.0\n"), 0o755),
+		os.WriteFile(path, []byte("# cusp: provider=perm repo=x/y\nv=1.0.0\n"), 0o644),
 	)
+	// chmod after writing so umask does not reduce the mode under test.
+	require.NoError(t, os.Chmod(path, 0o777))
 
 	_, err := mode.Run(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	require.Equal(t, os.FileMode(0o777), info.Mode().Perm()) // cusp never changes perms
 }
 
 func TestRunLeavesUnchangedFileUntouched(t *testing.T) {

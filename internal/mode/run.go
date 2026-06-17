@@ -2,16 +2,9 @@ package mode
 
 import (
 	"context"
-	"os"
-	"strings"
 
 	"github.com/gechr/cusp/internal/pipeline"
-	xos "github.com/gechr/x/os"
 )
-
-// defaultPerm is the file mode used when an existing file's mode cannot be read,
-// so a rewrite still produces a sensibly-permissioned file.
-const defaultPerm os.FileMode = 0o644
 
 // Run resolves every marker under roots against its provider and rewrites each
 // changed target line in place, atomically and preserving file mode. With dryRun
@@ -44,8 +37,7 @@ func Run(
 // write failure is returned rather than aborting the run, so one unwritable file
 // never sinks the rest.
 func apply(file pipeline.FileResult) (bool, error) {
-	data := strings.Join(file.Rewritten(), "\n")
-	if err := xos.AtomicWrite(file.Path, []byte(data), perm(file.Path)); err != nil {
+	if err := writeFile(file.Path, file.Rewritten()); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -59,13 +51,4 @@ func changed(file pipeline.FileResult) bool {
 		}
 	}
 	return false
-}
-
-// perm returns path's current file mode, falling back to defaultPerm when it
-// cannot be read.
-func perm(path string) os.FileMode {
-	if info, err := os.Stat(path); err == nil {
-		return info.Mode().Perm()
-	}
-	return defaultPerm
 }
