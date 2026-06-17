@@ -7,6 +7,7 @@ tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/cli/go-gh/v2 v2.13.0
+	github.com/gechr/clib v0.5.4
 	github.com/gechr/clog v0.11.3
 	github.com/gechr/x v0.1.4
 	github.com/gobwas/glob v0.2.3
@@ -85,7 +86,6 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clib v0.5.4 // indirect
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect

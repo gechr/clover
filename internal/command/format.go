@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/report"
+	"github.com/gechr/x/human"
 )
 
 // formatCmd canonicalises directive comments. With --check it reports what would
@@ -27,7 +28,10 @@ func (c *formatCmd) Run() error {
 
 	report.Format(clog.Default, summary, c.Check)
 	if c.Check && !summary.OK() {
-		return fmt.Errorf("%d directive(s) need formatting", summary.Changed())
+		return fmt.Errorf(
+			"%s would be reformatted",
+			human.Pluralize(summary.Changed(), "directive", "directives"),
+		)
 	}
 	return nil
 }
