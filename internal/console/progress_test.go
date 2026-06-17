@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReporterRendersProgress(t *testing.T) {
+// TestReporterAggregatesTasks drives every task to a terminal state and confirms
+// the three markers collapse to one progress line reading 3/3. Off a TTY clog
+// emits the final state as a single line, so the rendered output is exact.
+func TestReporterAggregatesTasks(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := console.New(context.Background(), clog.NewWriter(&buf))
 
@@ -22,9 +25,8 @@ func TestReporterRendersProgress(t *testing.T) {
 	tasks[1].Fail("boom")
 	tasks[2].Skip("dependency failed")
 
-	wait() // returns only once every task reported and rendering drained
-
-	require.Contains(t, buf.String(), "Resolving")
+	wait()
+	require.Equal(t, "INF ⏳ Resolving progress=3/3\n", buf.String())
 }
 
 func TestReporterEmptyIsNoop(t *testing.T) {
