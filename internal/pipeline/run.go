@@ -18,6 +18,7 @@ import (
 	"github.com/gechr/clover/internal/registry"
 	"github.com/gechr/clover/internal/rule"
 	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/clover/internal/tag"
 	"github.com/gechr/clover/internal/vcs"
 	"github.com/gechr/clover/internal/version"
 )
@@ -60,12 +61,15 @@ func (f FileResult) Rewritten() []string {
 }
 
 type config struct {
-	workers     int
-	maxSize     int64
-	now         time.Time
-	ignoreFiles []string
-	exclude     []string
-	reporter    progress.Reporter
+	allowDowngrade *bool
+	exclude        []string
+	filter         tag.Filter
+	ignoreFiles    []string
+	maxSize        int64
+	now            time.Time
+	prerelease     *bool
+	reporter       progress.Reporter
+	workers        int
 }
 
 // Option configures [Run].
@@ -81,6 +85,27 @@ func WithReporter(r progress.Reporter) Option {
 // scan, in addition to the ignore files.
 func WithExclude(globs []string) Option {
 	return func(c *config) { c.exclude = globs }
+}
+
+// WithTagFilter restricts the run to markers the filter matches. The zero filter
+// matches every marker; a non-empty one drops markers whose tags do not satisfy
+// it, including untagged markers.
+func WithTagFilter(filter tag.Filter) Option {
+	return func(c *config) { c.filter = filter }
+}
+
+// WithAllowDowngrade overrides the per-directive allow-downgrade rule for every
+// marker: a non-nil allow forces downgrades on or off run-wide, while nil leaves
+// each directive's own setting in force.
+func WithAllowDowngrade(allow *bool) Option {
+	return func(c *config) { c.allowDowngrade = allow }
+}
+
+// WithPrerelease overrides the per-directive prerelease rule for every marker: a
+// non-nil allow forces prereleases on or off run-wide, while nil leaves each
+// directive's own setting in force.
+func WithPrerelease(allow *bool) Option {
+	return func(c *config) { c.prerelease = allow }
 }
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
@@ -210,14 +235,16 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // own slot, so the slice needs no lock - the same discipline the executor uses
 // internally.
 type plan struct {
-	markers  []Marker
-	lines    map[string][]string
-	registry *registry.Registry
-	now      time.Time
-	workers  int
-	reporter progress.Reporter
-	tasks    []progress.Task
-	results  []Result
+	allowDowngrade *bool
+	lines          map[string][]string
+	markers        []Marker
+	now            time.Time
+	prerelease     *bool
+	registry       *registry.Registry
+	reporter       progress.Reporter
+	results        []Result
+	tasks          []progress.Task
+	workers        int
 }
 
 // newPlan flattens the scanned files into markers and pre-seeds a result per
@@ -228,7 +255,11 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	var markers []Marker
 	for _, f := range files {
 		lines[f.Path] = f.Lines
-		markers = append(markers, Markers(f, resolver)...)
+		for _, m := range Markers(f, resolver) {
+			if cfg.filter.Match(m.Tags) {
+				markers = append(markers, m)
+			}
+		}
 	}
 
 	results := make([]Result, len(markers))
@@ -237,13 +268,15 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	}
 
 	return &plan{
-		markers:  markers,
-		lines:    lines,
-		registry: registry.New(),
-		now:      cfg.now,
-		workers:  cfg.workers,
-		reporter: cfg.reporter,
-		results:  results,
+		markers:        markers,
+		lines:          lines,
+		registry:       registry.New(),
+		now:            cfg.now,
+		workers:        cfg.workers,
+		reporter:       cfg.reporter,
+		results:        results,
+		allowDowngrade: cfg.allowDowngrade,
+		prerelease:     cfg.prerelease,
 	}
 }
 
@@ -324,6 +357,14 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 	opts = append(opts, version.WithNow(p.now))
+	// Run-level overrides are appended after the directive's own options, so a
+	// non-nil flag wins over the per-directive rule.
+	if p.allowDowngrade != nil {
+		opts = append(opts, version.WithAllowDowngrade(*p.allowDowngrade))
+	}
+	if p.prerelease != nil {
+		opts = append(opts, version.WithPrerelease(*p.prerelease))
+	}
 
 	chosen, ok := version.Select(located.Semver, candidates, attrs, opts...)
 	if !ok {

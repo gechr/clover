@@ -20,11 +20,12 @@ type Marker struct {
 	Line      int // 0-based index of the directive's comment line
 	Target    int // 0-based index of the line it rewrites
 	Directive directive.Directive
-	Provider  string // provider name; follow for a follower
-	ID        string // namespaced producer id, or ""
-	From      string // namespaced follow source, or ""
-	Value     string // value kind a follower projects
-	Select    string // old/new snapshot a follower reads
+	Provider  string   // provider name; follow for a follower
+	ID        string   // namespaced producer id, or ""
+	From      string   // namespaced follow source, or ""
+	Value     string   // value kind a follower projects
+	Select    string   // old/new snapshot a follower reads
+	Tags      []string // labels for --tags filtering, in source order
 }
 
 // IsFollower reports whether the marker reuses another marker's result rather
@@ -63,6 +64,7 @@ func bind(path, root string, found scan.Located) Marker {
 		From:      namespace(root, value(d, constant.DirectiveFrom)),
 		Value:     value(d, constant.DirectiveValue),
 		Select:    value(d, constant.DirectiveSelect),
+		Tags:      d.CSV(constant.DirectiveTags),
 	}
 }
 

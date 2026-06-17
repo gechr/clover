@@ -7,8 +7,42 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/tag"
 	"github.com/stretchr/testify/require"
 )
+
+// resultCount totals the markers across files that survived to a result.
+func resultCount(files []pipeline.FileResult) int {
+	var n int
+	for _, f := range files {
+		n += len(f.Results)
+	}
+	return n
+}
+
+// TestValidateFiltersByTags confirms a tag filter keeps only matching markers
+// and drops untagged ones, so --tags targets exactly the tagged directives.
+func TestValidateFiltersByTags(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "tagfake",
+		candidates: []model.Candidate{candidate(t, "1.0.0")},
+	})
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=tagfake repo=x/y tags=prod\nversion: 1.2.0\n" +
+			"# clover: provider=tagfake repo=x/y tags=ci\nversion: 1.2.0\n" +
+			"# clover: provider=tagfake repo=x/y\nversion: 1.2.0\n",
+	})
+
+	all, err := pipeline.Validate(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, 3, resultCount(all), "no filter keeps every marker")
+
+	prod, err := pipeline.Validate(context.Background(), []string{dir},
+		pipeline.WithTagFilter(tag.Parse([]string{"prod"})),
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, resultCount(prod), "only the prod-tagged marker survives")
+}
 
 // errored reports the number of markers across files whose validation failed.
 func errored(files []pipeline.FileResult) int {

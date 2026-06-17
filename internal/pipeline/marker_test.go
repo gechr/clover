@@ -30,6 +30,7 @@ func TestMarkers(t *testing.T) {
 				directive.KV{Key: "provider", Value: "github"},
 				directive.KV{Key: "repo", Value: "owner/name"},
 				directive.KV{Key: "id", Value: "nginx"},
+				directive.KV{Key: "tags", Value: "prod,ci"},
 			)},
 			{Line: 5, Directive: directiveOf(
 				directive.KV{Key: "from", Value: "nginx"},
@@ -48,6 +49,7 @@ func TestMarkers(t *testing.T) {
 	require.Equal(t, 1, producer.Target, "targets the next line")
 	require.Equal(t, root+"\x00nginx", producer.ID)
 	require.Empty(t, producer.From)
+	require.Equal(t, []string{"prod", "ci"}, producer.Tags, "tags split on commas")
 
 	follower := markers[1]
 	require.Equal(t, "follow", follower.Provider, "omitted provider defaults to follow")
