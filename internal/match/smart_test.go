@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/match"
+	"github.com/gechr/clover/internal/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -11,25 +12,28 @@ func TestSmartLocate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		line     string
-		wantOK   bool
-		wantCore string
+		name    string
+		line    string
+		wantErr bool
+		wantRaw string
 	}{
-		{name: "single token", line: "FROM nginx:1.27.0", wantOK: true, wantCore: "1.27.0"},
-		{name: "no token", line: "FROM nginx:latest", wantOK: false},
-		{name: "ambiguous", line: "from 1.2.3 to 1.3.0", wantOK: false},
+		{name: "single token", line: "FROM nginx:1.27.0", wantRaw: "1.27.0"},
+		{name: "v-prefixed token", line: "tag: v1.2.3", wantRaw: "v1.2.3"},
+		{name: "no token", line: "FROM nginx:latest", wantErr: true},
+		{name: "ambiguous", line: "from 1.2.3 to 1.3.0", wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tok, ok := match.NewSmart().Locate(tt.line)
-			require.Equal(t, tt.wantOK, ok)
-			if tt.wantOK {
-				require.Equal(t, tt.wantCore, tok.Core)
+			located, err := match.NewSmart().Locate(tt.line)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
 			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantRaw, located.Raw)
 		})
 	}
 }
@@ -109,10 +113,16 @@ func TestSmartRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			current, ok := match.NewSmart().Locate(tt.line)
-			require.True(t, ok)
+			smart := match.NewSmart()
+			located, err := smart.Locate(tt.line)
+			require.NoError(t, err)
 
-			got, changed := match.NewSmart().Render(tt.line, current, tt.resolved)
+			got, changed, err := smart.Render(
+				tt.line,
+				located,
+				model.Candidate{Version: tt.resolved},
+			)
+			require.NoError(t, err)
 			require.Equal(t, tt.wantLine, got)
 			require.Equal(t, tt.wantChanged, changed)
 		})

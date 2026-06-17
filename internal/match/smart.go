@@ -1,9 +1,12 @@
 package match
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/version"
 )
 
 // Smart is the default rewriter. It locates a version by shape - no provider
@@ -19,30 +22,45 @@ type Smart struct{}
 // pointer would only add an allocation and indirection.
 func NewSmart() Smart { return Smart{} }
 
-// Locate finds the single version token on line. It reports false when the line
-// has no version-shaped token or more than one, which is the ambiguity the
-// design fails loud on rather than guessing. Locate does no I/O, so lint can run
-// it to validate a marker without resolving anything.
-func (Smart) Locate(line string) (Token, bool) {
+// Locate finds the single version token on line. It errors when the line has no
+// version-shaped token, or more than one (the ambiguity the design fails loud on
+// rather than guessing). Locate does no I/O, so lint runs it to validate a
+// marker without resolving anything.
+func (Smart) Locate(line string) (Located, error) {
 	tokens := Find(line)
-	if len(tokens) != 1 {
-		return Token{}, false
+	switch len(tokens) {
+	case 0:
+		return Located{}, errors.New("no version found on target line")
+	case 1:
+		token := tokens[0]
+		semver, _ := version.Parse(token.Core) // nil core only matters to a keyword constraint
+		return Located{
+			Raw:    line[token.Span.Start:token.Span.End],
+			Semver: semver,
+			token:  token,
+		}, nil
+	default:
+		return Located{}, errors.New("multiple version-shaped tokens; target is ambiguous")
 	}
-	return tokens[0], true
 }
 
-// Render rewrites the located token on line to the resolved version, returning
-// the new line and whether it changed. The resolved value is normalised to its
-// numeric core and then re-dressed in the current token's style, so the splice
-// touches only the token's span and is idempotent.
-func (Smart) Render(line string, current Token, resolved string) (string, bool) {
-	rendered := restyle(current, resolved)
-	current.Span.clampTo(line)
-	old := line[current.Span.Start:current.Span.End]
-	if rendered == old {
-		return line, false
+// Render rewrites the located token on line to the resolved candidate's version,
+// returning the new line and whether it changed. The version is normalised to
+// its numeric core and re-dressed in the current token's style, so the splice
+// touches only the token's span and is idempotent. It errors when the located
+// span no longer fits the line.
+func (Smart) Render(line string, located Located, candidate model.Candidate) (string, bool, error) {
+	span := located.token.Span
+	if span.Start < 0 || span.End > len(line) || span.Start > span.End {
+		return "", false, errors.New("located version span no longer fits the line")
 	}
-	return line[:current.Span.Start] + rendered + line[current.Span.End:], true
+
+	rendered := restyle(located.token, candidate.Version)
+	old := line[span.Start:span.End]
+	if rendered == old {
+		return line, false, nil
+	}
+	return line[:span.Start] + rendered + line[span.End:], true, nil
 }
 
 // restyle produces the new version string: the resolved core at the current's
@@ -87,11 +105,4 @@ func reprecision(core string, n int) string {
 // components counts the numeric components in a core.
 func components(core string) int {
 	return strings.Count(core, ".") + 1
-}
-
-// clampTo keeps a span within line's bounds, guarding the splice against a span
-// located on a different (e.g. since-edited) line.
-func (s *Span) clampTo(line string) {
-	s.Start = min(max(s.Start, 0), len(line))
-	s.End = min(max(s.End, s.Start), len(line))
 }
