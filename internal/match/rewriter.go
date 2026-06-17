@@ -1,8 +1,10 @@
 package match
 
 import (
+	"fmt"
 	"path/filepath"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/version"
@@ -33,7 +35,8 @@ type Located struct {
 	Raw    string
 	Semver *version.Version
 
-	token Token // smart: the version token, with span and style
+	token  Token // the version token, with span and style
+	commit Span  // action-pin: the commit SHA span (zero for smart)
 }
 
 // Context is what the dispatch table routes on: the file, the target line, the
@@ -79,7 +82,25 @@ type route struct {
 // empty-condition catch-all and must stay last. It is a curated built-in list,
 // not user configuration (yet).
 var routes = []route{
+	{
+		when: conditions{
+			path:      mustPattern(".github/workflows/*"),
+			lineMatch: mustPattern("* uses: *"),
+			provider:  constant.ProviderGithub,
+		},
+		rw: NewActionPin(),
+	},
 	{rw: NewSmart()},
+}
+
+// mustPattern compiles a built-in route pattern, panicking on a malformed one
+// since the patterns are constant literals that cannot fail at runtime.
+func mustPattern(raw string) *pattern.Pattern {
+	p, err := pattern.Compile(raw)
+	if err != nil {
+		panic(fmt.Sprintf("match: invalid built-in route pattern %q: %v", raw, err))
+	}
+	return p
 }
 
 // For selects the rewriter for a target line, walking the routes first-match-wins
