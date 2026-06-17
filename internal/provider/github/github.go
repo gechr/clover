@@ -1,6 +1,8 @@
 package github
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,6 +16,11 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/ratelimit"
 )
+
+// errAnonymous reports that no GitHub credentials were found, so requests fall
+// back to anonymous (rate-limited) access. It is informational, not fatal:
+// public reads still work.
+var errAnonymous = errors.New("no GitHub credentials; using anonymous access")
 
 // host is the GitHub host go-gh resolves credentials for and sends requests to.
 const host = "github.com"
@@ -109,6 +116,22 @@ func (p *Provider) Describe(r provider.Resource) string {
 		return constant.ProviderGithub
 	}
 	return fmt.Sprintf("%s/%s/%s (%s)", host, res.owner, res.name, res.source)
+}
+
+// Authenticate reports whether a gh-compatible credential is available. It does
+// not verify the token over the network - only that one is present - and never
+// blocks on a prompt. Absence is reported as errAnonymous rather than a hard
+// failure, since anonymous reads still work (just rate-limited).
+func (p *Provider) Authenticate(context.Context) error {
+	if token, _ := auth.TokenForHost(host); token != "" {
+		return nil
+	}
+	return errAnonymous
+}
+
+// AuthHint returns how to authenticate when no credential is found.
+func (p *Provider) AuthHint() string {
+	return "run `gh auth login`, or set GH_TOKEN, for higher rate limits and private repositories"
 }
 
 // resource is GitHub's validated descriptor.
