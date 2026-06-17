@@ -1,5 +1,8 @@
 package comment_test
 
+// clover:ignore-file - the table fixtures below embed clover: directives as
+// test data, not real markers.
+
 import (
 	"testing"
 
