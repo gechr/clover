@@ -104,6 +104,7 @@ func formatFile(file scan.File) FormatFile {
 func canonicalLine(line string, syntax comment.Syntax, d directive.Directive) (string, bool) {
 	name, _ := d.Get(constant.DirectiveProvider)
 	reordered := directive.Reorder(d, providerKeys(name))
+	reordered = directive.CanonicaliseTags(reordered)
 	body := directive.Render(reordered)
 
 	rendered, ok := syntax.Render(line, body)

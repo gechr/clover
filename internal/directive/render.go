@@ -71,6 +71,34 @@ func Reorder(d Directive, providerKeys []string) Directive {
 	return Directive{Pairs: pairs}
 }
 
+// CanonicaliseTags returns d with its tags value lowercased and de-duplicated,
+// preserving order. Tag matching is case-insensitive, so this is the canonical
+// form format settles a tags value into; an absent tags key is unchanged.
+func CanonicaliseTags(d Directive) Directive {
+	pairs := make([]KV, len(d.Pairs))
+	copy(pairs, d.Pairs)
+	for i := range pairs {
+		if pairs[i].Key == constant.DirectiveTags {
+			pairs[i].Value = canonicalTags(pairs[i].Value)
+		}
+	}
+	return Directive{Pairs: pairs}
+}
+
+// canonicalTags lowercases and de-duplicates a comma-separated tags value,
+// trimming each tag and dropping empties, with order preserved.
+func canonicalTags(value string) string {
+	seen := make(map[string]bool)
+	var tags []string
+	for tag := range strings.SplitSeq(value, ",") {
+		if tag = strings.ToLower(strings.TrimSpace(tag)); tag != "" && !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+	return strings.Join(tags, ",")
+}
+
 // Render serializes a directive to its canonical text: the keyword, then each
 // pair as key=value separated by single spaces. A value is quoted only when it
 // must be - when it contains whitespace, or when its first character (a quote or

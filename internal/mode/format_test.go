@@ -20,7 +20,7 @@ type orderedProvider struct{ name string }
 func (p orderedProvider) Name() string { return p.name }
 
 func (p orderedProvider) Keys() []provider.Key {
-	return []provider.Key{{Name: "repo", Required: true}, {Name: "source"}}
+	return []provider.Key{{Name: "repository", Required: true}, {Name: "source"}}
 }
 
 func (p orderedProvider) Resource(directive.Directive) (provider.Resource, error) {
@@ -46,7 +46,7 @@ func TestFormatReordersAndWrites(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtp"})
 	dir, path := formatDir(
 		t,
-		"# clover: source=tags constraint=patch repo=a/b provider=fmtp\nversion: 1.0.0\n",
+		"# clover: source=tags constraint=patch repository=a/b provider=fmtp\nversion: 1.0.0\n",
 	)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, false)
@@ -57,14 +57,34 @@ func TestFormatReordersAndWrites(t *testing.T) {
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t,
-		"# clover: provider=fmtp repo=a/b source=tags constraint=patch\nversion: 1.0.0\n",
+		"# clover: provider=fmtp repository=a/b source=tags constraint=patch\nversion: 1.0.0\n",
 		string(got),
+	)
+}
+
+func TestFormatLowercasesAndUniquesTags(t *testing.T) {
+	provider.Register(orderedProvider{name: "fmttag"})
+	dir, path := formatDir(
+		t,
+		"# clover:  provider=fmttag   repository=a/b  tags=PROD,Ci,prod\nversion: 1.0.0\n",
+	)
+
+	summary, err := mode.Format(context.Background(), []string{dir}, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Changed())
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t,
+		"# clover: provider=fmttag repository=a/b tags=prod,ci\nversion: 1.0.0\n",
+		string(got),
+		"tags lowercased and de-duplicated, and spacing collapsed to one space per pair",
 	)
 }
 
 func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtv"})
-	dir, path := formatDir(t, "# clover: repo=a/b provider=fmtv\nversion: 1.2.3-rc.1\n")
+	dir, path := formatDir(t, "# clover: repository=a/b provider=fmtv\nversion: 1.2.3-rc.1\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -76,7 +96,7 @@ func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 
 func TestFormatCheckWritesNothing(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtc"})
-	original := "# clover: repo=a/b provider=fmtc\nversion: 1.0.0\n"
+	original := "# clover: repository=a/b provider=fmtc\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, true)
@@ -92,7 +112,7 @@ func TestFormatCheckWritesNothing(t *testing.T) {
 
 func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtn"})
-	original := "# clover: provider=fmtn repo=a/b\nversion: 1.0.0\n"
+	original := "# clover: provider=fmtn repository=a/b\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
 	summary, err := mode.Format(context.Background(), []string{dir}, false)
@@ -107,7 +127,7 @@ func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 
 func TestFormatIsIdempotent(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmti"})
-	dir, path := formatDir(t, "# clover: source=tags repo=a/b provider=fmti\nv: 1.0.0\n")
+	dir, path := formatDir(t, "# clover: source=tags repository=a/b provider=fmti\nv: 1.0.0\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
@@ -124,14 +144,14 @@ func TestFormatIsIdempotent(t *testing.T) {
 
 func TestFormatNormalisesQuoting(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtq"})
-	dir, path := formatDir(t, `# clover: provider=fmtq repo="a/b"`+"\nv: 1.0.0\n")
+	dir, path := formatDir(t, `# clover: provider=fmtq repository="a/b"`+"\nv: 1.0.0\n")
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Contains(t, string(got), "repo=a/b") // redundant quotes dropped
+	require.Contains(t, string(got), "repository=a/b") // redundant quotes dropped
 }
 
 func TestFormatPreservesBlockComment(t *testing.T) {
@@ -140,7 +160,11 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 	path := filepath.Join(dir, "index.html")
 	require.NoError(
 		t,
-		os.WriteFile(path, []byte("<!-- clover: repo=a/b provider=fmtb -->\nv: 1.0.0\n"), 0o644),
+		os.WriteFile(
+			path,
+			[]byte("<!-- clover: repository=a/b provider=fmtb -->\nv: 1.0.0\n"),
+			0o644,
+		),
 	)
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
@@ -148,12 +172,12 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Equal(t, "<!-- clover: provider=fmtb repo=a/b -->\nv: 1.0.0\n", string(got))
+	require.Equal(t, "<!-- clover: provider=fmtb repository=a/b -->\nv: 1.0.0\n", string(got))
 }
 
 func TestFormatPreservesFileMode(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtperm"})
-	dir, path := formatDir(t, "# clover: repo=a/b provider=fmtperm\nv: 1.0.0\n")
+	dir, path := formatDir(t, "# clover: repository=a/b provider=fmtperm\nv: 1.0.0\n")
 	require.NoError(t, os.Chmod(path, 0o777))
 
 	_, err := mode.Format(context.Background(), []string{dir}, false)
