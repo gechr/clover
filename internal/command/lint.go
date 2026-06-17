@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 )
 
@@ -17,10 +19,10 @@ type lintCmd struct {
 }
 
 // Run validates the markers under the given paths and fails when any did not.
-func (c *lintCmd) Run() error {
+func (c *lintCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 
-	summary, err := mode.Lint(ctx, roots(c.Paths))
+	summary, err := mode.Lint(ctx, roots(c.Paths), pipeline.WithExclude(cfg.ExcludeGlobs()))
 	if err != nil {
 		return err
 	}

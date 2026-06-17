@@ -10,7 +10,9 @@ import (
 	"github.com/gechr/clib/complete"
 	"github.com/gechr/clib/help"
 	"github.com/gechr/clib/theme"
+	"github.com/gechr/clive"
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/github"
 )
@@ -29,9 +31,13 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Run    runCmd    `cmd:"" help:"Resolve version references and update them in place."`
-	Lint   lintCmd   `cmd:"" help:"Check every directive resolves, offline and without writing."`
-	Format formatCmd `cmd:"" help:"Canonicalise directive comments."`
+	Config   string `help:"Path to a .clover.yaml config file (default: search the current directory)." placeholder:"<path>"`
+	NoConfig bool   `help:"Do not load any .clover.yaml config."`
+
+	Run     runCmd     `cmd:"" help:"Resolve version references and update them in place."`
+	Lint    lintCmd    `cmd:"" help:"Check every directive resolves, offline and without writing."`
+	Format  formatCmd  `cmd:"" help:"Canonicalise directive comments."`
+	Version versionCmd `cmd:"" help:"Print version information."`
 }
 
 // Run parses the command line and dispatches to the chosen mode, returning the
@@ -77,11 +83,34 @@ func Run() int {
 		parser.FatalIfErrorf(err)
 	}
 
+	cfg, err := loadConfig(root)
+	if err != nil {
+		clog.Error().Err(err).Msg("Failed to load config")
+		return exitFailure
+	}
+	if err := cfg.CheckVersion(clive.Current()); err != nil {
+		clog.Error().Err(err).Msg("Version requirement not met")
+		return exitFailure
+	}
+	kctx.Bind(cfg)
+
 	if err := kctx.Run(); err != nil {
 		clog.Error().Err(err).Msg("Command failed")
 		return exitFailure
 	}
 	return exitSuccess
+}
+
+// loadConfig loads the project config, honouring --config and --no-config.
+func loadConfig(root cli) (*config.Config, error) {
+	if root.NoConfig {
+		return nil, nil //nolint:nilnil // no config requested
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return config.Load(dir, root.Config)
 }
 
 // newGenerator builds the shell-completion generator from the CLI's flags, plus

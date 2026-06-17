@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/x/human"
 )
@@ -18,10 +20,15 @@ type formatCmd struct {
 }
 
 // Run canonicalises (or, with --check, checks) the directives under the paths.
-func (c *formatCmd) Run() error {
+func (c *formatCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 
-	summary, err := mode.Format(ctx, roots(c.Paths), c.Check)
+	summary, err := mode.Format(
+		ctx,
+		roots(c.Paths),
+		c.Check,
+		pipeline.WithExclude(cfg.ExcludeGlobs()),
+	)
 	if err != nil {
 		return err
 	}

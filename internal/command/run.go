@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/mode"
@@ -21,11 +22,14 @@ type runCmd struct {
 }
 
 // Run resolves the markers under the given paths and reports a summary.
-func (c *runCmd) Run() error {
+func (c *runCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default)
 
-	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun, pipeline.WithReporter(reporter))
+	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
+		pipeline.WithReporter(reporter),
+		pipeline.WithExclude(cfg.ExcludeGlobs()),
+	)
 	if err != nil {
 		return err
 	}
