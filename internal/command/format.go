@@ -11,7 +11,7 @@ import (
 // formatCmd canonicalises directive comments. With --check it reports what would
 // change and exits non-zero without writing - the formatting CI gate.
 type formatCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)."`
+	Paths []string `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)."              predictor:"path"`
 	Check bool     `                               help:"Report directives that need formatting and exit non-zero; do not write."`
 }
 
