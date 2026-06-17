@@ -11,7 +11,8 @@ import (
 	"github.com/gechr/clib/help"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
-	_ "github.com/gechr/clover/internal/provider/github" // register github provider
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/github"
 )
 
 const (
@@ -36,6 +37,8 @@ type cli struct {
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
+	provider.RegisterAll(github.New())
+
 	var root cli
 
 	flags, err := clib.Reflect(&root)

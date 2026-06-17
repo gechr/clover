@@ -35,8 +35,6 @@ var rateHeaders = ratelimit.Headers{
 	RetryAfter: "Retry-After",
 }
 
-func init() { provider.Register(New()) }
-
 // Provider resolves versions from GitHub tags or releases. It holds a single
 // lazily-built REST client so one cache and one rate-limit budget are shared
 // across every marker in a run.
