@@ -40,6 +40,43 @@ func TestRun(t *testing.T) {
 	)
 }
 
+// TestRunAbbreviatesHashValues confirms text output shortens long commit/sha256
+// values to a head…tail form so they do not dominate the line.
+func TestRunAbbreviatesHashValues(t *testing.T) {
+	const (
+		oldSHA = "0123456789abcdef0123456789abcdef01234567"
+		newSHA = "fedcba9876543210fedcba9876543210fedcba98"
+	)
+	pinned := result("ci.yml", 0)
+	pinned.Current, pinned.Resolved, pinned.Changed = oldSHA, newSHA, true
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputText)
+
+	require.Equal(t,
+		"INF ℹ️ Updated at=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
+			"INF ℹ️ Run complete changed=1 skipped=0 failed=0\n",
+		buf.String(),
+	)
+}
+
+// TestRunWideShowsFullHash confirms wide output keeps the exact value, since
+// wide exists to account for the precise resolution.
+func TestRunWideShowsFullHash(t *testing.T) {
+	const sha = "0123456789abcdef0123456789abcdef01234567"
+	pinned := result("ci.yml", 0)
+	pinned.Current, pinned.Resolved, pinned.Changed = "1.0.0", sha, true
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputWide)
+
+	require.Equal(t,
+		"INF ℹ️ Updated at=ci.yml:1 from=1.0.0 to="+sha+"\n"+
+			"INF ℹ️ Run complete changed=1 skipped=0 failed=0\n",
+		buf.String(),
+	)
+}
+
 func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 	updated := result("app.txt", 0)
 	updated.Current, updated.Resolved, updated.Changed = "1.0.0", "2.0.0", true

@@ -2,6 +2,7 @@ package report
 
 import (
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/display"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 )
@@ -32,13 +33,13 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 		case r.Changed:
 			logger.Info().
 				Line("at", r.Marker.File, line(r)).
-				Str("from", r.Current).
-				Str("to", r.Resolved).
+				Str("from", value(r.Current, output)).
+				Str("to", value(r.Resolved, output)).
 				Msg("Updated")
 		case output == OutputWide:
 			logger.Info().
 				Line("at", r.Marker.File, line(r)).
-				Str("version", r.Current).
+				Str("version", value(r.Current, output)).
 				Msg("Up to date")
 		}
 	})
@@ -103,4 +104,14 @@ func summarize(logger *clog.Logger, dry bool) *clog.Event {
 // line is a result's 1-based target line, for a clog file:line hyperlink.
 func line(r pipeline.Result) int {
 	return r.Marker.Target + 1
+}
+
+// value formats a resolved value for the report: abbreviated under text output
+// so a long hash (a commit SHA or sha256 sum) stays readable, shown in full
+// under wide output where accounting for the exact value matters.
+func value(v string, output Output) string {
+	if output == OutputWide {
+		return v
+	}
+	return display.Value(v)
 }
