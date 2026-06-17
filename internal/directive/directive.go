@@ -3,6 +3,7 @@ package directive
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gechr/clover/internal/constant"
@@ -51,6 +52,22 @@ func (d Directive) All(key string) []string {
 func (d Directive) Has(key string) bool {
 	_, ok := d.Get(key)
 	return ok
+}
+
+// CSV interprets key's values as comma-separated lists, flattening repeats and
+// splitting each value on commas, with surrounding whitespace trimmed and empty
+// items dropped. Order is preserved; an absent key yields nil. It backs keys
+// like tags that carry several labels (tags=prod,ci).
+func (d Directive) CSV(key string) []string {
+	var out []string
+	for _, value := range d.All(key) {
+		for item := range strings.SplitSeq(value, ",") {
+			if item = strings.TrimSpace(item); item != "" {
+				out = append(out, item)
+			}
+		}
+	}
+	return out
 }
 
 // Bool interprets the first value for key as a boolean. An absent key is false

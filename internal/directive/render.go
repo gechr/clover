@@ -31,6 +31,7 @@ var (
 		constant.RuleCooldown,
 		constant.RuleBehind,
 		constant.RuleAllowDowngrade,
+		constant.DirectiveTags,
 		constant.DirectiveSkip,
 	}
 )

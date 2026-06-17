@@ -133,6 +133,12 @@ func TestReorder(t *testing.T) {
 			want:         []string{"constraint", "include", "prerelease", "behind"},
 		},
 		{
+			name:         "tags sort before skip in the trailing zone",
+			in:           "clover: skip=false tags=prod provider=github repo=a/b",
+			providerKeys: []string{"repo"},
+			want:         []string{"provider", "repo", "tags", "skip"},
+		},
+		{
 			name:         "unknown keys kept last in original order",
 			in:           "clover: zeta=1 provider=github alpha=2",
 			providerKeys: nil,

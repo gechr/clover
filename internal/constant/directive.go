@@ -17,5 +17,6 @@ const (
 	DirectiveProvider = "provider" // upstream source; omitted ⇒ follow
 	DirectiveSelect   = "select"   // follow the old or new value
 	DirectiveSkip     = "skip"     // disable this marker
+	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
 	DirectiveValue    = "value"    // what a follower projects
 )
