@@ -1,0 +1,6 @@
+package constant
+
+// Dash separates a version's numeric core from its prerelease or variant suffix
+// (1.27-alpine, 2.0.0-rc.1). It is a rune because the recogniser scans byte by
+// byte; use string(Dash) where a string is needed.
+const Dash = '-'
