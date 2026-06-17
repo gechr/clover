@@ -2,9 +2,12 @@ package command
 
 import (
 	"context"
+	"slices"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/auth"
 	"github.com/gechr/clover/internal/console"
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
@@ -26,6 +29,41 @@ func (c *runCmd) Run() error {
 		return err
 	}
 
+	reportAuth(ctx, summary)
 	report.Run(clog.Default, summary, c.DryRun)
 	return nil
+}
+
+// reportAuth hints, actionably, when a used provider fell back to anonymous
+// access - the usual cause of rate-limit failures.
+func reportAuth(ctx context.Context, summary mode.Summary) {
+	for _, status := range auth.Check(ctx, usedProviders(summary)) {
+		if status.Authenticated {
+			continue
+		}
+		clog.Hint().
+			Str("provider", status.Provider).
+			Str("action", status.Hint).
+			Msg("Using anonymous access")
+	}
+}
+
+// usedProviders returns the distinct upstream providers the run's markers used,
+// sorted, excluding followers (which resolve from another marker, not a
+// provider).
+func usedProviders(summary mode.Summary) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, outcome := range summary.Outcomes {
+		for _, result := range outcome.Results {
+			name := result.Marker.Provider
+			if name == "" || name == constant.ProviderFollow || seen[name] {
+				continue
+			}
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
