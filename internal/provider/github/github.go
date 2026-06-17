@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 
@@ -15,7 +16,13 @@ import (
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/ratelimit"
+	"github.com/gechr/clover/internal/token"
 )
+
+// tokenEnv is the namespaced environment variable that overrides every other
+// credential source, deliberately not GITHUB_TOKEN/GH_TOKEN which clash with
+// other tools.
+const tokenEnv = "CLOVER_GITHUB_TOKEN" //nolint:gosec // env var name, not a credential
 
 // errAnonymous reports that no GitHub credentials were found, so requests fall
 // back to anonymous (rate-limited) access. It is informational, not fatal:
@@ -47,10 +54,16 @@ var rateHeaders = ratelimit.Headers{
 // across every marker in a run.
 type Provider struct {
 	transport http.RoundTripper // overridable for tests; nil uses the cached, rate-limited default
+	store     tokenStore        // reads the clover-minted token; nil falls through the chain
 
 	once    sync.Once
 	rest    *api.RESTClient
 	restErr error
+}
+
+// tokenStore is the read side of the token store the credential chain consults.
+type tokenStore interface {
+	Get(host string) (string, bool)
 }
 
 // Option configures a [Provider].
@@ -61,9 +74,20 @@ func WithTransport(rt http.RoundTripper) Option {
 	return func(p *Provider) { p.transport = rt }
 }
 
-// New returns the GitHub provider.
+// WithStore sets the token store the credential chain reads the clover-minted
+// token from, for tests.
+func WithStore(s tokenStore) Option {
+	return func(p *Provider) { p.store = s }
+}
+
+// New returns the GitHub provider, wiring the token store the credential chain
+// reads from. A store that cannot be located (no config dir) is left nil, so the
+// chain simply skips that rung.
 func New(opts ...Option) *Provider {
 	p := &Provider{}
+	if store, err := token.New(); err == nil {
+		p.store = store
+	}
 	for _, opt := range opts {
 		opt(p)
 	}
@@ -118,12 +142,13 @@ func (p *Provider) Describe(r provider.Resource) string {
 	return fmt.Sprintf("%s/%s/%s (%s)", host, res.owner, res.name, res.source)
 }
 
-// Authenticate reports whether a gh-compatible credential is available. It does
-// not verify the token over the network - only that one is present - and never
-// blocks on a prompt. Absence is reported as errAnonymous rather than a hard
-// failure, since anonymous reads still work (just rate-limited).
+// Authenticate reports whether a credential is available from any source in the
+// chain. It does not verify the token over the network - only that one is
+// present - and never blocks on a prompt. Absence is reported as errAnonymous
+// rather than a hard failure, since anonymous reads still work (just
+// rate-limited).
 func (p *Provider) Authenticate(context.Context) error {
-	if token, _ := auth.TokenForHost(host); token != "" {
+	if p.credential() != "" {
 		return nil
 	}
 	return errAnonymous
@@ -131,7 +156,24 @@ func (p *Provider) Authenticate(context.Context) error {
 
 // AuthHint returns how to authenticate when no credential is found.
 func (p *Provider) AuthHint() string {
-	return "run `gh auth login`, or set GH_TOKEN, for higher rate limits and private repositories"
+	return "run `clover login github` or `gh auth login`, " +
+		"or set CLOVER_GITHUB_TOKEN, for higher rate limits and private repositories"
+}
+
+// credential resolves the access token from the source chain, first hit wins:
+// the CLOVER_GITHUB_TOKEN env var, the clover-minted token in the store, then a
+// gh-compatible token. An empty result means anonymous access.
+func (p *Provider) credential() string {
+	if env := os.Getenv(tokenEnv); env != "" {
+		return env
+	}
+	if p.store != nil {
+		if stored, ok := p.store.Get(host); ok {
+			return stored
+		}
+	}
+	gh, _ := auth.TokenForHost(host)
+	return gh
 }
 
 // resource is GitHub's validated descriptor.
@@ -152,10 +194,9 @@ func (p *Provider) client() (*api.RESTClient, error) {
 				httpcache.WithTransport(ratelimit.New(nil, rateHeaders)),
 			).Transport
 		}
-		token, _ := auth.TokenForHost(host)
 		p.rest, p.restErr = api.NewRESTClient(api.ClientOptions{
 			Host:      host,
-			AuthToken: token,
+			AuthToken: p.credential(),
 			Transport: transport,
 		})
 	})
