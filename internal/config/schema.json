@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gechr/clover/main/internal/config/schema.json",
+  "title": "clover configuration",
+  "description": "Schema for Clover YAML configuration (.clover.yaml / .clover.yml).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "required-version": {
+      "type": "string",
+      "description": "Version constraint the running clover must satisfy (e.g. \">=0.1.0\", \"~>0.1\")."
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Which paths clover scans.",
+      "properties": {
+        "exclude": {
+          "type": "array",
+          "description": "Doublestar globs excluded from scanning (e.g. \"vendor/**\", \"**/testdata/**\").",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
