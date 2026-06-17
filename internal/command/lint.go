@@ -12,7 +12,8 @@ import (
 // lintCmd checks every directive resolves, offline and without writing. It is
 // the CI gate: a non-zero exit means at least one directive will not resolve.
 type lintCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
+	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
+	Output report.Output `                               help:"Output detail (text or wide)."                                               short:"o" enum:"text,wide" default:"text"`
 }
 
 // Run validates the markers under the given paths and fails when any did not.
@@ -24,7 +25,7 @@ func (c *lintCmd) Run() error {
 		return err
 	}
 
-	report.Lint(clog.Default, summary)
+	report.Lint(clog.Default, summary, c.Output)
 	if !summary.OK() {
 		return fmt.Errorf("%d errored, %d skipped", summary.Errored(), summary.Skipped())
 	}

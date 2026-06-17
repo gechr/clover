@@ -15,8 +15,9 @@ import (
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths  []string `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
-	DryRun bool     `                               help:"Resolve and render but write nothing."                                       short:"n" aliases:"dry"`
+	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
+	DryRun bool          `                               help:"Resolve and render but write nothing."                                       short:"n" aliases:"dry"`
+	Output report.Output `                               help:"Output detail (text or wide)."                                               short:"o"               enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -30,7 +31,7 @@ func (c *runCmd) Run() error {
 	}
 
 	reportAuth(ctx, summary)
-	report.Run(clog.Default, summary, c.DryRun)
+	report.Run(clog.Default, summary, c.DryRun, c.Output)
 	return nil
 }
 
