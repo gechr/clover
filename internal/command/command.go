@@ -48,16 +48,6 @@ func Run() int {
 	}
 	gen := newGenerator(flags)
 
-	// Completion runs before parsing so it works without a subcommand, which kong
-	// would otherwise demand.
-	if completion, args, ok := clib.Preflight(); ok {
-		if _, handleErr := completion.Handle(gen, nil, clib.WithArgs(args)); handleErr != nil {
-			clog.Error().Err(handleErr).Msg("Completion failed")
-			return exitFailure
-		}
-		return exitSuccess
-	}
-
 	parser := kong.Must(&root,
 		kong.Name(name),
 		kong.Description(description),
@@ -68,7 +58,19 @@ func Run() int {
 		)),
 		kong.Bind(gen),
 	)
+	// Populate subcommand specs from the parser model before completion so the
+	// generated script lists run/lint/format and their flags.
 	gen.Subs = clib.Subcommands(parser)
+
+	// Completion runs before parsing so it works without a subcommand, which kong
+	// would otherwise demand.
+	if completion, args, ok := clib.Preflight(); ok {
+		if _, handleErr := completion.Handle(gen, nil, clib.WithArgs(args)); handleErr != nil {
+			clog.Error().Err(handleErr).Msg("Completion failed")
+			return exitFailure
+		}
+		return exitSuccess
+	}
 
 	kctx, err := parser.Parse(os.Args[1:])
 	if err != nil {
