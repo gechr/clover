@@ -1,6 +1,7 @@
 package github_test
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -20,14 +21,32 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { re
 func jsonTransport(body string, path *string) roundTripFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		*path = req.URL.Path
-		header := http.Header{}
-		header.Set("Content-Type", "application/json")
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     header,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Request:    req,
-		}, nil
+		return jsonResponse(req, body), nil
+	}
+}
+
+// routeTransport answers each request with the body whose key is a substring of
+// the request path, so a single provider can serve distinct endpoints.
+func routeTransport(routes map[string]string) roundTripFunc {
+	return func(req *http.Request) (*http.Response, error) {
+		for key, body := range routes {
+			if strings.Contains(req.URL.Path, key) {
+				return jsonResponse(req, body), nil
+			}
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL.Path)
+	}
+}
+
+// jsonResponse builds a 200 JSON response carrying body.
+func jsonResponse(req *http.Request, body string) *http.Response {
+	header := http.Header{}
+	header.Set("Content-Type", "application/json")
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    req,
 	}
 }
 
@@ -58,12 +77,17 @@ func TestDiscoverTags(t *testing.T) {
 func TestDiscoverReleases(t *testing.T) {
 	t.Parallel()
 
-	const body = `[
+	const releases = `[
 		{"tag_name": "v2.0.0", "published_at": "2026-01-02T03:04:05Z", "draft": false},
 		{"tag_name": "v2.1.0", "published_at": "2026-02-02T03:04:05Z", "draft": true}
 	]`
-	var path string
-	provider := github.New(github.WithTransport(jsonTransport(body, &path)))
+	const tags = `[
+		{"name": "v2.0.0", "commit": {"sha": "deadbeef"}}
+	]`
+	provider := github.New(github.WithTransport(routeTransport(map[string]string{
+		"/releases": releases,
+		"/tags":     tags,
+	})))
 
 	res, err := provider.Resource(directiveOf(
 		directive.KV{Key: "repo", Value: "owner/name"},
@@ -73,8 +97,38 @@ func TestDiscoverReleases(t *testing.T) {
 	candidates, err := provider.Discover(t.Context(), res)
 	require.NoError(t, err)
 
-	require.Contains(t, path, "/repos/owner/name/releases")
 	require.Len(t, candidates, 1, "draft release is skipped")
 	require.Equal(t, "v2.0.0", candidates[0].Version)
+	require.Equal(t, "deadbeef", candidates[0].Commit, "commit resolved by joining the tags list")
 	require.False(t, candidates[0].PublishedAt.IsZero())
+}
+
+func TestDiscoverReleasesUnmatchedTagHasNoCommit(t *testing.T) {
+	t.Parallel()
+
+	const releases = `[
+		{"tag_name": "v9.9.9", "published_at": "2026-01-02T03:04:05Z", "draft": false}
+	]`
+	const tags = `[
+		{"name": "v2.0.0", "commit": {"sha": "deadbeef"}}
+	]`
+	provider := github.New(github.WithTransport(routeTransport(map[string]string{
+		"/releases": releases,
+		"/tags":     tags,
+	})))
+
+	res, err := provider.Resource(directiveOf(
+		directive.KV{Key: "repo", Value: "owner/name"},
+		directive.KV{Key: "source", Value: "releases"},
+	))
+	require.NoError(t, err)
+	candidates, err := provider.Discover(t.Context(), res)
+	require.NoError(t, err)
+
+	require.Len(t, candidates, 1)
+	require.Empty(
+		t,
+		candidates[0].Commit,
+		"a release tag outside the tags page resolves to no commit",
+	)
 }

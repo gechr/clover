@@ -13,8 +13,9 @@ import (
 )
 
 // perPage is the page size; the first page of newest entries is enough for
-// selection and keeps each marker to a single request, which respects the rate
-// limit. Deep history is a future refinement.
+// selection and bounds each marker to one request for tags (two for releases,
+// which also fetch tags to resolve commits), which respects the rate limit.
+// Deep history is a future refinement.
 const perPage = 100
 
 // tag is the subset of the /tags response clover reads.
@@ -58,10 +59,9 @@ func discoverTags(
 	rest *api.RESTClient,
 	res resource,
 ) ([]model.Candidate, error) {
-	var tags []tag
-	path := fmt.Sprintf("repos/%s/%s/tags?per_page=%d", res.owner, res.name, perPage)
-	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &tags); err != nil {
-		return nil, fmt.Errorf("github: list tags: %w", err)
+	tags, err := listTags(ctx, rest, res)
+	if err != nil {
+		return nil, err
 	}
 
 	candidates := make([]model.Candidate, 0, len(tags))
@@ -82,14 +82,56 @@ func discoverReleases(
 		return nil, fmt.Errorf("github: list releases: %w", err)
 	}
 
+	// The releases payload carries no commit SHA, but action-pinning needs one.
+	// The tags list returns each tag's commit already peeled (annotated tags
+	// dereferenced to their target commit), so resolve commits by joining on
+	// tag name - one extra request, not one per release. A release whose tag is
+	// older than the newest perPage tags resolves to an empty commit, which only
+	// blocks action-pinning that single marker.
+	commits, err := tagCommits(ctx, rest, res)
+	if err != nil {
+		return nil, err
+	}
+
 	candidates := make([]model.Candidate, 0, len(releases))
 	for _, rel := range releases {
 		if rel.Draft {
 			continue
 		}
-		candidates = append(candidates, candidate(rel.TagName, "", rel.PublishedAt))
+		candidates = append(
+			candidates,
+			candidate(rel.TagName, commits[rel.TagName], rel.PublishedAt),
+		)
 	}
 	return candidates, nil
+}
+
+// listTags returns the newest page of a repository's tags.
+func listTags(ctx context.Context, rest *api.RESTClient, res resource) ([]tag, error) {
+	var tags []tag
+	path := fmt.Sprintf("repos/%s/%s/tags?per_page=%d", res.owner, res.name, perPage)
+	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &tags); err != nil {
+		return nil, fmt.Errorf("github: list tags: %w", err)
+	}
+	return tags, nil
+}
+
+// tagCommits maps tag name to its peeled commit SHA, for resolving the commit a
+// release points at.
+func tagCommits(
+	ctx context.Context,
+	rest *api.RESTClient,
+	res resource,
+) (map[string]string, error) {
+	tags, err := listTags(ctx, rest, res)
+	if err != nil {
+		return nil, err
+	}
+	commits := make(map[string]string, len(tags))
+	for _, t := range tags {
+		commits[t.Name] = t.Commit.SHA
+	}
+	return commits, nil
 }
 
 // candidate builds a model.Candidate, parsing the raw tag for comparison. A tag
