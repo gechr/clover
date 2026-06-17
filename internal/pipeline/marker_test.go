@@ -28,7 +28,7 @@ func TestMarkers(t *testing.T) {
 		Found: []scan.Located{
 			{Line: 0, Directive: directiveOf(
 				directive.KV{Key: "provider", Value: "github"},
-				directive.KV{Key: "repo", Value: "owner/name"},
+				directive.KV{Key: "repository", Value: "owner/name"},
 				directive.KV{Key: "id", Value: "nginx"},
 				directive.KV{Key: "tags", Value: "prod,ci"},
 			)},

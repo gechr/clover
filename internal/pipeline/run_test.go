@@ -25,7 +25,7 @@ type fakeProvider struct {
 func (f fakeProvider) Name() string { return f.name }
 
 func (f fakeProvider) Keys() []provider.Key {
-	return []provider.Key{{Name: "repo", Required: false}}
+	return []provider.Key{{Name: "repository", Required: false}}
 }
 
 func (f fakeProvider) Resource(directive.Directive) (provider.Resource, error) {
@@ -69,7 +69,7 @@ func TestRunResolvesProducer(t *testing.T) {
 	})
 
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=fake repo=x/y\nversion: 1.2.0\n",
+		"app.txt": "# clover: provider=fake repository=x/y\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -87,7 +87,7 @@ func TestRunResolvesProducer(t *testing.T) {
 
 	require.Equal(
 		t,
-		[]string{"# clover: provider=fake repo=x/y", "version: 1.3.0", ""},
+		[]string{"# clover: provider=fake repository=x/y", "version: 1.3.0", ""},
 		files[0].Rewritten(),
 	)
 }
@@ -99,7 +99,7 @@ func TestRunPreservesStyle(t *testing.T) {
 	})
 
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=styled repo=x/y\nimage: v1.2\n",
+		"app.txt": "# clover: provider=styled repository=x/y\nimage: v1.2\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -117,7 +117,7 @@ func TestRunFollower(t *testing.T) {
 	})
 
 	dir := write(t, map[string]string{
-		"a.txt": "# clover: provider=lead repo=x/y id=app\nlead: 1.0.0\n",
+		"a.txt": "# clover: provider=lead repository=x/y id=app\nlead: 1.0.0\n",
 		"b.txt": "# clover: from=app value=version\nfollower: 1.0.0\n",
 	})
 
@@ -133,7 +133,7 @@ func TestRunFollower(t *testing.T) {
 
 func TestRunUnknownProviderErrors(t *testing.T) {
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=nope repo=x/y\nversion: 1.0.0\n",
+		"app.txt": "# clover: provider=nope repository=x/y\nversion: 1.0.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -162,7 +162,7 @@ func TestRunAmbiguousTargetErrors(t *testing.T) {
 	})
 
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=ambig repo=x/y\nrange 1.0.0 to 2.0.0\n",
+		"app.txt": "# clover: provider=ambig repository=x/y\nrange 1.0.0 to 2.0.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})

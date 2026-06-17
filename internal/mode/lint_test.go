@@ -20,11 +20,11 @@ type offlineProvider struct{ name string }
 func (p offlineProvider) Name() string { return p.name }
 
 func (p offlineProvider) Keys() []provider.Key {
-	return []provider.Key{{Name: "repo", Required: true}}
+	return []provider.Key{{Name: "repository", Required: true}}
 }
 
 func (p offlineProvider) Resource(d directive.Directive) (provider.Resource, error) {
-	if _, ok := d.Get("repo"); !ok {
+	if _, ok := d.Get("repository"); !ok {
 		return nil, errors.New("repo is required")
 	}
 	return p.name, nil
@@ -38,7 +38,7 @@ func (p offlineProvider) Discover(context.Context, provider.Resource) ([]model.C
 
 func TestLintCleanIsOK(t *testing.T) {
 	provider.Register(offlineProvider{name: "lint"})
-	dir := write(t, "# clover: provider=lint repo=x/y\nversion: 1.2.0\n")
+	dir := write(t, "# clover: provider=lint repository=x/y\nversion: 1.2.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestLintMissingRequiredKeyErrors(t *testing.T) {
 
 func TestLintAmbiguousTargetErrors(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintambig"})
-	dir := write(t, "# clover: provider=lintambig repo=x/y\nfrom 1.0.0 to 2.0.0\n")
+	dir := write(t, "# clover: provider=lintambig repository=x/y\nfrom 1.0.0 to 2.0.0\n")
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -67,7 +67,10 @@ func TestLintAmbiguousTargetErrors(t *testing.T) {
 
 func TestLintBadConstraintErrors(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintc"})
-	dir := write(t, "# clover: provider=lintc repo=x/y constraint=not-a-range\nversion: 1.2.0\n")
+	dir := write(
+		t,
+		"# clover: provider=lintc repository=x/y constraint=not-a-range\nversion: 1.2.0\n",
+	)
 
 	summary, err := mode.Lint(context.Background(), []string{dir})
 	require.NoError(t, err)
@@ -85,7 +88,7 @@ func TestLintDanglingFollowSkips(t *testing.T) {
 
 func TestLintWritesNothing(t *testing.T) {
 	provider.Register(offlineProvider{name: "lintw"})
-	original := "# clover: provider=lintw repo=x/y\nversion: 1.2.0\n"
+	original := "# clover: provider=lintw repository=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
 	_, err := mode.Lint(context.Background(), []string{dir})

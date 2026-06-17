@@ -27,8 +27,8 @@ const host = "github.com"
 
 // Directive keys and the values the source key accepts.
 const (
-	keyRepo   = "repo"
-	keySource = "source"
+	keyRepository = "repository"
+	keySource     = "source"
 
 	sourceTags     = "tags"
 	sourceReleases = "releases"
@@ -76,20 +76,20 @@ func (p *Provider) Name() string { return constant.ProviderGithub }
 // Keys reports the directive keys GitHub accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
-		{Name: keyRepo, Required: true},
+		{Name: keyRepository, Required: true},
 		{Name: keySource},
 	}
 }
 
 // Resource validates a directive into a GitHub resource.
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
-	repo, ok := d.Get(keyRepo)
+	repo, ok := d.Get(keyRepository)
 	if !ok {
-		return nil, fmt.Errorf("github: %s is required", keyRepo)
+		return nil, fmt.Errorf("github: %s is required", keyRepository)
 	}
 	owner, name, ok := strings.Cut(repo, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
-		return nil, fmt.Errorf("github: %s must be owner/name, got %q", keyRepo, repo)
+		return nil, fmt.Errorf("github: %s must be owner/name, got %q", keyRepository, repo)
 	}
 
 	source := sourceTags

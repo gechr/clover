@@ -61,7 +61,7 @@ func TestDiscoverTags(t *testing.T) {
 	var path string
 	provider := github.New(github.WithTransport(jsonTransport(body, &path)))
 
-	res, err := provider.Resource(directiveOf(directive.KV{Key: "repo", Value: "owner/name"}))
+	res, err := provider.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
 	require.NoError(t, err)
 	candidates, err := provider.Discover(t.Context(), res)
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestDiscoverReleases(t *testing.T) {
 	})))
 
 	res, err := provider.Resource(directiveOf(
-		directive.KV{Key: "repo", Value: "owner/name"},
+		directive.KV{Key: "repository", Value: "owner/name"},
 		directive.KV{Key: "source", Value: "releases"},
 	))
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestDiscoverReleasesUnmatchedTagHasNoCommit(t *testing.T) {
 	})))
 
 	res, err := provider.Resource(directiveOf(
-		directive.KV{Key: "repo", Value: "owner/name"},
+		directive.KV{Key: "repository", Value: "owner/name"},
 		directive.KV{Key: "source", Value: "releases"},
 	))
 	require.NoError(t, err)

@@ -33,11 +33,11 @@ func TestScanFindsDirectives(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"Dockerfile":       "# clover: provider=github repo=owner/name\nFROM nginx:1.27\n",
+		"Dockerfile":       "# clover: provider=github repository=owner/name\nFROM nginx:1.27\n",
 		"README.md":        "no directives here\n",
-		".git/config":      "# clover: provider=github repo=should/skip\n",
-		"sub/deploy.yaml":  "image: redis:7.2 # clover: provider=github repo=redis/redis\n",
-		"vendored/bin.dat": "\x00\x01# clover: provider=github repo=bin/ary\x00",
+		".git/config":      "# clover: provider=github repository=should/skip\n",
+		"sub/deploy.yaml":  "image: redis:7.2 # clover: provider=github repository=redis/redis\n",
+		"vendored/bin.dat": "\x00\x01# clover: provider=github repository=bin/ary\x00",
 	})
 
 	files, err := scan.Scan(t.Context(), []string{root})
@@ -49,7 +49,7 @@ func TestScanFindsDirectives(t *testing.T) {
 	dockerfile := got["Dockerfile"]
 	require.Len(t, dockerfile.Found, 1)
 	require.Equal(t, 0, dockerfile.Found[0].Line)
-	repo, _ := dockerfile.Found[0].Directive.Get("repo")
+	repo, _ := dockerfile.Found[0].Directive.Get("repository")
 	require.Equal(t, "owner/name", repo)
 	require.Equal(t, "FROM nginx:1.27", dockerfile.Lines[1], "content retained for rewrite")
 
@@ -65,7 +65,7 @@ func TestScanReportsParseErrors(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"Dockerfile": `# clover: repo="unterminated` + "\n",
+		"Dockerfile": `# clover: repository="unterminated` + "\n",
 	})
 
 	files, err := scan.Scan(t.Context(), []string{root})
@@ -79,8 +79,8 @@ func TestScanIgnoreSeam(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
-		"keep/a.yaml":         "# clover: provider=github repo=keep/a\n",
-		"node_modules/b.yaml": "# clover: provider=github repo=skip/b\n",
+		"keep/a.yaml":         "# clover: provider=github repository=keep/a\n",
+		"node_modules/b.yaml": "# clover: provider=github repository=skip/b\n",
 	})
 
 	ignore := func(path string, _ bool) bool {

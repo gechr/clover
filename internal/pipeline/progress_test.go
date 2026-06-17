@@ -71,7 +71,7 @@ func TestRunReportsDoneOnSuccess(t *testing.T) {
 		candidates: []model.Candidate{candidate(t, "1.3.0")},
 	})
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=prog repo=x/y\nversion: 1.2.0\n",
+		"app.txt": "# clover: provider=prog repository=x/y\nversion: 1.2.0\n",
 	})
 
 	reporter := newCaptureReporter()
@@ -85,7 +85,7 @@ func TestRunReportsDoneOnSuccess(t *testing.T) {
 
 func TestRunReportsFailOnError(t *testing.T) {
 	dir := write(t, map[string]string{
-		"app.txt": "# clover: provider=ghostprog repo=x/y\nversion: 1.0.0\n",
+		"app.txt": "# clover: provider=ghostprog repository=x/y\nversion: 1.0.0\n",
 	})
 
 	reporter := newCaptureReporter()

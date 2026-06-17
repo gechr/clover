@@ -9,7 +9,7 @@ import (
 
 func repoOf(t *testing.T, located scan.Located) string {
 	t.Helper()
-	repo, _ := located.Directive.Get("repo")
+	repo, _ := located.Directive.Get("repository")
 	return repo
 }
 
@@ -19,20 +19,20 @@ func TestScanIgnoreControls(t *testing.T) {
 	root := tree(t, map[string]string{
 		// clover:ignore suppresses only the directive on the next line.
 		"next.yaml": "# clover:ignore\n" +
-			"# clover: provider=github repo=ignored/one\n" +
+			"# clover: provider=github repository=ignored/one\n" +
 			"x: 1\n" +
-			"# clover: provider=github repo=kept/two\n" +
+			"# clover: provider=github repository=kept/two\n" +
 			"y: 2\n",
 		// A start/end pair suppresses every directive between.
 		"block.yaml": "# clover:ignore-start\n" +
-			"# clover: provider=github repo=block/one\n" +
-			"# clover: provider=github repo=block/two\n" +
+			"# clover: provider=github repository=block/one\n" +
+			"# clover: provider=github repository=block/two\n" +
 			"# clover:ignore-end\n" +
-			"# clover: provider=github repo=kept/three\n" +
+			"# clover: provider=github repository=kept/three\n" +
 			"z: 3\n",
 		// clover:ignore-file drops the whole file.
 		"whole.yaml": "# clover:ignore-file\n" +
-			"# clover: provider=github repo=whole/file\n" +
+			"# clover: provider=github repository=whole/file\n" +
 			"w: 4\n",
 	})
 

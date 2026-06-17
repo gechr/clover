@@ -22,8 +22,8 @@ func TestRender(t *testing.T) {
 			name: "hash line comment",
 			path: "Dockerfile",
 			line: "# clover: provider=github",
-			body: "clover: provider=github repo=a/b",
-			want: "# clover: provider=github repo=a/b",
+			body: "clover: provider=github repository=a/b",
+			want: "# clover: provider=github repository=a/b",
 		},
 		{
 			name: "preserves indentation",

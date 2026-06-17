@@ -23,13 +23,13 @@ func TestResource(t *testing.T) {
 	}{
 		{
 			name:         "repo defaults to tags",
-			pairs:        []directive.KV{{Key: "repo", Value: "owner/name"}},
+			pairs:        []directive.KV{{Key: "repository", Value: "owner/name"}},
 			wantDescribe: "github.com/owner/name (tags)",
 		},
 		{
 			name: "explicit releases",
 			pairs: []directive.KV{
-				{Key: "repo", Value: "owner/name"},
+				{Key: "repository", Value: "owner/name"},
 				{Key: "source", Value: "releases"},
 			},
 			wantDescribe: "github.com/owner/name (releases)",
@@ -37,18 +37,18 @@ func TestResource(t *testing.T) {
 		{name: "missing repo", pairs: nil, wantErr: true},
 		{
 			name:    "repo without name",
-			pairs:   []directive.KV{{Key: "repo", Value: "owner"}},
+			pairs:   []directive.KV{{Key: "repository", Value: "owner"}},
 			wantErr: true,
 		},
 		{
 			name:    "repo with extra segment",
-			pairs:   []directive.KV{{Key: "repo", Value: "owner/name/sub"}},
+			pairs:   []directive.KV{{Key: "repository", Value: "owner/name/sub"}},
 			wantErr: true,
 		},
 		{
 			name: "invalid source",
 			pairs: []directive.KV{
-				{Key: "repo", Value: "owner/name"},
+				{Key: "repository", Value: "owner/name"},
 				{Key: "source", Value: "branches"},
 			},
 			wantErr: true,
@@ -75,7 +75,7 @@ func TestKeys(t *testing.T) {
 	t.Parallel()
 
 	keys := github.New().Keys()
-	require.Equal(t, "repo", keys[0].Name)
+	require.Equal(t, "repository", keys[0].Name)
 	require.True(t, keys[0].Required)
 	require.Equal(t, "source", keys[1].Name)
 	require.False(t, keys[1].Required)

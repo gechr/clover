@@ -88,8 +88,8 @@ func TestParsePairs(t *testing.T) {
 		},
 		{
 			name: "slash literal mid bare value",
-			body: "clover: repo=owner/name",
-			want: []directive.KV{{Key: "repo", Value: "owner/name"}},
+			body: "clover: repository=owner/name",
+			want: []directive.KV{{Key: "repository", Value: "owner/name"}},
 		},
 		{
 			name: "apostrophe literal mid bare value",
