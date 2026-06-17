@@ -55,8 +55,10 @@ func scanFile(path string, maxSize int64) (File, bool) {
 	syntax := comment.For(path)
 
 	var (
-		found    []Located
-		problems []LineError
+		found      []Located
+		problems   []LineError
+		inBlock    bool
+		ignoreLine = -1 // line index suppressed by a preceding clover:ignore
 	)
 	for i, line := range lines {
 		if !strings.Contains(line, constant.DirectiveKeyword) {
@@ -66,6 +68,25 @@ func scanFile(path string, maxSize int64) (File, bool) {
 		if !ok {
 			continue
 		}
+
+		switch directive.ParseIgnore(body) {
+		case directive.IgnoreFile:
+			return File{}, false // the whole file opts out
+		case directive.IgnoreBlockStart:
+			inBlock = true
+			continue
+		case directive.IgnoreBlockEnd:
+			inBlock = false
+			continue
+		case directive.IgnoreNextLine:
+			ignoreLine = i + 1
+			continue
+		case directive.IgnoreNone:
+		}
+		if inBlock || i == ignoreLine {
+			continue // suppressed by a clover:ignore control
+		}
+
 		d, ok, err := directive.Parse(body)
 		switch {
 		case err != nil:
