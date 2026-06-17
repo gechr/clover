@@ -1,0 +1,42 @@
+package model
+
+import (
+	"time"
+
+	"github.com/gechr/cusp/internal/version"
+)
+
+// Candidate is one version a provider discovered, enriched with whatever
+// metadata the provider's API returned for free at discovery. cusp carries this
+// whole record forward - never collapsing it to a bare version string - so a
+// later stage (rendering a side value, verifying a commit) already has what it
+// needs in hand and no stage has to reach backwards. Providers fill the fields
+// they can; the rest stay zero.
+//
+// Typed fields cover the metadata cusp expects to use; the open Meta bag holds
+// provider-specific extras without growing the struct.
+type Candidate struct {
+	// Version is the raw tag or release name as published, e.g. "v1.27.0" or
+	// "1.27-alpine". It is what include/exclude match against and what style
+	// preservation reads.
+	Version string
+
+	// Semver is Version parsed for comparison, or nil when it is not
+	// semver-shaped (calver, a commit pin) and so cannot be ordered.
+	Semver *version.Version
+
+	// PublishedAt is when the version was released, used by cooldown. Zero when
+	// the provider's listing does not carry a timestamp.
+	PublishedAt time.Time
+
+	// Commit is the commit SHA the version points at, when the provider exposes
+	// one (e.g. a GitHub tag or release target).
+	Commit string
+
+	// Ref is the upstream reference the version came from, e.g. the tag name a
+	// release was cut from.
+	Ref string
+
+	// Meta holds provider-specific values that do not warrant a typed field.
+	Meta map[string]string
+}
