@@ -1,4 +1,4 @@
-package repo
+package vcs
 
 import (
 	"os"
@@ -6,9 +6,11 @@ import (
 	"sync"
 )
 
-// gitEntry is the marker that identifies a repository root. It may be a
-// directory (normal clone) or a file (submodule or linked worktree).
-const gitEntry = ".git"
+// vcsMarkers identify a repository root, one per supported VCS. A marker may be
+// a directory (the usual case, and jj/hg/svn) or a file (.git in a submodule or
+// linked worktree). A jj-colocated repo carries both .jj and .git in one
+// directory, which still resolves to a single root.
+var vcsMarkers = []string{".git", ".jj", ".hg", ".svn"}
 
 // Resolver maps a file to its git repository root, caching each directory it
 // resolves so an ancestor is checked at most once. Safe for concurrent use by
@@ -24,9 +26,9 @@ func NewResolver() *Resolver {
 }
 
 // Root returns the absolute path of the repository the file at path belongs to -
-// the nearest ancestor directory containing a .git entry - or "" when the file
-// is not inside a repository. The result is the namespace under which the file's
-// id= is unique.
+// the nearest ancestor directory containing a VCS marker (.git, .jj, .hg, .svn)
+// - or "" when the file is not inside a repository. The result is the namespace
+// under which the file's id= is unique.
 func (r *Resolver) Root(path string) string {
 	dir := path
 	if abs, err := filepath.Abs(path); err == nil {
@@ -47,7 +49,7 @@ func (r *Resolver) resolve(dir string) string {
 
 	var root string
 	switch {
-	case exists(filepath.Join(dir, gitEntry)):
+	case hasMarker(dir):
 		root = dir
 	default:
 		if parent := filepath.Dir(dir); parent != dir {
@@ -59,9 +61,12 @@ func (r *Resolver) resolve(dir string) string {
 	return root
 }
 
-// exists reports whether a filesystem entry is present, following the same
-// semantics for a .git directory or file.
-func exists(path string) bool {
-	_, err := os.Lstat(path)
-	return err == nil
+// hasMarker reports whether dir holds any VCS marker, as a file or directory.
+func hasMarker(dir string) bool {
+	for _, marker := range vcsMarkers {
+		if _, err := os.Lstat(filepath.Join(dir, marker)); err == nil {
+			return true
+		}
+	}
+	return false
 }
