@@ -16,9 +16,9 @@ import (
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan (default: current directory)." predictor:"path"`
-	DryRun bool          `                               help:"Resolve and render but write nothing."                                       short:"n" aliases:"dry"`
-	Output report.Output `                               help:"Output detail (text or wide)."                                               short:"o"               enum:"text,wide" default:"text"`
+	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"         predictor:"path" clib:"terse='Paths to scan'"`
+	DryRun bool          `                               help:"Resolve and render but write nothing"                  clib:"terse='Dry run'"       short:"n" aliases:"dry"`
+	Output report.Output `                               help:"Output detail"                                         clib:"terse='Output detail'" short:"o"               enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
