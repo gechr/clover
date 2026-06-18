@@ -40,6 +40,7 @@ type cli struct {
 	Run     runCmd     `cmd:"" help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
 	Lint    lintCmd    `cmd:"" help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
 	Format  formatCmd  `cmd:"" help:"Canonicalise directive comments"                             clib:"terse='Format comments'"`
+	Update  updateCmd  `cmd:"" help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"`
 	Version versionCmd `cmd:"" help:"Print version information"                                   clib:"terse='Print version'"`
 }
 
