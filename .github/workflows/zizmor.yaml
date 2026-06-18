@@ -1,0 +1,23 @@
+name: zizmor
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "**"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: gechr/actions/.github/workflows/zizmor.yaml@a0dfaeb072753c3d48cd4df5fdacfd035b2281bf # v0.2.4

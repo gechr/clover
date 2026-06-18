@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "**"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: gechr/actions/.github/workflows/test.yaml@a0dfaeb072753c3d48cd4df5fdacfd035b2281bf # v0.2.4
+    with:
+      language: go

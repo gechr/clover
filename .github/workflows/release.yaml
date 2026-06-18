@@ -1,0 +1,23 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+permissions: {}
+
+concurrency:
+  group: ci-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: gechr/actions/.github/workflows/release.yaml@a0dfaeb072753c3d48cd4df5fdacfd035b2281bf # v0.2.4
+    secrets: inherit
+    with:
+      language: go
+      name: clover
+      desc: "Automatically manage version strings across arbitrary files"
