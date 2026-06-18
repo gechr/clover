@@ -41,6 +41,19 @@ type Candidate struct {
 	// sha256 manifest digest), for secure-pin rewriting. Empty until resolved.
 	Digest string
 
+	// Assets are the downloadable files the version publishes (e.g. a GitHub
+	// release's assets), the source for auto-sourcing a follower's sha256.
+	Assets []Asset
+
 	// Meta holds provider-specific values that do not warrant a typed field.
 	Meta map[string]string
+}
+
+// Asset is one downloadable file a version publishes. Digest is the provider's
+// own content digest when it supplies one (e.g. sha256:...), letting clover
+// source a checksum without a download.
+type Asset struct {
+	Name   string
+	Digest string
+	URL    string
 }
