@@ -177,6 +177,37 @@ func TestRunResolvesSha256Follower(t *testing.T) {
 	require.Equal(t, "/v1.2.0/checksums.txt", gotPath, "{version} is the bare producer version")
 }
 
+func TestRunResolvesSha256FromAssetDigest(t *testing.T) {
+	sum := strings.Repeat("e", 64)
+	cand := candidate(t, "1.2.0")
+	cand.Assets = []model.Asset{
+		{Name: "tool_1.2.0_linux_amd64.tar.gz", Digest: "sha256:" + sum},
+		{Name: "tool_1.2.0_windows.zip", Digest: "sha256:" + strings.Repeat("f", 64)},
+	}
+	provider.Register(fakeProvider{name: "assetfake", candidates: []model.Candidate{cand}})
+
+	old := strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"versions.env": "# clover: provider=assetfake id=tool repository=x/y\n" +
+			"VERSION=1.0.0\n" +
+			"# clover: from=tool value=sha256 pattern=*linux_amd64*\n" +
+			"SHA256=" + old + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	var follower pipeline.Result
+	for _, r := range files[0].Results {
+		if strings.HasPrefix(r.NewLine, "SHA256=") {
+			follower = r
+		}
+	}
+	require.NoError(t, follower.Err)
+	require.Equal(t, "SHA256="+sum, follower.NewLine,
+		"auto sources the asset digest with no sha256-url and no fetch")
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()

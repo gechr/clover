@@ -500,20 +500,20 @@ func (p *plan) followValue(ctx context.Context, m Marker) (string, error) {
 		return follow.Resolve(p.registry, m.From, m.Value, m.Select)
 	}
 
-	version, err := follow.Resolve(p.registry, m.From, constant.ValueVersion, m.Select)
+	cand, err := follow.Candidate(p.registry, m.From, m.Select)
 	if err != nil {
 		return "", err
 	}
-	url, ok := m.Directive.Get(constant.DirectiveSha256URL)
-	if !ok {
-		return "", fmt.Errorf(
-			"value=%s needs %s=",
-			constant.ValueSha256,
-			constant.DirectiveSha256URL,
-		)
-	}
+	url, _ := m.Directive.Get(constant.DirectiveSha256URL)
 	pat, _ := m.Directive.Get(constant.DirectivePattern)
-	return checksum.Fetch(ctx, p.checksumClient, url, cversion.RemovePrefix(version), pat)
+	source, _ := m.Directive.Get(constant.DirectiveSha256Source)
+	return checksum.Resolve(ctx, p.checksumClient, checksum.Request{
+		Source:  source,
+		Assets:  cand.Assets,
+		Pattern: pat,
+		URL:     url,
+		Version: cversion.RemovePrefix(cand.Version),
+	})
 }
 
 // report sends a marker's terminal progress event: the resolved value on

@@ -43,6 +43,17 @@ func Resolve(reg *registry.Registry, from, value, when string) (string, error) {
 	return "", fmt.Errorf("follow: unknown value %q", value)
 }
 
+// Candidate returns the producer's selected candidate (old or new per when), for
+// a follower that needs more than a projected string - e.g. its release assets
+// to source a sha256.
+func Candidate(reg *registry.Registry, from, when string) (model.Candidate, error) {
+	entry, ok := reg.Get(from)
+	if !ok {
+		return model.Candidate{}, fmt.Errorf("follow: producer %q has not resolved", from)
+	}
+	return selectCandidate(entry, when)
+}
+
 // selectCandidate picks the producer's old or new candidate.
 func selectCandidate(entry registry.Entry, when string) (model.Candidate, error) {
 	switch when {

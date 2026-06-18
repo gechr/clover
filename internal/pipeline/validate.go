@@ -79,12 +79,8 @@ func (p *plan) checkFollower(m Marker) error {
 	switch m.Value {
 	case "", constant.ValueVersion, constant.ValueCommit:
 	case constant.ValueSha256:
-		if _, ok := m.Directive.Get(constant.DirectiveSha256URL); !ok {
-			return fmt.Errorf(
-				"value=%s needs %s=",
-				constant.ValueSha256,
-				constant.DirectiveSha256URL,
-			)
+		if err := checkSha256(m); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("unknown value %q", m.Value)
@@ -92,6 +88,28 @@ func (p *plan) checkFollower(m Marker) error {
 
 	if _, _, _, err := p.locate(m); err != nil {
 		return err
+	}
+	return nil
+}
+
+// checkSha256 validates a value=sha256 follower offline: the source must be
+// known, and the marker must give a way to pick an asset (pattern) or a
+// checksums URL.
+func checkSha256(m Marker) error {
+	switch v, _ := m.Directive.Get(constant.DirectiveSha256Source); v {
+	case "", constant.Sha256Auto, constant.Sha256Digest,
+		constant.Sha256Checksums, constant.Sha256Download, constant.Sha256Verify:
+	default:
+		return fmt.Errorf("unknown %s=%q", constant.DirectiveSha256Source, v)
+	}
+
+	_, hasURL := m.Directive.Get(constant.DirectiveSha256URL)
+	_, hasPattern := m.Directive.Get(constant.DirectivePattern)
+	if !hasURL && !hasPattern {
+		return fmt.Errorf(
+			"value=%s needs %s= (to select an asset) or %s=",
+			constant.ValueSha256, constant.DirectivePattern, constant.DirectiveSha256URL,
+		)
 	}
 	return nil
 }
