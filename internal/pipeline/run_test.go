@@ -2,6 +2,9 @@ package pipeline_test
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,6 +133,48 @@ func TestRunResolvesDigestPin(t *testing.T) {
 	require.True(t, r.Changed)
 	require.Equal(t, "FROM x/y:1.2.0@"+newDigest, r.NewLine,
 		"tag and digest update together")
+}
+
+func TestRunResolvesSha256Follower(t *testing.T) {
+	sum := strings.Repeat("e", 64)
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_, _ = io.WriteString(w, sum+"  tool_1.2.0_linux_amd64.tar.gz\n"+
+			strings.Repeat("f", 64)+"  tool_1.2.0_windows.zip\n")
+	}))
+	defer srv.Close()
+
+	provider.Register(
+		fakeProvider{name: "fake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
+	)
+
+	old := strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"versions.env": "# clover: provider=fake id=tool repository=x/y\n" +
+			"VERSION=1.0.0\n" +
+			"# clover: from=tool value=sha256 sha256-url=" + srv.URL +
+			"/v{version}/checksums.txt pattern=*linux_amd64*\n" +
+			"SHA256=" + old + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	var follower pipeline.Result
+	for _, r := range files[0].Results {
+		if strings.HasPrefix(r.NewLine, "SHA256=") {
+			follower = r
+		}
+	}
+	require.NoError(t, follower.Err)
+	require.Equal(
+		t,
+		"SHA256="+sum,
+		follower.NewLine,
+		"the follower fetched the producer version's sha256",
+	)
+	require.Equal(t, "/v1.2.0/checksums.txt", gotPath, "{version} is the bare producer version")
 }
 
 // candidate parses tag into a candidate the selection chain can order.

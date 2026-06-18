@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	cversion "github.com/gechr/clive/version"
+	"github.com/gechr/clover/internal/checksum"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/exec"
+	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/ignore"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/model"
@@ -267,6 +271,7 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // internally.
 type plan struct {
 	allowDowngrade *bool
+	checksumClient *http.Client
 	deep           bool
 	lines          map[string][]string
 	markers        []Marker
@@ -302,6 +307,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 
 	return &plan{
 		allowDowngrade: cfg.allowDowngrade,
+		checksumClient: httpcache.New(),
 		deep:           cfg.deep,
 		lines:          lines,
 		markers:        markers,
@@ -448,20 +454,21 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 // follower returns the closure that resolves marker i from the marker it
 // follows, reporting the outcome to the marker's progress task.
 func (p *plan) follower(i int) func(context.Context) error {
-	return func(_ context.Context) error {
+	return func(ctx context.Context) error {
 		p.tasks[i].Update("following")
-		err := p.resolveFollower(i)
+		err := p.resolveFollower(ctx, i)
 		p.report(i, err)
 		return err
 	}
 }
 
 // resolveFollower projects the requested value from the producer marker i
-// follows and renders it onto the target line.
-func (p *plan) resolveFollower(i int) error {
+// follows and renders it onto the target line. version and commit are direct
+// projections; sha256 is fetched from the producer's version's checksum file.
+func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	m := p.markers[i]
 
-	resolved, err := follow.Resolve(p.registry, m.From, m.Value, m.Select)
+	resolved, err := p.followValue(ctx, m)
 	if err != nil {
 		return err
 	}
@@ -479,11 +486,34 @@ func (p *plan) resolveFollower(i int) error {
 		}
 	}
 
-	// The projected value is rendered through the same rewriter seam. For
-	// value=version (the shape the smart rewriter handles) the projection is a
-	// version; value=commit/sha256 will route to a commit-aware rewriter rather
-	// than reuse this field.
+	// The resolved value (a version, commit, or sha256) is rendered through the
+	// rewriter seam: the smart rewriter for a version, the hash rewriter for a
+	// commit or sha256.
 	return p.render(i, line, rewriter, located, model.Candidate{Version: resolved})
+}
+
+// followValue computes a follower's value: version and commit are projected from
+// the producer's candidate, while sha256 is fetched from the producer version's
+// checksum file (tier one: an explicit sha256-url, templated with {version}).
+func (p *plan) followValue(ctx context.Context, m Marker) (string, error) {
+	if m.Value != constant.ValueSha256 {
+		return follow.Resolve(p.registry, m.From, m.Value, m.Select)
+	}
+
+	version, err := follow.Resolve(p.registry, m.From, constant.ValueVersion, m.Select)
+	if err != nil {
+		return "", err
+	}
+	url, ok := m.Directive.Get(constant.DirectiveSha256URL)
+	if !ok {
+		return "", fmt.Errorf(
+			"value=%s needs %s=",
+			constant.ValueSha256,
+			constant.DirectiveSha256URL,
+		)
+	}
+	pat, _ := m.Directive.Get(constant.DirectivePattern)
+	return checksum.Fetch(ctx, p.checksumClient, url, cversion.RemovePrefix(version), pat)
 }
 
 // report sends a marker's terminal progress event: the resolved value on

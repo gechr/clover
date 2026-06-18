@@ -15,8 +15,8 @@ import (
 //
 // when selects the producer's value before the run (old) or after it resolved
 // (new, the default). value selects what to project from that candidate: an
-// empty value defaults to version; version and commit are direct projections;
-// sha256 is fetched using the producer's version and is not yet implemented.
+// empty value defaults to version; version and commit are direct projections.
+// sha256 is fetched by the pipeline (it needs the network), not projected here.
 func Resolve(reg *registry.Registry, from, value, when string) (string, error) {
 	entry, ok := reg.Get(from)
 	if !ok {
@@ -37,8 +37,6 @@ func Resolve(reg *registry.Registry, from, value, when string) (string, error) {
 			return "", fmt.Errorf("follow: producer %q has no commit", from)
 		}
 		return candidate.Commit, nil
-	case constant.ValueSha256:
-		return "", fmt.Errorf("follow: value=%s is not yet supported", constant.ValueSha256)
 	case constant.ValueVersion:
 		return candidate.Version, nil
 	}

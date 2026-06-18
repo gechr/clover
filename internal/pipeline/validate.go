@@ -79,7 +79,13 @@ func (p *plan) checkFollower(m Marker) error {
 	switch m.Value {
 	case "", constant.ValueVersion, constant.ValueCommit:
 	case constant.ValueSha256:
-		return fmt.Errorf("value=%s is not yet supported", constant.ValueSha256)
+		if _, ok := m.Directive.Get(constant.DirectiveSha256URL); !ok {
+			return fmt.Errorf(
+				"value=%s needs %s=",
+				constant.ValueSha256,
+				constant.DirectiveSha256URL,
+			)
+		}
 	default:
 		return fmt.Errorf("unknown value %q", m.Value)
 	}
