@@ -33,8 +33,8 @@ func TestRun(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(updated, skipped), false, report.OutputText)
 
 	require.Equal(t,
-		"INF ℹ️ Updated at=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
-			"WRN ⚠️ Skipped at=x/b.txt:4 reason=\"dep failed\"\n"+
+		"INF ⬆️ Update applied location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
+			"WRN ⚠️ Skipped location=x/b.txt:4 reason=\"dep failed\"\n"+
 			"INF ℹ️ Run complete changed=1 skipped=1 failed=0\n",
 		buf.String(),
 	)
@@ -54,7 +54,7 @@ func TestRunAbbreviatesHashValues(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputText)
 
 	require.Equal(t,
-		"INF ℹ️ Updated at=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
+		"INF ⬆️ Update applied location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
 			"INF ℹ️ Run complete changed=1 skipped=0 failed=0\n",
 		buf.String(),
 	)
@@ -71,7 +71,7 @@ func TestRunWideShowsFullHash(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputWide)
 
 	require.Equal(t,
-		"INF ℹ️ Updated at=ci.yml:1 from=1.0.0 to="+sha+"\n"+
+		"INF ⬆️ Update applied location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
 			"INF ℹ️ Run complete changed=1 skipped=0 failed=0\n",
 		buf.String(),
 	)
@@ -85,7 +85,7 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(updated), true, report.OutputText)
 
 	require.Equal(t,
-		"INF ℹ️ Updated at=app.txt:1 from=1.0.0 to=2.0.0\n"+
+		"DRY ⬆️ Update available location=app.txt:1 from=1.0.0 to=2.0.0\n"+
 			"DRY 🚧 Run complete changed=1 skipped=0 failed=0\n",
 		buf.String(),
 	)
@@ -102,7 +102,7 @@ func TestFormatUsesFullPathForHyperlink(t *testing.T) {
 	report.Format(clog.NewWriter(&buf), fs, false)
 
 	require.Equal(t,
-		"INF ℹ️ Reformatted at=dir/app.txt:5\n"+
+		"INF ℹ️ Formatted location=dir/app.txt:5\n"+
 			"INF ℹ️ Format complete changed=1\n",
 		buf.String(),
 	)
@@ -116,7 +116,7 @@ func TestLint(t *testing.T) {
 	report.Lint(clog.NewWriter(&buf), summary(bad), report.OutputText)
 
 	require.Equal(t,
-		"ERR ❌ Invalid at=a.txt:1 error=boom\n"+
+		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
 			"INF ℹ️ Lint complete errored=1 skipped=0\n",
 		buf.String(),
 	)
@@ -129,11 +129,13 @@ func TestRunWideReportsUpToDate(t *testing.T) {
 	steady.Current = "1.5.0" // resolved, already up to date
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(updated, steady), false, report.OutputWide)
+	logger := clog.NewWriter(&buf)
+	logger.SetLevel(clog.LevelDebug) // the up-to-date line is logged at debug
+	report.Run(logger, summary(updated, steady), false, report.OutputWide)
 
 	require.Equal(t,
-		"INF ℹ️ Updated at=app.txt:1 from=1.0.0 to=2.0.0\n"+
-			"INF ℹ️ Up to date at=app.txt:3 version=1.5.0\n"+
+		"INF ⬆️ Update applied location=app.txt:1 from=1.0.0 to=2.0.0\n"+
+			"DBG 🐞 Already up-to-date location=app.txt:3 version=1.5.0\n"+
 			"INF ℹ️ Run complete changed=1 skipped=0 failed=0\n",
 		buf.String(),
 	)
@@ -148,8 +150,8 @@ func TestLintWideReportsValid(t *testing.T) {
 	report.Lint(clog.NewWriter(&buf), summary(bad, ok), report.OutputWide)
 
 	require.Equal(t,
-		"ERR ❌ Invalid at=a.txt:1 error=boom\n"+
-			"INF ℹ️ OK at=b.txt:2\n"+
+		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
+			"INF ℹ️ OK location=b.txt:2\n"+
 			"INF ℹ️ Lint complete errored=1 skipped=0\n",
 		buf.String(),
 	)
@@ -164,7 +166,7 @@ func TestFormatCheckLogsAtDryLevel(t *testing.T) {
 	report.Format(clog.NewWriter(&buf), fs, true)
 
 	require.Equal(t,
-		"INF ℹ️ Reformatted at=d/app.txt:1\n"+
+		"INF ℹ️ Formatted location=d/app.txt:1\n"+
 			"DRY 🚧 Format complete changed=1\n",
 		buf.String(),
 	)

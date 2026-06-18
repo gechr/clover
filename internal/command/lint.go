@@ -21,6 +21,7 @@ type lintCmd struct {
 
 // Run validates the markers under the given paths and fails when any did not.
 func (c *lintCmd) Run(cfg *config.Config) error {
+	launch()
 	ctx := context.Background()
 
 	filter, err := tagFilter(c.Tags)

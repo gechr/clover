@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clib/help"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clive"
+	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/provider"
@@ -126,6 +127,17 @@ func newGenerator(flags []complete.FlagMeta) *complete.Generator {
 		complete.Spec{LongFlag: "help", Terse: "Print long help"},
 	)
 	return gen
+}
+
+// launch logs the startup banner naming clover's version, so a run records up
+// front what version produced it. The version field is omitted when unknown
+// rather than logged empty.
+func launch() {
+	event := clog.Info().Symbol("🍀")
+	if v := version.RemovePrefix(clive.Current()); v != "" {
+		event = event.Str("version", v)
+	}
+	event.Msg("Launching Clover")
 }
 
 // roots returns the paths to scan, defaulting to the current directory when none

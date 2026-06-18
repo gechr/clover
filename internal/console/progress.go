@@ -28,6 +28,15 @@ func New(ctx context.Context, logger *clog.Logger) *Reporter {
 	return &Reporter{ctx: ctx, logger: logger}
 }
 
+// Discovered logs the scan totals before resolution begins.
+func (r *Reporter) Discovered(files, comments int) {
+	r.logger.Info().
+		Symbol("💬").
+		Int("files", files).
+		Int("comments", comments).
+		Msg("Discovered Clover comments")
+}
+
 // Begin starts one progress line totalling len(names) and returns a task per
 // name, every one advancing the same counter as it reaches a terminal state.
 // The returned wait blocks until the line has finished rendering.

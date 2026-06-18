@@ -21,6 +21,7 @@ type formatCmd struct {
 
 // Run canonicalises (or, with --check, checks) the directives under the paths.
 func (c *formatCmd) Run(cfg *config.Config) error {
+	launch()
 	ctx := context.Background()
 
 	summary, err := mode.Format(

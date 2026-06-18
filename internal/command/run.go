@@ -26,6 +26,7 @@ type runCmd struct {
 
 // Run resolves the markers under the given paths and reports a summary.
 func (c *runCmd) Run(cfg *config.Config) error {
+	launch()
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default)
 

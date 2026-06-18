@@ -136,8 +136,18 @@ func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, err
 	if err != nil {
 		return nil, err
 	}
+	p.reporter.Discovered(len(files), comments(files))
 	p.resolve(ctx)
 	return p.group(files), nil
+}
+
+// comments totals the directives discovered across the scanned files.
+func comments(files []scan.File) int {
+	total := 0
+	for _, f := range files {
+		total += len(f.Found)
+	}
+	return total
 }
 
 // Validate is the offline counterpart of [Run]: it scans, binds, and checks

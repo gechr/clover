@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/display"
 	"github.com/gechr/clover/internal/mode"
@@ -27,20 +28,28 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line("at", r.Marker.File, line(r)).Err(r.Err).Msg("Failed")
+			logger.Error().Line("location", r.Marker.File, line(r)).Err(r.Err).Msg("Failed")
 		case r.Skipped:
-			logger.Warn().Line("at", r.Marker.File, line(r)).Str("reason", r.Reason).Msg("Skipped")
+			logger.Warn().
+				Line("location", r.Marker.File, line(r)).
+				Str("reason", r.Reason).
+				Msg("Skipped")
 		case r.Changed:
-			logger.Info().
-				Line("at", r.Marker.File, line(r)).
+			msg := "Update applied"
+			if dryRun {
+				msg = "Update available"
+			}
+			summarize(logger, dryRun).
+				Symbol("⬆️").
+				Line("location", r.Marker.File, line(r)).
 				Str("from", value(r.Current, output)).
 				Str("to", value(r.Resolved, output)).
-				Msg("Updated")
+				Msg(msg)
 		case output == OutputWide:
-			logger.Info().
-				Line("at", r.Marker.File, line(r)).
+			logger.Debug().
+				Line("location", r.Marker.File, line(r)).
 				Str("version", value(r.Current, output)).
-				Msg("Up to date")
+				Msg("Already up-to-date")
 		}
 	})
 
@@ -57,11 +66,14 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line("at", r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
+			logger.Error().Line("location", r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
 		case r.Skipped:
-			logger.Warn().Line("at", r.Marker.File, line(r)).Str("reason", r.Reason).Msg("Skipped")
+			logger.Warn().
+				Line("location", r.Marker.File, line(r)).
+				Str("reason", r.Reason).
+				Msg("Skipped")
 		case output == OutputWide:
-			logger.Info().Line("at", r.Marker.File, line(r)).Msg("OK")
+			logger.Info().Line("location", r.Marker.File, line(r)).Msg("OK")
 		}
 	})
 
@@ -76,7 +88,7 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
-			logger.Info().Line("at", file.Path, change.Line+1).Msg("Reformatted")
+			logger.Info().Line("location", file.Path, change.Line+1).Msg("Formatted")
 		}
 	}
 
@@ -110,6 +122,11 @@ func line(r pipeline.Result) int {
 // so a long hash (a commit SHA or sha256 sum) stays readable, shown in full
 // under wide output where accounting for the exact value matters.
 func value(v string, output Output) string {
+	// Trim a leading v only from an actual version - never from a commit SHA,
+	// sha256, or other follower-projected value that merely starts with "v".
+	if _, err := version.Parse(v); err == nil {
+		v = version.RemovePrefix(v)
+	}
 	if output == OutputWide {
 		return v
 	}
