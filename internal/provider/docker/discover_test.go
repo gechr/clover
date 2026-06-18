@@ -137,11 +137,52 @@ func TestDiscoverRegistryDeepPaginates(t *testing.T) {
 		directive.KV{Key: "registry", Value: "registry.example.com"},
 	))
 	require.NoError(t, err)
-	candidates, err := p.Discover(provider.WithDeep(t.Context(), true), res)
+
+	var truncated []string
+	ctx := provider.WithTruncationSink(provider.WithDeep(t.Context(), true),
+		func(r string) { truncated = append(truncated, r) })
+	candidates, err := p.Discover(ctx, res)
 	require.NoError(t, err)
 
 	require.Len(t, candidates, 3)
 	require.Equal(t, 2, tagsCalls, "a deep lookup follows the Link header to the next page")
+	require.Empty(t, truncated, "a deep lookup exhausts the pages, so nothing is truncated")
+}
+
+func TestDiscoverRegistryShallowNotesTruncation(t *testing.T) {
+	t.Parallel()
+
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			return jsonResponse(req, `{"token":"abc"}`), nil
+		case strings.Contains(req.URL.Path, "/tags/list"):
+			if req.Header.Get("Authorization") == "" {
+				return challengeResponse(req), nil
+			}
+			resp := jsonResponse(req, `{"tags":["1.0.0","1.1.0"]}`)
+			resp.Header.Set("Link", `</v2/team/img/tags/list?n=100&last=1.1.0>; rel="next"`)
+			return resp, nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	})
+	p := docker.New(docker.WithTransport(transport), anon())
+
+	res, err := p.Resource(directiveOf(
+		directive.KV{Key: "repository", Value: "team/img"},
+		directive.KV{Key: "registry", Value: "registry.example.com"},
+	))
+	require.NoError(t, err)
+
+	var truncated []string
+	ctx := provider.WithTruncationSink(
+		t.Context(),
+		func(r string) { truncated = append(truncated, r) },
+	)
+	_, err = p.Discover(ctx, res) // shallow: a next page exists but is not fetched
+	require.NoError(t, err)
+	require.Equal(t, []string{"registry.example.com/team/img"}, truncated,
+		"a shallow lookup with more pages notes the truncation")
 }
 
 // challengeResponse is a 401 advertising a bearer-token realm, the way a

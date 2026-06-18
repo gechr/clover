@@ -42,6 +42,11 @@ func (p *Provider) discoverRegistry(ctx context.Context, ref reference) ([]model
 			candidates = append(candidates, candidate(t, time.Time{}))
 		}
 		if !provider.Deep(ctx) {
+			// Registry tags are lexically ordered, so a truncated first page may
+			// not hold the newest version; flag it so the edge can suggest --deep.
+			if next != "" {
+				provider.NoteTruncated(ctx, ref.String())
+			}
 			break
 		}
 		url = next
