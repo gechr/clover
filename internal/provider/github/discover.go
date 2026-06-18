@@ -12,10 +12,10 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
-// perPage is the page size; the first page of newest entries is enough for
-// selection and bounds each marker to one request for tags (two for releases,
-// which also fetch tags to resolve commits), which respects the rate limit.
-// Deep history is a future refinement.
+// perPage is the page size. A shallow lookup reads only the first page of
+// newest entries - enough for selection and respectful of the rate limit - so a
+// tag marker costs one request (releases costs two, also fetching tags to
+// resolve commits). A deep lookup pages to exhaustion instead; see listAll.
 const perPage = 100
 
 // tag is the subset of the /tags response clover reads.
@@ -76,10 +76,17 @@ func discoverReleases(
 	rest *api.RESTClient,
 	res resource,
 ) ([]model.Candidate, error) {
-	var releases []release
-	path := fmt.Sprintf("repos/%s/%s/releases?per_page=%d", res.owner, res.name, perPage)
-	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &releases); err != nil {
-		return nil, fmt.Errorf("github: list releases: %w", err)
+	releases, err := listAll[release](ctx, rest, "releases", func(page int) string {
+		return fmt.Sprintf(
+			"repos/%s/%s/releases?per_page=%d&page=%d",
+			res.owner,
+			res.name,
+			perPage,
+			page,
+		)
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// The releases payload carries no commit SHA, but action-pinning needs one.
@@ -106,14 +113,43 @@ func discoverReleases(
 	return candidates, nil
 }
 
-// listTags returns the newest page of a repository's tags.
+// listTags returns the newest page of a repository's tags, or every page when
+// ctx requests a deep lookup.
 func listTags(ctx context.Context, rest *api.RESTClient, res resource) ([]tag, error) {
-	var tags []tag
-	path := fmt.Sprintf("repos/%s/%s/tags?per_page=%d", res.owner, res.name, perPage)
-	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &tags); err != nil {
-		return nil, fmt.Errorf("github: list tags: %w", err)
+	return listAll[tag](ctx, rest, "tags", func(page int) string {
+		return fmt.Sprintf(
+			"repos/%s/%s/tags?per_page=%d&page=%d",
+			res.owner,
+			res.name,
+			perPage,
+			page,
+		)
+	})
+}
+
+// listAll fetches the first page of pathFor(page), or every page when ctx
+// requests a deep lookup, stopping at the first short page (the last one). The
+// shallow default is one request of the newest perPage entries, which suffices
+// for these recency-ordered listings; deep lookup trades requests for
+// completeness across a repository's whole history.
+func listAll[T any](
+	ctx context.Context,
+	rest *api.RESTClient,
+	what string,
+	pathFor func(page int) string,
+) ([]T, error) {
+	var all []T
+	for page := 1; ; page++ {
+		var batch []T
+		if err := rest.DoWithContext(ctx, http.MethodGet, pathFor(page), nil, &batch); err != nil {
+			return nil, fmt.Errorf("github: list %s: %w", what, err)
+		}
+		all = append(all, batch...)
+		if !provider.Deep(ctx) || len(batch) < perPage {
+			break
+		}
 	}
-	return tags, nil
+	return all, nil
 }
 
 // tagCommits maps tag name to its peeled commit SHA, for resolving the commit a

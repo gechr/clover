@@ -8,9 +8,66 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/stretchr/testify/require"
 )
+
+// tagsBody builds a JSON tags array of n entries, for exercising pagination.
+func tagsBody(n int) string {
+	var b strings.Builder
+	b.WriteByte('[')
+	for i := range n {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, `{"name":"1.0.%d","commit":{"sha":"s%d"}}`, i, i)
+	}
+	b.WriteByte(']')
+	return b.String()
+}
+
+// pagedTags answers page 1 with a full page and page 2 with a short one,
+// recording the page numbers requested.
+func pagedTags(pages *[]string) roundTripFunc {
+	full, short := tagsBody(100), tagsBody(5)
+	return func(req *http.Request) (*http.Response, error) {
+		page := req.URL.Query().Get("page")
+		*pages = append(*pages, page)
+		if page == "1" {
+			return jsonResponse(req, full), nil
+		}
+		return jsonResponse(req, short), nil
+	}
+}
+
+func TestDiscoverTagsShallowReadsOnePage(t *testing.T) {
+	t.Parallel()
+
+	var pages []string
+	p := github.New(github.WithTransport(pagedTags(&pages)))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+
+	candidates, err := p.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Len(t, candidates, 100)
+	require.Equal(t, []string{"1"}, pages, "the shallow default stops after the first page")
+}
+
+func TestDiscoverTagsDeepPaginates(t *testing.T) {
+	t.Parallel()
+
+	var pages []string
+	p := github.New(github.WithTransport(pagedTags(&pages)))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+
+	candidates, err := p.Discover(provider.WithDeep(t.Context(), true), res)
+	require.NoError(t, err)
+	require.Len(t, candidates, 105)
+	require.Equal(t, []string{"1", "2"}, pages, "a deep lookup follows pages until a short one")
+}
 
 // roundTripFunc adapts a function to an http.RoundTripper.
 type roundTripFunc func(*http.Request) (*http.Response, error)
