@@ -1,11 +1,22 @@
 package pipeline
 
 import (
+	"strings"
+
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
 )
+
+// bareID returns the user-written id from a namespaced key (root + nsSep + id),
+// for display in messages. A key without the separator is returned unchanged.
+func bareID(key string) string {
+	if _, id, ok := strings.Cut(key, nsSep); ok {
+		return id
+	}
+	return key
+}
 
 // nsSep joins a repository root and an id into a namespaced key. It is a NUL so
 // it can never appear in either part.

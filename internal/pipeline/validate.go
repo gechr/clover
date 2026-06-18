@@ -24,9 +24,11 @@ func (p *plan) validate(ctx context.Context, workers int) {
 	tasks := make([]exec.Task, len(p.markers))
 	for i, m := range p.markers {
 		tasks[i] = exec.Task{
-			ID:   m.ID,
-			From: m.From,
-			Run:  func(context.Context) error { return nil },
+			ID:        m.ID,
+			From:      m.From,
+			Label:     bareID(m.ID),
+			FromLabel: bareID(m.From),
+			Run:       func(context.Context) error { return nil },
 		}
 	}
 	for i, r := range exec.Execute(ctx, tasks, workers) {

@@ -105,7 +105,7 @@ func TestValidateDanglingFollowSkips(t *testing.T) {
 	files, err := pipeline.Validate(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.True(t, files[0].Results[0].Skipped)
-	require.NotEmpty(t, files[0].Results[0].Reason)
+	require.Equal(t, `unknown from "ghost"`, files[0].Results[0].Reason)
 }
 
 func TestValidateUnsupportedFollowValueErrors(t *testing.T) {

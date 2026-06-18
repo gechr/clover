@@ -219,7 +219,8 @@ func TestRunDanglingFollowSkips(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.True(t, files[0].Results[0].Skipped)
-	require.NotEmpty(t, files[0].Results[0].Reason)
+	// The reason names the bare id the user wrote, not the internal namespaced key.
+	require.Equal(t, `unknown from "missing"`, files[0].Results[0].Reason)
 }
 
 func TestRunAmbiguousTargetErrors(t *testing.T) {

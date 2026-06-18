@@ -296,7 +296,7 @@ func (p *plan) resolve(ctx context.Context, workers int) {
 
 	execTasks := make([]exec.Task, len(p.markers))
 	for i, m := range p.markers {
-		task := exec.Task{ID: m.ID, From: m.From}
+		task := exec.Task{ID: m.ID, From: m.From, Label: bareID(m.ID), FromLabel: bareID(m.From)}
 		if m.IsFollower() {
 			task.Run = p.follower(i)
 		} else {
