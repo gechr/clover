@@ -16,6 +16,13 @@ import (
 
 // loginCmd authenticates clover with a provider via its device flow, storing the
 // minted token so later runs read it from the credential chain.
+//
+// github is the only provider with an interactive login, so the command calls
+// github.Login directly rather than dispatching through a provider capability
+// interface; the enum keeps that scope explicit. A Login capability (mirroring
+// Authenticator) would be premature with one implementer - docker authenticates
+// through its own keychain, not a clover device flow - so revisit it only when a
+// second provider needs interactive auth.
 type loginCmd struct {
 	Provider string `arg:"" optional:"" default:"github" enum:"github" help:"Provider to authenticate with" clib:"terse='Provider'"`
 }
