@@ -10,9 +10,10 @@ import (
 // is registry-1.docker.io, but tag discovery uses the richer hub.docker.com API
 // rather than the registry, so the alias is recorded as dockerHub instead.
 const (
-	hubAPIHost          = "hub.docker.com"  // Docker Hub's web API (newest-first tags, with dates)
-	hubAuthHost         = "index.docker.io" // the host docker login stores Hub credentials under
-	hubDefaultNamespace = "library/"        // implicit namespace for a bare official image (nginx -> library/nginx)
+	hubAPIHost          = "hub.docker.com"       // Docker Hub's web API (newest-first tags, with dates)
+	hubRegistryHost     = "registry-1.docker.io" // Docker Hub's OCI registry (manifests, digests)
+	hubAuthHost         = "index.docker.io"      // the host docker login stores Hub credentials under
+	hubDefaultNamespace = "library/"             // implicit namespace for a bare official image
 )
 
 // dockerHubAliases are the registry= values that resolve to Docker Hub.
@@ -72,4 +73,14 @@ func (r reference) String() string {
 		return "docker.io/" + r.repository
 	}
 	return r.registry + "/" + r.repository
+}
+
+// registryV2Host is the OCI registry host that serves manifests for the
+// reference. Docker Hub discovery uses its web API, but digests come from the
+// registry, so Hub maps to registry-1.docker.io.
+func (r reference) registryV2Host() string {
+	if r.dockerHub {
+		return hubRegistryHost
+	}
+	return r.registry
 }

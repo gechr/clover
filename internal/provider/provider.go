@@ -37,6 +37,14 @@ type Provider interface {
 	Discover(ctx context.Context, r Resource) ([]model.Candidate, error)
 }
 
+// Digester is an optional capability for providers that can resolve a version's
+// content digest (e.g. an OCI image's manifest digest), for secure-pin
+// rewriting. clover resolves it only for the chosen candidate of a digest-pinned
+// marker.
+type Digester interface {
+	Digest(ctx context.Context, r Resource, tag string) (string, error)
+}
+
 // Authenticator is an optional capability for providers that need credentials.
 // clover type-asserts for it during the authenticate phase; a provider without it
 // is treated as needing no authentication.

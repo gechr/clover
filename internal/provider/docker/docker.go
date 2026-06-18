@@ -170,16 +170,27 @@ func (p *Provider) httpClient() *http.Client {
 
 // do issues a GET, attaching a bearer token when one is given.
 func (p *Provider) do(ctx context.Context, url, bearer string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return p.send(ctx, http.MethodGet, url, bearer, "")
+}
+
+// send issues a request, attaching an Accept header and bearer token when given.
+func (p *Provider) send(
+	ctx context.Context,
+	method, url, bearer, accept string,
+) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("docker: build request: %w", err)
+	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
 	}
 	if bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+bearer)
 	}
 	resp, err := p.httpClient().Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("docker: get %s: %w", url, err)
+		return nil, fmt.Errorf("docker: %s %s: %w", method, url, err)
 	}
 	return resp, nil
 }
