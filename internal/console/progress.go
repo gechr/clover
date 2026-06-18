@@ -28,8 +28,13 @@ func New(ctx context.Context, logger *clog.Logger) *Reporter {
 	return &Reporter{ctx: ctx, logger: logger}
 }
 
-// Discovered logs the scan totals before resolution begins.
+// Discovered logs the scan totals before resolution begins, or warns when no
+// Clover comments were found at all.
 func (r *Reporter) Discovered(files, comments int) {
+	if comments == 0 {
+		r.logger.Warn().Symbol("💔").Msg("No Clover comments found")
+		return
+	}
 	r.logger.Info().
 		Symbol("💬").
 		Int("files", files).
