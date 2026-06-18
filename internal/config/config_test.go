@@ -17,6 +17,8 @@ func writeConfig(t *testing.T, name, body string) string {
 }
 
 func TestLoad(t *testing.T) {
+	t.Parallel()
+
 	dir := writeConfig(
 		t,
 		".clover.yaml",
@@ -31,6 +33,8 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadAbsentIsNil(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := config.Load(t.TempDir(), "")
 	require.NoError(t, err)
 	require.Nil(t, cfg)
@@ -40,6 +44,8 @@ func TestLoadAbsentIsNil(t *testing.T) {
 // comments, so YAML parses to null) is valid and yields a zero Config, since an
 // empty config means "all defaults" - and init can legitimately write one.
 func TestLoadEmptyDocument(t *testing.T) {
+	t.Parallel()
+
 	dir := writeConfig(t, ".clover.yaml", "# just a comment, no settings\n")
 	cfg, err := config.Load(dir, "")
 	require.NoError(t, err)
@@ -49,30 +55,56 @@ func TestLoadEmptyDocument(t *testing.T) {
 }
 
 func TestLoadYmlExtension(t *testing.T) {
+	t.Parallel()
+
 	dir := writeConfig(t, ".clover.yml", "paths:\n  exclude: [build/**]\n")
 	cfg, err := config.Load(dir, "")
 	require.NoError(t, err)
 	require.Equal(t, []string{"build/**"}, cfg.ExcludeGlobs())
 }
 
+// TestLoadPrefersYamlOverYml confirms .clover.yaml wins when both extensions are
+// present, matching the order read() tries them.
+func TestLoadPrefersYamlOverYml(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, ".clover.yaml"), []byte("required-version: \">=1.0.0\"\n"), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, ".clover.yml"), []byte("required-version: \">=2.0.0\"\n"), 0o644))
+
+	cfg, err := config.Load(dir, "")
+	require.NoError(t, err)
+	require.Equal(t, ">=1.0.0", cfg.RequiredVersion, ".clover.yaml takes precedence")
+}
+
 func TestLoadRejectsUnknownKey(t *testing.T) {
+	t.Parallel()
+
 	dir := writeConfig(t, ".clover.yaml", "nonsense: true\n")
 	_, err := config.Load(dir, "")
 	require.Error(t, err, "additionalProperties:false rejects unknown keys")
 }
 
 func TestLoadRejectsWrongType(t *testing.T) {
+	t.Parallel()
+
 	dir := writeConfig(t, ".clover.yaml", "required-version: 12\n") // number, not string
 	_, err := config.Load(dir, "")
 	require.Error(t, err)
 }
 
 func TestLoadExplicitPathMissing(t *testing.T) {
+	t.Parallel()
+
 	_, err := config.Load(t.TempDir(), "/no/such/.clover.yaml")
 	require.Error(t, err, "an explicitly requested config that is missing is an error")
 }
 
 func TestCheckVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		constraint string
@@ -93,6 +125,7 @@ func TestCheckVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := &config.Config{RequiredVersion: tc.constraint}
 			err := cfg.CheckVersion(tc.current)
 			if tc.wantErr {
@@ -105,6 +138,8 @@ func TestCheckVersion(t *testing.T) {
 }
 
 func TestNilConfigSafe(t *testing.T) {
+	t.Parallel()
+
 	var cfg *config.Config
 	require.Nil(t, cfg.ExcludeGlobs())
 	require.NoError(t, cfg.CheckVersion("0.1.0"))
