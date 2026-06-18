@@ -75,8 +75,8 @@ func TestSelectIncludeExclude(t *testing.T) {
 	t.Parallel()
 
 	// include/exclude match on the raw tag, independent of the parsed semver.
-	// (Variant suffixes like -alpine are stripped to a core semver upstream in
-	// the match package before selection; here the tags are already clean.)
+	// (Variant suffixes like -alpine are stripped to a core semver by the
+	// provider's candidate parser via SplitVariant; here the tags are clean.)
 	cands := candidates("1.2.0", "1.3.0", "1.4.0")
 
 	got, ok := version.Select(nil, cands, attrsOf, version.WithInclude(contains("1.3")))

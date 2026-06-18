@@ -41,6 +41,27 @@ func TestDiscoverHub(t *testing.T) {
 	require.Nil(t, candidates[2].Semver, "a non-semver tag yields a nil Semver")
 }
 
+func TestDiscoverHubVariantTagIsNotPrerelease(t *testing.T) {
+	t.Parallel()
+
+	const body = `{"results":[{"name":"1.27-alpine","last_updated":"2026-01-02T03:04:05Z"}]}`
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return jsonResponse(req, body), nil
+	})
+	p := docker.New(docker.WithTransport(transport), anon())
+
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "nginx"}))
+	require.NoError(t, err)
+	candidates, err := p.Discover(t.Context(), res)
+	require.NoError(t, err)
+
+	require.Len(t, candidates, 1)
+	require.Equal(t, "1.27-alpine", candidates[0].Version, "the raw tag is preserved for rendering")
+	require.NotNil(t, candidates[0].Semver)
+	require.Empty(t, candidates[0].Semver.Prerelease(),
+		"a variant suffix is stripped before parsing, so it is not a prerelease")
+}
+
 func TestDiscoverRegistryBearerChallenge(t *testing.T) {
 	t.Parallel()
 

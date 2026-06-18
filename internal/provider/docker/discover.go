@@ -30,10 +30,14 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	return p.discoverRegistry(ctx, ref)
 }
 
-// candidate builds a model.Candidate, parsing the raw tag for comparison. A tag
-// that is not semver-shaped yields a nil Semver and is skipped by selection.
+// candidate builds a model.Candidate, parsing the raw tag for comparison. A
+// recognized variant suffix (1.27-alpine) is stripped before parsing so the tag
+// orders by its numeric core rather than as a prerelease, while a true
+// prerelease (2.0.0-rc.1) is kept. A tag that is not semver-shaped yields a nil
+// Semver and is skipped by selection.
 func candidate(raw string, published time.Time) model.Candidate {
-	semver, _ := version.Parse(raw)
+	base, _ := version.SplitVariant(raw)
+	semver, _ := version.Parse(base)
 	return model.Candidate{
 		Version:     raw,
 		Semver:      semver,

@@ -13,6 +13,7 @@ import (
 	cversion "github.com/gechr/clive/version"
 	"github.com/gechr/clover/internal/checksum"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/ignore"
@@ -415,6 +416,9 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if err != nil {
 		return err
 	}
+	if opt, ok := variantInclude(located.Raw, m.Directive); ok {
+		opts = append(opts, opt)
+	}
 	opts = append(opts, version.WithNow(p.now))
 	// Run-level overrides are appended after the directive's own options, so a
 	// non-nil flag wins over the per-directive rule.
@@ -634,6 +638,22 @@ func targetLine(lines map[string][]string, m Marker) string {
 // attrs maps a discovered candidate onto the slice the selection chain reads.
 func attrs(c model.Candidate) version.Attrs {
 	return version.Attrs{Tag: c.Version, Semver: c.Semver, PublishedAt: c.PublishedAt}
+}
+
+// variantInclude returns an include option restricting selection to the variant
+// the located tag carries (1.27-alpine -> only *-alpine candidates), since the
+// rewriter re-applies that suffix on render: without it a bare 1.29 could win
+// and render as 1.29-alpine, a tag that may not exist upstream. An explicit
+// directive include takes precedence, so the rule stays in the user's hands.
+func variantInclude(raw string, d directive.Directive) (version.Option, bool) {
+	_, variant := version.SplitVariant(raw)
+	if variant == "" || d.Has(constant.RuleInclude) {
+		return nil, false
+	}
+	return version.WithInclude(func(tag string) bool {
+		_, v := version.SplitVariant(tag)
+		return v == variant
+	}), true
 }
 
 // label is the progress display name for a marker: its file and directive line,

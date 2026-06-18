@@ -333,6 +333,63 @@ func TestRunDockerTagAnchorsOnImageRef(t *testing.T) {
 	}
 }
 
+func TestRunDockerVariantSelectsSameVariant(t *testing.T) {
+	// Upstream mixes bare and -alpine tags. A marker on an -alpine image must
+	// pick the newest -alpine, never a bare 1.29 (which would render 1.29-alpine,
+	// a tag that may not exist).
+	provider.Register(fakeProvider{
+		name: "docker",
+		candidates: []model.Candidate{
+			dockerCandidate(t, "1.27-alpine"),
+			dockerCandidate(t, "1.29-alpine"),
+			dockerCandidate(t, "1.29"),
+			dockerCandidate(t, "1.30"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=library/nginx\nFROM nginx:1.27-alpine\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.Equal(t, "FROM nginx:1.29-alpine", r.NewLine,
+		"the variant include keeps only -alpine tags and orders them by core")
+}
+
+func TestRunDockerVariantNoMatchFailsLoud(t *testing.T) {
+	// Only bare tags upstream, but the marker is on an -alpine image: rather than
+	// bump to a non-existent 1.29-alpine, selection finds no candidate.
+	provider.Register(fakeProvider{
+		name: "docker",
+		candidates: []model.Candidate{
+			dockerCandidate(t, "1.29"),
+			dockerCandidate(t, "1.30"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=library/nginx\nFROM nginx:1.27-alpine\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.ErrorIs(t, files[0].Results[0].Err, pipeline.ErrNoCandidate,
+		"no -alpine candidate exists, so selection fails loud rather than guess")
+}
+
+// dockerCandidate parses tag the way the docker provider does: a variant suffix
+// is stripped before parsing so the tag orders by its numeric core.
+func dockerCandidate(t *testing.T, tag string) model.Candidate {
+	t.Helper()
+	base, _ := version.SplitVariant(tag)
+	semver, err := version.Parse(base)
+	require.NoError(t, err)
+	return model.Candidate{Version: tag, Semver: semver}
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()

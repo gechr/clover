@@ -1,9 +1,8 @@
 package match
 
 import (
-	"strings"
-
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/version"
 )
 
 // maxComponents is the most numeric components a version core may have. Four or
@@ -27,26 +26,6 @@ type Token struct {
 	Prerelease string // prerelease identifiers without the leading -, or ""
 	Suffix     string // recognised variant suffix without the leading -, or ""
 	Build      string // build metadata without the leading +, or ""
-}
-
-// variants are the recognised image variant suffixes - distro flavours and
-// codenames that decorate a tag (nginx:1.27-alpine) and must be preserved, as
-// opposed to a semver prerelease (2.0.0-rc.1) which may be trimmed. The set is
-// curated; unknown trailing segments are treated as prereleases.
-var variants = map[string]bool{
-	"alpine": true,
-	"slim":   true,
-	// Debian release codenames.
-	"buster":   true,
-	"bullseye": true,
-	"bookworm": true,
-	"trixie":   true,
-	"sid":      true,
-	// Ubuntu release codenames.
-	"bionic": true,
-	"focal":  true,
-	"jammy":  true,
-	"noble":  true,
 }
 
 // Find returns every version-shaped token in line, in order. It is the whole-
@@ -106,7 +85,7 @@ func scanToken(line string, start int) (Token, int, bool) {
 	var prerelease, suffix string
 	if i < len(line) && line[i] == constant.VersionDash {
 		if seg, end := scanSegment(line, i+1); seg != "" {
-			if isVariant(seg) {
+			if version.IsVariant(seg) {
 				suffix = seg
 			} else {
 				prerelease = seg
@@ -173,16 +152,6 @@ func scanSegment(line string, start int) (string, int) {
 		i++
 	}
 	return line[start:i], i
-}
-
-// isVariant reports whether a trailing segment is a recognised image variant
-// (so a suffix to preserve) rather than a prerelease. It matches on the first
-// dash-delimited word with any trailing version digits stripped, so alpine3.19
-// and slim-bookworm both register as variants.
-func isVariant(segment string) bool {
-	word, _, _ := strings.Cut(segment, string(constant.VersionDash))
-	word = strings.TrimRight(word, "0123456789.")
-	return variants[strings.ToLower(word)]
 }
 
 func isDigit(b byte) bool { return b >= '0' && b <= '9' }
