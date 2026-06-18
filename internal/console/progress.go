@@ -9,6 +9,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/fx"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/progress"
 )
 
@@ -32,13 +33,13 @@ func New(ctx context.Context, logger *clog.Logger) *Reporter {
 // Clover comments were found at all.
 func (r *Reporter) Discovered(scanned, files, comments int) {
 	if comments == 0 {
-		r.logger.Warn().Symbol("💔").Int("scanned", scanned).Msg("No Clover comments found")
+		r.logger.Warn().Symbol("💔").Int(field.Scanned, scanned).Msg("No Clover comments found")
 		return
 	}
 	r.logger.Info().
 		Symbol("💬").
-		Int("files", files).
-		Int("comments", comments).
+		Int(field.Files, files).
+		Int(field.Comments, comments).
 		Msg("Discovered Clover comments")
 }
 
