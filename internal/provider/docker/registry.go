@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -90,29 +91,30 @@ func (p *Provider) registryPage(
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		return "", registryTags{}, fmt.Errorf("docker: decode tags: %w", err)
 	}
-	return nextLink(resp.Header.Get("Link"), ref.registry), list, nil
+	return nextLink(resp.Header.Get("Link"), url), list, nil
 }
 
-// nextLink extracts the rel="next" URL from a registry's Link header, resolving
-// a registry-relative path against the registry host. It returns "" when there
-// is no next page.
-func nextLink(header, registry string) string {
-	for part := range strings.SplitSeq(header, ",") {
-		if !strings.Contains(part, `rel="next"`) {
-			continue
-		}
-		open := strings.IndexByte(part, '<')
-		end := strings.IndexByte(part, '>')
-		if open < 0 || end <= open {
-			continue
-		}
-		url := part[open+1 : end]
-		if strings.HasPrefix(url, "http") {
-			return url
-		}
-		return "https://" + registry + url
+// nextRel extracts the <target> of a rel="next" Link, tolerating an unquoted
+// rel and stopping at the comma that separates one link from the next.
+var nextRel = regexp.MustCompile(`<([^>]+)>[^,]*\brel="?next"?`)
+
+// nextLink resolves the rel="next" pagination target from a Link header against
+// the request URL, returning "" unless it is same-scheme, same-host - so a
+// registry cannot redirect the deep walk to an arbitrary or internal endpoint.
+func nextLink(header, requestURL string) string {
+	m := nextRel.FindStringSubmatch(header)
+	if m == nil {
+		return ""
 	}
-	return ""
+	base, err := url.Parse(requestURL)
+	if err != nil {
+		return ""
+	}
+	next, err := base.Parse(m[1])
+	if err != nil || next.Scheme != base.Scheme || next.Host != base.Host {
+		return ""
+	}
+	return next.String()
 }
 
 // fetchToken satisfies a registry's Bearer challenge: it requests a token from
@@ -132,7 +134,7 @@ func (p *Provider) fetchToken(
 		params["scope"] = "repository:" + ref.repository + ":pull"
 	}
 
-	cfg := p.resolveAuth(ref.registry)
+	cfg := p.resolveAuth(ref.authHost())
 	if cfg != nil && cfg.RegistryToken != "" {
 		return cfg.RegistryToken, nil
 	}

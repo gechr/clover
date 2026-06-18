@@ -79,6 +79,26 @@ func TestDiscoverRegistryBearerChallenge(t *testing.T) {
 	require.True(t, candidates[0].PublishedAt.IsZero(), "the registry tags list has no dates")
 }
 
+func TestDiscoverHubRequestsNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	var gotQuery string
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotQuery = req.URL.RawQuery
+		return jsonResponse(req, `{"results":[{"name":"1.0.0"}]}`), nil
+	})
+	p := docker.New(docker.WithTransport(transport), anon())
+
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "nginx"}))
+	require.NoError(t, err)
+	_, err = p.Discover(t.Context(), res)
+	require.NoError(t, err)
+
+	// The Hub API returns newest-first for the bare field; -last_updated is oldest.
+	require.Contains(t, gotQuery, "ordering=last_updated")
+	require.NotContains(t, gotQuery, "ordering=-last_updated")
+}
+
 func TestDiscoverHubDeepPaginates(t *testing.T) {
 	t.Parallel()
 

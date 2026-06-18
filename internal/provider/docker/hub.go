@@ -27,6 +27,10 @@ type hubTags struct {
 // discoverHub lists tags via the Docker Hub API, newest-first and with dates. A
 // shallow lookup reads only the first (newest) page; a deep lookup follows the
 // next-page links to exhaustion.
+//
+// ordering=last_updated returns newest-first, verified against the live API: the
+// "-" descending prefix the DRF convention implies actually returns OLDEST first
+// here, so the bare field is correct - do not "fix" it to -last_updated.
 func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Candidate, error) {
 	url := fmt.Sprintf(
 		"https://%s/v2/repositories/%s/tags?page_size=%d&ordering=last_updated",

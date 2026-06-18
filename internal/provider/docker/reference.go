@@ -84,3 +84,12 @@ func (r reference) registryV2Host() string {
 	}
 	return r.registry
 }
+
+// authHost is the host credentials are keyed under. Docker login stores Hub
+// credentials under index.docker.io, not the web-API or registry host.
+func (r reference) authHost() string {
+	if r.dockerHub {
+		return hubAuthHost
+	}
+	return r.registry
+}
