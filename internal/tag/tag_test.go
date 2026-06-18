@@ -16,6 +16,7 @@ func TestParse(t *testing.T) {
 		wantAll []string
 		wantAny []string
 		wantNot []string
+		wantErr bool
 	}{
 		{name: "empty", values: nil},
 		{name: "and via comma", values: []string{"prod,ci"}, wantAll: []string{"prod", "ci"}},
@@ -29,8 +30,15 @@ func TestParse(t *testing.T) {
 			wantAll: []string{"prod"},
 			wantNot: []string{"legacy"},
 		},
+		{
+			name:    "exclusion inside an or value",
+			values:  []string{"eu/!legacy"},
+			wantAny: []string{"eu"},
+			wantNot: []string{"legacy"},
+		},
 		{name: "bare bang dropped", values: []string{"!"}},
 		{name: "single bare value is AND", values: []string{"prod"}, wantAll: []string{"prod"}},
+		{name: "parse does not dedup", values: []string{"a,a"}, wantAll: []string{"a", "a"}},
 		{
 			name:    "repeated flags accumulate",
 			values:  []string{"prod,ci", "eu/us"},
@@ -42,12 +50,23 @@ func TestParse(t *testing.T) {
 			values:  []string{" prod , , ci "},
 			wantAll: []string{"prod", "ci"},
 		},
+		{name: "mixed separators rejected", values: []string{"a,b/c"}, wantErr: true},
+		{
+			name:    "mixed separators with exclusion rejected",
+			values:  []string{"eu/us,!legacy"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			f := tag.Parse(tc.values)
+			f, err := tag.Parse(tc.values)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			require.Equal(t, tc.wantAll, f.All)
 			require.Equal(t, tc.wantAny, f.Any)
 			require.Equal(t, tc.wantNot, f.Not)
@@ -131,7 +150,9 @@ func TestMatch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, tc.want, tag.Parse(tc.values).Match(tc.tags))
+			f, err := tag.Parse(tc.values)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, f.Match(tc.tags))
 		})
 	}
 }
@@ -174,7 +195,9 @@ func TestString(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, tc.want, tag.Parse(tc.values).String())
+			f, err := tag.Parse(tc.values)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, f.String())
 		})
 	}
 }

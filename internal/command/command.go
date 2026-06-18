@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/github"
+	"github.com/gechr/clover/internal/tag"
 )
 
 const (
@@ -133,4 +134,18 @@ func roots(paths []string) []string {
 		return []string{"."}
 	}
 	return paths
+}
+
+// tagFilter parses the --tag values into a filter, logging the active filter
+// once so a run records exactly which markers it will touch. Shared by run and
+// lint, which apply the same selection.
+func tagFilter(tags []string) (tag.Filter, error) {
+	filter, err := tag.Parse(tags)
+	if err != nil {
+		return tag.Filter{}, err
+	}
+	if !filter.Empty() {
+		clog.Info().Str("tags", filter.String()).Msg("Filtering by tags")
+	}
+	return filter, nil
 }

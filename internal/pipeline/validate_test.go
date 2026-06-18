@@ -37,8 +37,10 @@ func TestValidateFiltersByTags(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 3, resultCount(all), "no filter keeps every marker")
 
+	filter, err := tag.Parse([]string{"prod"})
+	require.NoError(t, err)
 	prod, err := pipeline.Validate(context.Background(), []string{dir},
-		pipeline.WithTagFilter(tag.Parse([]string{"prod"})),
+		pipeline.WithTagFilter(filter),
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, resultCount(prod), "only the prod-tagged marker survives")

@@ -12,7 +12,6 @@ import (
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
-	"github.com/gechr/clover/internal/tag"
 )
 
 // runCmd resolves every directive's version and rewrites it in place.
@@ -30,9 +29,9 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default)
 
-	filter := tag.Parse(c.Tags)
-	if !filter.Empty() {
-		clog.Info().Str("tags", filter.String()).Msg("Filtering by tags")
+	filter, err := tagFilter(c.Tags)
+	if err != nil {
+		return err
 	}
 
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,

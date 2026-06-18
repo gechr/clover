@@ -6,7 +6,10 @@
 // rendering is human-readable, so the CLI can log exactly what it will act on.
 package tag
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // orSeparator splits a --tag value into OR alternatives; andSeparator splits it
 // into AND requirements. A value is read as OR when it contains a slash, else as
@@ -42,12 +45,24 @@ type Filter struct {
 // A term prefixed with "!" is an exclusion, collected regardless of separator.
 // Surrounding whitespace is trimmed and empty items dropped; repeated flags
 // accumulate, so --tag a,b --tag c/d yields All=[a b], Any=[c d].
-func Parse(values []string) Filter {
+//
+// Mixing "," and "/" in a single value is ambiguous (AND-vs-OR precedence) and
+// is rejected, rather than silently producing an unmatchable term; combine an
+// AND set and an OR set by passing them as separate --tag values instead.
+func Parse(values []string) (Filter, error) {
 	var f Filter
 	for _, value := range values {
-		or := strings.Contains(value, orSeparator)
+		hasOr := strings.Contains(value, orSeparator)
+		hasAnd := strings.Contains(value, andSeparator)
+		if hasOr && hasAnd {
+			return Filter{}, fmt.Errorf(
+				"tag filter %q mixes %q (and) with %q (or); use one per --tag value",
+				value, andSeparator, orSeparator,
+			)
+		}
+
 		sep := andSeparator
-		if or {
+		if hasOr {
 			sep = orSeparator
 		}
 		for _, term := range split(value, sep) {
@@ -56,14 +71,14 @@ func Parse(values []string) Filter {
 				if excluded := strings.TrimSpace(term[len(notPrefix):]); excluded != "" {
 					f.Not = append(f.Not, excluded)
 				}
-			case or:
+			case hasOr:
 				f.Any = append(f.Any, term)
 			default:
 				f.All = append(f.All, term)
 			}
 		}
 	}
-	return f
+	return f, nil
 }
 
 // Empty reports whether the filter constrains nothing, in which case every

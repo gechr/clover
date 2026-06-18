@@ -9,7 +9,6 @@ import (
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
-	"github.com/gechr/clover/internal/tag"
 )
 
 // lintCmd checks every directive resolves, offline and without writing. It is
@@ -24,9 +23,9 @@ type lintCmd struct {
 func (c *lintCmd) Run(cfg *config.Config) error {
 	ctx := context.Background()
 
-	filter := tag.Parse(c.Tags)
-	if !filter.Empty() {
-		clog.Info().Str("tags", filter.String()).Msg("Filtering by tags")
+	filter, err := tagFilter(c.Tags)
+	if err != nil {
+		return err
 	}
 
 	summary, err := mode.Lint(ctx, roots(c.Paths),
