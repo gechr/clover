@@ -37,6 +37,10 @@ type Candidate struct {
 	// release was cut from.
 	Ref string
 
+	// Digest is the content digest the version resolves to (e.g. an OCI image's
+	// sha256 manifest digest), for secure-pin rewriting. Empty until resolved.
+	Digest string
+
 	// Meta holds provider-specific values that do not warrant a typed field.
 	Meta map[string]string
 }
