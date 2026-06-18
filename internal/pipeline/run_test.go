@@ -131,6 +131,73 @@ func TestRunFollower(t *testing.T) {
 	require.Equal(t, "follower: 2.0.0", files[1].Results[0].NewLine)
 }
 
+// TestRunAllowDowngradeOverride confirms the run-level flag overrides the
+// per-directive allow-downgrade rule: nil leaves the directive in force, true
+// forces a downgrade the directive did not permit, and false blocks one it did.
+func TestRunAllowDowngradeOverride(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "downflag",
+		candidates: []model.Candidate{candidate(t, "1.0.0")}, // only a lower version upstream
+	})
+	provider.Register(fakeProvider{
+		name:       "downrule",
+		candidates: []model.Candidate{candidate(t, "1.0.0")},
+	})
+
+	// Directive silent on downgrade: default refuses, the flag forces it.
+	noRule := write(t, map[string]string{
+		"app.txt": "# clover: provider=downflag repository=x/y\nversion: 2.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{noRule})
+	require.NoError(t, err)
+	require.Error(t, files[0].Results[0].Err, "downgrade refused by default")
+
+	files, err = pipeline.Run(context.Background(), []string{noRule},
+		pipeline.WithAllowDowngrade(new(true)))
+	require.NoError(t, err)
+	require.True(t, files[0].Results[0].Changed)
+	require.Equal(t, "1.0.0", files[0].Results[0].Resolved, "flag forced the downgrade")
+
+	// Directive allows downgrade: nil keeps it, false overrides to block.
+	withRule := write(t, map[string]string{
+		"app.txt": "# clover: provider=downrule repository=x/y allow-downgrade=true\nversion: 2.0.0\n",
+	})
+	files, err = pipeline.Run(context.Background(), []string{withRule})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0", files[0].Results[0].Resolved, "directive allows the downgrade")
+
+	files, err = pipeline.Run(context.Background(), []string{withRule},
+		pipeline.WithAllowDowngrade(new(false)))
+	require.NoError(t, err)
+	require.Error(t, files[0].Results[0].Err, "flag overrode the directive to block")
+}
+
+// TestRunPrereleaseOverride confirms WithPrerelease(true) lets a marker select a
+// prerelease the per-directive rule would otherwise exclude.
+func TestRunPrereleaseOverride(t *testing.T) {
+	provider.Register(fakeProvider{
+		name: "preflag",
+		candidates: []model.Candidate{
+			candidate(t, "1.0.0"),
+			candidate(t, "2.0.0-rc.1"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=preflag repository=x/y\nversion: 1.0.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.False(t, files[0].Results[0].Changed, "prereleases excluded by default")
+
+	files, err = pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithPrerelease(new(true)))
+	require.NoError(t, err)
+	require.True(t, files[0].Results[0].Changed)
+	require.Equal(t, "2.0.0-rc.1", files[0].Results[0].Resolved, "flag allowed the prerelease")
+}
+
 func TestRunUnknownProviderErrors(t *testing.T) {
 	dir := write(t, map[string]string{
 		"app.txt": "# clover: provider=nope repository=x/y\nversion: 1.0.0\n",
