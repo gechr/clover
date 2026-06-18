@@ -20,8 +20,9 @@ const (
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
 	DirectiveValue    = "value"    // what a follower projects
 
-	DirectivePattern   = "pattern"    // asset filename glob for value=sha256
-	DirectiveSha256URL = "sha256-url" // checksum-file URL (templated with {version}) for value=sha256
+	DirectivePattern      = "pattern"       // asset filename glob for value=sha256
+	DirectiveSha256Source = "sha256-source" // how to source a value=sha256 (see constant/value.go)
+	DirectiveSha256URL    = "sha256-url"    // checksum-file URL (templated with {version}) for value=sha256
 )
 
 // Provider parameters shared beyond a single provider: the auto-inference
