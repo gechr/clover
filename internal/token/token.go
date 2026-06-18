@@ -95,8 +95,14 @@ func (s *Store) Delete(host string) error {
 	return nil
 }
 
-// path is the fallback file path for host. The host is sanitised so a value like
-// "github.com" maps to a single file rather than a nested path.
+// path is the fallback file path for host, sanitised so the host can never
+// escape s.dir: both slash forms become "_" and the traversal names "." and ".."
+// are defused. So "github.com" maps to one file, and a hostile "../x" cannot
+// climb out of the store directory.
 func (s *Store) path(host string) string {
-	return filepath.Join(s.dir, strings.ReplaceAll(host, string(filepath.Separator), "_"))
+	safe := strings.NewReplacer("/", "_", `\`, "_").Replace(host)
+	if safe == "" || safe == "." || safe == ".." {
+		safe = "_" + safe
+	}
+	return filepath.Join(s.dir, safe)
 }
