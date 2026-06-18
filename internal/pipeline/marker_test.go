@@ -75,9 +75,9 @@ func TestMarkersAuto(t *testing.T) {
 	const sha = "a0dfaeb072753c3d48cd4df5fdacfd035b2281bf"
 	auto := directiveOf(directive.KV{Key: "provider", Value: "auto"})
 
-	// repoOf returns the repository the marker carries after binding, or "".
-	repoOf := func(m pipeline.Marker) string {
-		v, _ := m.Directive.Get("repository")
+	// keyOf returns a directive key the marker carries after binding, or "".
+	keyOf := func(m pipeline.Marker, key string) string {
+		v, _ := m.Directive.Get(key)
 		return v
 	}
 
@@ -87,6 +87,7 @@ func TestMarkersAuto(t *testing.T) {
 		lines      []string
 		directive  directive.Directive
 		provider   string
+		registry   string
 		repository string
 	}{
 		{
@@ -113,6 +114,29 @@ func TestMarkersAuto(t *testing.T) {
 			),
 			provider:   "github",
 			repository: "owner/override",
+		},
+		{
+			name: "infers docker and repository from a dockerfile FROM",
+			path: "Dockerfile",
+			lines: []string{
+				"# clover: provider=auto",
+				"FROM nginx:1.27",
+			},
+			directive:  auto,
+			provider:   "docker",
+			repository: "nginx",
+		},
+		{
+			name: "infers docker registry and repository from a compose image",
+			path: "docker-compose.yml",
+			lines: []string{
+				"    # clover: provider=auto",
+				"    image: ghcr.io/owner/api:1.2.0",
+			},
+			directive:  auto,
+			provider:   "docker",
+			registry:   "ghcr.io",
+			repository: "owner/api",
 		},
 		{
 			name:       "stays auto when the target is not a recognised pin",
@@ -143,7 +167,8 @@ func TestMarkersAuto(t *testing.T) {
 			markers := pipeline.Markers(file, vcs.NewResolver())
 			require.Len(t, markers, 1)
 			require.Equal(t, tt.provider, markers[0].Provider)
-			require.Equal(t, tt.repository, repoOf(markers[0]))
+			require.Equal(t, tt.registry, keyOf(markers[0], "registry"))
+			require.Equal(t, tt.repository, keyOf(markers[0], "repository"))
 		})
 	}
 }

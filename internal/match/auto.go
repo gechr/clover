@@ -6,13 +6,23 @@ import (
 	"github.com/gechr/clover/internal/constant"
 )
 
+// Inference is what auto-detection resolved for a `provider=auto` marker from
+// its target line: the real provider plus any provider parameters readable from
+// the line. Empty parameter fields mean the line did not carry that detail.
+type Inference struct {
+	Provider   string
+	Registry   string
+	Repository string
+}
+
 // Infer resolves the provider for an `auto` marker from its file path and target
 // line, reusing the dispatch routes: the first route whose path and line match
-// (ignoring its provider guard, which is the answer) names the provider. For a
-// GitHub Actions pin it also reads the repository from the uses: reference, so a
-// bare `provider=auto` needs no `repository=`. It returns ok=false when nothing
+// (ignoring its provider guard, which is the answer) names the provider. It also
+// reads the provider's parameters from the line - the repository from a GitHub
+// Actions pin, the registry and repository from a container image reference - so
+// a bare `provider=auto` needs no further keys. It returns ok=false when nothing
 // matches, leaving the marker for the caller to reject.
-func Infer(path, line string) (string, string, bool) {
+func Infer(path, line string) (Inference, bool) {
 	for _, r := range routes {
 		c := r.when
 		if c.provider == "" {
@@ -24,13 +34,16 @@ func Infer(path, line string) (string, string, bool) {
 		if c.lineMatch != nil && !c.lineMatch.Matches(line) {
 			continue
 		}
-		repository := ""
-		if c.provider == constant.ProviderGithub {
-			repository = actionRepository(line)
+		inferred := Inference{Provider: c.provider}
+		switch c.provider {
+		case constant.ProviderGithub:
+			inferred.Repository = actionRepository(line)
+		case constant.ProviderDocker:
+			inferred.Registry, inferred.Repository = imageReference(line)
 		}
-		return c.provider, repository, true
+		return inferred, true
 	}
-	return "", "", false
+	return Inference{}, false
 }
 
 // actionRepository extracts the owner/repo from a GitHub Actions uses: pin,
@@ -54,4 +67,72 @@ func actionRepository(line string) string {
 		return ""
 	}
 	return owner + "/" + name
+}
+
+// imageReference splits the registry host and repository path from a container
+// image reference on a FROM or image: line, e.g.
+// "FROM ghcr.io/owner/img:1.2" -> ("ghcr.io", "owner/img") and
+// "FROM nginx:1.27" -> ("", "nginx"). The registry is empty for Docker Hub,
+// where the first segment is a path component, not a host.
+func imageReference(line string) (string, string) {
+	ref := imageToken(line)
+	if ref == "" {
+		return "", ""
+	}
+	if at := strings.IndexByte(ref, '@'); at >= 0 {
+		ref = ref[:at] // drop a digest pin
+	}
+
+	registry := ""
+	remainder := ref
+	if slash := strings.IndexByte(ref, '/'); slash >= 0 && isRegistryHost(ref[:slash]) {
+		registry = ref[:slash]
+		remainder = ref[slash+1:]
+	}
+	if colon := strings.LastIndexByte(remainder, ':'); colon >= 0 {
+		remainder = remainder[:colon] // drop the tag (the host's port already split off)
+	}
+	return registry, remainder
+}
+
+// imageToken extracts the image reference from a Dockerfile FROM instruction or
+// a YAML image: mapping, returning "" when the line carries neither.
+func imageToken(line string) string {
+	line = strings.TrimSpace(line)
+	if rest, ok := strings.CutPrefix(line, "FROM "); ok {
+		return fromImage(rest)
+	}
+	if _, after, ok := strings.Cut(line, "image:"); ok {
+		return unquote(strings.TrimSpace(after))
+	}
+	return ""
+}
+
+// fromImage returns the image from the arguments of a FROM instruction, skipping
+// flags like --platform= and ignoring a trailing AS stage name.
+func fromImage(rest string) string {
+	for field := range strings.FieldsSeq(rest) {
+		if strings.HasPrefix(field, "--") {
+			continue
+		}
+		return field // the first non-flag token is the image
+	}
+	return ""
+}
+
+// isRegistryHost reports whether a reference's first segment is a registry host
+// rather than a repository path component: a host carries a dot or port, or is
+// the special localhost.
+func isRegistryHost(segment string) bool {
+	return segment == "localhost" || strings.ContainsAny(segment, ".:")
+}
+
+// unquote strips a single pair of surrounding single or double quotes.
+func unquote(s string) string {
+	for _, q := range []string{`"`, "'"} {
+		if len(s) >= 2 && strings.HasPrefix(s, q) && strings.HasSuffix(s, q) {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
 }

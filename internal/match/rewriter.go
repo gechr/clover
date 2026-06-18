@@ -99,6 +99,27 @@ var routes = []route{
 		},
 		rw: NewActionPin(),
 	},
+	{
+		// A Dockerfile FROM instruction; the smart rewriter handles the
+		// name:tag span, so this route exists mainly to name docker for
+		// provider=auto. A digest-pin rewriter would slot in here later.
+		when: conditions{
+			path:      "**/{Dockerfile,Containerfile}*",
+			lineMatch: mustPattern("FROM *"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewSmart(),
+	},
+	{
+		// A compose/Kubernetes image: mapping. The leading and trailing spaces
+		// in the pattern avoid matching keys like customimage:.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* image: *"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewSmart(),
+	},
 	{rw: NewSmart()},
 }
 

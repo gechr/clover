@@ -93,16 +93,24 @@ func infer(file scan.File, target int, d directive.Directive) (string, directive
 	if target >= len(file.Lines) {
 		return constant.ProviderAuto, d
 	}
-	provider, repository, ok := match.Infer(file.Path, file.Lines[target])
+	inferred, ok := match.Infer(file.Path, file.Lines[target])
 	if !ok {
 		return constant.ProviderAuto, d
 	}
-	if repository != "" && !d.Has(constant.DirectiveRepository) {
-		pairs := append([]directive.KV{}, d.Pairs...)
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: repository})
-		d = directive.Directive{Pairs: pairs}
+	d = appendParam(d, constant.DirectiveRegistry, inferred.Registry)
+	d = appendParam(d, constant.DirectiveRepository, inferred.Repository)
+	return inferred.Provider, d
+}
+
+// appendParam returns d with key=value appended, unless the value is empty or
+// the key is already present - an explicit value always wins over an inferred one.
+func appendParam(d directive.Directive, key, value string) directive.Directive {
+	if value == "" || d.Has(key) {
+		return d
 	}
-	return provider, d
+	pairs := append([]directive.KV{}, d.Pairs...)
+	pairs = append(pairs, directive.KV{Key: key, Value: value})
+	return directive.Directive{Pairs: pairs}
 }
 
 // namespace prefixes id with the repository root. An empty id stays empty.
