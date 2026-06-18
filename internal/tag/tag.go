@@ -9,6 +9,8 @@ package tag
 import (
 	"fmt"
 	"strings"
+
+	xstrings "github.com/gechr/x/strings"
 )
 
 // orSeparator splits a --tag value into OR alternatives; andSeparator splits it
@@ -65,7 +67,7 @@ func Parse(values []string) (Filter, error) {
 		if hasOr {
 			sep = orSeparator
 		}
-		for _, term := range split(value, sep) {
+		for _, term := range xstrings.SplitBy(value, sep) {
 			switch {
 			case strings.HasPrefix(term, notPrefix):
 				if excluded := strings.TrimSpace(term[len(notPrefix):]); excluded != "" {
@@ -145,17 +147,6 @@ func (f Filter) String() string {
 		parts = append(parts, logicalNot+excluded)
 	}
 	return strings.Join(parts, logicalAnd)
-}
-
-// split divides value on sep, trimming each item and dropping empties.
-func split(value, sep string) []string {
-	var out []string
-	for item := range strings.SplitSeq(value, sep) {
-		if item = strings.TrimSpace(item); item != "" {
-			out = append(out, item)
-		}
-	}
-	return out
 }
 
 // contains reports whether tags holds want, case-insensitively.
