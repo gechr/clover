@@ -18,8 +18,10 @@ const (
 	accessTokenURL = "https://github.com/login/oauth/access_token" //nolint:gosec // OAuth endpoint, not a credential
 )
 
-// oauthScopes is the access clover requests. repo covers reading tags and
-// releases of private repositories; public reads need no scope at all.
+// oauthScopes is the access clover requests. `repo` grants read+write to private
+// repositories - broader than this read-only tool needs - but it is the narrowest
+// classic OAuth scope that can read private tags and releases, and device flow
+// cannot issue fine-grained tokens. Public reads need no scope at all.
 var oauthScopes = []string{"repo"}
 
 // Code is the user-facing half of the device flow: the one-time code to enter
@@ -30,11 +32,11 @@ type Code struct {
 }
 
 // Login runs the GitHub device flow and stores the minted token: it requests a
-// code, hands it to display so the caller can prompt the user, polls until the
+// code, hands it to prompt so the caller can show it to the user, polls until the
 // user authorises in the browser, then persists the token under the GitHub host
 // so the credential chain finds it. It needs no client secret and binds no local
 // port, so it works headless. The context bounds the poll.
-func Login(ctx context.Context, display func(Code)) error {
+func Login(ctx context.Context, prompt func(Code)) error {
 	httpClient := &http.Client{}
 
 	code, err := device.RequestCode(httpClient, deviceCodeURL, oauthClientID, oauthScopes)
@@ -42,7 +44,7 @@ func Login(ctx context.Context, display func(Code)) error {
 		return fmt.Errorf("github: request device code: %w", err)
 	}
 
-	display(Code{UserCode: code.UserCode, VerificationURL: code.VerificationURI})
+	prompt(Code{UserCode: code.UserCode, VerificationURL: code.VerificationURI})
 
 	accessToken, err := device.Wait(ctx, httpClient, accessTokenURL, device.WaitOptions{
 		ClientID:   oauthClientID,
