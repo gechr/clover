@@ -50,16 +50,22 @@ func New(opts ...Option) (*Store, error) {
 }
 
 // Get returns the token stored for host, trying the keyring then the file
-// fallback. The boolean is false when no token is stored.
+// fallback. Both values are trimmed, and an empty result is reported as a miss
+// (false) so an empty entry never shadows a later credential source.
 func (s *Store) Get(host string) (string, bool) {
 	if tok, err := keyring.Get(service, host); err == nil {
-		return tok, true
+		if tok = strings.TrimSpace(tok); tok != "" {
+			return tok, true
+		}
 	}
 	tok, err := os.ReadFile(s.path(host))
 	if err != nil {
 		return "", false
 	}
-	return strings.TrimSpace(string(tok)), true
+	if trimmed := strings.TrimSpace(string(tok)); trimmed != "" {
+		return trimmed, true
+	}
+	return "", false
 }
 
 // Set stores token for host in the keyring, falling back to a 0600 file when the
