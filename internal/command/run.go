@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"os"
 	"slices"
 
 	"github.com/gechr/clog"
@@ -12,16 +13,20 @@ import (
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
+	"github.com/gechr/clover/internal/tui"
+	"github.com/gechr/x/terminal"
 )
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                        predictor:"path" clib:"terse='Paths to scan'"`
-	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                          clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun         bool          `                               help:"Resolve and render but write nothing"                                 clib:"terse='Dry run'"           short:"n" aliases:"dry"`
-	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                  clib:"terse='Allow downgrades'"                                               negatable:""`
-	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                  clib:"terse='Allow prereleases'"                                              negatable:""`
-	Output         report.Output `                               help:"Output detail"                                                        clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
+	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                                           predictor:"path" clib:"terse='Paths to scan'"`
+	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                                                             clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun         bool          `                               help:"Resolve and render but write nothing"                                                                    clib:"terse='Dry run'"           short:"n" aliases:"dry"`
+	Deep           bool          `                               help:"Follow pagination to fetch every version (more accurate, but slower and more requests)"                  clib:"terse='Deep lookup'"`
+	Yes            bool          `                               help:"Proceed without confirming a deep lookup"                                                                clib:"terse='Assume yes'"        short:"y"`
+	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                                     clib:"terse='Allow downgrades'"                                               negatable:""`
+	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                                     clib:"terse='Allow prereleases'"                                              negatable:""`
+	Output         report.Output `                               help:"Output detail"                                                                                           clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -35,10 +40,16 @@ func (c *runCmd) Run(cfg *config.Config) error {
 		return err
 	}
 
+	if c.Deep && !confirmDeep(c.Yes) {
+		clog.Info().Msg("Deep lookup cancelled")
+		return nil
+	}
+
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
 		pipeline.WithReporter(reporter),
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
 		pipeline.WithTagFilter(filter),
+		pipeline.WithDeep(c.Deep),
 		pipeline.WithAllowDowngrade(c.AllowDowngrade),
 		pipeline.WithPrerelease(c.Prerelease),
 	)
@@ -49,6 +60,21 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	reportAuth(ctx, summary)
 	report.Run(clog.Default, summary, c.DryRun, c.Output)
 	return nil
+}
+
+// confirmDeep reports whether to go ahead with a deep lookup. --yes and a
+// non-interactive session both proceed without prompting; on a TTY the user is
+// warned that it may be slow or hit rate limits and asked to confirm.
+func confirmDeep(yes bool) bool {
+	if yes || !terminal.Is(os.Stdin) || !terminal.Is(os.Stdout) {
+		return true
+	}
+	ok, err := tui.Confirm(
+		"Run a deep lookup?",
+		"A deep lookup fetches every page of versions - more accurate, but many "+
+			"more requests that may be slow or hit rate limits.",
+	)
+	return err == nil && ok
 }
 
 // reportAuth hints, actionably, when a used provider fell back to anonymous

@@ -92,7 +92,7 @@ func (p *Provider) registryPage(
 // a registry-relative path against the registry host. It returns "" when there
 // is no next page.
 func nextLink(header, registry string) string {
-	for _, part := range strings.Split(header, ",") {
+	for part := range strings.SplitSeq(header, ",") {
 		if !strings.Contains(part, `rel="next"`) {
 			continue
 		}
