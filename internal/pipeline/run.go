@@ -424,6 +424,20 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return ErrNoCandidate
 	}
 
+	// A secure pin (e.g. an image @sha256 digest) needs the chosen tag's digest,
+	// resolved here for the winner only so discovery stays cheap.
+	if located.NeedsDigest() {
+		digester, isDigester := prov.(provider.Digester)
+		if !isDigester {
+			return fmt.Errorf("provider %q cannot resolve a digest for a pinned image", m.Provider)
+		}
+		digest, err := digester.Digest(ctx, resource, chosen.Version)
+		if err != nil {
+			return err
+		}
+		chosen.Digest = digest
+	}
+
 	if m.ID != "" {
 		old := model.Candidate{Version: located.Raw, Semver: located.Semver}
 		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
@@ -20,8 +21,13 @@ type fakeProvider struct {
 	name       string
 	candidates []model.Candidate
 	err        error
-	deep       *bool // when set, Discover records whether a deep lookup was requested
-	truncate   bool  // when set, Discover reports a truncated lookup
+	deep       *bool  // when set, Discover records whether a deep lookup was requested
+	truncate   bool   // when set, Discover reports a truncated lookup
+	digest     string // the digest the Digester capability returns
+}
+
+func (f fakeProvider) Digest(context.Context, provider.Resource, string) (string, error) {
+	return f.digest, nil
 }
 
 func (f fakeProvider) Name() string { return f.name }
@@ -102,6 +108,28 @@ func TestRunTruncationSinkReceivesNotices(t *testing.T) {
 		pipeline.WithTruncationSink(func(r string) { noted = append(noted, r) }))
 	require.NoError(t, err)
 	require.Equal(t, []string{"trunc"}, noted)
+}
+
+func TestRunResolvesDigestPin(t *testing.T) {
+	oldDigest := "sha256:" + strings.Repeat("a", 64)
+	newDigest := "sha256:" + strings.Repeat("b", 64)
+	provider.Register(fakeProvider{
+		name:       "docker",
+		digest:     newDigest,
+		candidates: []model.Candidate{candidate(t, "1.2.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=x/y\nFROM x/y:1.0.0@" + oldDigest + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.True(t, r.Changed)
+	require.Equal(t, "FROM x/y:1.2.0@"+newDigest, r.NewLine,
+		"tag and digest update together")
 }
 
 // candidate parses tag into a candidate the selection chain can order.
