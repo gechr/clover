@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/tag"
 )
@@ -48,7 +49,7 @@ type cli struct {
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
-	provider.RegisterAll(github.New())
+	provider.RegisterAll(github.New(), docker.New())
 
 	var root cli
 

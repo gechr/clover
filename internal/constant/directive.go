@@ -21,6 +21,9 @@ const (
 	DirectiveValue    = "value"    // what a follower projects
 )
 
-// DirectiveRepository is a provider parameter shared beyond a single provider:
-// the auto-inference injects it and the github provider reads it.
-const DirectiveRepository = "repository"
+// Provider parameters shared beyond a single provider: the auto-inference
+// injects them and the relevant providers read them.
+const (
+	DirectiveRegistry   = "registry"   // container registry host (docker)
+	DirectiveRepository = "repository" // repository path (github, docker)
+)

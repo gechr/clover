@@ -6,6 +6,7 @@ const (
 	// ProviderAuto asks clover to infer the real provider from context (e.g. a
 	// GitHub Actions uses: pin in a workflow file resolves to github).
 	ProviderAuto   = "auto"
+	ProviderDocker = "docker"
 	ProviderFollow = "follow"
 	ProviderGithub = "github"
 )

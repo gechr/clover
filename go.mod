@@ -15,6 +15,7 @@ require (
 	github.com/gechr/clog v0.11.3
 	github.com/gechr/x v0.1.6
 	github.com/gobwas/glob v0.2.3
+	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
 	github.com/maruel/natural v1.3.0
 	github.com/stretchr/testify v1.11.1
@@ -30,6 +31,8 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/docker/cli v29.5.3+incompatible // indirect
+	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
@@ -37,12 +40,14 @@ require (
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	gotest.tools/v3 v3.5.2 // indirect
 )
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect
 	4d63.com/gochecknoglobals v0.2.2 // indirect
-	charm.land/lipgloss/v2 v2.0.4 // indirect
+	charm.land/lipgloss/v2 v2.0.4
 	codeberg.org/chavacava/garif v0.2.0 // indirect
 	codeberg.org/polyfloyd/go-errorlint v1.9.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
