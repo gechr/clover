@@ -5,6 +5,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
 )
@@ -49,26 +50,31 @@ func Markers(file scan.File, resolver *vcs.Resolver) []Marker {
 	root := resolver.Root(file.Path)
 	markers := make([]Marker, 0, len(file.Found))
 	for _, found := range file.Found {
-		markers = append(markers, bind(file.Path, root, found))
+		markers = append(markers, bind(file, root, found))
 	}
 	return markers
 }
 
 // bind turns a located directive into a Marker. The target defaults to the next
 // line; offset/range targeting is a later addition. An omitted provider means
-// the marker follows another (provider= follow).
-func bind(path, root string, found scan.Located) Marker {
+// the marker follows another (provider= follow); provider=auto is resolved from
+// the target line.
+func bind(file scan.File, root string, found scan.Located) Marker {
 	d := found.Directive
+	target := found.Line + 1
 
 	provider := value(d, constant.DirectiveProvider)
-	if provider == "" {
+	switch provider {
+	case "":
 		provider = constant.ProviderFollow
+	case constant.ProviderAuto:
+		provider, d = infer(file, target, d)
 	}
 
 	return Marker{
-		File:      path,
+		File:      file.Path,
 		Line:      found.Line,
-		Target:    found.Line + 1,
+		Target:    target,
 		Directive: d,
 		Provider:  provider,
 		ID:        namespace(root, value(d, constant.DirectiveID)),
@@ -77,6 +83,26 @@ func bind(path, root string, found scan.Located) Marker {
 		Select:    value(d, constant.DirectiveSelect),
 		Tags:      d.CSV(constant.DirectiveTags),
 	}
+}
+
+// infer resolves a provider=auto marker from its target line, returning the
+// detected provider and the directive with any inferred params (e.g.
+// repository) appended. When nothing matches, the provider stays auto so
+// resolution rejects it with a clear "unknown provider" error.
+func infer(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
+	if target >= len(file.Lines) {
+		return constant.ProviderAuto, d
+	}
+	provider, repository, ok := match.Infer(file.Path, file.Lines[target])
+	if !ok {
+		return constant.ProviderAuto, d
+	}
+	if repository != "" && !d.Has(constant.DirectiveRepository) {
+		pairs := append([]directive.KV{}, d.Pairs...)
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: repository})
+		d = directive.Directive{Pairs: pairs}
+	}
+	return provider, d
 }
 
 // namespace prefixes id with the repository root. An empty id stays empty.

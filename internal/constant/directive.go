@@ -20,3 +20,7 @@ const (
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
 	DirectiveValue    = "value"    // what a follower projects
 )
+
+// DirectiveRepository is a provider parameter shared beyond a single provider:
+// the auto-inference injects it and the github provider reads it.
+const DirectiveRepository = "repository"

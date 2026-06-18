@@ -35,7 +35,7 @@ const host = "github.com"
 
 // Directive keys and the values the source key accepts.
 const (
-	keyRepository = "repository"
+	keyRepository = constant.DirectiveRepository
 	keySource     = "source"
 
 	sourceTags     = "tags"
