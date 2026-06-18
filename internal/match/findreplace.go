@@ -1,0 +1,210 @@
+package match
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/placeholder"
+	"github.com/gechr/clover/internal/regexlit"
+	"github.com/gechr/clover/internal/version"
+)
+
+// FindReplace is the explicit find/replace rewriter. find locates the region to
+// rewrite: a glob with <placeholders> (each a capturing group of its shape), or
+// a /regex/ (strict, no placeholders; group 1 is the value). replace is optional:
+// without it each captured value is substituted in place, preserving the rest;
+// with it the whole matched region is re-rendered from the template. A token
+// renders its resolved value when clover computes one, else the text find
+// captured, so a match-only <hex> is preserved.
+type FindReplace struct {
+	find    *regexp.Regexp
+	tokens  []string // capture-group token names; nil in regex mode
+	replace string
+}
+
+// NewFindReplace compiles a find/replace pair. A /regex/ find is strict; any
+// other find is a glob with placeholders.
+func NewFindReplace(find, replace string) (FindReplace, error) {
+	if body, ok := regexlit.Body(find); ok {
+		re, err := regexp.Compile(body)
+		if err != nil {
+			return FindReplace{}, fmt.Errorf("find: %w", err)
+		}
+		return FindReplace{find: re, replace: replace}, nil
+	}
+
+	re, tokens, err := placeholder.Compile(find)
+	if err != nil {
+		return FindReplace{}, err
+	}
+	return FindReplace{find: re, tokens: tokens, replace: replace}, nil
+}
+
+// Locate matches find against the line: the whole match is the span to rewrite,
+// and the value anchoring selection is the first version-shaped capture (glob)
+// or capture group 1 (regex), falling back to the whole match.
+func (fr FindReplace) Locate(line string) (Located, error) {
+	m := fr.find.FindStringSubmatchIndex(line)
+	if m == nil {
+		return Located{}, errors.New("find pattern did not match the target line")
+	}
+	value := line[fr.anchor(m, 0):fr.anchor(m, 1)]
+	semver, _ := version.Parse(value)
+	return Located{
+		Raw:    value,
+		Semver: semver,
+		token:  Token{Span: Span{Start: m[0], End: m[1]}},
+	}, nil
+}
+
+// anchor returns the start (end=0) or end (end=1) offset of the value used as the
+// selection anchor: the first version-family capture, else group 1, else the
+// whole match.
+func (fr FindReplace) anchor(m []int, end int) int {
+	if g := fr.versionGroup(); g > 0 && m[2*g] >= 0 {
+		return m[2*g+end]
+	}
+	if len(m) >= 4 && m[2] >= 0 {
+		return m[2+end]
+	}
+	return m[end]
+}
+
+// versionGroup is the 1-based capture index of the first version-family token,
+// or 0 when there is none (a commit- or hex-only find has no semver anchor).
+func (fr FindReplace) versionGroup() int {
+	for i, t := range fr.tokens {
+		switch t {
+		case "version", "major", "minor", "patch", "major.minor", "major.minor.patch":
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// Render rewrites the matched region: in place per captured token, or from the
+// replace template when one is set.
+func (fr FindReplace) Render(
+	line string,
+	located Located,
+	candidate model.Candidate,
+) (string, bool, error) {
+	span := located.token.Span
+	if span.Start < 0 || span.End > len(line) {
+		return "", false, errors.New("located span no longer fits the line")
+	}
+	m := fr.find.FindStringSubmatchIndex(line)
+	if m == nil {
+		return "", false, errors.New("find pattern no longer matches the line")
+	}
+
+	region, err := fr.region(line, m, located, candidate)
+	if err != nil {
+		return "", false, err
+	}
+	newLine := line[:m[0]] + region + line[m[1]:]
+	return newLine, newLine != line, nil
+}
+
+// region builds the new content for the matched span.
+func (fr FindReplace) region(
+	line string,
+	m []int,
+	located Located,
+	candidate model.Candidate,
+) (string, error) {
+	if fr.replace != "" {
+		out := placeholder.Expand(fr.replace, fr.values(line, m, located, candidate))
+		if placeholder.HasToken(out) {
+			return "", fmt.Errorf("replace %q references an unavailable token", fr.replace)
+		}
+		return out, nil
+	}
+
+	// In place: regex mode rewrites just the value span; glob mode rewrites each
+	// captured token, preserving the literal/glob text between captures.
+	if fr.tokens == nil {
+		vs, ve := fr.anchor(m, 0), fr.anchor(m, 1)
+		styled := restyle(decompose(line[vs:ve]), candidate.Version)
+		return line[m[0]:vs] + styled + line[ve:m[1]], nil
+	}
+	var b strings.Builder
+	cursor := m[0]
+	for i, t := range fr.tokens {
+		gs, ge := m[2*(i+1)], m[2*(i+1)+1]
+		if gs < 0 {
+			continue
+		}
+		b.WriteString(line[cursor:gs])
+		b.WriteString(tokenValue(t, line[gs:ge], candidate))
+		cursor = ge
+	}
+	b.WriteString(line[cursor:m[1]])
+	return b.String(), nil
+}
+
+// values maps every token referenced anywhere to its value: the resolved value
+// when clover computes one, else the text find captured for that token (so a
+// replace can echo a matched <hex>).
+func (fr FindReplace) values(
+	line string,
+	m []int,
+	located Located,
+	candidate model.Candidate,
+) map[string]string {
+	vals := resolved(located.Raw, candidate)
+	for i, t := range fr.tokens {
+		if _, ok := vals[t]; ok {
+			continue
+		}
+		if gs := m[2*(i+1)]; gs >= 0 {
+			vals[t] = line[gs:m[2*(i+1)+1]]
+		}
+	}
+	return vals
+}
+
+// resolved is the map of tokens clover computes from the candidate, styling
+// <version> to the located value.
+func resolved(located string, candidate model.Candidate) map[string]string {
+	vals := map[string]string{"version": restyle(decompose(located), candidate.Version)}
+	if seg := segments(candidate.Semver); seg != nil {
+		vals["major"], vals["minor"], vals["patch"] = seg[0], seg[1], seg[2]
+		vals["major.minor"] = seg[0] + "." + seg[1]
+		vals["major.minor.patch"] = strings.Join(seg, ".")
+	}
+	if candidate.Commit != "" {
+		vals["commit"] = candidate.Commit
+	}
+	if d, ok := strings.CutPrefix(candidate.Digest, "sha256:"); ok {
+		vals["sha256"] = d
+	}
+	return vals
+}
+
+// tokenValue is the resolved value for an in-place token, styling <version> to
+// the captured text, or the captured text itself when nothing is resolved.
+func tokenValue(t, captured string, candidate model.Candidate) string {
+	if v, ok := resolved(captured, candidate)[t]; ok {
+		return v
+	}
+	return captured
+}
+
+// segments returns the major, minor, patch of a parsed version as strings, or
+// nil when it is not semver-shaped.
+func segments(v *version.Version) []string {
+	if v == nil {
+		return nil
+	}
+	seg := v.Segments() // go-version pads to three: major, minor, patch
+	out := make([]string, len(seg))
+	for i, s := range seg {
+		out[i] = strconv.Itoa(s)
+	}
+	return out
+}
