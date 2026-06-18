@@ -2,8 +2,10 @@ package command
 
 import (
 	"context"
+	"errors"
 	"os"
 	"slices"
+	"sync"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
@@ -14,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/clover/internal/tui"
+	xslices "github.com/gechr/x/slices"
 	"github.com/gechr/x/terminal"
 )
 
@@ -45,11 +48,22 @@ func (c *runCmd) Run(cfg *config.Config) error {
 		return nil
 	}
 
+	// Collect truncated lookups during the run and report them after, so the
+	// hints do not interleave with the live progress display.
+	var (
+		mu        sync.Mutex
+		truncated []string
+	)
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
 		pipeline.WithReporter(reporter),
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
 		pipeline.WithTagFilter(filter),
 		pipeline.WithDeep(c.Deep),
+		pipeline.WithTruncationSink(func(resource string) {
+			mu.Lock()
+			defer mu.Unlock()
+			truncated = append(truncated, resource)
+		}),
 		pipeline.WithAllowDowngrade(c.AllowDowngrade),
 		pipeline.WithPrerelease(c.Prerelease),
 	)
@@ -58,8 +72,33 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	}
 
 	reportAuth(ctx, summary)
+	reportDeep(summary, truncated)
 	report.Run(clog.Default, summary, c.DryRun, c.Output)
 	return nil
+}
+
+// reportDeep hints, after a run, that a deeper lookup might help: it warns about
+// each lexically-ordered registry whose shallow listing was truncated (the newest
+// version may have been missed), and once if any marker found no matching version
+// on the first page. Both suggest --deep.
+func reportDeep(summary mode.Summary, truncated []string) {
+	for _, resource := range xslices.Unique(truncated) {
+		clog.Warn().
+			Str("resource", resource).
+			Str("action", "pass --deep").
+			Msg("Shallow lookup may have missed newer versions")
+	}
+
+	for _, outcome := range summary.Outcomes {
+		for _, result := range outcome.Results {
+			if errors.Is(result.Err, pipeline.ErrNoCandidate) {
+				clog.Hint().
+					Str("action", "pass --deep").
+					Msg("Some markers found no matching version on the first page")
+				return
+			}
+		}
+	}
 }
 
 // confirmDeep reports whether to go ahead with a deep lookup. --yes and a
