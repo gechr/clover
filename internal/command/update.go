@@ -7,8 +7,9 @@ import (
 	"github.com/gechr/clive/update/brew"
 )
 
-// updateTap is the Homebrew tap hosting the clover formula. Replace the
-// placeholder once the tap is published.
+// updateTap is the Homebrew tap that will host the clover formula. The tap
+// exists; the formula is published by the release workflow on clover's first
+// public release.
 const updateTap = "gechr/tap"
 
 // updateCmd self-updates clover through Homebrew, the sanctioned update path.
