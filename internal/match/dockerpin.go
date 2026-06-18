@@ -107,5 +107,5 @@ func (DockerPin) Render(
 // isDigest reports whether s is a full sha256:<64-hex> content digest.
 func isDigest(s string) bool {
 	rest, ok := strings.CutPrefix(s, digestAlgo)
-	return ok && len(rest) == digestHexLen && xstrings.IsHex(rest)
+	return ok && xstrings.IsSHA256(rest)
 }

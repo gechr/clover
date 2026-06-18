@@ -88,7 +88,7 @@ func (ActionPin) Render(
 	located Located,
 	candidate model.Candidate,
 ) (string, bool, error) {
-	if !fullSHA(candidate.Commit) {
+	if !xstrings.IsGitCommit(candidate.Commit) {
 		return "", false, fmt.Errorf(
 			"candidate has no full commit SHA to pin, got %q",
 			candidate.Commit,
@@ -105,9 +105,4 @@ func (ActionPin) Render(
 		line[commit.End:comment.Start] + version +
 		line[comment.End:]
 	return newLine, newLine != line, nil
-}
-
-// fullSHA reports whether s is a full 40-character hex commit SHA.
-func fullSHA(s string) bool {
-	return len(s) == shaLen && xstrings.IsHex(s)
 }
