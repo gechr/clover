@@ -76,7 +76,7 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	summary.Elapsed = time.Since(start)
 
 	reportAuth(ctx, summary)
-	reportDeep(summary, truncated)
+	reportDeep(summary, truncated, c.Deep)
 	report.Run(clog.Default, summary, c.DryRun, c.Output)
 	return nil
 }
@@ -85,24 +85,37 @@ func (c *runCmd) Run(cfg *config.Config) error {
 // each lexically-ordered registry whose shallow listing was truncated (the newest
 // version may have been missed), and once if any marker found no matching version
 // on the first page. Both suggest --deep.
-func reportDeep(summary mode.Summary, truncated []string) {
-	for _, resource := range xslices.Unique(truncated) {
+func reportDeep(summary mode.Summary, truncated []string, deep bool) {
+	resources, noCandidate := deepHints(summary, truncated, deep)
+	for _, resource := range resources {
 		clog.Warn().
 			Str(field.Resource, resource).
 			Str(field.Hint, "pass --deep").
 			Msg("Shallow lookup may have missed newer versions")
 	}
+	if noCandidate {
+		clog.Hint().
+			Str(field.Hint, "pass --deep").
+			Msg("Some markers found no matching version on the first page")
+	}
+}
 
+// deepHints is the pure decision behind reportDeep: which truncated resources to
+// warn about, and whether any marker found no candidate on the first page. A deep
+// run already paged to exhaustion, so it suggests nothing.
+func deepHints(summary mode.Summary, truncated []string, deep bool) ([]string, bool) {
+	if deep {
+		return nil, false
+	}
+	resources := xslices.Unique(truncated)
 	for _, outcome := range summary.Outcomes {
 		for _, result := range outcome.Results {
 			if errors.Is(result.Err, pipeline.ErrNoCandidate) {
-				clog.Hint().
-					Str(field.Hint, "pass --deep").
-					Msg("Some markers found no matching version on the first page")
-				return
+				return resources, true
 			}
 		}
 	}
+	return resources, false
 }
 
 // confirmDeep reports whether to go ahead with a deep lookup. --yes and a
