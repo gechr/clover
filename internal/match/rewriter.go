@@ -63,6 +63,7 @@ type conditions struct {
 	path      string
 	lineMatch *pattern.Pattern
 	provider  string
+	value     string
 }
 
 func (c conditions) match(ctx Context) bool {
@@ -72,6 +73,8 @@ func (c conditions) match(ctx Context) bool {
 	case c.lineMatch != nil && !c.lineMatch.Matches(ctx.Line):
 		return false
 	case c.provider != "" && c.provider != ctx.Provider:
+		return false
+	case c.value != "" && c.value != ctx.Value:
 		return false
 	default:
 		return true
@@ -146,6 +149,17 @@ var routes = []route{
 			provider:  constant.ProviderDocker,
 		},
 		rw: NewSmart(),
+	},
+	{
+		// A follower projecting a commit or sha256 onto its own line; the hash
+		// rewriter swaps the existing hex token. Followers carry provider=follow,
+		// so this never collides with the provider-gated routes above.
+		when: conditions{value: constant.ValueCommit},
+		rw:   NewHash(),
+	},
+	{
+		when: conditions{value: constant.ValueSha256},
+		rw:   NewHash(),
 	},
 	{rw: NewSmart()},
 }
