@@ -21,6 +21,7 @@ type fakeProvider struct {
 	candidates []model.Candidate
 	err        error
 	deep       *bool // when set, Discover records whether a deep lookup was requested
+	truncate   bool  // when set, Discover reports a truncated lookup
 }
 
 func (f fakeProvider) Name() string { return f.name }
@@ -41,6 +42,9 @@ func (f fakeProvider) Discover(
 ) ([]model.Candidate, error) {
 	if f.deep != nil {
 		*f.deep = provider.Deep(ctx)
+	}
+	if f.truncate {
+		provider.NoteTruncated(ctx, f.name)
 	}
 	return f.candidates, f.err
 }
@@ -64,6 +68,40 @@ func TestRunDeepReachesDiscover(t *testing.T) {
 	_, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithDeep(true))
 	require.NoError(t, err)
 	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
+}
+
+func TestRunNoCandidateIsSentinel(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "nomatch",
+		candidates: []model.Candidate{candidate(t, "3.0.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=nomatch repository=x/y constraint=minor\nversion: 1.2.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.ErrorIs(t, files[0].Results[0].Err, pipeline.ErrNoCandidate,
+		"a minor-ceiling constraint rejects the only candidate (a major bump)")
+}
+
+func TestRunTruncationSinkReceivesNotices(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "trunc",
+		truncate:   true,
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=trunc repository=x/y\nversion: 1.2.0\n",
+	})
+
+	var noted []string
+	_, err := pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithTruncationSink(func(r string) { noted = append(noted, r) }))
+	require.NoError(t, err)
+	require.Equal(t, []string{"trunc"}, noted)
 }
 
 // candidate parses tag into a candidate the selection chain can order.

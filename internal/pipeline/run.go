@@ -25,6 +25,11 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
+// ErrNoCandidate reports that no discovered version satisfied the marker's rule
+// (constraint, include/exclude, prerelease). The edge checks for it to suggest a
+// deep lookup, since a shallow lookup may have paged past a matching version.
+var ErrNoCandidate = errors.New("no candidate satisfies the rule")
+
 // Result is the outcome of resolving one marker: the version it found in the
 // file, the value it resolved to, and the rewritten target line. Exactly one of
 // a clean resolution, Skipped, or Err holds. A skipped or errored marker leaves
@@ -72,6 +77,7 @@ type config struct {
 	now            time.Time
 	prerelease     *bool
 	reporter       progress.Reporter
+	truncationSink func(resource string)
 	workers        int
 }
 
@@ -115,6 +121,13 @@ func WithPrerelease(allow *bool) Option {
 // instead of reading only the first (newest) page. More accurate, at the cost of
 // more requests that may be slow or hit rate limits. The default is shallow.
 func WithDeep(deep bool) Option { return func(c *config) { c.deep = deep } }
+
+// WithTruncationSink sets a callback invoked with a resource's label when a
+// shallow lookup stopped with more results available, so the caller can suggest
+// a deep lookup. It may be called concurrently.
+func WithTruncationSink(sink func(resource string)) Option {
+	return func(c *config) { c.truncationSink = sink }
+}
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
 func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
@@ -263,6 +276,7 @@ type plan struct {
 	reporter       progress.Reporter
 	results        []Result
 	tasks          []progress.Task
+	truncationSink func(resource string)
 	workers        int
 }
 
@@ -296,6 +310,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		registry:       registry.New(),
 		reporter:       cfg.reporter,
 		results:        results,
+		truncationSink: cfg.truncationSink,
 		workers:        cfg.workers,
 	}
 }
@@ -307,6 +322,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 // Skip here.
 func (p *plan) resolve(ctx context.Context) {
 	ctx = provider.WithDeep(ctx, p.deep)
+	ctx = provider.WithTruncationSink(ctx, p.truncationSink)
 
 	names := make([]string, len(p.markers))
 	for i, m := range p.markers {
@@ -405,7 +421,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 
 	chosen, ok := version.Select(located.Semver, candidates, attrs, opts...)
 	if !ok {
-		return errors.New("no candidate satisfies the rule")
+		return ErrNoCandidate
 	}
 
 	if m.ID != "" {
