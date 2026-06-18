@@ -536,17 +536,34 @@ func (p *plan) locate(m Marker) (string, match.Rewriter, match.Located, error) {
 		return "", nil, match.Located{}, errors.New("no target line for directive")
 	}
 
-	rewriter := match.For(match.Context{
-		Path:     m.File,
-		Line:     line,
-		Provider: m.Provider,
-		Value:    m.Value,
-	})
+	rewriter, err := rewriterFor(m, line)
+	if err != nil {
+		return "", nil, match.Located{}, err
+	}
 	located, err := rewriter.Locate(line)
 	if err != nil {
 		return "", nil, match.Located{}, err
 	}
 	return line, rewriter, located, nil
+}
+
+// rewriterFor chooses the rewriter: an explicit find/replace on the directive
+// (find required, replace optional) overrides the shape-based dispatch.
+func rewriterFor(m Marker, line string) (match.Rewriter, error) {
+	find, hasFind := m.Directive.Get(constant.DirectiveFind)
+	replace, hasReplace := m.Directive.Get(constant.DirectiveReplace)
+	if !hasFind {
+		if hasReplace {
+			return nil, errors.New("replace= needs find=")
+		}
+		return match.For(match.Context{
+			Path:     m.File,
+			Line:     line,
+			Provider: m.Provider,
+			Value:    m.Value,
+		}), nil
+	}
+	return match.NewFindReplace(find, replace)
 }
 
 // render rewrites candidate onto the located target and records the result.

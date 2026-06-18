@@ -208,6 +208,26 @@ func TestRunResolvesSha256FromAssetDigest(t *testing.T) {
 		"auto sources the asset digest with no sha256-url and no fetch")
 }
 
+func TestRunFindReplace(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "frfake",
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=frfake repository=x/y find=tool-<version>-linux\n" +
+			"image: tool-1.2.0-linux\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.True(t, r.Changed)
+	require.Equal(t, "image: tool-1.3.0-linux", r.NewLine,
+		"find locates the version; in-place render keeps the literal context")
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()

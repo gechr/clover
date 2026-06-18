@@ -12,8 +12,10 @@ const DirectiveKeyword = "clover:"
 // Directive targeting and control keys: who resolves the marker and how it
 // relates to others.
 const (
+	DirectiveFind     = "find"     // explicit find pattern (glob with <placeholders>, or /regex/)
 	DirectiveFrom     = "from"     // follow the producer with this id
 	DirectiveID       = "id"       // publish this marker's result under this id
+	DirectiveReplace  = "replace"  // explicit replace template, pairs with find
 	DirectiveProvider = "provider" // upstream source; omitted ⇒ follow
 	DirectiveSelect   = "select"   // follow the old or new value
 	DirectiveSkip     = "skip"     // disable this marker
