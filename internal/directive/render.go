@@ -6,6 +6,8 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/regexlit"
+	xslices "github.com/gechr/x/slices"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // canonicalLeading and canonicalTrailing are the fixed zones of a directive's
@@ -88,15 +90,11 @@ func CanonicaliseTags(d Directive) Directive {
 // canonicalTags lowercases and de-duplicates a comma-separated tags value,
 // trimming each tag and dropping empties, with order preserved.
 func canonicalTags(value string) string {
-	seen := make(map[string]bool)
-	var tags []string
-	for tag := range strings.SplitSeq(value, ",") {
-		if tag = strings.ToLower(strings.TrimSpace(tag)); tag != "" && !seen[tag] {
-			seen[tag] = true
-			tags = append(tags, tag)
-		}
+	tags := xstrings.SplitCSV(value)
+	for i := range tags {
+		tags[i] = strings.ToLower(tags[i])
 	}
-	return strings.Join(tags, ",")
+	return strings.Join(xslices.Unique(tags), ",")
 }
 
 // Render serializes a directive to its canonical text: the keyword, then each

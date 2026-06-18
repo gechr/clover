@@ -3,11 +3,11 @@ package directive
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/x/human"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // KV is one key/value pair from a directive, in the order written.
@@ -61,11 +61,7 @@ func (d Directive) Has(key string) bool {
 func (d Directive) CSV(key string) []string {
 	var out []string
 	for _, value := range d.All(key) {
-		for item := range strings.SplitSeq(value, ",") {
-			if item = strings.TrimSpace(item); item != "" {
-				out = append(out, item)
-			}
-		}
+		out = xstrings.AppendCSV(out, value)
 	}
 	return out
 }
