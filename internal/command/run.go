@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
@@ -87,8 +88,8 @@ func (c *runCmd) Run(cfg *config.Config) error {
 func reportDeep(summary mode.Summary, truncated []string) {
 	for _, resource := range xslices.Unique(truncated) {
 		clog.Warn().
-			Str("resource", resource).
-			Str("action", "pass --deep").
+			Str(field.Resource, resource).
+			Str(field.Hint, "pass --deep").
 			Msg("Shallow lookup may have missed newer versions")
 	}
 
@@ -96,7 +97,7 @@ func reportDeep(summary mode.Summary, truncated []string) {
 		for _, result := range outcome.Results {
 			if errors.Is(result.Err, pipeline.ErrNoCandidate) {
 				clog.Hint().
-					Str("action", "pass --deep").
+					Str(field.Hint, "pass --deep").
 					Msg("Some markers found no matching version on the first page")
 				return
 			}
@@ -127,8 +128,8 @@ func reportAuth(ctx context.Context, summary mode.Summary) {
 			continue
 		}
 		clog.Hint().
-			Str("provider", status.Provider).
-			Str("action", status.Hint).
+			Str(field.Provider, status.Provider).
+			Str(field.Hint, status.Hint).
 			Msg("Using anonymous access")
 	}
 }

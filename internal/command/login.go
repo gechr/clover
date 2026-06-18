@@ -10,6 +10,7 @@ import (
 	"github.com/cli/browser"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/x/terminal"
 )
@@ -33,7 +34,7 @@ func (c *loginCmd) Run() error {
 		return err
 	}
 
-	clog.Info().Str("provider", constant.ProviderGithub).Msg("Authenticated")
+	clog.Info().Str(field.Provider, constant.ProviderGithub).Msg("Authenticated")
 	return nil
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
@@ -136,7 +137,7 @@ func newGenerator(flags []complete.FlagMeta) *complete.Generator {
 func launch() {
 	event := clog.Info().Symbol("🍀")
 	if v := version.RemovePrefix(clive.Current()); v != "" {
-		event = event.Str("version", v)
+		event = event.Str(field.Version, v)
 	}
 	event.Msg("Launching Clover")
 }
@@ -159,7 +160,7 @@ func tagFilter(tags []string) (tag.Filter, error) {
 		return tag.Filter{}, err
 	}
 	if !filter.Empty() {
-		clog.Info().Str("tags", filter.String()).Msg("Filtering by tags")
+		clog.Info().Str(field.Tags, filter.String()).Msg("Filtering by tags")
 	}
 	return filter, nil
 }

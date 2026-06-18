@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/tui"
 	"github.com/gechr/clover/internal/version"
@@ -61,7 +62,7 @@ func (c *initCmd) Run() error {
 		return err
 	}
 	if !settings.Write {
-		clog.Info().Str("path", path).Msg("Left config unchanged")
+		clog.Info().Str(field.Path, path).Msg("Left config unchanged")
 		return nil
 	}
 
@@ -69,7 +70,7 @@ func (c *initCmd) Run() error {
 	if err := xos.AtomicWrite(path, starter, configPerm); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	clog.Info().Str("path", path).Msg("Wrote config")
+	clog.Info().Str(field.Path, path).Msg("Wrote config")
 	return nil
 }
 
