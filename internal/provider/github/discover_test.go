@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/stretchr/testify/require"
@@ -135,7 +136,9 @@ func TestDiscoverReleases(t *testing.T) {
 	t.Parallel()
 
 	const releases = `[
-		{"tag_name": "v2.0.0", "published_at": "2026-01-02T03:04:05Z", "draft": false},
+		{"tag_name": "v2.0.0", "published_at": "2026-01-02T03:04:05Z", "draft": false,
+		 "assets": [{"name": "tool_linux_amd64.tar.gz", "digest": "sha256:abc",
+		             "browser_download_url": "https://h/tool_linux_amd64.tar.gz"}]},
 		{"tag_name": "v2.1.0", "published_at": "2026-02-02T03:04:05Z", "draft": true}
 	]`
 	const tags = `[
@@ -158,6 +161,11 @@ func TestDiscoverReleases(t *testing.T) {
 	require.Equal(t, "v2.0.0", candidates[0].Version)
 	require.Equal(t, "deadbeef", candidates[0].Commit, "commit resolved by joining the tags list")
 	require.False(t, candidates[0].PublishedAt.IsZero())
+	require.Equal(t, []model.Asset{{
+		Name:   "tool_linux_amd64.tar.gz",
+		Digest: "sha256:abc",
+		URL:    "https://h/tool_linux_amd64.tar.gz",
+	}}, candidates[0].Assets, "release assets and their digests are captured")
 }
 
 func TestDiscoverReleasesUnmatchedTagHasNoCommit(t *testing.T) {
