@@ -47,12 +47,13 @@ func (c *initCmd) Run() error {
 		return err
 	}
 
+	current := clive.Current()
 	settings, err := tui.Configure(tui.ConfigureInput{
 		AuthSummary:     authSummary(context.Background(), providers),
 		Path:            path,
 		Exists:          exists,
-		DefaultVersion:  defaultConstraint(),
-		ValidateVersion: validateConstraint,
+		DefaultVersion:  defaultConstraint(current),
+		ValidateVersion: func(expr string) error { return validateConstraint(current, expr) },
 		ExcludeOptions:  config.CommonExcludes(),
 		DefaultExcludes: config.DefaultExcludes(),
 	})
@@ -72,30 +73,31 @@ func (c *initCmd) Run() error {
 	return nil
 }
 
-// defaultConstraint suggests ">=<current>" when clover is a clean tagged release,
-// or "" for a dev build whose version would not make a sensible constraint.
-func defaultConstraint() string {
-	v, err := version.Parse(clive.Current())
+// defaultConstraint suggests ">=<current>" when current is a clean tagged
+// release, or "" for a dev build whose version would not make a sensible
+// constraint.
+func defaultConstraint(current string) string {
+	v, err := version.Parse(current)
 	if err != nil || v.Prerelease() != "" {
 		return ""
 	}
 	return ">=" + v.Core().String()
 }
 
-// validateConstraint reports whether s is a usable required-version constraint,
-// for the wizard's live input validation. A blank value is allowed (no gate).
-func validateConstraint(s string) error {
-	s = strings.TrimSpace(s)
-	if s == "" {
+// validateConstraint reports whether expr is a usable required-version
+// constraint, for the wizard's live input validation. A blank value is allowed
+// (no gate). current anchors a keyword constraint (major/minor/patch); an
+// unparseable current falls back to a benign version so validation still runs.
+func validateConstraint(current, expr string) error {
+	expr = strings.TrimSpace(expr)
+	if expr == "" {
 		return nil
 	}
-	// A keyword constraint (major/minor/patch) needs a current version to measure
-	// against; clover's own version, or a benign fallback, serves for validation.
-	current, err := version.Parse(clive.Current())
+	anchor, err := version.Parse(current)
 	if err != nil {
-		current, _ = version.Parse("0.0.0")
+		anchor, _ = version.Parse("0.0.0")
 	}
-	if _, err := version.NewConstraint(s, current); err != nil {
+	if _, err := version.NewConstraint(expr, anchor); err != nil {
 		return errors.New("not a valid version constraint (e.g. >=0.1.0, ~>0.1, minor)")
 	}
 	return nil
