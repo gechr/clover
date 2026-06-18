@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -49,6 +50,9 @@ func Login(ctx context.Context, display func(Code)) error {
 	})
 	if err != nil {
 		return fmt.Errorf("github: authorize device: %w", err)
+	}
+	if accessToken.Token == "" {
+		return errors.New("github: device flow returned an empty token")
 	}
 
 	store, err := token.New()
