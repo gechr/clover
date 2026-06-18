@@ -97,6 +97,40 @@ func TestResolveVerify(t *testing.T) {
 	require.ErrorContains(t, err, "disagree", "verify fails loud when the sources differ")
 }
 
+func TestResolveAutoTerminalOnExplicitURLFailure(t *testing.T) {
+	t.Parallel()
+
+	// The asset has no digest, so auto would normally fall through - but an
+	// explicit sha256-url that 500s must be terminal, never silently downloaded.
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "/tool") {
+				t.Error("auto must not download-and-hash after an explicit sha256-url failed")
+			}
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Status:     "500 Internal Server Error",
+				Body:       http.NoBody,
+				Request:    req,
+			}, nil
+		}),
+	}
+	assets := []model.Asset{{Name: "tool_linux_amd64.tar.gz", URL: "http://x/tool"}}
+
+	_, err := checksum.Resolve(t.Context(), client, checksum.Request{
+		Source: "auto", Assets: assets, Pattern: "*linux_amd64*", URL: "http://x/sums.txt",
+	})
+	require.ErrorContains(t, err, "500")
+}
+
+func TestFetchRejectsOversizeFile(t *testing.T) {
+	t.Parallel()
+
+	huge := sumA + "  tool.tar.gz\n" + strings.Repeat("#", 1<<20)
+	_, err := checksum.Fetch(t.Context(), serveBody(huge), "http://x/sums.txt", "1.0.0", "")
+	require.ErrorContains(t, err, "exceeds", "an over-cap checksum file errors, not truncates")
+}
+
 func TestResolveMatchErrors(t *testing.T) {
 	t.Parallel()
 

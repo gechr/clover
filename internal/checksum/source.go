@@ -53,9 +53,16 @@ func Resolve(ctx context.Context, client *http.Client, req Request) (string, err
 }
 
 // auto tries the free digest, then a checksums file, then a download-and-hash.
+// An explicit sha256-url is authoritative: once given, a fetch/parse/match
+// failure is terminal rather than silently degrading to download-and-hash, so a
+// publisher's checksum outage is not masked. A discovered sibling, having no
+// user intent behind it, still falls through.
 func auto(ctx context.Context, client *http.Client, req Request) (string, error) {
 	if sum, err := digest(req); err == nil {
 		return sum, nil
+	}
+	if req.URL != "" {
+		return checksums(ctx, client, req)
 	}
 	if sum, err := checksums(ctx, client, req); err == nil {
 		return sum, nil

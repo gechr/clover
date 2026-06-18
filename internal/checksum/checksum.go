@@ -55,9 +55,14 @@ func fetchBody(ctx context.Context, client *http.Client, url string, limit int64
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("checksum: get %s: %s", url, resp.Status)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, limit))
+	// Read one byte past the limit so an over-cap file is an error, never a
+	// silently truncated prefix that could mis-parse.
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, fmt.Errorf("checksum: read %s: %w", url, err)
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("checksum: %s exceeds the %d-byte limit", url, limit)
 	}
 	return data, nil
 }
