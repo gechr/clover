@@ -67,4 +67,11 @@ func TestIsHash(t *testing.T) {
 	require.False(t, display.IsHash("v1.2.3"), "version is not a hash")
 	require.False(t, display.IsHash(strings.Repeat("z", 40)), "non-hex is not a hash")
 	require.False(t, display.IsHash("0123456789abcdef"), "16 hex is the wrong length")
+
+	// Boundary lengths around the exact 40 (commit) and 64 (sha256) guards.
+	for _, n := range []int{39, 41, 63, 65} {
+		require.Falsef(t, display.IsHash(strings.Repeat("a", n)), "%d hex is not a hash length", n)
+	}
+	require.True(t, display.IsHash(strings.Repeat("a", 40)), "exactly 40 hex is a commit")
+	require.True(t, display.IsHash(strings.Repeat("a", 64)), "exactly 64 hex is a sha256")
 }
