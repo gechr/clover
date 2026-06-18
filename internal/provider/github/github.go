@@ -1,6 +1,7 @@
 package github
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -160,20 +161,17 @@ func (p *Provider) AuthHint() string {
 		"or set CLOVER_GITHUB_TOKEN, for higher rate limits and private repositories"
 }
 
-// credential resolves the access token from the source chain, first hit wins:
-// the CLOVER_GITHUB_TOKEN env var, the clover-minted token in the store, then a
-// gh-compatible token. An empty result means anonymous access.
+// credential resolves the access token from the source chain, first non-empty
+// wins: the CLOVER_GITHUB_TOKEN env var, then the clover-minted token, then a
+// gh-compatible token. An empty result means anonymous access. cmp.Or skips
+// empty values, so a stale empty stored token never shadows the gh token.
 func (p *Provider) credential() string {
-	if env := os.Getenv(tokenEnv); env != "" {
-		return env
-	}
+	var stored string
 	if p.store != nil {
-		if stored, ok := p.store.Get(host); ok {
-			return stored
-		}
+		stored, _ = p.store.Get(host)
 	}
 	gh, _ := auth.TokenForHost(host)
-	return gh
+	return cmp.Or(os.Getenv(tokenEnv), stored, gh)
 }
 
 // resource is GitHub's validated descriptor.
