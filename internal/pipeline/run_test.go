@@ -20,6 +20,7 @@ type fakeProvider struct {
 	name       string
 	candidates []model.Candidate
 	err        error
+	deep       *bool // when set, Discover records whether a deep lookup was requested
 }
 
 func (f fakeProvider) Name() string { return f.name }
@@ -34,8 +35,35 @@ func (f fakeProvider) Resource(directive.Directive) (provider.Resource, error) {
 
 func (f fakeProvider) Describe(provider.Resource) string { return f.name }
 
-func (f fakeProvider) Discover(context.Context, provider.Resource) ([]model.Candidate, error) {
+func (f fakeProvider) Discover(
+	ctx context.Context,
+	_ provider.Resource,
+) ([]model.Candidate, error) {
+	if f.deep != nil {
+		*f.deep = provider.Deep(ctx)
+	}
 	return f.candidates, f.err
+}
+
+func TestRunDeepReachesDiscover(t *testing.T) {
+	var got bool
+	provider.Register(fakeProvider{
+		name:       "deepfake",
+		deep:       &got,
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=deepfake repository=x/y\nversion: 1.2.0\n",
+	})
+
+	_, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.False(t, got, "the default run is shallow")
+
+	_, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithDeep(true))
+	require.NoError(t, err)
+	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
 }
 
 // candidate parses tag into a candidate the selection chain can order.

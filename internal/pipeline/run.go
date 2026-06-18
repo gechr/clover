@@ -64,6 +64,7 @@ func (f FileResult) Rewritten() []string {
 
 type config struct {
 	allowDowngrade *bool
+	deep           bool
 	exclude        []string
 	filter         tag.Filter
 	ignoreFiles    []string
@@ -109,6 +110,11 @@ func WithAllowDowngrade(allow *bool) Option {
 func WithPrerelease(allow *bool) Option {
 	return func(c *config) { c.prerelease = allow }
 }
+
+// WithDeep enables a deep lookup: providers follow pagination to exhaustion
+// instead of reading only the first (newest) page. More accurate, at the cost of
+// more requests that may be slow or hit rate limits. The default is shallow.
+func WithDeep(deep bool) Option { return func(c *config) { c.deep = deep } }
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
 func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
@@ -248,6 +254,7 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // internally.
 type plan struct {
 	allowDowngrade *bool
+	deep           bool
 	lines          map[string][]string
 	markers        []Marker
 	now            time.Time
@@ -281,6 +288,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 
 	return &plan{
 		allowDowngrade: cfg.allowDowngrade,
+		deep:           cfg.deep,
 		lines:          lines,
 		markers:        markers,
 		now:            cfg.now,
@@ -298,6 +306,8 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 // marker finishes; skipped markers never run a closure, so resolve reports their
 // Skip here.
 func (p *plan) resolve(ctx context.Context) {
+	ctx = provider.WithDeep(ctx, p.deep)
+
 	names := make([]string, len(p.markers))
 	for i, m := range p.markers {
 		names[i] = label(m)
