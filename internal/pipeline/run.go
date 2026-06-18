@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -81,8 +82,8 @@ func WithReporter(r progress.Reporter) Option {
 	return func(c *config) { c.reporter = r }
 }
 
-// WithExclude adds doublestar globs whose matching paths are skipped during the
-// scan, in addition to the ignore files.
+// WithExclude sets the doublestar globs whose matching paths are skipped during
+// the scan, in addition to the ignore files.
 func WithExclude(globs []string) Option {
 	return func(c *config) { c.exclude = globs }
 }
@@ -135,7 +136,7 @@ func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, err
 	if err != nil {
 		return nil, err
 	}
-	p.resolve(ctx, p.workers)
+	p.resolve(ctx)
 	return p.group(files), nil
 }
 
@@ -149,7 +150,7 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 	if err != nil {
 		return nil, err
 	}
-	p.validate(ctx, p.workers)
+	p.validate(ctx)
 	return p.group(files), nil
 }
 
@@ -268,15 +269,15 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	}
 
 	return &plan{
-		markers:        markers,
+		allowDowngrade: cfg.allowDowngrade,
 		lines:          lines,
-		registry:       registry.New(),
+		markers:        markers,
 		now:            cfg.now,
-		workers:        cfg.workers,
+		prerelease:     cfg.prerelease,
+		registry:       registry.New(),
 		reporter:       cfg.reporter,
 		results:        results,
-		allowDowngrade: cfg.allowDowngrade,
-		prerelease:     cfg.prerelease,
+		workers:        cfg.workers,
 	}
 }
 
@@ -285,7 +286,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 // (skipped/errored) back onto each result. The closures report Done/Fail as each
 // marker finishes; skipped markers never run a closure, so resolve reports their
 // Skip here.
-func (p *plan) resolve(ctx context.Context, workers int) {
+func (p *plan) resolve(ctx context.Context) {
 	names := make([]string, len(p.markers))
 	for i, m := range p.markers {
 		names[i] = label(m)
@@ -305,7 +306,7 @@ func (p *plan) resolve(ctx context.Context, workers int) {
 		execTasks[i] = task
 	}
 
-	for i, r := range exec.Execute(ctx, execTasks, workers) {
+	for i, r := range exec.Execute(ctx, execTasks, p.workers) {
 		switch {
 		case r.Skipped:
 			p.results[i].Skipped = true
@@ -368,7 +369,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 
 	chosen, ok := version.Select(located.Semver, candidates, attrs, opts...)
 	if !ok {
-		return fmt.Errorf("no candidate satisfies the rule")
+		return errors.New("no candidate satisfies the rule")
 	}
 
 	if m.ID != "" {
@@ -436,7 +437,7 @@ func (p *plan) report(i int, err error) {
 func (p *plan) locate(m Marker) (string, match.Rewriter, match.Located, error) {
 	line := targetLine(p.lines, m)
 	if line == "" {
-		return "", nil, match.Located{}, fmt.Errorf("no target line for directive")
+		return "", nil, match.Located{}, errors.New("no target line for directive")
 	}
 
 	rewriter := match.For(match.Context{

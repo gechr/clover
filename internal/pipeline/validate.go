@@ -16,7 +16,7 @@ import (
 // the executor never cascades one marker's failure into another's: each result
 // carries the marker's own intrinsic problem, and only genuine graph faults add
 // a skip on top.
-func (p *plan) validate(ctx context.Context, workers int) {
+func (p *plan) validate(ctx context.Context) {
 	for i := range p.markers {
 		p.results[i].Err = p.check(i)
 	}
@@ -31,7 +31,7 @@ func (p *plan) validate(ctx context.Context, workers int) {
 			Run:       func(context.Context) error { return nil },
 		}
 	}
-	for i, r := range exec.Execute(ctx, tasks, workers) {
+	for i, r := range exec.Execute(ctx, tasks, p.workers) {
 		if r.Skipped && p.results[i].Err == nil {
 			p.results[i].Skipped = true
 			p.results[i].Reason = r.Reason
