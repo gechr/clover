@@ -54,6 +54,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 	})
 
 	summarize(logger, dryRun).
+		Symbol("🏁").
 		Int("changed", summary.Changed()).
 		Int("skipped", summary.Skipped()).
 		Int("failed", summary.Errored()).
