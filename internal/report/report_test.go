@@ -91,6 +91,14 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 	)
 }
 
+// TestRunEmptyLogsNoSummary confirms a run with no markers logs nothing - the
+// "No Clover comments found" warning stands alone, with no "Run complete".
+func TestRunEmptyLogsNoSummary(t *testing.T) {
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), mode.Summary{}, false, report.OutputText)
+	require.Empty(t, buf.String())
+}
+
 // TestFormatUsesFullPathForHyperlink confirms format lines carry the full path
 // (clog renders it as a file:line hyperlink on a TTY).
 func TestFormatUsesFullPathForHyperlink(t *testing.T) {

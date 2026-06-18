@@ -53,12 +53,28 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 		}
 	})
 
+	// Nothing to summarise when no markers were found: the "No Clover comments
+	// found" warning already stands on its own.
+	if empty(summary) {
+		return
+	}
+
 	summarize(logger, dryRun).
 		Symbol("🏁").
 		Int("changed", summary.Changed()).
 		Int("skipped", summary.Skipped()).
 		Int("failed", summary.Errored()).
 		Msg("Run complete")
+}
+
+// empty reports whether the summary carries no marker results at all.
+func empty(summary mode.Summary) bool {
+	for _, outcome := range summary.Outcomes {
+		if len(outcome.Results) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // Lint renders each invalid or skipped marker and a closing summary. In wide
