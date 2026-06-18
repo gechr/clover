@@ -23,7 +23,7 @@ func (c *updateCmd) Run() error {
 	ctx := context.Background()
 	cfg := brew.Config{
 		Info:    clive.Info{Module: module},
-		Name:    name,
+		Name:    "Clover",
 		Formula: name,
 		Tap:     updateTap,
 	}
