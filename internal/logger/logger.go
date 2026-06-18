@@ -7,6 +7,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/log/field"
+	"github.com/gechr/x/human"
 )
 
 // gradientMax is the elapsed/duration mapped to the end of the colour gradient.
@@ -18,15 +20,15 @@ const gradientMax = 20 * time.Second
 func Init() {
 	clog.SetOutput(clog.Stderr(clog.ColorAuto))
 
-	// Gradient the elapsed/duration fields. Start from the current formats so the
-	// env-loaded hyperlink formats survive.
+	// Start from the current formats so the env-loaded hyperlink formats survive.
 	formats := clog.Default.FieldFormats()
+	formats.DurationFormat = human.FormatDuration
 	formats.ElapsedGradientMax = gradientMax
 	formats.DurationGradientMax = gradientMax
 	clog.SetFieldFormats(formats)
 
 	styles := clog.DefaultStyles()
-	styles.Keys["from"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
-	styles.Keys["to"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))   // green
+	styles.Keys[field.From] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
+	styles.Keys[field.To] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))   // green
 	clog.SetStyles(styles)
 }
