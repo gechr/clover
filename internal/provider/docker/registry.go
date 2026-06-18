@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
 )
 
 // registryTags is the subset of the OCI registry v2 tags response clover reads.
@@ -22,45 +23,91 @@ type registryTags struct {
 // discoverRegistry lists tags from an OCI registry v2 endpoint, answering the
 // bearer-token challenge a registry returns on the first, unauthenticated
 // request. The token request piggybacks on the user's docker login for the host.
+// A shallow lookup reads only the first page; a deep lookup follows the Link
+// header's next page to exhaustion (registry tags are lexically ordered, so a
+// deep lookup is what guarantees the newest version is seen).
 func (p *Provider) discoverRegistry(ctx context.Context, ref reference) ([]model.Candidate, error) {
-	endpoint := fmt.Sprintf(
-		"https://%s/v2/%s/tags/list?n=%d",
-		ref.registry,
-		ref.repository,
-		pageSize,
-	)
+	url := fmt.Sprintf("https://%s/v2/%s/tags/list?n=%d", ref.registry, ref.repository, pageSize)
 
-	resp, err := p.do(ctx, endpoint, "")
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		challenge := resp.Header.Get("WWW-Authenticate")
-		_ = resp.Body.Close()
-		token, terr := p.fetchToken(ctx, challenge, ref)
-		if terr != nil {
-			return nil, terr
-		}
-		resp, err = p.do(ctx, endpoint, token)
+	var (
+		candidates []model.Candidate
+		token      string
+	)
+	for url != "" {
+		next, list, err := p.registryPage(ctx, url, ref, &token)
 		if err != nil {
 			return nil, err
+		}
+		for _, t := range list.Tags {
+			candidates = append(candidates, candidate(t, time.Time{}))
+		}
+		if !provider.Deep(ctx) {
+			break
+		}
+		url = next
+	}
+	return candidates, nil
+}
+
+// registryPage fetches one page of tags, performing the bearer-token challenge
+// when the registry demands it (caching the token in *token for later pages),
+// and returns the next page's URL from the Link header (empty when last).
+func (p *Provider) registryPage(
+	ctx context.Context,
+	url string,
+	ref reference,
+	token *string,
+) (string, registryTags, error) {
+	resp, err := p.do(ctx, url, *token)
+	if err != nil {
+		return "", registryTags{}, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized && *token == "" {
+		challenge := resp.Header.Get("WWW-Authenticate")
+		_ = resp.Body.Close()
+		if *token, err = p.fetchToken(ctx, challenge, ref); err != nil {
+			return "", registryTags{}, err
+		}
+		if resp, err = p.do(ctx, url, *token); err != nil {
+			return "", registryTags{}, err
 		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("docker: list tags for %s: %s", ref.repository, resp.Status)
+		return "", registryTags{}, fmt.Errorf(
+			"docker: list tags for %s: %s",
+			ref.repository,
+			resp.Status,
+		)
 	}
 
 	var list registryTags
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
-		return nil, fmt.Errorf("docker: decode tags: %w", err)
+		return "", registryTags{}, fmt.Errorf("docker: decode tags: %w", err)
 	}
+	return nextLink(resp.Header.Get("Link"), ref.registry), list, nil
+}
 
-	candidates := make([]model.Candidate, 0, len(list.Tags))
-	for _, t := range list.Tags {
-		candidates = append(candidates, candidate(t, time.Time{}))
+// nextLink extracts the rel="next" URL from a registry's Link header, resolving
+// a registry-relative path against the registry host. It returns "" when there
+// is no next page.
+func nextLink(header, registry string) string {
+	for _, part := range strings.Split(header, ",") {
+		if !strings.Contains(part, `rel="next"`) {
+			continue
+		}
+		open := strings.IndexByte(part, '<')
+		end := strings.IndexByte(part, '>')
+		if open < 0 || end <= open {
+			continue
+		}
+		url := part[open+1 : end]
+		if strings.HasPrefix(url, "http") {
+			return url
+		}
+		return "https://" + registry + url
 	}
-	return candidates, nil
+	return ""
 }
 
 // fetchToken satisfies a registry's Bearer challenge: it requests a token from

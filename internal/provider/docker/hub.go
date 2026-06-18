@@ -9,43 +9,64 @@ import (
 	"time"
 
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
 )
 
 // hubTags is the subset of the Docker Hub tags response clover reads. The Hub
 // API returns tags newest-first with a last-updated timestamp, so cooldown
-// works for Docker Hub images (unlike the bare OCI registry tags list).
+// works for Docker Hub images (unlike the bare OCI registry tags list). Next is
+// the URL of the following page, empty on the last.
 type hubTags struct {
+	Next    string `json:"next"`
 	Results []struct {
 		Name        string    `json:"name"`
 		LastUpdated time.Time `json:"last_updated"`
 	} `json:"results"`
 }
 
-// discoverHub lists tags via the Docker Hub API, newest-first and with dates.
+// discoverHub lists tags via the Docker Hub API, newest-first and with dates. A
+// shallow lookup reads only the first (newest) page; a deep lookup follows the
+// next-page links to exhaustion.
 func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Candidate, error) {
 	url := fmt.Sprintf(
 		"https://%s/v2/repositories/%s/tags?page_size=%d&ordering=last_updated",
 		hubAPIHost, ref.repository, pageSize,
 	)
-	resp, err := p.do(ctx, url, p.hubToken(ctx))
+	token := p.hubToken(ctx)
+
+	var candidates []model.Candidate
+	for url != "" {
+		page, err := p.hubPage(ctx, url, token)
+		if err != nil {
+			return nil, err
+		}
+		for _, t := range page.Results {
+			candidates = append(candidates, candidate(t.Name, t.LastUpdated))
+		}
+		if !provider.Deep(ctx) {
+			break
+		}
+		url = page.Next
+	}
+	return candidates, nil
+}
+
+// hubPage fetches and decodes one page of Docker Hub tags.
+func (p *Provider) hubPage(ctx context.Context, url, token string) (hubTags, error) {
+	resp, err := p.do(ctx, url, token)
 	if err != nil {
-		return nil, err
+		return hubTags{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("docker: list hub tags for %s: %s", ref.repository, resp.Status)
+		return hubTags{}, fmt.Errorf("docker: list hub tags: %s", resp.Status)
 	}
 
-	var payload hubTags
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("docker: decode hub tags: %w", err)
+	var page hubTags
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return hubTags{}, fmt.Errorf("docker: decode hub tags: %w", err)
 	}
-
-	candidates := make([]model.Candidate, 0, len(payload.Results))
-	for _, t := range payload.Results {
-		candidates = append(candidates, candidate(t.Name, t.LastUpdated))
-	}
-	return candidates, nil
+	return page, nil
 }
 
 // hubToken returns a bearer token for the Docker Hub API: the env token, else a
