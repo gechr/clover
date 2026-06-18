@@ -7,7 +7,6 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/exec"
-	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/rule"
 )
 
@@ -53,11 +52,11 @@ func (p *plan) check(i int) error {
 // resource, locates an unambiguous version on its target line, and compiles its
 // rule - every step the run does before the one thing it skips, the network.
 func (p *plan) checkProducer(m Marker) error {
-	prov, ok := provider.Get(m.Provider)
-	if !ok {
-		return fmt.Errorf("unknown provider %q", m.Provider)
+	prov, err := lookupProvider(m.Provider)
+	if err != nil {
+		return err
 	}
-	if _, err := prov.Resource(m.Directive); err != nil {
+	if _, err = prov.Resource(m.Directive); err != nil {
 		return err
 	}
 

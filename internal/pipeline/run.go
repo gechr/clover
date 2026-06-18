@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/ignore"
 	"github.com/gechr/clover/internal/match"
@@ -341,12 +342,27 @@ func (p *plan) producer(i int) func(context.Context) error {
 
 // resolveProducer locates the current token, selects the newest allowed
 // candidate, publishes it under the marker's id for followers, and renders it.
+// lookupProvider resolves a marker's provider name, distinguishing an auto
+// marker that could not be inferred from an outright unknown provider so the
+// message points at the real fix.
+func lookupProvider(name string) (provider.Provider, error) {
+	if prov, ok := provider.Get(name); ok {
+		return prov, nil
+	}
+	if name == constant.ProviderAuto {
+		return nil, errors.New(
+			"could not infer a provider for the target line; set provider= explicitly",
+		)
+	}
+	return nil, fmt.Errorf("unknown provider %q", name)
+}
+
 func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
 
-	prov, ok := provider.Get(m.Provider)
-	if !ok {
-		return fmt.Errorf("unknown provider %q", m.Provider)
+	prov, err := lookupProvider(m.Provider)
+	if err != nil {
+		return err
 	}
 	resource, err := prov.Resource(m.Directive)
 	if err != nil {

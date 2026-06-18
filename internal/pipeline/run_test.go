@@ -210,6 +210,21 @@ func TestRunUnknownProviderErrors(t *testing.T) {
 	require.False(t, files[0].Results[0].Changed)
 }
 
+// TestRunUnresolvedAutoErrors confirms a provider=auto marker whose target line
+// matches no inference rule fails with a message pointing at the fix, not a
+// confusing "unknown provider auto".
+func TestRunUnresolvedAutoErrors(t *testing.T) {
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=auto\nversion: 1.0.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.ErrorContains(t, files[0].Results[0].Err, "could not infer a provider")
+	require.False(t, files[0].Results[0].Changed)
+}
+
 func TestRunDanglingFollowSkips(t *testing.T) {
 	dir := write(t, map[string]string{
 		"app.txt": "# clover: from=missing value=version\nversion: 1.0.0\n",
