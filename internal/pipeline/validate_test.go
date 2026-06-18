@@ -46,6 +46,41 @@ func TestValidateFiltersByTags(t *testing.T) {
 	require.Equal(t, 1, resultCount(prod), "only the prod-tagged marker survives")
 }
 
+// TestValidateTagFilterOrphansFollower documents the deliberate consequence of
+// the strict tag filter: a follower kept by the filter whose producer the filter
+// drops cannot resolve, so it skips with a clear dangling reason (no crash).
+func TestValidateTagFilterOrphansFollower(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "orphanfake",
+		candidates: []model.Candidate{candidate(t, "1.0.0")},
+	})
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=orphanfake repository=x/y id=app tags=prod\nlead: 1.0.0\n",
+		"b.txt": "# clover: from=app value=version tags=ci\nfollower: 1.0.0\n",
+	})
+
+	filter, err := tag.Parse([]string{"ci"}) // keeps the follower, drops its producer
+	require.NoError(t, err)
+	files, err := pipeline.Validate(
+		context.Background(),
+		[]string{dir},
+		pipeline.WithTagFilter(filter),
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, resultCount(files), "only the ci-tagged follower survives the filter")
+
+	var skipped []pipeline.Result
+	for _, f := range files {
+		for _, r := range f.Results {
+			if r.Skipped {
+				skipped = append(skipped, r)
+			}
+		}
+	}
+	require.Len(t, skipped, 1)
+	require.Equal(t, `unknown from "app"`, skipped[0].Reason)
+}
+
 // errored reports the number of markers across files whose validation failed.
 func errored(files []pipeline.FileResult) int {
 	var n int
