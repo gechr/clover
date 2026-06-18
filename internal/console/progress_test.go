@@ -29,6 +29,23 @@ func TestReporterAggregatesTasks(t *testing.T) {
 	require.Equal(t, "INF ⏳ Resolving progress=3/3\n", buf.String())
 }
 
+// TestReporterDiscovered confirms the scan-total line: the discovery counts
+// when comments were found, and the warning (with the scanned count) when none
+// were.
+func TestReporterDiscovered(t *testing.T) {
+	t.Run("found", func(t *testing.T) {
+		var buf bytes.Buffer
+		console.New(context.Background(), clog.NewWriter(&buf)).Discovered(12, 3, 7)
+		require.Equal(t, "INF 💬 Discovered Clover comments files=3 comments=7\n", buf.String())
+	})
+
+	t.Run("none", func(t *testing.T) {
+		var buf bytes.Buffer
+		console.New(context.Background(), clog.NewWriter(&buf)).Discovered(10, 0, 0)
+		require.Equal(t, "WRN 💔 No Clover comments found scanned=10\n", buf.String())
+	})
+}
+
 func TestReporterEmptyIsNoop(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := console.New(context.Background(), clog.NewWriter(&buf))
