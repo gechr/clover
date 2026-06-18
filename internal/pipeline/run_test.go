@@ -281,6 +281,58 @@ func mustSemver(t *testing.T, tag string) *version.Version {
 	return v
 }
 
+func TestRunDockerTagAnchorsOnImageRef(t *testing.T) {
+	// A fake registered as "docker" routes the FROM/image: lines to DockerTag.
+	provider.Register(fakeProvider{
+		name:       "docker",
+		candidates: []model.Candidate{candidate(t, "2.1.0")},
+	})
+
+	tests := []struct {
+		name string
+		file string
+		line string
+		want string
+	}{
+		{
+			name: "ported registry",
+			file: "Dockerfile",
+			line: "FROM localhost:5000/team/api:2.0.1",
+			want: "FROM localhost:5000/team/api:2.1.0",
+		},
+		{
+			name: "ecr registry host with account id and region",
+			file: "deploy.yaml",
+			line: "  image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/team/api:2.0.1",
+			want: "  image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/team/api:2.1.0",
+		},
+		{
+			name: "plain hub image",
+			file: "Dockerfile",
+			line: "FROM library/api:2.0.1",
+			want: "FROM library/api:2.1.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := write(t, map[string]string{
+				tt.file: "# clover: provider=docker repository=team/api\n" + tt.line + "\n",
+			})
+
+			files, err := pipeline.Run(context.Background(), []string{dir})
+			require.NoError(t, err)
+			r := files[0].Results[0]
+			require.NoError(
+				t,
+				r.Err,
+				"the image ref anchors the tag, so the registry is not ambiguous",
+			)
+			require.Equal(t, tt.want, r.NewLine)
+		})
+	}
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()

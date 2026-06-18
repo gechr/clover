@@ -50,23 +50,12 @@ func (DockerPin) Locate(line string) (Located, error) {
 		return Located{}, errors.New("image pin requires a full sha256 digest")
 	}
 
-	// The tag is the last colon-separated segment of the reference before @,
-	// after the last slash so a registry's :port is not mistaken for it.
-	ref := line[:at]
-	slash := strings.LastIndexByte(ref, '/')
-	colon := strings.LastIndexByte(ref[slash+1:], ':')
-	if colon < 0 {
-		return Located{}, errors.New("image pin has no tag to anchor the version")
+	// The tag anchors the current version: the same image-ref parsing the
+	// tag-only rewriter uses, scoped to the reference before the @ digest.
+	token, err := imageTag(line[:at])
+	if err != nil {
+		return Located{}, err
 	}
-	tagStart := slash + 1 + colon + 1
-
-	tokens := Find(line[tagStart:at])
-	if len(tokens) != 1 {
-		return Located{}, errors.New("image tag is not a single version")
-	}
-	token := tokens[0]
-	token.Span.Start += tagStart
-	token.Span.End += tagStart
 
 	semver, _ := version.Parse(token.Core)
 	return Located{

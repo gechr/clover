@@ -130,25 +130,25 @@ var routes = []route{
 		rw: NewDockerPin(),
 	},
 	{
-		// A Dockerfile FROM instruction; the smart rewriter handles the
-		// name:tag span, so this route exists mainly to name docker for
-		// provider=auto.
+		// A tag-only Dockerfile FROM instruction; the docker-tag rewriter
+		// anchors on the image reference so a registry :port or account id is
+		// never mistaken for the version.
 		when: conditions{
 			path:      "**/{Dockerfile,Containerfile}*",
 			lineMatch: mustPattern("FROM *"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewSmart(),
+		rw: NewDockerTag(),
 	},
 	{
-		// A compose/Kubernetes image: mapping. The leading and trailing spaces
-		// in the pattern avoid matching keys like customimage:.
+		// A tag-only compose/Kubernetes image: mapping. The leading and
+		// trailing spaces in the pattern avoid matching keys like customimage:.
 		when: conditions{
 			path:      "**/*.{yml,yaml}",
 			lineMatch: mustPattern("* image: *"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewSmart(),
+		rw: NewDockerTag(),
 	},
 	{
 		// A follower projecting a commit or sha256 onto its own line; the hash
