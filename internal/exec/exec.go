@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"sync"
@@ -10,11 +11,23 @@ import (
 // follow, the ID it follows (From, empty when independent), and the work to run.
 // Run is provider-agnostic - the pipeline supplies a closure that resolves a
 // producer or a follower - so the scheduler stays a pure graph executor.
+//
+// ID and From may be opaque, namespaced keys; Label and FromLabel are their
+// human-readable forms used in skip reasons so an internal key never reaches the
+// user. Each defaults to its key when unset.
 type Task struct {
-	ID   string
-	From string
-	Run  func(ctx context.Context) error
+	ID        string
+	From      string
+	Label     string
+	FromLabel string
+	Run       func(ctx context.Context) error
 }
+
+// label returns the display name for the task's ID, falling back to the ID.
+func (t Task) label() string { return cmp.Or(t.Label, t.ID) }
+
+// fromLabel returns the display name for the task's From, falling back to From.
+func (t Task) fromLabel() string { return cmp.Or(t.FromLabel, t.From) }
 
 // Result is the outcome of a task. Exactly one of Err being set, Skipped being
 // true, or a clean success holds. Skipped means the task never ran because its
@@ -57,7 +70,7 @@ func Execute(ctx context.Context, tasks []Task, workers int) []Result {
 				results[i] = Result{
 					ID:      tasks[i].ID,
 					Skipped: true,
-					Reason:  fmt.Sprintf("dependency %q did not resolve", tasks[p].ID),
+					Reason:  fmt.Sprintf("dependency %q did not resolve", tasks[p].label()),
 				}
 				continue
 			}
@@ -92,7 +105,7 @@ func analyze(tasks []Task) ([]int, []string) {
 		if j, ok := byID[t.From]; ok {
 			parent[i] = j
 		} else {
-			reason[i] = fmt.Sprintf("unknown from %q", t.From)
+			reason[i] = fmt.Sprintf("unknown from %q", t.fromLabel())
 		}
 	}
 
