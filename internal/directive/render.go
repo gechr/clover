@@ -1,7 +1,8 @@
 package directive
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -58,16 +59,19 @@ func Reorder(d Directive, providerKeys []string) Directive {
 
 	pairs := make([]KV, len(d.Pairs))
 	copy(pairs, d.Pairs)
-	sort.SliceStable(pairs, func(i, j int) bool {
-		ri, oki := rank[pairs[i].Key]
-		rj, okj := rank[pairs[j].Key]
+	slices.SortStableFunc(pairs, func(a, b KV) int {
+		ra, oka := rank[a.Key]
+		rb, okb := rank[b.Key]
 		switch {
-		case oki && okj:
-			return ri < rj
-		case oki != okj:
-			return oki // a known key sorts before an unknown one
+		case oka && okb:
+			return cmp.Compare(ra, rb)
+		case oka != okb:
+			if oka { // a known key sorts before an unknown one
+				return -1
+			}
+			return 1
 		default:
-			return false // both unknown: stable sort keeps the original order
+			return 0 // both unknown: stable sort keeps the original order
 		}
 	})
 	return Directive{Pairs: pairs}
