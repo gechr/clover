@@ -7,9 +7,10 @@ package progress
 
 // Reporter renders the progress of a batch of work whose size is known up front.
 type Reporter interface {
-	// Discovered reports the scan totals - how many files carried directives and
-	// how many directives in all - before resolution begins.
-	Discovered(files, comments int)
+	// Discovered reports the scan totals - how many files were scanned, how many
+	// carried directives, and how many directives in all - before resolution
+	// begins.
+	Discovered(scanned, files, comments int)
 	// Begin registers one task per name, in order, and starts rendering. It
 	// returns the task handles aligned to names and a wait function to call once
 	// every task has reached a terminal state (Done, Fail, or Skip), which blocks
@@ -35,7 +36,7 @@ type Task interface {
 type Nop struct{}
 
 // Discovered reports nothing.
-func (Nop) Discovered(int, int) {}
+func (Nop) Discovered(int, int, int) {}
 
 // Begin returns inert task handles and a no-op wait.
 func (Nop) Begin(names []string) ([]Task, func()) {

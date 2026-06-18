@@ -40,7 +40,7 @@ func TestScanFindsDirectives(t *testing.T) {
 		"vendored/bin.dat": "\x00\x01# clover: provider=github repository=bin/ary\x00",
 	})
 
-	files, err := scan.Scan(t.Context(), []string{root})
+	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
 
 	got := byPath(files)
@@ -68,7 +68,7 @@ func TestScanReportsParseErrors(t *testing.T) {
 		"Dockerfile": `# clover: repository="unterminated` + "\n",
 	})
 
-	files, err := scan.Scan(t.Context(), []string{root})
+	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.Len(t, files[0].Errors, 1)
@@ -88,7 +88,7 @@ func TestScanIgnoreSeam(t *testing.T) {
 			filepath.Base(path) == "node_modules"
 	}
 
-	files, err := scan.Scan(t.Context(), []string{root}, scan.WithIgnore(ignore))
+	files, _, err := scan.Scan(t.Context(), []string{root}, scan.WithIgnore(ignore))
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.Contains(t, files[0].Path, filepath.Join("keep", "a.yaml"))

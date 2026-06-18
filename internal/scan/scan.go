@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // defaultMaxSize caps the file size scan will read, so a stray large file never
@@ -40,9 +41,10 @@ func WithIgnore(fn func(path string, isDir bool) bool) Option {
 }
 
 // Scan walks roots and returns the files carrying a clover: directive, sorted by
-// path for deterministic output. A single walker produces paths that a pool of
-// workers reads and scans concurrently.
-func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, error) {
+// path for deterministic output, along with the total number of files examined.
+// A single walker produces paths that a pool of workers reads and scans
+// concurrently.
+func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, error) {
 	cfg := config{
 		workers: runtime.NumCPU(),
 		maxSize: defaultMaxSize,
@@ -68,13 +70,15 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, error) {
 	}()
 
 	var (
-		mu    sync.Mutex
-		files []File
-		wg    sync.WaitGroup
+		mu      sync.Mutex
+		files   []File
+		scanned atomic.Int64
+		wg      sync.WaitGroup
 	)
 	for range cfg.workers {
 		wg.Go(func() {
 			for path := range paths {
+				scanned.Add(1)
 				if file, ok := scanFile(path, cfg.maxSize); ok {
 					mu.Lock()
 					files = append(files, file)
@@ -86,10 +90,10 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, error) {
 	wg.Wait()
 
 	if walkErr != nil {
-		return nil, walkErr
+		return nil, 0, walkErr
 	}
 	slices.SortFunc(files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
-	return files, nil
+	return files, int(scanned.Load()), nil
 }
 
 // walk traverses root, sending scannable file paths to paths. Unreadable entries

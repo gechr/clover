@@ -26,7 +26,7 @@ func newCaptureReporter() *captureReporter {
 	return &captureReporter{last: map[string]string{}}
 }
 
-func (r *captureReporter) Discovered(int, int) {}
+func (r *captureReporter) Discovered(int, int, int) {}
 
 func (r *captureReporter) Begin(names []string) ([]progress.Task, func()) {
 	r.mu.Lock()

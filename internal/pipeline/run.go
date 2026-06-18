@@ -132,11 +132,11 @@ func WithIgnoreFiles(names ...string) Option {
 // caller's choice. Results are grouped by file in path order, markers in line
 // order, so the output is deterministic.
 func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, error) {
-	p, files, err := build(ctx, roots, opts...)
+	p, files, scanned, err := build(ctx, roots, opts...)
 	if err != nil {
 		return nil, err
 	}
-	p.reporter.Discovered(len(files), comments(files))
+	p.reporter.Discovered(scanned, len(files), comments(files))
 	p.resolve(ctx)
 	return p.group(files), nil
 }
@@ -156,7 +156,7 @@ func comments(files []scan.File) int {
 // without any network or writes. It is the engine behind lint, surfacing each
 // marker's own problem rather than cascading one failure into the next.
 func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult, error) {
-	p, files, err := build(ctx, roots, opts...)
+	p, files, _, err := build(ctx, roots, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 // Validate build on, exposed for format mode, which rewrites directive comments
 // without ever binding markers or touching the network.
 func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, error) {
-	_, files, err := scanRoots(ctx, roots, newConfig(opts...))
+	_, files, _, err := scanRoots(ctx, roots, newConfig(opts...))
 	return files, err
 }
 
@@ -198,7 +198,7 @@ func scanRoots(
 	ctx context.Context,
 	roots []string,
 	cfg config,
-) (*vcs.Resolver, []scan.File, error) {
+) (*vcs.Resolver, []scan.File, int, error) {
 	resolver := vcs.NewResolver()
 	matcher := ignore.New(resolver, ignore.WithFiles(cfg.ignoreFiles...))
 
@@ -209,8 +209,8 @@ func scanRoots(
 	if cfg.maxSize > 0 {
 		scanOpts = append(scanOpts, scan.WithMaxSize(cfg.maxSize))
 	}
-	files, err := scan.Scan(ctx, roots, scanOpts...)
-	return resolver, files, err
+	files, scanned, err := scan.Scan(ctx, roots, scanOpts...)
+	return resolver, files, scanned, err
 }
 
 // ignoreFunc combines the ignore-file matcher with the configured exclude globs:
@@ -231,13 +231,13 @@ func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bo
 
 // build scans roots and binds the discovered directives into a plan ready for
 // either resolution or validation.
-func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, error) {
+func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, int, error) {
 	cfg := newConfig(opts...)
-	resolver, files, err := scanRoots(ctx, roots, cfg)
+	resolver, files, scanned, err := scanRoots(ctx, roots, cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
-	return newPlan(files, resolver, cfg), files, nil
+	return newPlan(files, resolver, cfg), files, scanned, nil
 }
 
 // plan holds the state a run threads between seams: the flattened markers, each

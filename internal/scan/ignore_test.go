@@ -36,7 +36,7 @@ func TestScanIgnoreControls(t *testing.T) {
 			"w: 4\n",
 	})
 
-	files, err := scan.Scan(t.Context(), []string{root})
+	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
 
 	got := byPath(files)
