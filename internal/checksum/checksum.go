@@ -1,7 +1,6 @@
-// Package checksum fetches a sha256 from a published checksum file, the first
-// tier of clover's checksum-sourcing chain. It substitutes {version} into the
-// URL, downloads the (small) file, and returns the sha256 for the asset a
-// pattern selects.
+// Package checksum sources a sha256 for a value=sha256 follower. The source is
+// selectable (digest, checksums file, or download-and-hash) with an auto chain
+// and a verify cross-check; see [Resolve].
 package checksum
 
 import (
@@ -31,30 +30,36 @@ type entry struct {
 // when the file holds a single entry.
 func Fetch(ctx context.Context, client *http.Client, rawURL, version, pat string) (string, error) {
 	url := strings.ReplaceAll(rawURL, "{version}", version)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	data, err := fetchBody(ctx, client, url, maxSize)
 	if err != nil {
-		return "", fmt.Errorf("checksum: build request: %w", err)
+		return "", err
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("checksum: get %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("checksum: get %s: %s", url, resp.Status)
-	}
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxSize))
-	if err != nil {
-		return "", fmt.Errorf("checksum: read %s: %w", url, err)
-	}
-
 	entries := parse(string(data))
 	if len(entries) == 0 {
 		return "", fmt.Errorf("checksum: no sha256 entries at %s", url)
 	}
 	return choose(entries, pat)
+}
+
+// fetchBody GETs url and reads up to limit bytes.
+func fetchBody(ctx context.Context, client *http.Client, url string, limit int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("checksum: build request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("checksum: get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("checksum: get %s: %s", url, resp.Status)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit))
+	if err != nil {
+		return nil, fmt.Errorf("checksum: read %s: %w", url, err)
+	}
+	return data, nil
 }
 
 // parse reads checksum lines in the common shapes - "<hash>  <file>" (with an
