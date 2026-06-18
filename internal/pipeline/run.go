@@ -488,8 +488,25 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 
 	// The resolved value (a version, commit, or sha256) is rendered through the
 	// rewriter seam: the smart rewriter for a version, the hash rewriter for a
-	// commit or sha256.
-	return p.render(i, line, rewriter, located, model.Candidate{Version: resolved})
+	// commit or sha256. The candidate is typed by the follower's value so a
+	// find/replace template's <commit>/<sha256>/<major.minor> tokens resolve.
+	return p.render(i, line, rewriter, located, followerCandidate(m.Value, resolved))
+}
+
+// followerCandidate wraps a follower's resolved value in a Candidate typed by the
+// projected value kind. Version is always set so the hash rewriter (which
+// splices Candidate.Version) keeps working.
+func followerCandidate(value, resolved string) model.Candidate {
+	c := model.Candidate{Version: resolved}
+	switch value {
+	case constant.ValueCommit:
+		c.Commit = resolved
+	case constant.ValueSha256:
+		c.Digest = "sha256:" + resolved
+	default:
+		c.Semver, _ = version.Parse(resolved)
+	}
+	return c
 }
 
 // followValue computes a follower's value: version and commit are projected from

@@ -228,6 +228,59 @@ func TestRunFindReplace(t *testing.T) {
 		"find locates the version; in-place render keeps the literal context")
 }
 
+func TestRunFollowerCommitFindReplace(t *testing.T) {
+	const commit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	provider.Register(fakeProvider{
+		name: "leadcommit",
+		candidates: []model.Candidate{
+			{Version: "2.0.0", Semver: mustSemver(t, "2.0.0"), Commit: commit},
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=leadcommit repository=x/y id=app\nlead: 1.0.0\n",
+		"b.txt": "# clover: from=app value=commit find=pin-<commit>\n" +
+			"image: pin-0000000000000000000000000000000000000000\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+
+	// The follower's <commit> token resolves from the typed candidate, not the
+	// captured literal: without followerCandidate the commit would not splice.
+	require.Equal(t, "image: pin-"+commit, files[1].Results[0].NewLine)
+}
+
+func TestRunFollowerVersionComponentFindReplace(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "leadver",
+		candidates: []model.Candidate{candidate(t, "2.4.7")},
+	})
+
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=leadver repository=x/y id=app\nlead: 1.0.0\n",
+		"b.txt": "# clover: from=app value=version find=series-<major.minor>\n" +
+			"image: series-1.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+
+	// <major.minor> needs the resolved value parsed back to semver - the default
+	// branch of followerCandidate does that, so the component token resolves.
+	require.Equal(t, "image: series-2.4", files[1].Results[0].NewLine)
+}
+
+// mustSemver parses tag or fails the test.
+func mustSemver(t *testing.T, tag string) *version.Version {
+	t.Helper()
+	v, err := version.Parse(tag)
+	require.NoError(t, err)
+	return v
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()
