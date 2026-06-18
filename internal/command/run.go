@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
@@ -35,6 +36,7 @@ type runCmd struct {
 // Run resolves the markers under the given paths and reports a summary.
 func (c *runCmd) Run(cfg *config.Config) error {
 	launch()
+	start := time.Now()
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default)
 
@@ -70,6 +72,7 @@ func (c *runCmd) Run(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+	summary.Elapsed = time.Since(start)
 
 	reportAuth(ctx, summary)
 	reportDeep(summary, truncated)

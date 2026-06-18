@@ -4,6 +4,7 @@ import (
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/display"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 )
@@ -28,11 +29,11 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line("location", r.Marker.File, line(r)).Err(r.Err).Msg("Failed")
+			logger.Error().Line(field.Location, r.Marker.File, line(r)).Err(r.Err).Msg("Failed")
 		case r.Skipped:
 			logger.Warn().
-				Line("location", r.Marker.File, line(r)).
-				Str("reason", r.Reason).
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.Reason, r.Reason).
 				Msg("Skipped")
 		case r.Changed:
 			msg := "Update applied"
@@ -41,14 +42,14 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 			}
 			summarize(logger, dryRun).
 				Symbol("⬆️").
-				Line("location", r.Marker.File, line(r)).
-				Str("from", value(r.Current, output)).
-				Str("to", value(r.Resolved, output)).
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.From, value(r.Current, output)).
+				Str(field.To, value(r.Resolved, output)).
 				Msg(msg)
 		case output == OutputWide:
 			logger.Debug().
-				Line("location", r.Marker.File, line(r)).
-				Str("version", value(r.Current, output)).
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.Version, value(r.Current, output)).
 				Msg("Already up-to-date")
 		}
 	})
@@ -61,9 +62,10 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 
 	summarize(logger, dryRun).
 		Symbol("🏁").
-		Int("changed", summary.Changed()).
-		Int("skipped", summary.Skipped()).
-		Int("failed", summary.Errored()).
+		Int(field.Changed, summary.Changed()).
+		Int(field.Skipped, summary.Skipped()).
+		Int(field.Failed, summary.Errored()).
+		Duration(field.Elapsed, summary.Elapsed).
 		Msg("Run complete")
 }
 
@@ -83,20 +85,20 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line("location", r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
+			logger.Error().Line(field.Location, r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
 		case r.Skipped:
 			logger.Warn().
-				Line("location", r.Marker.File, line(r)).
-				Str("reason", r.Reason).
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.Reason, r.Reason).
 				Msg("Skipped")
 		case output == OutputWide:
-			logger.Info().Line("location", r.Marker.File, line(r)).Msg("OK")
+			logger.Info().Line(field.Location, r.Marker.File, line(r)).Msg("OK")
 		}
 	})
 
 	logger.Info().
-		Int("errored", summary.Errored()).
-		Int("skipped", summary.Skipped()).
+		Int(field.Errored, summary.Errored()).
+		Int(field.Skipped, summary.Skipped()).
 		Msg("Lint complete")
 }
 
@@ -105,11 +107,11 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
-			logger.Info().Line("location", file.Path, change.Line+1).Msg("Formatted")
+			logger.Info().Line(field.Location, file.Path, change.Line+1).Msg("Formatted")
 		}
 	}
 
-	summarize(logger, check).Int("changed", summary.Changed()).Msg("Format complete")
+	summarize(logger, check).Int(field.Changed, summary.Changed()).Msg("Format complete")
 }
 
 // forEach calls fn for every marker result across the summary's files, in order.

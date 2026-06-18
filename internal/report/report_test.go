@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/mode"
@@ -12,10 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// summary wraps results into a one-file mode.Summary.
+// summary wraps results into a one-file mode.Summary with a fixed elapsed time,
+// so the run summary line renders deterministically.
 func summary(results ...pipeline.Result) mode.Summary {
 	return mode.Summary{
 		Outcomes: []mode.Outcome{{FileResult: pipeline.FileResult{Results: results}}},
+		Elapsed:  1500 * time.Millisecond,
 	}
 }
 
@@ -35,7 +38,7 @@ func TestRun(t *testing.T) {
 	require.Equal(t,
 		"INF ⬆️ Update applied location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
 			"WRN ⚠️ Skipped location=x/b.txt:4 reason=\"dep failed\"\n"+
-			"INF 🏁 Run complete changed=1 skipped=1 failed=0\n",
+			"INF 🏁 Run complete changed=1 skipped=1 failed=0 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -55,7 +58,7 @@ func TestRunAbbreviatesHashValues(t *testing.T) {
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
-			"INF 🏁 Run complete changed=1 skipped=0 failed=0\n",
+			"INF 🏁 Run complete changed=1 skipped=0 failed=0 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -72,7 +75,7 @@ func TestRunWideShowsFullHash(t *testing.T) {
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
-			"INF 🏁 Run complete changed=1 skipped=0 failed=0\n",
+			"INF 🏁 Run complete changed=1 skipped=0 failed=0 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -86,7 +89,7 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 
 	require.Equal(t,
 		"DRY ⬆️ Update available location=app.txt:1 from=1.0.0 to=2.0.0\n"+
-			"DRY 🏁 Run complete changed=1 skipped=0 failed=0\n",
+			"DRY 🏁 Run complete changed=1 skipped=0 failed=0 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -144,7 +147,7 @@ func TestRunWideReportsUpToDate(t *testing.T) {
 	require.Equal(t,
 		"INF ⬆️ Update applied location=app.txt:1 from=1.0.0 to=2.0.0\n"+
 			"DBG 🐞 Already up-to-date location=app.txt:3 version=1.5.0\n"+
-			"INF 🏁 Run complete changed=1 skipped=0 failed=0\n",
+			"INF 🏁 Run complete changed=1 skipped=0 failed=0 elapsed=1.5s\n",
 		buf.String(),
 	)
 }

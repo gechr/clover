@@ -1,6 +1,10 @@
 package mode
 
-import "github.com/gechr/clover/internal/pipeline"
+import (
+	"time"
+
+	"github.com/gechr/clover/internal/pipeline"
+)
 
 // Outcome pairs a file's resolution results with what the mode did to it on
 // disk: whether it was rewritten, and any error from that write. A mode that
@@ -16,6 +20,7 @@ type Outcome struct {
 // the reporter to render.
 type Summary struct {
 	Outcomes []Outcome
+	Elapsed  time.Duration // wall-clock time the run took, for the summary line
 }
 
 // Changed reports the number of markers whose target line was rewritten.
