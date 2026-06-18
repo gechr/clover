@@ -40,11 +40,13 @@ func TestScanFindsDirectives(t *testing.T) {
 		"vendored/bin.dat": "\x00\x01# clover: provider=github repository=bin/ary\x00",
 	})
 
-	files, _, err := scan.Scan(t.Context(), []string{root})
+	files, scanned, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
 
 	got := byPath(files)
 	require.Len(t, files, 2, "only the Dockerfile and the yaml carry directives")
+	require.Equal(t, 4, scanned,
+		"every examined file is counted (incl. the binary and README), but .git is pruned")
 
 	dockerfile := got["Dockerfile"]
 	require.Len(t, dockerfile.Found, 1)
