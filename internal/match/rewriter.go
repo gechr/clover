@@ -37,6 +37,13 @@ type Located struct {
 
 	token  Token // the version token, with span and style
 	commit Span  // action-pin: the commit SHA span (zero for smart)
+	digest Span  // docker-pin: the @sha256 digest span (zero otherwise)
+}
+
+// NeedsDigest reports whether the located target carries a content digest the
+// rewriter will rewrite, so the pipeline knows to resolve one for the candidate.
+func (l Located) NeedsDigest() bool {
+	return l.digest != Span{}
 }
 
 // Context is what the dispatch table routes on: the file, the target line, the
