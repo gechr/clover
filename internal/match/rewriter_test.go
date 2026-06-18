@@ -19,3 +19,18 @@ func TestForFallsBackToSmart(t *testing.T) {
 	})
 	require.IsType(t, match.Smart{}, rw)
 }
+
+// TestForDigestPinnedDocker confirms a digest-pinned docker line routes to the
+// docker-pin rewriter, while a tag-only one stays with the smart rewriter.
+func TestForDigestPinnedDocker(t *testing.T) {
+	t.Parallel()
+
+	digest := "FROM nginx:1.27@sha256:0123456789012345678901234567890123456789012345678901234567890123"
+	pinned := match.For(match.Context{Path: "Dockerfile", Line: digest, Provider: "docker"})
+	require.IsType(t, match.DockerPin{}, pinned)
+
+	tagOnly := match.For(
+		match.Context{Path: "Dockerfile", Line: "FROM nginx:1.27", Provider: "docker"},
+	)
+	require.IsType(t, match.Smart{}, tagOnly)
+}

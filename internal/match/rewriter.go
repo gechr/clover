@@ -107,9 +107,29 @@ var routes = []route{
 		rw: NewActionPin(),
 	},
 	{
+		// A digest-pinned Dockerfile FROM; the @sha256 makes it a secure pin,
+		// so the docker-pin rewriter updates tag and digest together. Must
+		// precede the tag-only FROM route.
+		when: conditions{
+			path:      "**/{Dockerfile,Containerfile}*",
+			lineMatch: mustPattern("FROM *@sha256:*"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerPin(),
+	},
+	{
+		// A digest-pinned compose/Kubernetes image: mapping.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* image: *@sha256:*"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerPin(),
+	},
+	{
 		// A Dockerfile FROM instruction; the smart rewriter handles the
 		// name:tag span, so this route exists mainly to name docker for
-		// provider=auto. A digest-pin rewriter would slot in here later.
+		// provider=auto.
 		when: conditions{
 			path:      "**/{Dockerfile,Containerfile}*",
 			lineMatch: mustPattern("FROM *"),
