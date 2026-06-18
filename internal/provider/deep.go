@@ -20,3 +20,24 @@ func Deep(ctx context.Context) bool {
 	deep, _ := ctx.Value(deepKey{}).(bool)
 	return deep
 }
+
+// truncationSinkKey is the unexported context key for the truncation sink.
+type truncationSinkKey struct{}
+
+// WithTruncationSink returns a context carrying a callback a provider invokes
+// (via NoteTruncated) when a shallow lookup stopped with more results still
+// available - so the edge can suggest --deep without the provider depending on a
+// logger. The sink may be called from multiple goroutines, so it must be safe
+// for concurrent use. A nil sink disables the notification.
+func WithTruncationSink(ctx context.Context, sink func(resource string)) context.Context {
+	return context.WithValue(ctx, truncationSinkKey{}, sink)
+}
+
+// NoteTruncated reports that resource's shallow lookup was incomplete, invoking
+// the sink set by WithTruncationSink if any. It is a no-op otherwise, so a
+// provider can call it unconditionally.
+func NoteTruncated(ctx context.Context, resource string) {
+	if sink, ok := ctx.Value(truncationSinkKey{}).(func(string)); ok && sink != nil {
+		sink(resource)
+	}
+}
