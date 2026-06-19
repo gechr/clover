@@ -24,6 +24,11 @@ type config struct {
 	ignore  func(path string, isDir bool) bool
 }
 
+type scanJob struct {
+	path string
+	size int64
+}
+
 // Option configures [Scan].
 type Option func(*config)
 
@@ -57,12 +62,12 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 		cfg.workers = 1
 	}
 
-	paths := make(chan string)
+	jobs := make(chan scanJob)
 	var walkErr error
 	go func() {
-		defer close(paths)
+		defer close(jobs)
 		for _, root := range roots {
-			if err := walk(ctx, root, cfg, paths); err != nil {
+			if err := walk(ctx, root, cfg, jobs); err != nil {
 				walkErr = err
 				return
 			}
@@ -77,9 +82,9 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	)
 	for range cfg.workers {
 		wg.Go(func() {
-			for path := range paths {
+			for job := range jobs {
 				scanned.Add(1)
-				if file, ok := scanFile(path, cfg.maxSize); ok {
+				if file, ok := scanFile(job.path, job.size, cfg.maxSize); ok {
 					mu.Lock()
 					files = append(files, file)
 					mu.Unlock()
@@ -98,7 +103,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 
 // walk traverses root, sending scannable file paths to paths. Unreadable entries
 // are skipped rather than aborting; VCS and ignored directories are pruned.
-func walk(ctx context.Context, root string, cfg config, paths chan<- string) error {
+func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
@@ -116,9 +121,17 @@ func walk(ctx context.Context, root string, cfg config, paths chan<- string) err
 		if cfg.ignore(path, false) {
 			return nil
 		}
+		size := int64(-1)
+		if d.Type()&fs.ModeSymlink == 0 {
+			info, err := d.Info()
+			if err != nil || !info.Mode().IsRegular() {
+				return nil
+			}
+			size = info.Size()
+		}
 
 		select {
-		case paths <- path:
+		case jobs <- scanJob{path: path, size: size}:
 		case <-ctx.Done():
 			return ctx.Err()
 		}

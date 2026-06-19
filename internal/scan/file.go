@@ -10,6 +10,8 @@ import (
 	"github.com/gechr/clover/internal/directive"
 )
 
+var directiveKeywordBytes = []byte(constant.DirectiveKeyword)
+
 // Located is a directive found on a line of a file.
 type Located struct {
 	Line      int // index into File.Lines of the directive's comment line
@@ -35,14 +37,23 @@ type File struct {
 
 // scanFile reads path and extracts its directives. ok is false when the file is
 // missing, too large, binary, or carries no directive at all.
-func scanFile(path string, maxSize int64) (File, bool) {
-	info, err := os.Stat(path)
-	if err != nil || info.Size() > maxSize {
+func scanFile(path string, size, maxSize int64) (File, bool) {
+	if size < 0 {
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			return File{}, false
+		}
+		size = info.Size()
+	}
+	if size > maxSize {
 		return File{}, false
 	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
+		return File{}, false
+	}
+	if !bytes.Contains(content, directiveKeywordBytes) {
 		return File{}, false
 	}
 	if bytes.IndexByte(content, 0) >= 0 {

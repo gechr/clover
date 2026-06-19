@@ -250,13 +250,13 @@ func scanRoots(
 // a path is skipped if either rejects it.
 func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bool {
 	return func(path string, isDir bool) bool {
-		if matcher.Ignore(path, isDir) {
-			return true
-		}
 		for _, glob := range exclude {
 			if ok, _ := doublestar.Match(glob, path); ok {
 				return true
 			}
+		}
+		if matcher.Ignore(path, isDir) {
+			return true
 		}
 		return false
 	}
