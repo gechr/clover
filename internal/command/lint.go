@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
@@ -16,7 +17,7 @@ import (
 type cmdLint struct {
 	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"              predictor:"path" clib:"terse='Paths to scan'"`
 	Tags   []string      `                   name:"tag"  help:"Only check directives matching these tags"                  clib:"terse='Filter by tags'" short:"t" aliases:"tags" placeholder:"<tag>"`
-	Output report.Output `                               help:"Output detail"                                              clib:"terse='Output detail'"  short:"o"                                    enum:"text,wide" default:"text"`
+	Output report.Output `                               help:"Output detail"                                              clib:"terse='Output detail'"  short:"o"                                    enum:"text,wide,github" default:"text"`
 }
 
 // Run validates the markers under the given paths and fails when any did not.
@@ -37,7 +38,11 @@ func (c *cmdLint) Run(cfg *config.Config) error {
 		return err
 	}
 
-	report.Lint(clog.Default, summary, c.Output)
+	if c.Output == report.OutputGitHub {
+		report.GitHub(os.Stdout, summary, false)
+	} else {
+		report.Lint(clog.Default, summary, c.Output)
+	}
 	if !summary.OK() {
 		return fmt.Errorf("%d errored, %d skipped", summary.Errored(), summary.Skipped())
 	}

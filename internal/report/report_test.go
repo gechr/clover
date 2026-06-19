@@ -43,6 +43,40 @@ func TestRun(t *testing.T) {
 	)
 }
 
+func TestGitHub(t *testing.T) {
+	updated := result("x/app.txt", 1) // target 1 -> line 2
+	updated.Current, updated.Resolved, updated.Changed = "1.2.0", "1.3.0", true
+	failed := result("y/b.txt", 0)
+	failed.Err = errors.New("boom")
+	skipped := result("c.txt", 4)
+	skipped.Skipped, skipped.Reason = true, "dep failed"
+	pinned := result("ci.yml", 2)
+	pinned.Verify = errors.New("commit abc is not on an allowed branch")
+
+	var buf bytes.Buffer
+	report.GitHub(&buf, summary(updated, failed, skipped, pinned), true)
+
+	require.Equal(t,
+		"::warning file=x/app.txt,line=2::update available: 1.2.0 → 1.3.0\n"+
+			"::error file=y/b.txt,line=1::boom\n"+
+			"::warning file=c.txt,line=5::skipped: dep failed\n"+
+			"::error file=ci.yml,line=3::pin does not match upstream: commit abc is not on an allowed branch\n",
+		buf.String(),
+	)
+}
+
+func TestGitHubEscapes(t *testing.T) {
+	// A path with a colon and a message with a newline are escaped per the
+	// workflow-command grammar.
+	r := result("a:b.txt", 0)
+	r.Err = errors.New("oops\nagain")
+
+	var buf bytes.Buffer
+	report.GitHub(&buf, summary(r), false)
+
+	require.Equal(t, "::error file=a%3Ab.txt,line=1::oops%0Aagain\n", buf.String())
+}
+
 // TestRunReportsPinVerification confirms a non-fatal pin mismatch is logged
 // alongside the marker's outcome, not in place of it.
 func TestRunReportsPinVerification(t *testing.T) {

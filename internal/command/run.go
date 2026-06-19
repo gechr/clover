@@ -32,7 +32,7 @@ type cmdRun struct {
 	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                   clib:"terse='Allow downgrades'"                                               negatable:""`
 	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                   clib:"terse='Allow prereleases'"                                              negatable:""`
 	Verify         *bool         "                               help:\"Perform additional verification against upstream tags (implies `--deep`)\"                             clib:\"terse='Verify tags'\"                                                  negatable:\"\""
-	Output         report.Output `                               help:"Output detail"                                                                         clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
+	Output         report.Output `                               help:"Output detail"                                                                         clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide,github" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -80,6 +80,13 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 		return err
 	}
 	summary.Elapsed = time.Since(start)
+
+	// GitHub mode emits machine-parseable annotations only; the human hints would
+	// be noise in a CI log.
+	if c.Output == report.OutputGitHub {
+		report.GitHub(os.Stdout, summary, c.DryRun)
+		return nil
+	}
 
 	reportAuth(ctx, summary)
 	reportDeep(summary, truncated, c.Deep)

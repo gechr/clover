@@ -1,12 +1,16 @@
 package report
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/display"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/report/github"
 )
 
 // Output is the detail level of a report. Its string values double as the CLI's
@@ -20,6 +24,9 @@ const (
 	// OutputWide additionally reports every marker that was already up to date or
 	// valid, so the output accounts for all of them.
 	OutputWide Output = "wide"
+	// OutputGitHub emits GitHub Actions annotations (::error/::warning file=,line=)
+	// so changes and problems surface inline on a pull request.
+	OutputGitHub Output = "github"
 )
 
 // Run renders a run's per-marker outcomes and a closing summary. A dry run logs
@@ -122,6 +129,32 @@ func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
 	}
 
 	summarize(logger, check).Int(field.Changed, summary.Changed()).Msg("Format complete")
+}
+
+// GitHub writes each actionable result as a GitHub Actions annotation, so a run
+// or lint surfaces inline on a pull request: a failure or pin-verification
+// mismatch as ::error, a skip or available update as ::warning. file:line locate
+// the marker. Clean results emit nothing.
+func GitHub(w io.Writer, summary mode.Summary, dryRun bool) {
+	forEach(summary, func(r pipeline.Result) {
+		switch {
+		case r.Err != nil:
+			fmt.Fprintln(w, github.Error(r.Marker.File, line(r), r.Err.Error()))
+		case r.Skipped:
+			fmt.Fprintln(w, github.Warning(r.Marker.File, line(r), "skipped: "+r.Reason))
+		case r.Changed:
+			verb := "applied"
+			if dryRun {
+				verb = "available"
+			}
+			fmt.Fprintln(w, github.Warning(r.Marker.File, line(r),
+				fmt.Sprintf("update %s: %s → %s", verb, r.Current, r.Resolved)))
+		}
+		if r.Verify != nil {
+			fmt.Fprintln(w, github.Error(r.Marker.File, line(r),
+				"pin does not match upstream: "+r.Verify.Error()))
+		}
+	})
 }
 
 // forEach calls fn for every marker result across the summary's files, in order.
