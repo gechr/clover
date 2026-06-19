@@ -6,393 +6,393 @@
 
 
 /* https://highlightjs.readthedocs.io/en/latest/css-classes-reference.html */
-.latte.hljs {
-  color: #4c4f69;
-  background: #eff1f5;
-}
-.latte .hljs-keyword {
-  color: #8839ef;
-}
-.latte .hljs-built_in {
-  color: #d20f39;
-}
-.latte .hljs-type {
-  color: #df8e1d;
-}
-.latte .hljs-literal {
-  color: #fe640b;
-}
-.latte .hljs-number {
-  color: #fe640b;
-}
-.latte .hljs-operator {
-  color: #04a5e5;
-}
-.latte .hljs-punctuation {
-  color: #5c5f77;
-}
-.latte .hljs-property {
-  color: #179299;
-}
-.latte .hljs-regexp {
-  color: #ea76cb;
-}
-.latte .hljs-string {
-  color: #40a02b;
-}
-.latte .hljs-char.escape_ {
-  color: #40a02b;
-}
-.latte .hljs-subst {
-  color: #6c6f85;
-}
-.latte .hljs-symbol {
-  color: #dd7878;
-}
-.latte .hljs-variable {
-  color: #8839ef;
-}
-.latte .hljs-variable.language_ {
-  color: #8839ef;
-}
-.latte .hljs-variable.constant_ {
-  color: #fe640b;
-}
-.latte .hljs-title {
-  color: #1e66f5;
-}
-.latte .hljs-title.class_ {
-  color: #df8e1d;
-}
-.latte .hljs-title.function_ {
-  color: #1e66f5;
-}
-.latte .hljs-params {
-  color: #4c4f69;
-}
-.latte .hljs-comment {
-  color: #7c7f93;
-}
-.latte .hljs-doctag {
-  color: #d20f39;
-}
-.latte .hljs-meta {
-  color: #fe640b;
-}
-.latte .hljs-section {
-  color: #1e66f5;
-}
-.latte .hljs-tag {
-  color: #179299;
-}
-.latte .hljs-name {
-  color: #8839ef;
-}
-.latte .hljs-attr {
-  color: #1e66f5;
-}
-.latte .hljs-attribute {
-  color: #40a02b;
-}
-.latte .hljs-bullet {
-  color: #179299;
-}
-.latte .hljs-code {
-  color: #40a02b;
-}
-.latte .hljs-emphasis {
-  color: #d20f39;
-  font-style: italic;
-}
-.latte .hljs-strong {
-  color: #d20f39;
-  font-weight: bold;
-}
-.latte .hljs-formula {
-  color: #179299;
-}
-.latte .hljs-link {
-  color: #209fb5;
-  font-style: italic;
-}
-.latte .hljs-quote {
-  color: #40a02b;
-  font-style: italic;
-}
-.latte .hljs-selector-tag {
-  color: #df8e1d;
-}
-.latte .hljs-selector-id {
-  color: #1e66f5;
-}
-.latte .hljs-selector-class {
-  color: #179299;
-}
-.latte .hljs-selector-attr {
-  color: #8839ef;
-}
-.latte .hljs-selector-pseudo {
-  color: #179299;
-}
-.latte .hljs-template-tag {
-  color: #dd7878;
-}
-.latte .hljs-template-variable {
-  color: #dd7878;
-}
-.latte .hljs-addition {
-  color: #40a02b;
-  background: rgba(64, 160, 43, 0.15);
-}
-.latte .hljs-deletion {
-  color: #d20f39;
-  background: rgba(210, 15, 57, 0.15);
-}
-.latte :is(h1, h2, h3, h4, h5, h6) a code {
-  color: #4c4f69;
-}
-.latte a code {
-  color: #2f9e44;
-}
-.latte code {
+.light.hljs {
   color: #36433a;
   background: #e2eee4;
 }
-.latte :not(pre) > code {
+.light .hljs-keyword {
+  color: #8839ef;
+}
+.light .hljs-built_in {
+  color: #d20f39;
+}
+.light .hljs-type {
+  color: #df8e1d;
+}
+.light .hljs-literal {
+  color: #fe640b;
+}
+.light .hljs-number {
+  color: #fe640b;
+}
+.light .hljs-operator {
+  color: #04a5e5;
+}
+.light .hljs-punctuation {
+  color: #5c5f77;
+}
+.light .hljs-property {
+  color: #179299;
+}
+.light .hljs-regexp {
+  color: #ea76cb;
+}
+.light .hljs-string {
+  color: #40a02b;
+}
+.light .hljs-char.escape_ {
+  color: #40a02b;
+}
+.light .hljs-subst {
+  color: #6c6f85;
+}
+.light .hljs-symbol {
+  color: #dd7878;
+}
+.light .hljs-variable {
+  color: #8839ef;
+}
+.light .hljs-variable.language_ {
+  color: #8839ef;
+}
+.light .hljs-variable.constant_ {
+  color: #fe640b;
+}
+.light .hljs-title {
+  color: #1e66f5;
+}
+.light .hljs-title.class_ {
+  color: #df8e1d;
+}
+.light .hljs-title.function_ {
+  color: #1e66f5;
+}
+.light .hljs-params {
+  color: #4c4f69;
+}
+.light .hljs-comment {
+  color: #7c7f93;
+}
+.light .hljs-doctag {
+  color: #d20f39;
+}
+.light .hljs-meta {
+  color: #fe640b;
+}
+.light .hljs-section {
+  color: #1e66f5;
+}
+.light .hljs-tag {
+  color: #179299;
+}
+.light .hljs-name {
+  color: #8839ef;
+}
+.light .hljs-attr {
+  color: #1e66f5;
+}
+.light .hljs-attribute {
+  color: #40a02b;
+}
+.light .hljs-bullet {
+  color: #179299;
+}
+.light .hljs-code {
+  color: #40a02b;
+}
+.light .hljs-emphasis {
+  color: #d20f39;
+  font-style: italic;
+}
+.light .hljs-strong {
+  color: #d20f39;
+  font-weight: bold;
+}
+.light .hljs-formula {
+  color: #179299;
+}
+.light .hljs-link {
+  color: #209fb5;
+  font-style: italic;
+}
+.light .hljs-quote {
+  color: #40a02b;
+  font-style: italic;
+}
+.light .hljs-selector-tag {
+  color: #df8e1d;
+}
+.light .hljs-selector-id {
+  color: #1e66f5;
+}
+.light .hljs-selector-class {
+  color: #179299;
+}
+.light .hljs-selector-attr {
+  color: #8839ef;
+}
+.light .hljs-selector-pseudo {
+  color: #179299;
+}
+.light .hljs-template-tag {
+  color: #dd7878;
+}
+.light .hljs-template-variable {
+  color: #dd7878;
+}
+.light .hljs-addition {
+  color: #40a02b;
+  background: rgba(64, 160, 43, 0.15);
+}
+.light .hljs-deletion {
+  color: #d20f39;
+  background: rgba(210, 15, 57, 0.15);
+}
+.light :is(h1, h2, h3, h4, h5, h6) a code {
+  color: #4c4f69;
+}
+.light a code {
+  color: #2f9e44;
+}
+.light code {
+  color: #36433a;
+  background: #e2eee4;
+}
+.light :not(pre) > code {
   color: #0e7c74;
 }
-.latte blockquote blockquote {
+.light blockquote blockquote {
   border-top: 0.1em solid #acb0be;
   border-bottom: 0.1em solid #acb0be;
 }
-.latte hr {
+.light hr {
   border-color: #acb0be;
   border-style: solid;
 }
-.latte .content :is(h1, h2, h3, h4, h5, h6) > a.header {
-  color: #7287fd;
+.light .content :is(h1, h2, h3, h4, h5, h6) > a.header {
+  color: #2f9e44;
 }
-.latte .content :is(h1, h2, h3, h4, h5, h6):target::before {
+.light .content :is(h1, h2, h3, h4, h5, h6):target::before {
   color: #d20f39;
 }
-.latte .sidebar .chapter-link-wrapper strong {
-  color: #7287fd;
+.light .sidebar .chapter-link-wrapper strong {
+  color: #2f9e44;
 }
-.latte h2 {
+.light h2 {
   border-top: 1px solid rgba(172, 176, 190, 0.4);
   padding-top: 0.8em;
   margin-top: 1.5em;
 }
-.latte del {
+.light del {
   color: #7c7f93;
 }
-.latte .ace_gutter {
+.light .ace_gutter {
   color: #8c8fa1;
   background: #e6e9ef;
 }
-.latte .ace_gutter-active-line.ace_gutter-cell {
+.light .ace_gutter-active-line.ace_gutter-cell {
   color: #ea76cb;
   background: #e6e9ef;
 }
-.latte .tooltiptext {
+.light .tooltiptext {
   background: #e6e9ef;
   color: #4c4f69;
 }
 
-.mocha.hljs {
+.dark.hljs {
   color: #cdd6f4;
   background: #0f1813;
 }
-.mocha .hljs-keyword {
+.dark .hljs-keyword {
   color: #cba6f7;
 }
-.mocha .hljs-built_in {
+.dark .hljs-built_in {
   color: #f38ba8;
 }
-.mocha .hljs-type {
+.dark .hljs-type {
   color: #f9e2af;
 }
-.mocha .hljs-literal {
+.dark .hljs-literal {
   color: #fab387;
 }
-.mocha .hljs-number {
+.dark .hljs-number {
   color: #fab387;
 }
-.mocha .hljs-operator {
+.dark .hljs-operator {
   color: #89dceb;
 }
-.mocha .hljs-punctuation {
+.dark .hljs-punctuation {
   color: #bac2de;
 }
-.mocha .hljs-property {
+.dark .hljs-property {
   color: #94e2d5;
 }
-.mocha .hljs-regexp {
+.dark .hljs-regexp {
   color: #f5c2e7;
 }
-.mocha .hljs-string {
+.dark .hljs-string {
   color: #a6e3a1;
 }
-.mocha .hljs-char.escape_ {
+.dark .hljs-char.escape_ {
   color: #a6e3a1;
 }
-.mocha .hljs-subst {
+.dark .hljs-subst {
   color: #a6adc8;
 }
-.mocha .hljs-symbol {
+.dark .hljs-symbol {
   color: #f2cdcd;
 }
-.mocha .hljs-variable {
+.dark .hljs-variable {
   color: #cba6f7;
 }
-.mocha .hljs-variable.language_ {
+.dark .hljs-variable.language_ {
   color: #cba6f7;
 }
-.mocha .hljs-variable.constant_ {
+.dark .hljs-variable.constant_ {
   color: #fab387;
 }
-.mocha .hljs-title {
+.dark .hljs-title {
   color: #89b4fa;
 }
-.mocha .hljs-title.class_ {
+.dark .hljs-title.class_ {
   color: #f9e2af;
 }
-.mocha .hljs-title.function_ {
+.dark .hljs-title.function_ {
   color: #40a02b;
 }
-.mocha .hljs-params {
+.dark .hljs-params {
   color: #cdd6f4;
 }
-.mocha .hljs-comment {
+.dark .hljs-comment {
   color: #9399b2;
 }
-.mocha .hljs-doctag {
+.dark .hljs-doctag {
   color: #f38ba8;
 }
-.mocha .hljs-meta {
+.dark .hljs-meta {
   color: #fab387;
 }
-.mocha .hljs-section {
+.dark .hljs-section {
   color: #89b4fa;
 }
-.mocha .hljs-tag {
+.dark .hljs-tag {
   color: #94e2d5;
 }
-.mocha .hljs-name {
+.dark .hljs-name {
   color: #cba6f7;
 }
-.mocha .hljs-attr {
+.dark .hljs-attr {
   color: #89b4fa;
 }
-.mocha .hljs-attribute {
+.dark .hljs-attribute {
   color: #a6e3a1;
 }
-.mocha .hljs-bullet {
+.dark .hljs-bullet {
   color: #94e2d5;
 }
-.mocha .hljs-code {
+.dark .hljs-code {
   color: #a6e3a1;
 }
-.mocha .hljs-emphasis {
+.dark .hljs-emphasis {
   color: #f38ba8;
   font-style: italic;
 }
-.mocha .hljs-strong {
+.dark .hljs-strong {
   color: #f38ba8;
   font-weight: bold;
 }
-.mocha .hljs-formula {
+.dark .hljs-formula {
   color: #94e2d5;
 }
-.mocha .hljs-link {
+.dark .hljs-link {
   color: #74c7ec;
   font-style: italic;
 }
-.mocha .hljs-quote {
+.dark .hljs-quote {
   color: #a6e3a1;
   font-style: italic;
 }
-.mocha .hljs-selector-tag {
+.dark .hljs-selector-tag {
   color: #f9e2af;
 }
-.mocha .hljs-selector-id {
+.dark .hljs-selector-id {
   color: #89b4fa;
 }
-.mocha .hljs-selector-class {
+.dark .hljs-selector-class {
   color: #94e2d5;
 }
-.mocha .hljs-selector-attr {
+.dark .hljs-selector-attr {
   color: #cba6f7;
 }
-.mocha .hljs-selector-pseudo {
+.dark .hljs-selector-pseudo {
   color: #94e2d5;
 }
-.mocha .hljs-template-tag {
+.dark .hljs-template-tag {
   color: #f2cdcd;
 }
-.mocha .hljs-template-variable {
+.dark .hljs-template-variable {
   color: #f2cdcd;
 }
-.mocha .hljs-addition {
+.dark .hljs-addition {
   color: #a6e3a1;
   background: rgba(166, 227, 161, 0.15);
 }
-.mocha .hljs-deletion {
+.dark .hljs-deletion {
   color: #f38ba8;
   background: rgba(243, 139, 168, 0.15);
 }
-.mocha :is(h1, h2, h3, h4, h5, h6) a code {
+.dark :is(h1, h2, h3, h4, h5, h6) a code {
   color: #cdd6f4;
 }
-.mocha a code {
+.dark a code {
   color: #a6e3a1;
 }
-.mocha code {
+.dark code {
   color: #cdd6f4;
   background: #0f1813;
 }
-.mocha :not(pre) > code {
+.dark :not(pre) > code {
   color: #94e2d5;
 }
-.mocha blockquote blockquote {
+.dark blockquote blockquote {
   border-top: 0.1em solid #585b70;
   border-bottom: 0.1em solid #585b70;
 }
-.mocha hr {
+.dark hr {
   border-color: #585b70;
   border-style: solid;
 }
-.mocha .content :is(h1, h2, h3, h4, h5, h6) > a.header {
+.dark .content :is(h1, h2, h3, h4, h5, h6) > a.header {
   color: #a6e3a1;
 }
-.mocha .content :is(h1, h2, h3, h4, h5, h6):target::before {
+.dark .content :is(h1, h2, h3, h4, h5, h6):target::before {
   color: #f38ba8;
 }
-.mocha .sidebar .chapter-link-wrapper strong {
+.dark .sidebar .chapter-link-wrapper strong {
   color: #a6e3a1;
 }
-.mocha h2 {
+.dark h2 {
   border-top: 1px solid rgba(88, 91, 112, 0.4);
   padding-top: 0.8em;
   margin-top: 1.5em;
 }
-.mocha del {
+.dark del {
   color: #9399b2;
 }
-.mocha .ace_gutter {
+.dark .ace_gutter {
   color: #7f849c;
   background: #181825;
 }
-.mocha .ace_gutter-active-line.ace_gutter-cell {
+.dark .ace_gutter-active-line.ace_gutter-cell {
   color: #f5c2e7;
   background: #181825;
 }
-.mocha .tooltiptext {
+.dark .tooltiptext {
   background: #181825;
   color: #cdd6f4;
 }
 
-.latte {
+.light {
   --bg: #eef5ef;
   --fg: #36433a;
   --sidebar-bg: #e2eee4;
@@ -428,7 +428,7 @@
   --copy-button-filter-hover: brightness(0) saturate(100%) invert(30%) sepia(80%) saturate(1850%) hue-rotate(209deg) brightness(94%) contrast(105%);
 }
 
-.mocha {
+.dark {
   --bg: #14201a;
   --fg: #d3dccd;
   --sidebar-bg: #0f1813;
@@ -464,23 +464,23 @@
   --copy-button-filter-hover: brightness(0) saturate(100%) invert(68%) sepia(18%) saturate(951%) hue-rotate(180deg) brightness(98%) contrast(100%);
 }
 
-.latte ol.chapter > .chapter-item > .chapter-link-wrapper,
-.latte ol.chapter > .chapter-item > .chapter-link-wrapper > a {
+.light ol.chapter > .chapter-item > .chapter-link-wrapper,
+.light ol.chapter > .chapter-item > .chapter-link-wrapper > a {
   font-weight: bold;
-  color: #7287fd;
+  color: #2f9e44;
 }
-.mocha ol.chapter > .chapter-item > .chapter-link-wrapper,
-.mocha ol.chapter > .chapter-item > .chapter-link-wrapper > a {
+.dark ol.chapter > .chapter-item > .chapter-link-wrapper,
+.dark ol.chapter > .chapter-item > .chapter-link-wrapper > a {
   font-weight: bold;
   color: #a6e3a1;
 }
 .chapter li a.active {
   font-weight: bold;
 }
-.latte .chapter li a.current-header {
-  color: #8839ef;
+.light .chapter li a.current-header {
+  color: #0e7c74;
 }
-.mocha .chapter li a.current-header {
+.dark .chapter li a.current-header {
   color: #94e2d5;
 }
 
@@ -512,11 +512,22 @@
   font-style: normal !important;
 }
 
-/* Override Shiki's inline background with the darker catppuccin code backgrounds */
-.latte .content pre.shiki {
-  background-color: #e6e9ef !important;
+/* Override Shiki's inline background to match the clover code surfaces */
+.light .content pre.shiki {
+  background-color: #e2eee4 !important;
 }
 
-.mocha .content pre.shiki {
+.dark .content pre.shiki {
   background-color: #0f1813 !important;
+}
+
+/* Recolor command (function) tokens in code blocks to a dark clover green.
+   Shiki emits the palette as inline color styles, so we target the
+   function-token blue and override it per theme. */
+.light .content pre.shiki span[style*="1e66f5" i] {
+  color: #1f7a33 !important;
+}
+
+.dark .content pre.shiki span[style*="89b4fa" i] {
+  color: #40a02b !important;
 }

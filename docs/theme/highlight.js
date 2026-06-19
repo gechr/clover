@@ -1,11 +1,12 @@
 // Shiki shim - replaces highlight.js with Shiki for VS Code-quality syntax
 // highlighting while keeping mdBook's hljs.configure/highlightBlock interface.
+// The clover light/dark UI themes map to Shiki's syntax palettes here.
 
 let shikiModule
 
 function getShikiTheme() {
     const classes = document.documentElement.classList
-    if (classes.contains('latte')) {
+    if (classes.contains('light')) {
         return 'catppuccin-latte'
     }
     return 'catppuccin-mocha'

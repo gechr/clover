@@ -1,8 +1,6 @@
 # clover
 
-> Keep your versions evergreen.
-
-clover keeps version references in a codebase synchronised with their upstream sources of truth. You annotate a line with a `clover:` comment describing where its version comes from, and clover resolves the latest matching version and rewrites the line in place - across Dockerfiles, YAML, HCL, shell, Markdown, or any other text format.
+Clover keeps version references in a codebase synchronized with their upstream sources of truth. You annotate a line with a `clover:` comment describing where its version comes from, and Clover resolves the latest matching version and rewrites the line in place - across Dockerfiles, YAML, HCL, shell, Markdown, or any other text format.
 
 ## Install
 
@@ -27,7 +25,7 @@ go install github.com/gechr/clover@latest
 
 ## Why
 
-Version strings rot. A pinned image tag, a GitHub release, a checksum - each drifts out of date the moment upstream moves, and there's rarely a single place that lists them all. clover inverts the problem: the instruction to keep a line fresh lives in a comment *right next to that line*, so there's no central manifest to maintain and intent never gets separated from the code it governs.
+Version strings rot. A pinned image tag, a GitHub release, a checksum - each drifts out of date the moment upstream moves, and there's rarely a single place that lists them all. Clover inverts the problem: the instruction to keep a line fresh lives in a comment *right next to that line*, so there's no central manifest to maintain and intent never gets separated from the code it governs.
 
 ## How it works
 
@@ -38,7 +36,7 @@ Place a `clover:` annotation in an ordinary comment next to the line you want ke
 FROM redis:7.2.0
 ```
 
-clover scans your files, finds every annotation, resolves each one against its provider, and updates the adjacent line - deterministically and atomically. Lines without a `clover:` comment are never touched.
+Clover scans your files, finds every annotation, resolves each one against its provider, and updates the adjacent line - deterministically and atomically. Lines without a `clover:` comment are never touched.
 
 The annotation is a set of `key=value` pairs. Common keys:
 
@@ -62,7 +60,7 @@ FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main
 ```
 
-clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `allow-downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
+Clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `allow-downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
 
 ## Usage
 
@@ -71,7 +69,7 @@ clover init        # create a starter .clover.yaml interactively
 clover run         # resolve references and update them in place
 clover run -n      # dry-run: resolve and preview, write nothing
 clover lint        # check every directive resolves, offline, no writes
-clover format      # canonicalise directive comments
+clover format      # canonicalize directive comments
 ```
 
 `run` accepts paths to scan and flags such as `--tag` (process only matching directives), `--deep` (follow pagination for accuracy), and `--[no-]prerelease`. See `clover run --help` for the full set.
@@ -84,5 +82,4 @@ clover login       # authenticate with a provider via its device flow
 
 ## Documentation
 
-- [docs/SPEC.md](docs/SPEC.md) - conceptual specification.
-- [docs/DESIGN.md](docs/DESIGN.md) - design notes.
+Full documentation is available at [gechr.github.io/clover](https://gechr.github.io/clover/).
