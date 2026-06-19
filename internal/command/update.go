@@ -12,15 +12,15 @@ import (
 // public release.
 const updateTap = "gechr/tap"
 
-// updateCmd self-updates clover through Homebrew, the sanctioned update path.
-type updateCmd struct {
+// cmdUpdate self-updates clover through Homebrew, the sanctioned update path.
+type cmdUpdate struct {
 	Check  bool `help:"Report whether an update is available without installing" clib:"terse='Check only'"`
 	Stable bool `help:"Install the latest stable release"                        clib:"terse='Stable build'" xor:"channel"`
 	Dev    bool `help:"Install the latest source build"                          clib:"terse='Dev build'"    xor:"channel"`
 }
 
 // Run checks for, or installs, the latest clover via Homebrew.
-func (c *updateCmd) Run() error {
+func (c *cmdUpdate) Run() error {
 	ctx := context.Background()
 	cfg := brew.Config{
 		Info:    clive.Info{Module: module},

@@ -15,7 +15,7 @@ import (
 	"github.com/gechr/x/terminal"
 )
 
-// loginCmd authenticates clover with a provider via its device flow, storing the
+// cmdLogin authenticates clover with a provider via its device flow, storing the
 // minted token so later runs read it from the credential chain.
 //
 // github is the only provider with an interactive login, so the command calls
@@ -24,12 +24,12 @@ import (
 // Authenticator) would be premature with one implementer - docker authenticates
 // through its own keychain, not a clover device flow - so revisit it only when a
 // second provider needs interactive auth.
-type loginCmd struct {
+type cmdLogin struct {
 	Provider string `arg:"" optional:"" default:"github" enum:"github" help:"Provider to authenticate with" clib:"terse='Provider'"`
 }
 
 // Run drives the provider's device flow, then reports success.
-func (c *loginCmd) Run() error {
+func (c *cmdLogin) Run() error {
 	if err := github.Login(context.Background(), promptDeviceCode); err != nil {
 		return err
 	}

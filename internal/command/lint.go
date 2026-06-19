@@ -11,16 +11,16 @@ import (
 	"github.com/gechr/clover/internal/report"
 )
 
-// lintCmd checks every directive resolves, offline and without writing. It is
+// cmdLint checks every directive resolves, offline and without writing. It is
 // the CI gate: a non-zero exit means at least one directive will not resolve.
-type lintCmd struct {
+type cmdLint struct {
 	Paths  []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"              predictor:"path" clib:"terse='Paths to scan'"`
 	Tags   []string      `                   name:"tag"  help:"Only check directives matching these tags"                  clib:"terse='Filter by tags'" short:"t" aliases:"tags" placeholder:"<tag>"`
 	Output report.Output `                               help:"Output detail"                                              clib:"terse='Output detail'"  short:"o"                                    enum:"text,wide" default:"text"`
 }
 
 // Run validates the markers under the given paths and fails when any did not.
-func (c *lintCmd) Run(cfg *config.Config) error {
+func (c *cmdLint) Run(cfg *config.Config) error {
 	launch()
 	ctx := context.Background()
 

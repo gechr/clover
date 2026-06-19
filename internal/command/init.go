@@ -26,15 +26,15 @@ const configFileName = ".clover.yaml"
 // configPerm is the permission for a generated config file.
 const configPerm = 0o644
 
-// initCmd scaffolds a .clover.yaml interactively.
-type initCmd struct {
+// cmdInit scaffolds a .clover.yaml interactively.
+type cmdInit struct {
 	Dir string `arg:"" optional:"" default:"." help:"Directory to write the config into" predictor:"dir" clib:"terse='Target directory'"`
 }
 
 // Run drives the init wizard: choose providers, report their credential status,
 // then write a starter config after confirmation. It requires an interactive
 // terminal, since the wizard cannot run otherwise.
-func (c *initCmd) Run() error {
+func (c *cmdInit) Run() error {
 	if !terminal.Is(os.Stdin) || !terminal.Is(os.Stdout) {
 		return errors.New("init needs an interactive terminal")
 	}

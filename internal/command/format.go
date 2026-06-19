@@ -12,15 +12,15 @@ import (
 	"github.com/gechr/x/human"
 )
 
-// formatCmd canonicalises directive comments. With --check it reports what would
+// cmdFormat canonicalises directive comments. With --check it reports what would
 // change and exits non-zero without writing - the formatting CI gate.
-type formatCmd struct {
+type cmdFormat struct {
 	Paths []string `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                            predictor:"path" clib:"terse='Paths to scan'"`
 	Check bool     `                               help:"Report directives that need formatting and exit non-zero (do not write)"                  clib:"terse='Check only'"`
 }
 
 // Run canonicalises (or, with --check, checks) the directives under the paths.
-func (c *formatCmd) Run(cfg *config.Config) error {
+func (c *cmdFormat) Run(cfg *config.Config) error {
 	launch()
 	ctx := context.Background()
 

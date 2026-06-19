@@ -22,8 +22,8 @@ import (
 	"github.com/gechr/x/terminal"
 )
 
-// runCmd resolves every directive's version and rewrites it in place.
-type runCmd struct {
+// cmdRun resolves every directive's version and rewrites it in place.
+type cmdRun struct {
 	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                         predictor:"path" clib:"terse='Paths to scan'"`
 	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                                           clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
 	DryRun         bool          `                               help:"Resolve and render but write nothing"                                                  clib:"terse='Dry run'"           short:"n" aliases:"dry"`
@@ -36,7 +36,7 @@ type runCmd struct {
 }
 
 // Run resolves the markers under the given paths and reports a summary.
-func (c *runCmd) Run(cfg *config.Config) error {
+func (c *cmdRun) Run(cfg *config.Config) error {
 	launch()
 	start := time.Now()
 	ctx := context.Background()
