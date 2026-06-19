@@ -137,9 +137,8 @@ func maybeTextWithDirective(path string) bool {
 				return false
 			}
 			if !foundKeyword {
-				window := append(tail, chunk...)
-				foundKeyword = bytes.Contains(window, directiveKeywordBytes)
-				tail = carry(window)
+				foundKeyword = containsKeyword(tail, chunk)
+				tail = carry(chunk)
 			}
 		}
 		if err == io.EOF {
@@ -149,6 +148,22 @@ func maybeTextWithDirective(path string) bool {
 			return false
 		}
 	}
+}
+
+// containsKeyword reports whether chunk contains the directive keyword, either
+// wholly inside chunk or split across the previous buffer's tail.
+func containsKeyword(tail, chunk []byte) bool {
+	if bytes.Contains(chunk, directiveKeywordBytes) {
+		return true
+	}
+	if len(tail) == 0 {
+		return false
+	}
+	prefixLen := min(len(chunk), len(directiveKeywordBytes)-1)
+	window := make([]byte, 0, len(tail)+prefixLen)
+	window = append(window, tail...)
+	window = append(window, chunk[:prefixLen]...)
+	return bytes.Contains(window, directiveKeywordBytes)
 }
 
 // carry keeps enough trailing bytes to match a directive keyword split across

@@ -255,10 +255,7 @@ func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bo
 				return true
 			}
 		}
-		if matcher.Ignore(path, isDir) {
-			return true
-		}
-		return false
+		return matcher.Ignore(path, isDir)
 	}
 }
 

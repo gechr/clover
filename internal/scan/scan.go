@@ -124,7 +124,10 @@ func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) err
 		size := int64(-1)
 		if d.Type()&fs.ModeSymlink == 0 {
 			info, err := d.Info()
-			if err != nil || !info.Mode().IsRegular() {
+			if err != nil {
+				return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
+			}
+			if !info.Mode().IsRegular() {
 				return nil
 			}
 			size = info.Size()
