@@ -52,6 +52,16 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 				Str(field.Version, value(r.Current, output)).
 				Msg("Already up-to-date")
 		}
+
+		// A failed pin verification is non-fatal: it is reported alongside the
+		// marker's outcome, not in place of it.
+		if r.Verify != nil {
+			logger.Error().
+				Symbol("🔓").
+				Line(field.Location, r.Marker.File, line(r)).
+				Err(r.Verify).
+				Msg("Pin does not match upstream")
+		}
 	})
 
 	// Nothing to summarise when no markers were found: the "No Clover comments

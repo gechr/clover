@@ -60,6 +60,7 @@ func (DockerPin) Locate(line string) (Located, error) {
 		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
 		token:    token,
 		digest:   Span{Start: at + 1, End: hexEnd},
+		pinned:   line[at+1 : hexEnd],
 	}, nil
 }
 
@@ -70,7 +71,11 @@ type dockerPinLocated struct {
 
 	token  Token
 	digest Span
+	pinned string // the sha256:<hex> digest currently pinned, for verification
 }
+
+// Pinned reports the sha256:<hex> content digest currently on the line.
+func (l dockerPinLocated) Pinned() string { return l.pinned }
 
 // NeedsDigest is true: a pin always rewrites its content digest, so the pipeline
 // resolves one for the chosen candidate.

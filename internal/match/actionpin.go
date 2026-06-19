@@ -75,6 +75,7 @@ func (ActionPin) Locate(line string) (Located, error) {
 		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
 		token:    token,
 		commit:   Span{Start: start, End: end},
+		pinned:   line[start:end],
 	}, nil
 }
 
@@ -85,7 +86,11 @@ type actionPinLocated struct {
 
 	token  Token
 	commit Span
+	pinned string // the commit SHA currently pinned, for verification
 }
+
+// Pinned reports the commit SHA currently on the line.
+func (l actionPinLocated) Pinned() string { return l.pinned }
 
 // Render replaces the commit SHA with the candidate's commit and the version
 // comment with the restyled candidate version, both in one pass. It errors

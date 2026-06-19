@@ -40,6 +40,15 @@ type Located interface {
 	Render(line string, candidate model.Candidate) (string, bool, error)
 }
 
+// SecurePin is the optional capability of a [Located] whose target pins a secure
+// value beside the version - an action commit SHA or an image content digest.
+// Pinned reports the value currently on the line, so a run can cross-check it
+// against the value the resolved tag reports and catch a committed pin that no
+// longer matches upstream.
+type SecurePin interface {
+	Pinned() string
+}
+
 // anchored carries the Current/Semver anchors every Located exposes; a concrete
 // located embeds it, adds its own spans, and overrides Render (and NeedsDigest
 // when it rewrites a digest).

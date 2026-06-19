@@ -43,6 +43,23 @@ func TestRun(t *testing.T) {
 	)
 }
 
+// TestRunReportsPinVerification confirms a non-fatal pin mismatch is logged
+// alongside the marker's outcome, not in place of it.
+func TestRunReportsPinVerification(t *testing.T) {
+	upToDate := result("ci.yml", 0)
+	upToDate.Verify = errors.New("pinned aaa but 1.0.0 upstream is bbb")
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(upToDate), false, report.OutputText)
+
+	require.Equal(t,
+		"ERR 🔓 Pin does not match upstream location=ci.yml:1 "+
+			"error=\"pinned aaa but 1.0.0 upstream is bbb\"\n"+
+			"INF 🏁 Run complete changed=0 skipped=0 failed=0 elapsed=1.5s\n",
+		buf.String(),
+	)
+}
+
 // TestRunAbbreviatesHashValues confirms text output shortens long commit/sha256
 // values to a head…tail form so they do not dominate the line.
 func TestRunAbbreviatesHashValues(t *testing.T) {

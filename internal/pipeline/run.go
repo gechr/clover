@@ -48,6 +48,7 @@ type Result struct {
 	Skipped  bool   // the marker's dependency failed, was missing, or cycled
 	Reason   string // why the marker was skipped
 	Err      error  // why resolution failed
+	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
 }
 
 // FileResult groups a scanned file's original lines with the results of every
@@ -453,7 +454,40 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		old := model.Candidate{Version: located.Current(), Semver: located.Semver()}
 		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
 	}
-	return p.render(i, line, located, chosen)
+	if err := p.render(i, line, located, chosen); err != nil {
+		return err
+	}
+	p.results[i].Verify = verifyPin(located, chosen)
+	return nil
+}
+
+// verifyPin cross-checks an up-to-date secure pin against the resolved tag: the
+// committed commit SHA (action pin) or content digest (image pin) must equal the
+// one upstream reports for that version. It returns nil - the cheap, always-on
+// check does nothing - when the target is not a secure pin, when the version is
+// being bumped (the new pin is correct by construction, and the old version's tag
+// may be off the fetched page), or when there is no upstream value to compare. A
+// non-nil result is non-fatal: the marker still resolved.
+func verifyPin(located match.Located, chosen model.Candidate) error {
+	pin, ok := located.(match.SecurePin)
+	if !ok {
+		return nil
+	}
+	if located.Semver() == nil || chosen.Semver == nil || !located.Semver().Equal(chosen.Semver) {
+		return nil
+	}
+
+	upstream := chosen.Commit
+	if located.NeedsDigest() {
+		upstream = chosen.Digest
+	}
+	if upstream == "" || pin.Pinned() == upstream {
+		return nil
+	}
+	return fmt.Errorf(
+		"pinned %s but %s upstream is %s",
+		pin.Pinned(), chosen.Version, upstream,
+	)
 }
 
 // follower returns the closure that resolves marker i from the marker it

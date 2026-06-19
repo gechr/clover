@@ -390,6 +390,74 @@ func dockerCandidate(t *testing.T, tag string) model.Candidate {
 	return model.Candidate{Version: tag, Semver: semver}
 }
 
+func TestRunVerifiesActionPinCommit(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const bad = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "1.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{name: "github", candidates: []model.Candidate{cand}})
+
+	t.Run("mismatch", func(t *testing.T) {
+		dir := write(t, map[string]string{
+			".github/workflows/ci.yml": "# clover: provider=github repository=actions/checkout\n" +
+				"  - uses: actions/checkout@" + bad + " # v1.0.0\n",
+		})
+		files, err := pipeline.Run(context.Background(), []string{dir})
+		require.NoError(t, err)
+		require.EqualError(t, files[0].Results[0].Verify,
+			"pinned "+bad+" but 1.0.0 upstream is "+good)
+	})
+
+	t.Run("match", func(t *testing.T) {
+		dir := write(t, map[string]string{
+			".github/workflows/ci.yml": "# clover: provider=github repository=actions/checkout\n" +
+				"  - uses: actions/checkout@" + good + " # v1.0.0\n",
+		})
+		files, err := pipeline.Run(context.Background(), []string{dir})
+		require.NoError(t, err)
+		require.NoError(t, files[0].Results[0].Verify, "a matching pin verifies clean")
+	})
+}
+
+func TestRunVerifiesDigestPin(t *testing.T) {
+	newDigest := "sha256:" + strings.Repeat("b", 64)
+	provider.Register(fakeProvider{
+		name:       "docker",
+		digest:     newDigest,
+		candidates: []model.Candidate{candidate(t, "1.0.0")},
+	})
+
+	// Up-to-date tag, but the committed digest differs from the registry's.
+	oldDigest := "sha256:" + strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=x/y\nFROM x/y:1.0.0@" + oldDigest + "\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.EqualError(t, files[0].Results[0].Verify,
+		"pinned "+oldDigest+" but 1.0.0 upstream is "+newDigest)
+}
+
+func TestRunVerifySkippedOnBump(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{name: "github", candidates: []model.Candidate{cand}})
+
+	// A version bump rewrites the pin from the chosen tag, so the old SHA is not
+	// verified - the new pin is correct by construction.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=actions/checkout\n" +
+			"  - uses: actions/checkout@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Verify, "a bump does not verify the superseded pin")
+	require.True(t, r.Changed)
+}
+
 // candidate parses tag into a candidate the selection chain can order.
 func candidate(t *testing.T, tag string) model.Candidate {
 	t.Helper()
