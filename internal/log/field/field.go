@@ -7,6 +7,7 @@ const (
 	Comments = "comments"
 	Elapsed  = "elapsed"
 	Errored  = "errored"
+	Errors   = "errors"
 	Failed   = "failed"
 	Files    = "files"
 	From     = "from"

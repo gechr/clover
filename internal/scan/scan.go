@@ -9,6 +9,16 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/gechr/clog"
+	"github.com/gechr/clover/internal/log/field"
+)
+
+const (
+	reasonIgnored    = "ignored"
+	reasonNonRegular = "non-regular"
+	reasonUnreadable = "unreadable"
+	reasonVCS        = "vcs"
 )
 
 // defaultMaxSize caps the file size scan will read, so a stray large file never
@@ -84,6 +94,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 		wg.Go(func() {
 			for job := range jobs {
 				scanned.Add(1)
+				clog.Debug().Path(field.Path, job.path).Msg("Scanning file")
 				if file, ok := scanFile(job.path, job.size, cfg.maxSize); ok {
 					mu.Lock()
 					files = append(files, file)
@@ -106,6 +117,10 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			clog.Debug().
+				Path(field.Path, path).
+				Str(field.Reason, reasonUnreadable).
+				Msg("Skipping path")
 			return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
 		}
 		if ctx.Err() != nil {
@@ -113,21 +128,44 @@ func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) err
 		}
 
 		if d.IsDir() {
-			if vcsDirs[d.Name()] || cfg.ignore(path, true) {
+			if vcsDirs[d.Name()] {
+				clog.Debug().
+					Path(field.Path, path).
+					Str(field.Reason, reasonVCS).
+					Msg("Skipping directory")
+				return fs.SkipDir
+			}
+			if cfg.ignore(path, true) {
+				clog.Debug().
+					Path(field.Path, path).
+					Str(field.Reason, reasonIgnored).
+					Msg("Skipping directory")
 				return fs.SkipDir
 			}
 			return nil
 		}
 		if cfg.ignore(path, false) {
+			clog.Debug().
+				Path(field.Path, path).
+				Str(field.Reason, reasonIgnored).
+				Msg("Skipping file")
 			return nil
 		}
 		size := int64(-1)
 		if d.Type()&fs.ModeSymlink == 0 {
 			info, err := d.Info()
 			if err != nil {
+				clog.Debug().
+					Path(field.Path, path).
+					Str(field.Reason, reasonUnreadable).
+					Msg("Skipping file")
 				return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
 			}
 			if !info.Mode().IsRegular() {
+				clog.Debug().
+					Path(field.Path, path).
+					Str(field.Reason, reasonNonRegular).
+					Msg("Skipping file")
 				return nil
 			}
 			size = info.Size()

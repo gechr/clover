@@ -1,12 +1,14 @@
 package pipeline
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -178,7 +180,7 @@ func Run(ctx context.Context, roots []string, opts ...Option) ([]FileResult, err
 func comments(files []scan.File) int {
 	total := 0
 	for _, f := range files {
-		total += len(f.Found)
+		total += len(f.Found) + len(f.Errors)
 	}
 	return total
 }
@@ -293,6 +295,7 @@ type plan struct {
 	lines          map[string][]string
 	markers        []Marker
 	now            time.Time
+	parseErrors    []Result
 	prerelease     *bool
 	registry       *registry.Registry
 	reporter       progress.Reporter
@@ -309,8 +312,10 @@ type plan struct {
 func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	lines := make(map[string][]string, len(files))
 	var markers []Marker
+	var parseErrors []Result
 	for _, f := range files {
 		lines[f.Path] = f.Lines
+		parseErrors = append(parseErrors, parseErrorResults(f)...)
 		for _, m := range Markers(f, resolver) {
 			if cfg.filter.Match(m.Tags) {
 				markers = append(markers, m)
@@ -330,6 +335,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		lines:          lines,
 		markers:        markers,
 		now:            cfg.now,
+		parseErrors:    parseErrors,
 		prerelease:     cfg.prerelease,
 		registry:       registry.New(),
 		reporter:       cfg.reporter,
@@ -338,6 +344,25 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		verify:         cfg.verify,
 		workers:        cfg.workers,
 	}
+}
+
+func parseErrorResults(f scan.File) []Result {
+	results := make([]Result, 0, len(f.Errors))
+	for _, e := range f.Errors {
+		marker := Marker{File: f.Path, Line: e.Line, Target: e.Line}
+		results = append(
+			results,
+			Result{Marker: marker, NewLine: lineAt(f.Lines, e.Line), Err: e.Err},
+		)
+	}
+	return results
+}
+
+func lineAt(lines []string, i int) string {
+	if i < 0 || i >= len(lines) {
+		return ""
+	}
+	return lines[i]
 }
 
 // resolve schedules every marker through the follow-edge executor, reporting
@@ -920,6 +945,9 @@ func (p *plan) render(
 // order (already path-sorted by the scan) and line order within each file.
 func (p *plan) group(files []scan.File) []FileResult {
 	byPath := make(map[string][]Result, len(files))
+	for _, r := range p.parseErrors {
+		byPath[r.Marker.File] = append(byPath[r.Marker.File], r)
+	}
 	for _, r := range p.results {
 		byPath[r.Marker.File] = append(byPath[r.Marker.File], r)
 	}
@@ -930,9 +958,19 @@ func (p *plan) group(files []scan.File) []FileResult {
 		if !ok {
 			continue
 		}
+		slices.SortFunc(results, func(a, b Result) int {
+			return cmp.Compare(resultLine(a), resultLine(b))
+		})
 		out = append(out, FileResult{Path: f.Path, Lines: f.Lines, Results: results})
 	}
 	return out
+}
+
+func resultLine(r Result) int {
+	if r.Marker.Line >= 0 {
+		return r.Marker.Line
+	}
+	return r.Marker.Target
 }
 
 // targetLine returns marker m's target line, or "" when the directive has no

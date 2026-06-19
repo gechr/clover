@@ -4,6 +4,27 @@
 
 clover keeps version references in a codebase synchronised with their upstream sources of truth. You annotate a line with a `clover:` comment describing where its version comes from, and clover resolves the latest matching version and rewrites the line in place - across Dockerfiles, YAML, HCL, shell, Markdown, or any other text format.
 
+## Install
+
+### macOS / Linux
+
+```shell
+brew install gechr/tap/clover
+```
+
+### Windows
+
+```shell
+scoop bucket add gechr https://github.com/gechr/scoop-bucket
+scoop install gechr/clover
+```
+
+### Go
+
+```shell
+go install github.com/gechr/clover@latest
+```
+
 ## Why
 
 Version strings rot. A pinned image tag, a GitHub release, a checksum - each drifts out of date the moment upstream moves, and there's rarely a single place that lists them all. clover inverts the problem: the instruction to keep a line fresh lives in a comment *right next to that line*, so there's no central manifest to maintain and intent never gets separated from the code it governs.
@@ -42,27 +63,6 @@ FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000
 ```
 
 clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `allow-downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
-
-## Install
-
-### macOS / Linux
-
-```shell
-brew install gechr/tap/clover
-```
-
-### Windows
-
-```shell
-scoop bucket add gechr https://github.com/gechr/scoop-bucket
-scoop install gechr/clover
-```
-
-### Go
-
-```shell
-go install github.com/gechr/clover@latest
-```
 
 ## Usage
 

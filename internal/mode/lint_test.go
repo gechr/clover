@@ -77,6 +77,15 @@ func TestLintBadConstraintErrors(t *testing.T) {
 	require.Equal(t, 1, summary.Errored())
 }
 
+func TestLintMalformedDirectiveErrors(t *testing.T) {
+	dir := write(t, "# clover: provider=\"unterminated\nversion: 1.2.0\n")
+
+	summary, err := mode.Lint(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.False(t, summary.OK())
+	require.Equal(t, 1, summary.Errored())
+}
+
 func TestLintDanglingFollowSkips(t *testing.T) {
 	dir := write(t, "# clover: from=ghost value=version\nversion: 1.2.0\n")
 

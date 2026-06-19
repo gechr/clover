@@ -62,7 +62,7 @@ func (c *cmdInit) Run() error {
 		return err
 	}
 	if !settings.Write {
-		clog.Info().Str(field.Path, path).Msg("Left config unchanged")
+		clog.Info().Path(field.Path, path).Msg("Left config unchanged")
 		return nil
 	}
 
@@ -70,7 +70,7 @@ func (c *cmdInit) Run() error {
 	if err := xos.AtomicWrite(path, starter, configPerm); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	clog.Info().Str(field.Path, path).Msg("Wrote config")
+	clog.Info().Path(field.Path, path).Msg("Wrote config")
 	return nil
 }
 

@@ -32,3 +32,8 @@ func Init() {
 	styles.Keys[field.To] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))   // green
 	clog.SetStyles(styles)
 }
+
+// SetVerbose enables debug-level CLI logs.
+func SetVerbose(verbose bool) {
+	clog.SetVerbose(verbose)
+}

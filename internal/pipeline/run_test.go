@@ -156,6 +156,20 @@ func TestRunNoCandidateIsSentinel(t *testing.T) {
 		"a minor-ceiling constraint rejects the only candidate (a major bump)")
 }
 
+func TestRunMalformedDirectiveErrors(t *testing.T) {
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=\"unterminated\nversion: 1.0.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Len(t, files[0].Results, 1)
+	require.Error(t, files[0].Results[0].Err)
+	require.Equal(t, 0, files[0].Results[0].Marker.Line)
+	require.Equal(t, 0, files[0].Results[0].Marker.Target)
+}
+
 func TestRunTruncationSinkReceivesNotices(t *testing.T) {
 	provider.Register(fakeProvider{
 		name:       "trunc",

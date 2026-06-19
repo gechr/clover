@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/log/field"
+	"github.com/gechr/clover/internal/logger"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
@@ -35,10 +36,11 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\"          clib:\"terse='Config file'\""
-	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                                 clib:\"terse='Skip config'\""
+	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\"        clib:\"terse='Config file'\""
+	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                               clib:\"terse='Skip config'\""
+	Verbose  bool   "help:\"Enable debug logs\"                                                   clib:\"terse='Debug logs'\""
 
-	Init    cmdInit    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\"             clib:\"terse='Scaffold a config'\""
+	Init    cmdInit    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\"           clib:\"terse='Scaffold a config'\""
 	Login   cmdLogin   `cmd:"" help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"`
 	Run     cmdRun     `cmd:"" help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
 	Lint    cmdLint    `cmd:"" help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
@@ -89,6 +91,7 @@ func Run() int {
 	if err != nil {
 		parser.FatalIfErrorf(err)
 	}
+	logger.SetVerbose(root.Verbose)
 
 	cfg, err := loadConfig(root)
 	if err != nil {

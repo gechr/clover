@@ -6,9 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/comment"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/log/field"
 )
 
 const prefilterChunkSize = 32 << 10
@@ -22,7 +24,7 @@ type Located struct {
 }
 
 // LineError is a malformed directive: the keyword was present but parsing
-// failed. lint surfaces these; run skips them.
+// failed. The pipeline surfaces it as an errored marker result.
 type LineError struct {
 	Line int
 	Err  error
@@ -43,24 +45,39 @@ type File struct {
 func scanFile(path string, size, maxSize int64) (File, bool) {
 	if size < 0 {
 		info, err := os.Stat(path)
-		if err != nil || !info.Mode().IsRegular() {
+		if err != nil {
+			skipFile(path, "stat failed").Msg("Skipping file")
+			return File{}, false
+		}
+		if !info.Mode().IsRegular() {
+			skipFile(path, "non-regular").Msg("Skipping file")
 			return File{}, false
 		}
 		size = info.Size()
 	}
 	if size > maxSize {
+		skipFile(
+			path,
+			"too large",
+		).Int64("size", size).
+			Int64("max_size", maxSize).
+			Msg("Skipping file")
 		return File{}, false
 	}
 
-	if !maybeTextWithDirective(path) {
+	prefilter, reason := maybeTextWithDirective(path)
+	if !prefilter {
+		skipFile(path, reason).Msg("Skipping file")
 		return File{}, false
 	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
+		skipFile(path, "read failed").Msg("Skipping file")
 		return File{}, false
 	}
 	if bytes.IndexByte(content, 0) >= 0 {
+		skipFile(path, "binary").Msg("Skipping file")
 		return File{}, false // binary
 	}
 
@@ -86,6 +103,7 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 
 		switch directive.ParseIgnore(body) {
 		case directive.IgnoreFile:
+			skipFile(path, "clover ignore file").Msg("Skipping file")
 			return File{}, false // the whole file opts out
 		case directive.IgnoreBlockStart:
 			inBlock = true
@@ -112,17 +130,23 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 	}
 
 	if len(found) == 0 && len(problems) == 0 {
+		skipFile(path, "no directive").Msg("Skipping file")
 		return File{}, false
 	}
+	clog.Debug().
+		Path(field.Path, path).
+		Int(field.Comments, len(found)).
+		Int(field.Errors, len(problems)).
+		Msg("Found Clover comments")
 	return File{Path: path, Lines: lines, Found: found, Errors: problems}, true
 }
 
 // maybeTextWithDirective rejects obvious misses before allocating a whole-file
 // buffer: files with no clover keyword, and binary files with a NUL byte.
-func maybeTextWithDirective(path string) bool {
+func maybeTextWithDirective(path string) (bool, string) {
 	file, err := os.Open(path)
 	if err != nil {
-		return false
+		return false, "open failed"
 	}
 	defer func() { _ = file.Close() }()
 
@@ -134,7 +158,7 @@ func maybeTextWithDirective(path string) bool {
 		if n > 0 {
 			chunk := buf[:n]
 			if bytes.IndexByte(chunk, 0) >= 0 {
-				return false
+				return false, "binary"
 			}
 			if !foundKeyword {
 				foundKeyword = containsKeyword(tail, chunk)
@@ -142,12 +166,19 @@ func maybeTextWithDirective(path string) bool {
 			}
 		}
 		if err == io.EOF {
-			return foundKeyword
+			if !foundKeyword {
+				return false, "no clover keyword"
+			}
+			return true, ""
 		}
 		if err != nil {
-			return false
+			return false, "read failed"
 		}
 	}
+}
+
+func skipFile(path, reason string) *clog.Event {
+	return clog.Debug().Path(field.Path, path).Str(field.Reason, reason)
 }
 
 // containsKeyword reports whether chunk contains the directive keyword, either
