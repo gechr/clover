@@ -20,6 +20,7 @@ const (
 	DirectiveSelect   = "select"   // follow the old or new value
 	DirectiveSkip     = "skip"     // disable this marker
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
+	DirectiveTrack    = "track"    // track a floating ref (docker tag, github branch); * infers it from the line
 	DirectiveValue    = "value"    // what a follower projects
 	DirectiveVerify   = "verify"   // deep-verify this marker's secure pin against upstream
 
@@ -29,6 +30,10 @@ const (
 	DirectiveSha256Source = "sha256-source" // how to source a value=sha256 (see constant/value.go)
 	DirectiveSha256URL    = "sha256-url"    // checksum-file URL (templated with {version}) for value=sha256
 )
+
+// TrackInfer is the track= value that infers the floating ref from the target
+// line (the literal tag or branch already written there) rather than naming it.
+const TrackInfer = "*"
 
 // Provider parameters shared beyond a single provider: the auto-inference
 // injects them and the relevant providers read them.

@@ -27,6 +27,22 @@ The annotation is a set of `key=value` pairs. Common keys:
 
 Sensible patterns are inferred from the existing content of the target line, so common cases need almost no configuration.
 
+### Tracking floating refs
+
+Some references are not versions at all: a Docker tag like `latest` or `nonroot`, or a GitHub Action pinned to a branch HEAD. These move in place - the tag or branch name stays, but the digest or commit it points at drifts. `track` keeps that secure pin fresh without selecting a new version: `track=*` infers the ref already on the line, or name it explicitly (`track=nonroot`, `track=main`).
+
+```dockerfile
+# clover: provider=docker track=*
+FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000000000000
+```
+
+```yaml
+# clover: provider=github track=main verify-branch=main
+- uses: actions/checkout@0000000000000000000000000000000000000000 # main
+```
+
+clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `allow-downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
+
 ## Install
 
 ### macOS / Linux

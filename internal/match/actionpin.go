@@ -34,24 +34,9 @@ func NewActionPin() ActionPin { return ActionPin{} }
 // way a line can fail to be a secure pin (no reference, not SHA-pinned, short
 // SHA, no version comment), so lint can explain the problem.
 func (ActionPin) Locate(line string) (Located, error) {
-	uses := strings.Index(line, "uses:")
-	if uses < 0 {
-		return nil, errors.New("no uses: action reference on the line")
-	}
-
-	at := strings.IndexByte(line[uses:], '@')
-	if at < 0 {
-		return nil, errors.New("action is not pinned by @<sha> (local, docker, or unpinned)")
-	}
-	at += uses
-
-	start := at + 1
-	end := start
-	for end < len(line) && xstrings.IsHexChar(rune(line[end])) {
-		end++
-	}
-	if end-start != shaLen {
-		return nil, errors.New("action pin requires a full 40-character commit SHA")
+	commit, end, err := commitSpan(line)
+	if err != nil {
+		return nil, err
 	}
 
 	hash := strings.IndexByte(line[end:], '#')
@@ -74,9 +59,35 @@ func (ActionPin) Locate(line string) (Located, error) {
 	return actionPinLocated{
 		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
 		token:    token,
-		commit:   Span{Start: start, End: end},
-		pinned:   line[start:end],
+		commit:   commit,
+		pinned:   line[commit.Start:commit.End],
 	}, nil
+}
+
+// commitSpan locates the @<40-hex> commit SHA of a uses: action reference,
+// returning the SHA span and the index just past it (where a trailing comment is
+// searched for), with an error specific to each way the line fails to be
+// SHA-pinned. Shared by the action-pin and action-track rewriters.
+func commitSpan(line string) (Span, int, error) {
+	uses := strings.Index(line, "uses:")
+	if uses < 0 {
+		return Span{}, 0, errors.New("no uses: action reference on the line")
+	}
+	at := strings.IndexByte(line[uses:], '@')
+	if at < 0 {
+		return Span{}, 0, errors.New("action is not pinned by @<sha> (local, docker, or unpinned)")
+	}
+	at += uses
+
+	start := at + 1
+	end := start
+	for end < len(line) && xstrings.IsHexChar(rune(line[end])) {
+		end++
+	}
+	if end-start != shaLen {
+		return Span{}, 0, errors.New("action pin requires a full 40-character commit SHA")
+	}
+	return Span{Start: start, End: end}, end, nil
 }
 
 // actionPinLocated is a secure action pin: the commit SHA span plus the trailing

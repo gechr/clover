@@ -7,6 +7,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/exec"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/rule"
 )
 
@@ -42,10 +43,98 @@ func (p *plan) validate(ctx context.Context) {
 // problem it finds or nil when the marker is well-formed.
 func (p *plan) check(i int) error {
 	m := p.markers[i]
+	if m.Directive.Has(constant.DirectiveTrack) {
+		return p.checkTrack(m)
+	}
 	if m.IsFollower() {
 		return p.checkFollower(m)
 	}
 	return p.checkProducer(m)
+}
+
+// trackConflicts are the keys a track= marker may not also carry: the selection
+// knobs (no candidate set exists to filter or order), the follower keys (track
+// resolves an upstream, it does not project one), the value=sha256 resolver
+// keys, and find/replace (track owns its floating-ref locator).
+var trackConflicts = []string{
+	constant.RuleConstraint,
+	constant.RuleInclude,
+	constant.RuleExclude,
+	constant.RuleBehind,
+	constant.RulePrerelease,
+	constant.RuleAllowDowngrade,
+	constant.DirectiveFrom,
+	constant.DirectiveSelect,
+	constant.DirectiveValue,
+	constant.DirectivePattern,
+	constant.DirectiveSha256Source,
+	constant.DirectiveSha256URL,
+	constant.DirectiveFind,
+	constant.DirectiveReplace,
+}
+
+// trackPreconditions checks the invariants a track= marker must satisfy
+// regardless of provider: it needs an explicit provider (an omitted one means
+// follow, but track resolves rather than follows), a ref name or the * infer
+// sentinel, and none of the selection, follower, or checksum keys it is mutually
+// exclusive with. It is pure, so both lint and the resolve path enforce it.
+func trackPreconditions(m Marker) error {
+	if m.IsFollower() {
+		return fmt.Errorf(
+			"%s= needs an explicit %s=",
+			constant.DirectiveTrack, constant.DirectiveProvider,
+		)
+	}
+	if ref, _ := m.Directive.Get(constant.DirectiveTrack); ref == "" {
+		return fmt.Errorf(
+			"%s= needs a ref name or %s to infer it",
+			constant.DirectiveTrack, constant.TrackInfer,
+		)
+	}
+	for _, key := range trackConflicts {
+		if m.Directive.Has(key) {
+			return fmt.Errorf("%s= cannot be used with %s=", constant.DirectiveTrack, key)
+		}
+	}
+	return nil
+}
+
+// checkTrack validates a track= marker offline: its provider-agnostic
+// preconditions, plus an explicit provider whose floating-ref pin the line
+// carries and which can resolve that pin's secure value.
+func (p *plan) checkTrack(m Marker) error {
+	if err := trackPreconditions(m); err != nil {
+		return err
+	}
+
+	prov, err := lookupProvider(m.Provider)
+	if err != nil {
+		return err
+	}
+	if _, err := prov.Resource(m.Directive); err != nil {
+		return err
+	}
+	_, located, err := p.locate(m)
+	if err != nil {
+		return err
+	}
+	return trackCapable(prov, m.Provider, located.NeedsDigest())
+}
+
+// trackCapable reports whether prov can resolve the secure value the located pin
+// needs: a content digest (Digester) for a tracked tag, or a branch-head commit
+// (Committer) for a tracked branch.
+func trackCapable(prov provider.Provider, name string, needsDigest bool) error {
+	if needsDigest {
+		if _, ok := prov.(provider.Digester); !ok {
+			return fmt.Errorf("provider %q cannot resolve a digest for a tracked tag", name)
+		}
+		return nil
+	}
+	if _, ok := prov.(provider.Committer); !ok {
+		return fmt.Errorf("provider %q cannot resolve a commit for a tracked branch", name)
+	}
+	return nil
 }
 
 // checkProducer verifies a producer names a known provider, builds a valid

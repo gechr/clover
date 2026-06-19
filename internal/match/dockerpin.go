@@ -30,22 +30,9 @@ func NewDockerPin() DockerPin { return DockerPin{} }
 // each way a line can fail to be a digest pin (not pinned, short or non-sha256
 // digest, no tag, non-version tag) so lint can explain it.
 func (DockerPin) Locate(line string) (Located, error) {
-	at := strings.LastIndexByte(line, '@')
-	if at < 0 {
-		return nil, errors.New("image is not digest-pinned by @sha256")
-	}
-
-	rest := line[at+1:]
-	if !strings.HasPrefix(rest, constant.DigestSha256) {
-		return nil, errors.New("image pin digest must be sha256")
-	}
-	hexStart := at + 1 + len(constant.DigestSha256)
-	hexEnd := hexStart
-	for hexEnd < len(line) && xstrings.IsHexChar(rune(line[hexEnd])) {
-		hexEnd++
-	}
-	if hexEnd-hexStart != digestHexLen {
-		return nil, errors.New("image pin requires a full sha256 digest")
+	at, digest, err := digestSpan(line)
+	if err != nil {
+		return nil, err
 	}
 
 	// The tag anchors the current version: the same image-ref parsing the
@@ -59,9 +46,32 @@ func (DockerPin) Locate(line string) (Located, error) {
 	return dockerPinLocated{
 		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
 		token:    token,
-		digest:   Span{Start: at + 1, End: hexEnd},
-		pinned:   line[at+1 : hexEnd],
+		digest:   digest,
+		pinned:   line[digest.Start:digest.End],
 	}, nil
+}
+
+// digestSpan locates the @sha256:<64-hex> content digest on line, returning the
+// index of the '@' and the span of the sha256:<hex> digest, with an error
+// specific to each way the line fails to be digest-pinned. Shared by the
+// docker-pin and docker-track rewriters.
+func digestSpan(line string) (int, Span, error) {
+	at := strings.LastIndexByte(line, '@')
+	if at < 0 {
+		return 0, Span{}, errors.New("image is not digest-pinned by @sha256")
+	}
+	if !strings.HasPrefix(line[at+1:], constant.DigestSha256) {
+		return 0, Span{}, errors.New("image pin digest must be sha256")
+	}
+	hexStart := at + 1 + len(constant.DigestSha256)
+	hexEnd := hexStart
+	for hexEnd < len(line) && xstrings.IsHexChar(rune(line[hexEnd])) {
+		hexEnd++
+	}
+	if hexEnd-hexStart != digestHexLen {
+		return 0, Span{}, errors.New("image pin requires a full sha256 digest")
+	}
+	return at, Span{Start: at + 1, End: hexEnd}, nil
 }
 
 // dockerPinLocated is a digest pin: the version tag plus the @sha256 digest span,

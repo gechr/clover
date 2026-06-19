@@ -21,6 +21,7 @@ import (
 var (
 	canonicalLeading = []string{
 		constant.DirectiveProvider,
+		constant.DirectiveTrack,
 		constant.DirectiveID,
 		constant.DirectiveFrom,
 		constant.DirectiveValue,

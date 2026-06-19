@@ -163,10 +163,18 @@ func (q *query) excluded(tag string) bool {
 // tooFresh reports whether a candidate published at t is younger than the
 // cooldown. It is inert without a cooldown, an injected now, or a publish time.
 func (q *query) tooFresh(t time.Time) bool {
-	if q.cooldown <= 0 || q.now.IsZero() || t.IsZero() {
+	return TooFresh(q.now, t, q.cooldown)
+}
+
+// TooFresh reports whether something published at published is younger than
+// cooldown, measured against now. It is inert (false) without a cooldown, a
+// reference now, or a publish time, so the track path can reuse the same
+// freshness rule selection applies, passing zero values freely.
+func TooFresh(now, published time.Time, cooldown time.Duration) bool {
+	if cooldown <= 0 || now.IsZero() || published.IsZero() {
 		return false
 	}
-	return q.now.Sub(t) < q.cooldown
+	return now.Sub(published) < cooldown
 }
 
 // isDowngrade reports whether cand is older than current, unless downgrades are

@@ -404,6 +404,12 @@ func lookupProvider(name string) (provider.Provider, error) {
 func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
 
+	if m.Directive.Has(constant.DirectiveTrack) {
+		if err := trackPreconditions(m); err != nil {
+			return err
+		}
+	}
+
 	prov, err := lookupProvider(m.Provider)
 	if err != nil {
 		return err
@@ -416,6 +422,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	line, located, err := p.locate(m)
 	if err != nil {
 		return err
+	}
+
+	// A track= marker follows a floating ref directly, skipping the discover and
+	// select stages that only make sense for a semver candidate set.
+	if m.Directive.Has(constant.DirectiveTrack) {
+		return p.resolveTrack(ctx, i, m, prov, resource, line, located)
 	}
 
 	candidates, err := prov.Discover(ctx, resource)
@@ -459,6 +471,105 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		chosen.Digest = digest
 	}
 
+	return p.finalize(ctx, i, m, prov, resource, line, located, chosen)
+}
+
+// resolveTrack resolves a track= marker by following its floating ref directly:
+// it takes the ref named on the directive (or, for track=*, the one already on
+// the line), gates adoption by cooldown, resolves the ref's secure value - a
+// docker content digest or a github branch-head commit - and renders it. It
+// never runs selection, so the ref's tag/branch text is preserved as written.
+func (p *plan) resolveTrack(
+	ctx context.Context,
+	i int,
+	m Marker,
+	prov provider.Provider,
+	resource provider.Resource,
+	line string,
+	located match.Located,
+) error {
+	ref, _ := m.Directive.Get(constant.DirectiveTrack)
+	if ref == constant.TrackInfer {
+		ref = located.Current()
+	}
+	chosen := model.Candidate{Version: ref, Ref: ref}
+
+	if err := p.trackCooldown(ctx, m, prov, resource, ref); err != nil {
+		return err
+	}
+
+	switch {
+	case located.NeedsDigest():
+		digester, ok := prov.(provider.Digester)
+		if !ok {
+			return fmt.Errorf("provider %q cannot resolve a digest for a tracked tag", m.Provider)
+		}
+		digest, err := digester.Digest(ctx, resource, ref)
+		if err != nil {
+			return err
+		}
+		chosen.Digest = digest
+	default:
+		committer, ok := prov.(provider.Committer)
+		if !ok {
+			return fmt.Errorf(
+				"provider %q cannot resolve a commit for a tracked branch",
+				m.Provider,
+			)
+		}
+		commit, err := committer.Commit(ctx, resource, ref)
+		if err != nil {
+			return err
+		}
+		chosen.Commit = commit
+	}
+
+	return p.finalize(ctx, i, m, prov, resource, line, located, chosen)
+}
+
+// trackCooldown rejects a tracked ref whose current target is younger than the
+// marker's cooldown=, so a too-fresh digest or commit is not adopted yet. It is
+// inert without a cooldown, and where the provider lists no publish time for the
+// ref (an OCI registry, a github branch), matching selection's best-effort rule.
+func (p *plan) trackCooldown(
+	ctx context.Context,
+	m Marker,
+	prov provider.Provider,
+	resource provider.Resource,
+	ref string,
+) error {
+	cooldown, err := m.Directive.Duration(constant.RuleCooldown)
+	if err != nil {
+		return err
+	}
+	if cooldown <= 0 {
+		return nil
+	}
+	candidates, err := prov.Discover(ctx, resource)
+	if err != nil {
+		return err
+	}
+	for _, c := range candidates {
+		if c.Version == ref && version.TooFresh(p.now, c.PublishedAt, cooldown) {
+			return ErrNoCandidate
+		}
+	}
+	return nil
+}
+
+// finalize publishes the resolved candidate (when the marker carries an id),
+// renders it onto the line, and runs the secure-pin cross-checks. Shared by the
+// select and track resolution paths.
+func (p *plan) finalize(
+	ctx context.Context,
+	i int,
+	m Marker,
+	prov provider.Provider,
+	resource provider.Resource,
+	line string,
+	located match.Located,
+	chosen model.Candidate,
+) error {
 	if m.ID != "" {
 		old := model.Candidate{Version: located.Current(), Semver: located.Semver()}
 		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
@@ -640,6 +751,14 @@ func (p *plan) follower(i int) func(context.Context) error {
 func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	m := p.markers[i]
 
+	// A track= marker carries no provider, so it lands here misclassified as a
+	// follower; its preconditions reject it with the actionable error.
+	if m.Directive.Has(constant.DirectiveTrack) {
+		if err := trackPreconditions(m); err != nil {
+			return err
+		}
+	}
+
 	resolved, err := p.followValue(ctx, m)
 	if err != nil {
 		return err
@@ -736,9 +855,21 @@ func (p *plan) locate(m Marker) (string, match.Located, error) {
 	return line, located, nil
 }
 
-// rewriterFor chooses the rewriter: an explicit find/replace on the directive
-// (find required, replace optional) overrides the shape-based dispatch.
+// rewriterFor chooses the rewriter: a track= marker uses its provider's
+// floating-ref rewriter, an explicit find/replace (find required, replace
+// optional) overrides the shape-based dispatch, else the route table decides.
 func rewriterFor(m Marker, line string) (match.Rewriter, error) {
+	if m.Directive.Has(constant.DirectiveTrack) {
+		switch m.Provider {
+		case constant.ProviderDocker:
+			return match.NewDockerTrack(), nil
+		case constant.ProviderGithub:
+			return match.NewActionTrack(), nil
+		default:
+			return nil, fmt.Errorf("track= is not supported for provider %q", m.Provider)
+		}
+	}
+
 	find, hasFind := m.Directive.Get(constant.DirectiveFind)
 	replace, hasReplace := m.Directive.Get(constant.DirectiveReplace)
 	if !hasFind {
