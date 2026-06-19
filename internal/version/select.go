@@ -25,18 +25,55 @@ type Attrs struct {
 // engine that sits above it.
 type Predicate func(tag string) bool
 
+// Reason explains why the chain rejected a candidate. The zero value,
+// [ReasonEligible], means the candidate survived every filter.
+type Reason int
+
+const (
+	ReasonEligible   Reason = iota // survived every filter
+	ReasonUnparsable               // tag is not a parsable version
+	ReasonFiltered                 // dropped by include/exclude
+	ReasonPrerelease               // a prerelease, and they are not allowed
+	ReasonCooldown                 // younger than the cooldown
+	ReasonConstraint               // outside the constraint
+	ReasonDowngrade                // older than current, downgrades disallowed
+)
+
+// String renders the reason as a short, stable label for logging.
+func (r Reason) String() string {
+	switch r {
+	case ReasonEligible:
+		return "eligible"
+	case ReasonUnparsable:
+		return "unparsable"
+	case ReasonFiltered:
+		return "filtered"
+	case ReasonPrerelease:
+		return "prerelease"
+	case ReasonCooldown:
+		return "cooldown"
+	case ReasonConstraint:
+		return "constraint"
+	case ReasonDowngrade:
+		return "downgrade"
+	default:
+		return "unknown"
+	}
+}
+
 // Option configures [Select].
 type Option func(*query)
 
 type query struct {
-	constraint     *Constraint
-	includes       []Predicate
-	excludes       []Predicate
-	cooldown       time.Duration
-	now            time.Time
-	behind         int
-	prerelease     bool
-	allowDowngrade bool
+	constraint *Constraint
+	includes   []Predicate
+	excludes   []Predicate
+	cooldown   time.Duration
+	now        time.Time
+	behind     int
+	prerelease bool
+	downgrade  bool
+	observe    func(tag string, reason Reason)
 }
 
 // WithConstraint limits selection to versions the constraint allows.
@@ -69,8 +106,16 @@ func WithNow(t time.Time) Option { return func(q *query) { q.now = t } }
 // = newest).
 func WithBehind(n int) Option { return func(q *query) { q.behind = n } }
 
-// WithAllowDowngrade permits selecting a version older than current.
-func WithAllowDowngrade(allow bool) Option { return func(q *query) { q.allowDowngrade = allow } }
+// WithDowngrade permits selecting a version older than current.
+func WithDowngrade(allow bool) Option { return func(q *query) { q.downgrade = allow } }
+
+// WithObserver reports each candidate the chain rejects, together with the
+// [Reason]. It fires only for skipped candidates, letting a caller surface why a
+// version was passed over (e.g. at debug level) without this package taking on a
+// logging dependency.
+func WithObserver(fn func(tag string, reason Reason)) Option {
+	return func(q *query) { q.observe = fn }
+}
 
 // scored pairs a candidate with the fields the chain sorts and tie-breaks on,
 // so the extractor runs once per candidate rather than once per comparison.
@@ -97,9 +142,13 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 	kept := make([]scored[T], 0, len(cands))
 	for _, c := range cands {
 		a := attrs(c)
-		if q.eligible(current, a) {
-			kept = append(kept, scored[T]{item: c, semver: a.Semver, tag: a.Tag})
+		if r := q.eligible(current, a); r != ReasonEligible {
+			if q.observe != nil {
+				q.observe(a.Tag, r)
+			}
+			continue
 		}
+		kept = append(kept, scored[T]{item: c, semver: a.Semver, tag: a.Tag})
 	}
 
 	if q.behind >= len(kept) {
@@ -116,23 +165,25 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 	return kept[q.behind].item, true
 }
 
-// eligible reports whether a candidate survives every filter in the chain.
-func (q *query) eligible(current *Version, a Attrs) bool {
+// eligible reports the [Reason] a candidate was rejected, or [ReasonEligible]
+// when it survives every filter. The order of the checks fixes the reported
+// reason when more than one would apply.
+func (q *query) eligible(current *Version, a Attrs) Reason {
 	switch {
 	case a.Semver == nil:
-		return false
+		return ReasonUnparsable
 	case !q.included(a.Tag) || q.excluded(a.Tag):
-		return false
+		return ReasonFiltered
 	case !q.prerelease && isPrerelease(a.Semver):
-		return false
+		return ReasonPrerelease
 	case q.tooFresh(a.PublishedAt):
-		return false
+		return ReasonCooldown
 	case !q.constraint.Allowed(a.Semver):
-		return false
+		return ReasonConstraint
 	case q.isDowngrade(current, a.Semver):
-		return false
+		return ReasonDowngrade
 	default:
-		return true
+		return ReasonEligible
 	}
 }
 
@@ -180,7 +231,7 @@ func TooFresh(now, published time.Time, cooldown time.Duration) bool {
 // isDowngrade reports whether cand is older than current, unless downgrades are
 // allowed or there is no current to compare against.
 func (q *query) isDowngrade(current, cand *Version) bool {
-	if q.allowDowngrade || current == nil {
+	if q.downgrade || current == nil {
 		return false
 	}
 	return Compare(cand, current) < 0

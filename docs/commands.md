@@ -1,6 +1,6 @@
 # Commands
 
-```bash
+```text
 clover <command>
 ```
 
@@ -18,7 +18,7 @@ clover <command>
 
 Resolve every annotation and rewrite its target line.
 
-```bash
+```text
 clover run [options] [<path>…]
 ```
 
@@ -28,7 +28,7 @@ clover run [options] [<path>…]
 | `-n, --dry-run`          | Resolve and render but write nothing.                                                   |
 | `--deep`                 | Follow pagination to fetch every version - more accurate, but slower and more requests. |
 | `-y, --yes`              | Proceed without confirming a deep lookup.                                               |
-| `--[no-]allow-downgrade` | Allow selecting versions older than the current one.                                    |
+| `--[no-]downgrade`       | Allow selecting versions older than the current one.                                    |
 | `--[no-]prerelease`      | Allow selecting [prerelease](prereleases.md) versions.                                  |
 | `-o, --output <output>`  | Output detail: `text` (default) or `wide`.                                              |
 | `--config <path>`        | Path to a `.clover.yaml` [config](configuration.md) file.                               |
@@ -40,7 +40,7 @@ With no paths, Clover scans the current directory. Pass files or directories to 
 
 Validate every directive - that it parses, resolves, and that its `find` pattern matches the target line - without touching any files or making network calls. Useful in CI.
 
-```bash
+```text
 clover lint [options] [<path>…]
 ```
 
@@ -48,7 +48,7 @@ clover lint [options] [<path>…]
 
 Rewrite directive comments into canonical form and key order, migrating deprecated spellings. No version changes.
 
-```bash
+```text
 clover format [options] [<path>…]
 ```
 

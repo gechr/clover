@@ -24,15 +24,15 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                         predictor:"path" clib:"terse='Paths to scan'"`
-	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                                           clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun         bool          `                               help:"Resolve and render but write nothing"                                                  clib:"terse='Dry run'"           short:"n" aliases:"dry"`
-	Deep           bool          `                               help:"Follow pagination to fetch every version (more accurate, but slower)"                  clib:"terse='Deep lookup'"`
-	Yes            bool          `                               help:"Proceed without confirming a deep lookup"                                              clib:"terse='Assume yes'"        short:"y"`
-	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                   clib:"terse='Allow downgrades'"                                               negatable:""`
-	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                   clib:"terse='Allow prereleases'"                                              negatable:""`
-	Verify         *bool         "                               help:\"Perform additional verification against upstream tags (implies `--deep`)\"                             clib:\"terse='Verify tags'\"                                                  negatable:\"\""
-	Output         report.Output `                               help:"Output detail"                                                                         clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide,github" default:"text"`
+	Paths      []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                         predictor:"path" clib:"terse='Paths to scan'"`
+	Tags       []string      `                   name:"tag"  help:"Only process directives matching these tags"                                           clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun     bool          `                               help:"Resolve and render but write nothing"                                                  clib:"terse='Dry run'"           short:"n" aliases:"dry"`
+	Deep       bool          `                               help:"Follow pagination to fetch every version (more accurate, but slower)"                  clib:"terse='Deep lookup'"`
+	Yes        bool          `                               help:"Proceed without confirming a deep lookup"                                              clib:"terse='Assume yes'"        short:"y"`
+	Downgrade  *bool         `                               help:"Allow selecting versions older than the current one"                                   clib:"terse='Allow downgrades'"                                               negatable:""`
+	Prerelease *bool         `                               help:"Allow selecting prerelease versions"                                                   clib:"terse='Allow prereleases'"                                              negatable:""`
+	Verify     *bool         "                               help:\"Perform additional verification against upstream tags (implies `--deep`)\"                             clib:\"terse='Verify tags'\"                                                  negatable:\"\""
+	Output     report.Output `                               help:"Output detail"                                                                         clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide,github" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -72,7 +72,7 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 			defer mu.Unlock()
 			truncated = append(truncated, resource)
 		}),
-		pipeline.WithAllowDowngrade(c.AllowDowngrade),
+		pipeline.WithDowngrade(c.Downgrade),
 		pipeline.WithPrerelease(c.Prerelease),
 		pipeline.WithVerify(c.Verify),
 	)

@@ -33,7 +33,7 @@ FROM redis:7.2.0
 Clover never selects an older version than the current one unless you allow it:
 
 ```bash
-clover run --allow-downgrade
+clover run --downgrade
 ```
 
-or per annotation with `allow-downgrade`. This is occasionally useful after an over-eager bump, or to pin back to a supported line.
+or per annotation with `downgrade`. This is occasionally useful after an over-eager bump, or to pin back to a supported line.

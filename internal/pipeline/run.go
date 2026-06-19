@@ -13,12 +13,14 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	cversion "github.com/gechr/clive/version"
+	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/checksum"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/ignore"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
@@ -77,7 +79,7 @@ func (f FileResult) Rewritten() []string {
 }
 
 type config struct {
-	allowDowngrade *bool
+	downgrade      *bool
 	deep           bool
 	exclude        []string
 	filter         tag.Filter
@@ -113,11 +115,11 @@ func WithTagFilter(filter tag.Filter) Option {
 	return func(c *config) { c.filter = filter }
 }
 
-// WithAllowDowngrade overrides the per-directive allow-downgrade rule for every
+// WithDowngrade overrides the per-directive downgrade rule for every
 // marker: a non-nil allow forces downgrades on or off run-wide, while nil leaves
 // each directive's own setting in force.
-func WithAllowDowngrade(allow *bool) Option {
-	return func(c *config) { c.allowDowngrade = allow }
+func WithDowngrade(allow *bool) Option {
+	return func(c *config) { c.downgrade = allow }
 }
 
 // WithPrerelease overrides the per-directive prerelease rule for every marker: a
@@ -289,7 +291,7 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // own slot, so the slice needs no lock - the same discipline the executor uses
 // internally.
 type plan struct {
-	allowDowngrade *bool
+	downgrade      *bool
 	checksumClient *http.Client
 	deep           bool
 	lines          map[string][]string
@@ -329,7 +331,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	}
 
 	return &plan{
-		allowDowngrade: cfg.allowDowngrade,
+		downgrade:      cfg.downgrade,
 		checksumClient: httpcache.New(),
 		deep:           cfg.deep,
 		lines:          lines,
@@ -478,11 +480,24 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	opts = append(opts, version.WithNow(p.now))
 	// Run-level overrides are appended after the directive's own options, so a
 	// non-nil flag wins over the per-directive rule.
-	if p.allowDowngrade != nil {
-		opts = append(opts, version.WithAllowDowngrade(*p.allowDowngrade))
+	if p.downgrade != nil {
+		opts = append(opts, version.WithDowngrade(*p.downgrade))
 	}
 	if p.prerelease != nil {
 		opts = append(opts, version.WithPrerelease(*p.prerelease))
+	}
+	// Surface why each candidate was passed over, visible under --verbose. Only
+	// wire the observer when debug is on, so the common path does no work per
+	// rejected candidate.
+	if clog.GetLevel() <= clog.LevelDebug {
+		res := fmt.Sprintf("%v", resource)
+		opts = append(opts, version.WithObserver(func(tag string, r version.Reason) {
+			clog.Debug().
+				Str(field.Resource, res).
+				Str(field.Version, tag).
+				Str(field.Reason, r.String()).
+				Msg("Skipped candidate")
+		}))
 	}
 
 	chosen, ok := version.Select(located.Semver(), candidates, attrs, opts...)

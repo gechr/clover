@@ -67,12 +67,12 @@ func Compile(d directive.Directive, current *version.Version) ([]version.Option,
 		opts = append(opts, version.WithBehind(behind))
 	}
 
-	allowDowngrade, err := d.Bool(constant.RuleAllowDowngrade)
+	downgrade, err := d.Bool(constant.RuleDowngrade)
 	if err != nil {
 		return nil, err
 	}
-	if allowDowngrade {
-		opts = append(opts, version.WithAllowDowngrade(true))
+	if downgrade {
+		opts = append(opts, version.WithDowngrade(true))
 	}
 
 	return opts, nil

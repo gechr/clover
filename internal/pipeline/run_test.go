@@ -718,10 +718,10 @@ func TestRunFollower(t *testing.T) {
 	require.Equal(t, "follower: 2.0.0", files[1].Results[0].NewLine)
 }
 
-// TestRunAllowDowngradeOverride confirms the run-level flag overrides the
-// per-directive allow-downgrade rule: nil leaves the directive in force, true
+// TestRunDowngradeOverride confirms the run-level flag overrides the
+// per-directive downgrade rule: nil leaves the directive in force, true
 // forces a downgrade the directive did not permit, and false blocks one it did.
-func TestRunAllowDowngradeOverride(t *testing.T) {
+func TestRunDowngradeOverride(t *testing.T) {
 	provider.Register(fakeProvider{
 		name:       "downflag",
 		candidates: []model.Candidate{candidate(t, "1.0.0")}, // only a lower version upstream
@@ -740,21 +740,21 @@ func TestRunAllowDowngradeOverride(t *testing.T) {
 	require.Error(t, files[0].Results[0].Err, "downgrade refused by default")
 
 	files, err = pipeline.Run(context.Background(), []string{noRule},
-		pipeline.WithAllowDowngrade(new(true)))
+		pipeline.WithDowngrade(new(true)))
 	require.NoError(t, err)
 	require.True(t, files[0].Results[0].Changed)
 	require.Equal(t, "1.0.0", files[0].Results[0].Resolved, "flag forced the downgrade")
 
 	// Directive allows downgrade: nil keeps it, false overrides to block.
 	withRule := write(t, map[string]string{
-		"app.txt": "# clover: provider=downrule repository=x/y allow-downgrade=true\nversion: 2.0.0\n",
+		"app.txt": "# clover: provider=downrule repository=x/y downgrade=true\nversion: 2.0.0\n",
 	})
 	files, err = pipeline.Run(context.Background(), []string{withRule})
 	require.NoError(t, err)
 	require.Equal(t, "1.0.0", files[0].Results[0].Resolved, "directive allows the downgrade")
 
 	files, err = pipeline.Run(context.Background(), []string{withRule},
-		pipeline.WithAllowDowngrade(new(false)))
+		pipeline.WithDowngrade(new(false)))
 	require.NoError(t, err)
 	require.Error(t, files[0].Results[0].Err, "flag overrode the directive to block")
 }

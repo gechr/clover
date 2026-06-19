@@ -141,7 +141,7 @@ func TestSelectBehindRespectsDowngrade(t *testing.T) {
 
 	// Opting into downgrades lets behind step back.
 	got, ok := version.Select(current, cands, attrsOf,
-		version.WithBehind(1), version.WithAllowDowngrade(true))
+		version.WithBehind(1), version.WithDowngrade(true))
 	require.True(t, ok)
 	require.Equal(t, "1.3.0", got.tag)
 }
@@ -173,7 +173,7 @@ func TestSelectDowngrade(t *testing.T) {
 		current,
 		candidates("1.1.0"),
 		attrsOf,
-		version.WithAllowDowngrade(true),
+		version.WithDowngrade(true),
 	)
 	require.True(t, ok)
 	require.Equal(t, "1.1.0", got.tag)

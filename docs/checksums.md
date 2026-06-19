@@ -12,8 +12,8 @@ Besides the version itself, an annotation can render a **side value** computed f
 # clover: provider=github repository=cli/cli id=gh constraint=minor
 version: 2.40.0
 
-# clover: from=gh value=sha256
-checksum: 0000000000000000000000000000000000000000000000000000000000000000
+# clover: from=gh value=sha256 pattern=*_linux_amd64.tar.gz
+checksum: 17f3c21f3f4c3b0175a9a0ee8f8e42e36f58e2713de81440ea9c0cb94c5a08a8
 ```
 
 A side value is only refreshed when its version actually changed, so a checksum never drifts out of step with the version it belongs to.

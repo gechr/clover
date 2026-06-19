@@ -30,7 +30,7 @@ Every annotation is a flat list of space-separated `key=value` pairs. The availa
 | Group         | Keys                                                                                                                                                                        |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Source        | [`provider`](providers.md), `repository`, `registry`                                                                                                                        |
-| Selection     | [`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `allow-downgrade` |
+| Selection     | [`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `downgrade` |
 | Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                        |
 | Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                             |
 | Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                           |

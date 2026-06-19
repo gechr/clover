@@ -4,7 +4,7 @@
 
 ## include / exclude
 
-Each takes a glob or a `/regex/`. `include` keeps only matching candidates; `exclude` drops matching ones. Both may be repeated.
+Use `include` to keep only matching candidates, or `exclude` to drop them. Each takes a glob or a `/regex/`, and you can list either key more than once to apply several patterns.
 
 ```dockerfile
 # clover: provider=docker repository=redis include=*-alpine constraint=minor
@@ -16,6 +16,13 @@ This keeps Clover on the `-alpine` variant instead of letting it wander onto a p
 ```dockerfile
 # clover: provider=docker repository=redis exclude=*-rc* constraint=minor
 FROM redis:7.2.0
+```
+
+List a key more than once to accept several patterns - here either an `-alpine` or a `-slim` tag qualifies:
+
+```dockerfile
+# clover: provider=docker repository=redis include=*-alpine include=*-slim constraint=minor
+FROM redis:7.2.0-alpine
 ```
 
 ## behind

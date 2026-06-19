@@ -60,7 +60,7 @@ FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main
 ```
 
-Clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `allow-downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
+Clover re-resolves the digest (Docker) or commit (GitHub) each run, leaving the `latest`/`main` text untouched. `track` replaces the selection stage, so it cannot be combined with selection keys (`constraint`, `include`/`exclude`, `behind`, `prerelease`, `downgrade`); `cooldown` still applies, holding back a target that is too fresh, and `verify`/`verify-branch` still cross-check the resolved pin.
 
 ## Usage
 
