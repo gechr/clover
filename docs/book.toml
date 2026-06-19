@@ -1,0 +1,14 @@
+[book]
+authors = ["clover contributors"]
+description = "Keep version references in a codebase synchronised with their upstream sources of truth."
+language = "en"
+src = "."
+title = "clover"
+
+[output.html]
+git-repository-url = "https://github.com/gechr/clover"
+edit-url-template = "https://github.com/gechr/clover/edit/main/docs/{path}"
+default-theme = "mocha"
+preferred-dark-theme = "mocha"
+additional-css = ["./theme/catppuccin.css", "./theme/zoom.css"]
+additional-js = ["./theme/medium-zoom.min.js", "./theme/zoom.js"]
