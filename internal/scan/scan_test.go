@@ -3,6 +3,7 @@ package scan_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/scan"
@@ -75,6 +76,21 @@ func TestScanReportsParseErrors(t *testing.T) {
 	require.Len(t, files, 1)
 	require.Len(t, files[0].Errors, 1)
 	require.Equal(t, 0, files[0].Errors[0].Line)
+}
+
+func TestScanFindsDirectiveAcrossPrefilterBoundary(t *testing.T) {
+	t.Parallel()
+
+	const splitAfter = 3 // split "clover:" as "clo" + "ver:"
+	pad := strings.Repeat("x", 32<<10-len("# ")-splitAfter)
+	root := tree(t, map[string]string{
+		"long.yaml": pad + "# clover: provider=github repository=owner/name\nversion: 1.2.0\n",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{root})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "long.yaml", filepath.Base(files[0].Path))
 }
 
 func TestScanIgnoreSeam(t *testing.T) {

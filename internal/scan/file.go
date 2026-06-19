@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 )
+
+const prefilterChunkSize = 32 << 10
 
 var directiveKeywordBytes = []byte(constant.DirectiveKeyword)
 
@@ -49,11 +52,12 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 		return File{}, false
 	}
 
-	content, err := os.ReadFile(path)
-	if err != nil {
+	if !maybeTextWithDirective(path) {
 		return File{}, false
 	}
-	if !bytes.Contains(content, directiveKeywordBytes) {
+
+	content, err := os.ReadFile(path)
+	if err != nil {
 		return File{}, false
 	}
 	if bytes.IndexByte(content, 0) >= 0 {
@@ -111,4 +115,47 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 		return File{}, false
 	}
 	return File{Path: path, Lines: lines, Found: found, Errors: problems}, true
+}
+
+// maybeTextWithDirective rejects obvious misses before allocating a whole-file
+// buffer: files with no clover keyword, and binary files with a NUL byte.
+func maybeTextWithDirective(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = file.Close() }()
+
+	buf := make([]byte, prefilterChunkSize)
+	tail := make([]byte, 0, len(directiveKeywordBytes)-1)
+	foundKeyword := false
+	for {
+		n, err := file.Read(buf)
+		if n > 0 {
+			chunk := buf[:n]
+			if bytes.IndexByte(chunk, 0) >= 0 {
+				return false
+			}
+			if !foundKeyword {
+				window := append(tail, chunk...)
+				foundKeyword = bytes.Contains(window, directiveKeywordBytes)
+				tail = carry(window)
+			}
+		}
+		if err == io.EOF {
+			return foundKeyword
+		}
+		if err != nil {
+			return false
+		}
+	}
+}
+
+// carry keeps enough trailing bytes to match a directive keyword split across
+// two read buffers.
+func carry(buf []byte) []byte {
+	keep := min(len(buf), len(directiveKeywordBytes)-1)
+	out := make([]byte, keep)
+	copy(out, buf[len(buf)-keep:])
+	return out
 }
