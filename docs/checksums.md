@@ -1,1 +1,36 @@
-# Checksums &amp; digests
+# Checksums & digests
+
+Besides the version itself, an annotation can render a **side value** computed for that version - a checksum, a digest, or a commit. Set `value` to choose which.
+
+| `value`   | Renders                                          |
+| --------- | ------------------------------------------------ |
+| `version` | The resolved version (the default).              |
+| `commit`  | The commit a tag or branch resolves to (GitHub). |
+| `sha256`  | A `sha256:` digest or asset checksum.            |
+
+```yaml
+# clover: provider=github repository=cli/cli id=gh constraint=minor
+version: 2.40.0
+
+# clover: from=gh value=sha256
+checksum: 0000000000000000000000000000000000000000000000000000000000000000
+```
+
+A side value is only refreshed when its version actually changed, so a checksum never drifts out of step with the version it belongs to.
+
+## Sourcing a sha256
+
+`sha256-source` controls how the checksum is obtained:
+
+| Source      | Behavior                                                            |
+| ----------- | ------------------------------------------------------------------- |
+| `auto`      | Digest, then a checksums file, then download - the default.         |
+| `digest`    | Use the provider's asset digest; no download.                       |
+| `checksums` | Read a published checksums file (`sha256-url`, or a sibling asset). |
+| `download`  | Download the asset and hash it.                                     |
+| `verify`    | Require the digest and the checksums file to agree.                 |
+
+Two keys refine `checksums`/`download`:
+
+- `sha256-url` - the checksum-file URL, templated with `{version}`.
+- `pattern` - an asset filename glob selecting which asset to hash.
