@@ -24,14 +24,15 @@ import (
 
 // runCmd resolves every directive's version and rewrites it in place.
 type runCmd struct {
-	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                                           predictor:"path" clib:"terse='Paths to scan'"`
-	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                                                             clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun         bool          `                               help:"Resolve and render but write nothing"                                                                    clib:"terse='Dry run'"           short:"n" aliases:"dry"`
-	Deep           bool          `                               help:"Follow pagination to fetch every version (more accurate, but slower and more requests)"                  clib:"terse='Deep lookup'"`
-	Yes            bool          `                               help:"Proceed without confirming a deep lookup"                                                                clib:"terse='Assume yes'"        short:"y"`
-	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                                     clib:"terse='Allow downgrades'"                                               negatable:""`
-	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                                     clib:"terse='Allow prereleases'"                                              negatable:""`
-	Output         report.Output `                               help:"Output detail"                                                                                           clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
+	Paths          []string      `arg:"" optional:"" name:"path" help:"Files or directories to scan"                                         predictor:"path" clib:"terse='Paths to scan'"`
+	Tags           []string      `                   name:"tag"  help:"Only process directives matching these tags"                                           clib:"terse='Filter by tags'"    short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun         bool          `                               help:"Resolve and render but write nothing"                                                  clib:"terse='Dry run'"           short:"n" aliases:"dry"`
+	Deep           bool          `                               help:"Follow pagination to fetch every version (more accurate, but slower)"                  clib:"terse='Deep lookup'"`
+	Yes            bool          `                               help:"Proceed without confirming a deep lookup"                                              clib:"terse='Assume yes'"        short:"y"`
+	AllowDowngrade *bool         `                               help:"Allow selecting versions older than the current one"                                   clib:"terse='Allow downgrades'"                                               negatable:""`
+	Prerelease     *bool         `                               help:"Allow selecting prerelease versions"                                                   clib:"terse='Allow prereleases'"                                              negatable:""`
+	Verify         *bool         "                               help:\"Perform additional verification against upstream tags (implies `--deep`)\"                             clib:\"terse='Verify tags'\"                                                  negatable:\"\""
+	Output         report.Output `                               help:"Output detail"                                                                         clib:"terse='Output detail'"     short:"o"                                                 enum:"text,wide" default:"text"`
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -50,6 +51,10 @@ func (c *runCmd) Run(cfg *config.Config) error {
 		clog.Info().Msg("Deep lookup cancelled")
 		return nil
 	}
+	// --verify needs the complete tag and branch history to resolve the true
+	// newest version and its commit, so it implies a deep lookup. It is its own
+	// explicit opt-in, so it does not trigger the deep-lookup confirmation.
+	deep := c.Deep || (c.Verify != nil && *c.Verify)
 
 	// Collect truncated lookups during the run and report them after, so the
 	// hints do not interleave with the live progress display.
@@ -61,7 +66,7 @@ func (c *runCmd) Run(cfg *config.Config) error {
 		pipeline.WithReporter(reporter),
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
 		pipeline.WithTagFilter(filter),
-		pipeline.WithDeep(c.Deep),
+		pipeline.WithDeep(deep),
 		pipeline.WithTruncationSink(func(resource string) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -69,6 +74,7 @@ func (c *runCmd) Run(cfg *config.Config) error {
 		}),
 		pipeline.WithAllowDowngrade(c.AllowDowngrade),
 		pipeline.WithPrerelease(c.Prerelease),
+		pipeline.WithVerify(c.Verify),
 	)
 	if err != nil {
 		return err

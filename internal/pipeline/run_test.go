@@ -21,16 +21,40 @@ import (
 // fakeProvider is a registered provider that returns canned candidates without
 // touching the network, so a run resolves deterministically in tests.
 type fakeProvider struct {
-	name       string
-	candidates []model.Candidate
-	err        error
-	deep       *bool  // when set, Discover records whether a deep lookup was requested
-	truncate   bool   // when set, Discover reports a truncated lookup
-	digest     string // the digest the Digester capability returns
+	name         string
+	candidates   []model.Candidate
+	err          error
+	deep         *bool             // when set, Discover records whether a deep lookup was requested
+	truncate     bool              // when set, Discover reports a truncated lookup
+	digest       string            // the digest the Digester capability returns
+	defaultBr    string            // the BranchChecker default branch
+	branches     []provider.Branch // the BranchChecker branch list
+	commitBranch map[string]string // commit SHA -> the branch it is reachable from
+	tagCommit    map[string]string // tag -> commit, for the Committer fallback
 }
 
 func (f fakeProvider) Digest(context.Context, provider.Resource, string) (string, error) {
 	return f.digest, nil
+}
+
+func (f fakeProvider) Commit(_ context.Context, _ provider.Resource, tag string) (string, error) {
+	return f.tagCommit[tag], nil
+}
+
+func (f fakeProvider) DefaultBranch(context.Context, provider.Resource) (string, error) {
+	return f.defaultBr, nil
+}
+
+func (f fakeProvider) Branches(context.Context, provider.Resource) ([]provider.Branch, error) {
+	return f.branches, nil
+}
+
+func (f fakeProvider) Reachable(
+	_ context.Context,
+	_ provider.Resource,
+	branch, commit string,
+) (bool, error) {
+	return f.commitBranch[commit] == branch, nil
 }
 
 func (f fakeProvider) Name() string { return f.name }
@@ -456,6 +480,75 @@ func TestRunVerifySkippedOnBump(t *testing.T) {
 	r := files[0].Results[0]
 	require.NoError(t, r.Verify, "a bump does not verify the superseded pin")
 	require.True(t, r.Changed)
+}
+
+func TestRunVerifyBranchOnTrunk(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		commitBranch: map[string]string{good: "main"},
+	})
+
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=actions/checkout\n" +
+			"  - uses: actions/checkout@" + old + " # v1.0.0\n",
+	})
+	on := true
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithVerify(&on))
+	require.NoError(t, err)
+	require.NoError(t, files[0].Results[0].Verify, "the resolved commit is on the default branch")
+}
+
+func TestRunVerifyBranchOffTrunk(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		commitBranch: map[string]string{good: "feature"}, // not the default branch
+	})
+
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=actions/checkout\n" +
+			"  - uses: actions/checkout@" + old + " # v1.0.0\n",
+	})
+	on := true
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithVerify(&on))
+	require.NoError(t, err)
+	require.EqualError(t, files[0].Results[0].Verify,
+		"commit "+good+" for 2.0.0 is not on an allowed branch")
+}
+
+func TestRunVerifyBranchRegexDirective(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}, {Name: "release-1.0"}},
+		commitBranch: map[string]string{good: "release-1.0"}, // a release branch, not main
+	})
+
+	// verify-branch= enables the deep check (no run flag) and widens the allowed
+	// set to release branches, so a release-branch commit verifies.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-branch=release-[0-9.]+\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.NoError(t, files[0].Results[0].Verify, "the regex admits the release branch")
 }
 
 // candidate parses tag into a candidate the selection chain can order.

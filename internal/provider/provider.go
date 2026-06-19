@@ -45,6 +45,30 @@ type Digester interface {
 	Digest(ctx context.Context, r Resource, tag string) (string, error)
 }
 
+// Committer is an optional capability for providers that can resolve a specific
+// tag's commit SHA - the peeled commit for an annotated tag. clover uses it under
+// --verify to deep-check an action pin against the tag it claims, including tags
+// off the discovered page or about to be bumped.
+type Committer interface {
+	Commit(ctx context.Context, r Resource, tag string) (string, error)
+}
+
+// Branch is a repository branch: its name and the commit at its tip.
+type Branch struct {
+	Name string
+	Tip  string
+}
+
+// BranchChecker is an optional capability for verifying a commit's branch
+// provenance under --verify: resolving the default branch, listing branches to
+// match an allowed-branch pattern, and testing whether a commit is reachable
+// from a branch. It guards against a tag that points at an off-trunk commit.
+type BranchChecker interface {
+	DefaultBranch(ctx context.Context, r Resource) (string, error)
+	Branches(ctx context.Context, r Resource) ([]Branch, error)
+	Reachable(ctx context.Context, r Resource, branch, commit string) (bool, error)
+}
+
 // Authenticator is an optional capability for providers that need credentials.
 // clover type-asserts for it during the authenticate phase; a provider without it
 // is treated as needing no authentication.

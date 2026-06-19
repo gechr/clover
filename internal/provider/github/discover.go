@@ -163,6 +163,30 @@ func listAll[T any](
 	return all, nil
 }
 
+// Commit resolves a tag to its peeled commit SHA, satisfying provider.Committer.
+// The /commits/{ref} endpoint resolves any ref - including an annotated tag - to
+// the commit it points at, so --verify can check a pin even for a tag off the
+// discovered page.
+func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) (string, error) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", fmt.Errorf("github: invalid resource %T", r)
+	}
+	rest, err := p.client()
+	if err != nil {
+		return "", fmt.Errorf("github: build client: %w", err)
+	}
+
+	var commit struct {
+		SHA string `json:"sha"`
+	}
+	path := fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, tag)
+	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &commit); err != nil {
+		return "", fmt.Errorf("github: resolve commit for %s: %w", tag, err)
+	}
+	return commit.SHA, nil
+}
+
 // tagCommits maps tag name to its peeled commit SHA, for resolving the commit a
 // release points at.
 func tagCommits(

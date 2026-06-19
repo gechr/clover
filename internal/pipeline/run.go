@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -84,6 +86,7 @@ type config struct {
 	prerelease     *bool
 	reporter       progress.Reporter
 	truncationSink func(resource string)
+	verify         *bool
 	workers        int
 }
 
@@ -134,6 +137,11 @@ func WithDeep(deep bool) Option { return func(c *config) { c.deep = deep } }
 func WithTruncationSink(sink func(resource string)) Option {
 	return func(c *config) { c.truncationSink = sink }
 }
+
+// WithVerify overrides the per-directive verify rule for every marker: a non-nil
+// value forces the deep tag-on-branch check on or off run-wide, while nil leaves
+// each directive's own verify/verify-branch setting in force.
+func WithVerify(on *bool) Option { return func(c *config) { c.verify = on } }
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
 func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
@@ -284,6 +292,7 @@ type plan struct {
 	results        []Result
 	tasks          []progress.Task
 	truncationSink func(resource string)
+	verify         *bool
 	workers        int
 }
 
@@ -319,6 +328,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		reporter:       cfg.reporter,
 		results:        results,
 		truncationSink: cfg.truncationSink,
+		verify:         cfg.verify,
 		workers:        cfg.workers,
 	}
 }
@@ -458,7 +468,138 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 	p.results[i].Verify = verifyPin(located, chosen)
+	if p.results[i].Verify == nil && p.deepVerify(m) {
+		p.results[i].Verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
+	}
 	return nil
+}
+
+// deepVerify reports whether the deep tag-on-branch check runs for marker m: the
+// --verify run flag overrides, else the marker's own verify=/verify-branch=.
+func (p *plan) deepVerify(m Marker) bool {
+	if p.verify != nil {
+		return *p.verify
+	}
+	on, _ := m.Directive.Bool(constant.DirectiveVerify)
+	return on || m.Directive.Has(constant.DirectiveVerifyBranch)
+}
+
+// verifyBranch confirms the commit clover resolved for a secure pin is reachable
+// from an allowed branch (default: the repo's default branch; or the
+// verify-branch= regex), guarding against a tag that points at an off-trunk
+// commit. It fails closed. Digest pins and providers without branch provenance
+// are skipped, as is a marker whose target is not a secure pin.
+func (p *plan) verifyBranch(
+	ctx context.Context,
+	prov provider.Provider,
+	resource provider.Resource,
+	located match.Located,
+	chosen model.Candidate,
+	m Marker,
+) error {
+	if located.NeedsDigest() {
+		return nil // a registry digest has no branch provenance
+	}
+	if _, ok := located.(match.SecurePin); !ok {
+		return nil
+	}
+	checker, ok := prov.(provider.BranchChecker)
+	if !ok {
+		return nil
+	}
+
+	commit := chosen.Commit
+	if commit == "" { // the tag was off the discovered page; resolve it directly
+		committer, ok := prov.(provider.Committer)
+		if !ok {
+			return nil
+		}
+		c, err := committer.Commit(ctx, resource, located.Current())
+		if err != nil {
+			return fmt.Errorf("verify: %w", err)
+		}
+		commit = c
+	}
+	if commit == "" {
+		return nil
+	}
+
+	branches, err := p.allowedBranches(ctx, checker, resource, m)
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+	for _, b := range branches {
+		if b.Tip == commit { // fast path: the commit is the branch tip
+			return nil
+		}
+		reachable, err := checker.Reachable(ctx, resource, b.Name, commit)
+		if err != nil {
+			return fmt.Errorf("verify: %w", err)
+		}
+		if reachable {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"commit %s for %s is not on %s",
+		commit, chosen.Version, branchDescription(m),
+	)
+}
+
+// allowedBranches resolves the branches a tag's commit may be reached from: the
+// verify-branch= value (a literal name, or a regex matched against the listed
+// branches), else the repo's default branch.
+func (p *plan) allowedBranches(
+	ctx context.Context,
+	checker provider.BranchChecker,
+	resource provider.Resource,
+	m Marker,
+) ([]provider.Branch, error) {
+	pattern, _ := m.Directive.Get(constant.DirectiveVerifyBranch)
+	switch {
+	case pattern == "":
+		def, err := checker.DefaultBranch(ctx, resource)
+		if err != nil {
+			return nil, err
+		}
+		return []provider.Branch{{Name: def}}, nil
+	case !regexMeta(pattern):
+		return []provider.Branch{{Name: pattern}}, nil // a literal name needs no listing
+	}
+
+	re, err := regexp.Compile("^(?:" + pattern + ")$")
+	if err != nil {
+		return nil, fmt.Errorf("%s %q: %w", constant.DirectiveVerifyBranch, pattern, err)
+	}
+	branches, err := checker.Branches(ctx, resource)
+	if err != nil {
+		return nil, err
+	}
+	var matched []provider.Branch
+	for _, b := range branches {
+		if re.MatchString(b.Name) {
+			matched = append(matched, b)
+		}
+	}
+	if len(matched) == 0 {
+		return nil, fmt.Errorf("no branch matches %s=%s", constant.DirectiveVerifyBranch, pattern)
+	}
+	return matched, nil
+}
+
+// branchDescription names the allowed branches for an error message: the
+// verify-branch= pattern when set, else a plain phrase for the default branch.
+func branchDescription(m Marker) string {
+	if pattern, ok := m.Directive.Get(constant.DirectiveVerifyBranch); ok {
+		return "an allowed branch (" + constant.DirectiveVerifyBranch + "=" + pattern + ")"
+	}
+	return "an allowed branch"
+}
+
+// regexMeta reports whether s carries any regex metacharacter, so a literal
+// branch name can skip both compilation and the branch listing.
+func regexMeta(s string) bool {
+	return strings.ContainsAny(s, `\^$.|?*+()[]{}`)
 }
 
 // verifyPin cross-checks an up-to-date secure pin against the resolved tag: the

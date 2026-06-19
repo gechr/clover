@@ -35,16 +35,16 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config   string "help:\"Path to a `.clover.yaml` config file\" placeholder:\"<path>\" clib:\"terse='Config file'\""
-	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\" clib:\"terse='Skip config'\""
+	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file'\""
+	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                        clib:\"terse='Skip config'\""
 
-	Init    initCmd    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\" clib:\"terse='Scaffold a config'\""
-	Login   loginCmd   `cmd:"" help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"`
-	Run     runCmd     `cmd:"" help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
-	Lint    lintCmd    `cmd:"" help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
-	Format  formatCmd  `cmd:"" help:"Canonicalise directive comments"                             clib:"terse='Format comments'"`
-	Update  updateCmd  `cmd:"" help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"`
-	Version versionCmd `cmd:"" help:"Print version information"                                   clib:"terse='Print version'"`
+	Init    initCmd    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\"             clib:\"terse='Scaffold a config'\""
+	Login   loginCmd   `cmd:""   help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"`
+	Run     runCmd     `cmd:""   help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
+	Lint    lintCmd    `cmd:""   help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
+	Format  formatCmd  `cmd:""   help:"Canonicalise directive comments"                             clib:"terse='Format comments'"`
+	Update  updateCmd  `cmd:""   help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"`
+	Version versionCmd `cmd:""   help:"Print version information"                                   clib:"terse='Print version'"`
 }
 
 // Run parses the command line and dispatches to the chosen mode, returning the

@@ -21,6 +21,9 @@ const (
 	DirectiveSkip     = "skip"     // disable this marker
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
 	DirectiveValue    = "value"    // what a follower projects
+	DirectiveVerify   = "verify"   // deep-verify this marker's secure pin against upstream
+
+	DirectiveVerifyBranch = "verify-branch" // allowed source-branch regex for deep verify (default: the repo's default branch)
 
 	DirectivePattern      = "pattern"       // asset filename glob for value=sha256
 	DirectiveSha256Source = "sha256-source" // how to source a value=sha256 (see constant/value.go)
