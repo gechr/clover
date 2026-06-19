@@ -33,6 +33,14 @@ func TestCompile(t *testing.T) {
 			"1.2.3",
 		},
 		{"dot is literal", "app.<major.minor>", "app.1.27", []string{"major.minor"}, "1.27"},
+		{
+			// <version> matches build metadata, like the smart matcher.
+			"version with build metadata",
+			"img:<version>",
+			"img:1.2.3+build.5",
+			[]string{"version"},
+			"1.2.3+build.5",
+		},
 		{"no match", "<version>", "no version here", nil, ""},
 	}
 

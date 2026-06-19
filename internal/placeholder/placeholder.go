@@ -16,7 +16,7 @@ import (
 // matchRegex maps a token to the regex it matches inside a glob find pattern.
 // hex is match-only (no rendered value); the rest can also render.
 var matchRegex = map[string]string{
-	"version":           `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?`,
+	"version":           `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?(?:\+[0-9A-Za-z.-]+)?`,
 	"major":             `\d+`,
 	"minor":             `\d+`,
 	"patch":             `\d+`,
