@@ -80,11 +80,7 @@ func (p *Provider) registryPage(
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", registryTags{}, fmt.Errorf(
-			"docker: list tags for %s: %s",
-			ref.repository,
-			resp.Status,
-		)
+		return "", registryTags{}, statusErr("list tags for "+ref.repository, resp)
 	}
 
 	var list registryTags

@@ -46,7 +46,7 @@ func (p *Provider) Digest(ctx context.Context, r provider.Resource, tag string) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("docker: head manifest for %s: %s", tag, resp.Status)
+		return "", statusErr("head manifest for "+tag, resp)
 	}
 
 	digest := resp.Header.Get("Docker-Content-Digest")

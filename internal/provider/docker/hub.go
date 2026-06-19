@@ -63,7 +63,7 @@ func (p *Provider) hubPage(ctx context.Context, url, token string) (hubTags, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return hubTags{}, fmt.Errorf("docker: list hub tags: %s", resp.Status)
+		return hubTags{}, statusErr("list hub tags", resp)
 	}
 
 	var page hubTags
@@ -75,19 +75,31 @@ func (p *Provider) hubPage(ctx context.Context, url, token string) (hubTags, err
 
 // hubToken returns a bearer token for the Docker Hub API: the env token, else a
 // JWT minted by logging in with the piggybacked docker credentials, else "" for
-// anonymous access. The JWT is resolved once and shared across the run.
+// anonymous access. The token is resolved once and shared across the run, but a
+// transient login failure is not cached: it leaves the token unresolved so a
+// later caller with a live context can retry rather than being stuck anonymous.
 func (p *Provider) hubToken(ctx context.Context) string {
-	p.hubOnce.Do(func() {
-		cfg := p.resolveAuth(hubAuthHost)
-		switch {
-		case cfg == nil:
-			return
-		case cfg.RegistryToken != "":
-			p.hubJWT = cfg.RegistryToken
-		case cfg.Username != "" && cfg.Password != "":
-			p.hubJWT, _ = p.hubLogin(ctx, cfg.Username, cfg.Password) // anonymous on failure
+	p.hubMu.Lock()
+	defer p.hubMu.Unlock()
+	if p.hubResolved {
+		return p.hubJWT
+	}
+
+	cfg := p.resolveAuth(hubAuthHost)
+	switch {
+	case cfg != nil && cfg.RegistryToken != "":
+		p.hubJWT = cfg.RegistryToken
+	case cfg != nil && cfg.Username != "" && cfg.Password != "":
+		jwt, err := p.hubLogin(ctx, cfg.Username, cfg.Password)
+		if err != nil {
+			return "" // transient: stay unresolved so a later live context retries
 		}
-	})
+		p.hubJWT = jwt
+	}
+
+	// No usable credentials (or a token settled above) is final: missing creds
+	// will not appear mid-process, so anonymous access need not be retried.
+	p.hubResolved = true
 	return p.hubJWT
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/provider/docker"
+	xhttp "github.com/gechr/x/http"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,50 @@ func jsonResponse(req *http.Request, body string) *http.Response {
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Request:    req,
 	}
+}
+
+func TestHubTokenRetriesAfterTransientLoginFailure(t *testing.T) {
+	t.Parallel()
+
+	var logins int
+	var tagsAuth []string
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/users/login"):
+			logins++
+			if logins == 1 {
+				status := xhttp.Status(http.StatusInternalServerError)
+				return &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Status:     status,
+					Body:       http.NoBody,
+					Request:    req,
+				}, nil
+			}
+			return jsonResponse(req, `{"token":"jwt"}`), nil
+		default:
+			tagsAuth = append(tagsAuth, req.Header.Get("Authorization"))
+			return jsonResponse(req, `{"results":[{"name":"1.0.0"}]}`), nil
+		}
+	})
+	// docker login credentials live under the Hub auth host.
+	keychain := hostKeychain{
+		host: "index.docker.io",
+		cfg:  authn.AuthConfig{Username: "u", Password: "p"},
+	}
+	p := docker.New(docker.WithTransport(transport), docker.WithKeychain(keychain))
+
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "nginx"}))
+	require.NoError(t, err)
+
+	_, err = p.Discover(t.Context(), res) // login fails transiently, falls back to anonymous
+	require.NoError(t, err)
+	_, err = p.Discover(t.Context(), res) // retries login, now succeeds
+	require.NoError(t, err)
+
+	require.Equal(t, 2, logins, "the transient failure is not cached, so login is retried")
+	require.Equal(t, []string{"", "Bearer jwt"}, tagsAuth,
+		"first request is anonymous, the retry authenticates with the minted token")
 }
 
 func TestNameAndKeys(t *testing.T) {
@@ -126,15 +171,23 @@ func TestResource(t *testing.T) {
 	}
 }
 
-func TestAuthenticateAnonymous(t *testing.T) {
+func TestStatusErrAddsHintOnAuthFailure(t *testing.T) {
 	t.Parallel()
 
-	err := docker.New(anon()).Authenticate(t.Context())
-	require.ErrorContains(t, err, "anonymous")
-}
+	// A rate-limited tags list surfaces the auth hint, at the failing registry.
+	status := xhttp.Status(http.StatusTooManyRequests)
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusTooManyRequests,
+			Status:     status,
+			Body:       http.NoBody,
+			Request:    req,
+		}, nil
+	})
+	p := docker.New(docker.WithTransport(transport), anon())
 
-func TestAuthenticateWithEnvToken(t *testing.T) {
-	t.Setenv("CLOVER_DOCKER_TOKEN", "secret")
-
-	require.NoError(t, docker.New(anon()).Authenticate(t.Context()))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "nginx"}))
+	require.NoError(t, err)
+	_, err = p.Discover(t.Context(), res)
+	require.EqualError(t, err, "docker: list hub tags: "+status+" ("+docker.AuthHint+")")
 }

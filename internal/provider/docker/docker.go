@@ -2,7 +2,6 @@ package docker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -20,10 +19,13 @@ import (
 // credential source, deliberately not DOCKER_* which clash with other tools.
 const tokenEnv = "CLOVER_DOCKER_TOKEN"
 
-// errAnonymous reports that no Docker credentials were found, so requests fall
-// back to anonymous (rate-limited) access. It is informational, not fatal:
-// public images still resolve.
-var errAnonymous = errors.New("no Docker credentials; using anonymous access")
+// authHint guides the user to authenticate, surfaced on a denied or rate-limited
+// response - the usual cause, since anonymous access has the tightest limits.
+// Docker auth is registry-scoped, so the hint lands on the actual failing
+// request rather than as a coarse, provider-wide warning that cannot know which
+// registry a run used.
+const authHint = "run `docker login` (or the registry's), or set CLOVER_DOCKER_TOKEN, " +
+	"for higher rate limits and private images"
 
 // Directive keys docker accepts.
 const (
@@ -52,8 +54,9 @@ type Provider struct {
 	once   sync.Once
 	client *http.Client
 
-	hubOnce sync.Once
-	hubJWT  string
+	hubMu       sync.Mutex
+	hubJWT      string
+	hubResolved bool // true once the Hub token is settled, so a transient login failure can retry
 }
 
 // Option configures a [Provider].
@@ -110,24 +113,6 @@ func (p *Provider) Describe(r provider.Resource) string {
 	return ref.String()
 }
 
-// Authenticate reports whether a credential is available, checking the env
-// override and the docker login stored for Docker Hub (the common case). It
-// performs no network call and never blocks on a prompt. Absence is reported as
-// errAnonymous rather than a hard failure, since anonymous reads still work
-// (just rate-limited).
-func (p *Provider) Authenticate(context.Context) error {
-	if p.resolveAuth(hubAuthHost) != nil {
-		return nil
-	}
-	return errAnonymous
-}
-
-// AuthHint returns how to authenticate when no credential is found.
-func (p *Provider) AuthHint() string {
-	return "run `docker login` (or the registry's), or set CLOVER_DOCKER_TOKEN, " +
-		"for higher rate limits and private images"
-}
-
 // resolveAuth resolves credentials for a registry host, first the
 // CLOVER_DOCKER_TOKEN env var (a ready bearer token), then the docker login the
 // keychain holds. It returns nil for anonymous access.
@@ -171,6 +156,18 @@ func (p *Provider) httpClient() *http.Client {
 // do issues a GET, attaching a bearer token when one is given.
 func (p *Provider) do(ctx context.Context, url, bearer string) (*http.Response, error) {
 	return p.send(ctx, http.MethodGet, url, bearer, "")
+}
+
+// statusErr builds the error for a non-OK registry response. An auth or
+// rate-limit status (401/403/429) appends authHint, so the guidance lands at the
+// moment it is actionable for the registry actually in use.
+func statusErr(action string, resp *http.Response) error {
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusTooManyRequests:
+		return fmt.Errorf("docker: %s: %s (%s)", action, resp.Status, authHint)
+	default:
+		return fmt.Errorf("docker: %s: %s", action, resp.Status)
+	}
 }
 
 // send issues a request, attaching an Accept header and bearer token when given.
