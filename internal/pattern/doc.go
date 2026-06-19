@@ -1,2 +1,2 @@
-// Package pattern provides typed match patterns: glob (bare = exact) and /regex/, behind one Matches predicate reused by include/exclude, rewriter conditions, and config paths. Pure.
+// Package pattern is clover's one matching grammar, shared by every directive that accepts a pattern (include/exclude, verify-branch, checksum, find): a value bracketed by / is a strict RE2 regex; any other value is a glob with *, ?, and <placeholders>. A glob exposes two operations from the same source - Matches (a whole-string filter via gobwas/glob) and capture (the find/replace path, where each <token> becomes a group reachable through Regexp/Tokens). Pure.
 package pattern

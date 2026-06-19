@@ -9,8 +9,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
-	"github.com/gechr/clover/internal/placeholder"
-	"github.com/gechr/clover/internal/regexlit"
+	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/version"
 )
 
@@ -27,22 +26,15 @@ type FindReplace struct {
 	replace string
 }
 
-// NewFindReplace compiles a find/replace pair. A /regex/ find is strict; any
-// other find is a glob with placeholders.
+// NewFindReplace compiles a find/replace pair through the shared pattern grammar:
+// a /regex/ find is strict (nil tokens), any other find is a glob with
+// placeholders.
 func NewFindReplace(find, replace string) (FindReplace, error) {
-	if body, ok := regexlit.Body(find); ok {
-		re, err := regexp.Compile(body)
-		if err != nil {
-			return FindReplace{}, fmt.Errorf("find: %w", err)
-		}
-		return FindReplace{find: re, replace: replace}, nil
-	}
-
-	re, tokens, err := placeholder.Compile(find)
+	pat, err := pattern.Compile(find)
 	if err != nil {
-		return FindReplace{}, err
+		return FindReplace{}, fmt.Errorf("find: %w", err)
 	}
-	return FindReplace{find: re, tokens: tokens, replace: replace}, nil
+	return FindReplace{find: pat.Regexp(), tokens: pat.Tokens(), replace: replace}, nil
 }
 
 // Locate matches find against the line: the whole match is the span to rewrite,
@@ -120,8 +112,8 @@ func (fr FindReplace) region(
 	candidate model.Candidate,
 ) (string, error) {
 	if fr.replace != "" {
-		out := placeholder.Expand(fr.replace, fr.values(line, m, raw, candidate))
-		if placeholder.HasToken(out) {
+		out := pattern.Expand(fr.replace, fr.values(line, m, raw, candidate))
+		if pattern.HasToken(out) {
 			return "", fmt.Errorf("replace %q references an unavailable token", fr.replace)
 		}
 		return out, nil
