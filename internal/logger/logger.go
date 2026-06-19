@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/style"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/x/human"
 )
@@ -24,6 +25,10 @@ func Init() {
 	// escaping; the default preference order is used.
 	clog.SetSmartQuotes(true)
 
+	// Drop empty fields (empty strings, nils) so report lines carry only what
+	// matters, while zero counts still show in the summary.
+	clog.SetOmitEmpty(true)
+
 	// Start from the current formats so the env-loaded hyperlink formats survive.
 	formats := clog.Default.FieldFormats()
 	formats.DurationFormat = human.FormatDuration
@@ -34,6 +39,9 @@ func Init() {
 	styles := clog.DefaultStyles()
 	styles.Keys[field.From] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
 	styles.Keys[field.To] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))   // green
+	// Dim the quote delimiters while keeping each value's own colour, so the
+	// quoted text stands out from its surrounding quotes.
+	styles.FieldQuote = &style.QuoteStyle{Style: lipgloss.NewStyle().Faint(true), Inherit: true}
 	clog.SetStyles(styles)
 }
 
