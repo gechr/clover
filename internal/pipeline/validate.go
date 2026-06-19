@@ -111,8 +111,8 @@ func (p *plan) checkTrack(m Marker) error {
 	if err != nil {
 		return err
 	}
-	if _, err := prov.Resource(m.Directive); err != nil {
-		return err
+	if _, resourceErr := prov.Resource(m.Directive); resourceErr != nil {
+		return resourceErr
 	}
 	_, located, err := p.locate(m)
 	if err != nil {
