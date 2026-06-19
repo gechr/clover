@@ -20,6 +20,10 @@ const gradientMax = 20 * time.Second
 func Init() {
 	clog.SetOutput(clog.Stderr(clog.ColorAuto))
 
+	// Pick a quote delimiter per value (" then ' then `) so quoted fields avoid
+	// escaping; the default preference order is used.
+	clog.SetSmartQuotes(true)
+
 	// Start from the current formats so the env-loaded hyperlink formats survive.
 	formats := clog.Default.FieldFormats()
 	formats.DurationFormat = human.FormatDuration
