@@ -141,17 +141,17 @@ func TestResource(t *testing.T) {
 		{
 			name:    "repository is required",
 			pairs:   []directive.KV{{Key: "registry", Value: "ghcr.io"}},
-			wantErr: "repository is required",
+			wantErr: "docker: repository is required",
 		},
 		{
 			name:    "whitespace is rejected",
 			pairs:   []directive.KV{{Key: "repository", Value: "ng inx"}},
-			wantErr: "must not contain whitespace",
+			wantErr: `docker: repository "ng inx" must not contain whitespace`,
 		},
 		{
 			name:    "a host in the repository is rejected",
 			pairs:   []directive.KV{{Key: "repository", Value: "ghcr.io://owner/img"}},
-			wantErr: "put the registry host in registry",
+			wantErr: `docker: put the registry host in registry, not repository (got "ghcr.io://owner/img")`,
 		},
 	}
 
@@ -162,7 +162,7 @@ func TestResource(t *testing.T) {
 
 			res, err := p.Resource(directiveOf(tt.pairs...))
 			if tt.wantErr != "" {
-				require.ErrorContains(t, err, tt.wantErr)
+				require.EqualError(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)

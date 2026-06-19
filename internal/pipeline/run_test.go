@@ -573,7 +573,11 @@ func TestRunUnresolvedAutoErrors(t *testing.T) {
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.Len(t, files, 1)
-	require.ErrorContains(t, files[0].Results[0].Err, "could not infer a provider")
+	require.EqualError(
+		t,
+		files[0].Results[0].Err,
+		"could not infer a provider for the target line; set provider= explicitly",
+	)
 	require.False(t, files[0].Results[0].Changed)
 }
 

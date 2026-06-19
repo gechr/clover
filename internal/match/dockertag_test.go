@@ -74,8 +74,8 @@ func TestDockerTagLocateErrors(t *testing.T) {
 		line    string
 		wantErr string
 	}{
-		{"no tag", "FROM nginx", "no tag"},
-		{"non-version tag", "FROM nginx:latest", "not a single version"},
+		{"no tag", "FROM nginx", "image has no tag to anchor the version"},
+		{"non-version tag", "FROM nginx:latest", "image tag is not a single version"},
 	}
 
 	rw := match.NewDockerTag()
@@ -84,7 +84,7 @@ func TestDockerTagLocateErrors(t *testing.T) {
 			t.Parallel()
 
 			_, err := rw.Locate(tt.line)
-			require.ErrorContains(t, err, tt.wantErr)
+			require.EqualError(t, err, tt.wantErr)
 		})
 	}
 }

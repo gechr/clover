@@ -72,10 +72,14 @@ func TestDockerPinLocateErrors(t *testing.T) {
 		line    string
 		wantErr string
 	}{
-		{"not pinned", "FROM nginx:1.27", "not digest-pinned"},
-		{"short digest", "FROM nginx:1.27@sha256:abc", "full sha256 digest"},
-		{"non-sha256", "FROM nginx:1.27@md5:" + strings.Repeat("a", 64), "must be sha256"},
-		{"no tag", "FROM nginx@" + digest, "no tag"},
+		{"not pinned", "FROM nginx:1.27", "image is not digest-pinned by @sha256"},
+		{"short digest", "FROM nginx:1.27@sha256:abc", "image pin requires a full sha256 digest"},
+		{
+			"non-sha256",
+			"FROM nginx:1.27@md5:" + strings.Repeat("a", 64),
+			"image pin digest must be sha256",
+		},
+		{"no tag", "FROM nginx@" + digest, "image has no tag to anchor the version"},
 	}
 
 	rw := match.NewDockerPin()
@@ -84,7 +88,7 @@ func TestDockerPinLocateErrors(t *testing.T) {
 			t.Parallel()
 
 			_, err := rw.Locate(tt.line)
-			require.ErrorContains(t, err, tt.wantErr)
+			require.EqualError(t, err, tt.wantErr)
 		})
 	}
 }
@@ -98,5 +102,10 @@ func TestDockerPinRenderRequiresDigest(t *testing.T) {
 	require.NoError(t, err)
 
 	_, _, err = rw.Render(line, located, model.Candidate{Version: "1.29"}) // no digest
-	require.ErrorContains(t, err, "no sha256 digest", "never half-updates")
+	require.EqualError(
+		t,
+		err,
+		`candidate has no sha256 digest to pin, got ""`,
+		"never half-updates",
+	)
 }

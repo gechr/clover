@@ -58,11 +58,11 @@ func TestHashLocateErrors(t *testing.T) {
 	rw := match.NewHash()
 
 	_, err := rw.Locate("VERSION=1.2.3")
-	require.ErrorContains(t, err, "no commit or sha256")
+	require.EqualError(t, err, "no commit or sha256 hash on the target line")
 
 	twoHashes := "a=" + strings.Repeat("a", 64) + " b=" + strings.Repeat("b", 64)
 	_, err = rw.Locate(twoHashes)
-	require.ErrorContains(t, err, "ambiguous")
+	require.EqualError(t, err, "multiple hashes on the line; target is ambiguous")
 }
 
 func TestForRoutesFollowerHashes(t *testing.T) {

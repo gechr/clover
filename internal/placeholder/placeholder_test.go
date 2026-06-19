@@ -68,7 +68,7 @@ func TestCompileErrors(t *testing.T) {
 	t.Parallel()
 
 	_, _, err := placeholder.Compile("<bogus>")
-	require.ErrorContains(t, err, "unknown token <bogus>")
+	require.EqualError(t, err, "placeholder: unknown token <bogus>")
 
 	// A stray, unclosed angle bracket is literal, not an error.
 	_, _, err = placeholder.Compile("a < b")

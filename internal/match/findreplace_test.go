@@ -89,7 +89,7 @@ func TestFindReplaceLocateNoMatch(t *testing.T) {
 	fr, err := match.NewFindReplace("catalyst-<version>", "")
 	require.NoError(t, err)
 	_, err = fr.Locate("nothing here")
-	require.ErrorContains(t, err, "did not match")
+	require.EqualError(t, err, "find pattern did not match the target line")
 }
 
 func TestFindReplaceUnavailableToken(t *testing.T) {
@@ -100,5 +100,5 @@ func TestFindReplaceUnavailableToken(t *testing.T) {
 	located, err := fr.Locate("v1.2.3")
 	require.NoError(t, err)
 	_, _, err = fr.Render("v1.2.3", located, cand(t, "1.5.0", "")) // no digest
-	require.ErrorContains(t, err, "unavailable token")
+	require.EqualError(t, err, `replace "<version>-<sha256>" references an unavailable token`)
 }

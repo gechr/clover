@@ -11,6 +11,7 @@ import (
 
 	"github.com/gechr/clover/internal/checksum"
 	"github.com/gechr/clover/internal/model"
+	xhttp "github.com/gechr/x/http"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,7 +95,9 @@ func TestResolveVerify(t *testing.T) {
 	}
 	_, err = checksum.Resolve(t.Context(), client,
 		checksum.Request{Source: "verify", Assets: disagree, Pattern: "*linux_amd64*"})
-	require.ErrorContains(t, err, "disagree", "verify fails loud when the sources differ")
+	require.EqualError(t, err,
+		"checksum: digest "+sumB+" and checksums file "+sumA+" disagree",
+		"verify fails loud when the sources differ")
 }
 
 func TestResolveAutoTerminalOnExplicitURLFailure(t *testing.T) {
@@ -109,7 +112,7 @@ func TestResolveAutoTerminalOnExplicitURLFailure(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusInternalServerError,
-				Status:     "500 Internal Server Error",
+				Status:     xhttp.Status(http.StatusInternalServerError),
 				Body:       http.NoBody,
 				Request:    req,
 			}, nil
@@ -120,7 +123,11 @@ func TestResolveAutoTerminalOnExplicitURLFailure(t *testing.T) {
 	_, err := checksum.Resolve(t.Context(), client, checksum.Request{
 		Source: "auto", Assets: assets, Pattern: "*linux_amd64*", URL: "http://x/sums.txt",
 	})
-	require.ErrorContains(t, err, "500")
+	require.EqualError(
+		t,
+		err,
+		"checksum: get http://x/sums.txt: "+xhttp.Status(http.StatusInternalServerError),
+	)
 }
 
 func TestFetchRejectsOversizeFile(t *testing.T) {
@@ -128,7 +135,8 @@ func TestFetchRejectsOversizeFile(t *testing.T) {
 
 	huge := sumA + "  tool.tar.gz\n" + strings.Repeat("#", 1<<20)
 	_, err := checksum.Fetch(t.Context(), serveBody(huge), "http://x/sums.txt", "1.0.0", "")
-	require.ErrorContains(t, err, "exceeds", "an over-cap checksum file errors, not truncates")
+	require.EqualError(t, err, "checksum: http://x/sums.txt exceeds the 1048576-byte limit",
+		"an over-cap checksum file errors, not truncates")
 }
 
 func TestResolveMatchErrors(t *testing.T) {
@@ -140,9 +148,9 @@ func TestResolveMatchErrors(t *testing.T) {
 	}
 	_, err := checksum.Resolve(t.Context(), failClient(t),
 		checksum.Request{Source: "digest", Assets: assets, Pattern: "*linux*"})
-	require.ErrorContains(t, err, "matched 2 assets")
+	require.EqualError(t, err, `checksum: pattern "*linux*" matched 2 assets`)
 
 	_, err = checksum.Resolve(t.Context(), failClient(t),
 		checksum.Request{Source: "digest", Assets: assets, Pattern: "*windows*"})
-	require.ErrorContains(t, err, "no asset matched")
+	require.EqualError(t, err, `checksum: no asset matched pattern "*windows*"`)
 }

@@ -80,14 +80,19 @@ func TestFetchErrors(t *testing.T) {
 	multi := sumA + "  a_linux.tar.gz\n" + sumB + "  b_linux.tar.gz\n"
 
 	_, err := checksum.Fetch(t.Context(), server(t, multi, nil), "u", "1", "")
-	require.ErrorContains(t, err, "set pattern=", "ambiguous without a pattern")
+	require.EqualError(
+		t,
+		err,
+		"checksum: 2 entries, set pattern= to choose one",
+		"ambiguous without a pattern",
+	)
 
 	_, err = checksum.Fetch(t.Context(), server(t, multi, nil), "u", "1", "*windows*")
-	require.ErrorContains(t, err, "no asset matched")
+	require.EqualError(t, err, `checksum: no asset matched pattern "*windows*"`)
 
 	_, err = checksum.Fetch(t.Context(), server(t, multi, nil), "u", "1", "*linux*")
-	require.ErrorContains(t, err, "matched 2 assets")
+	require.EqualError(t, err, `checksum: pattern "*linux*" matched 2 assets`)
 
 	_, err = checksum.Fetch(t.Context(), server(t, "not a checksum file\n", nil), "u", "1", "")
-	require.ErrorContains(t, err, "no sha256 entries")
+	require.EqualError(t, err, "checksum: no sha256 entries at u")
 }
