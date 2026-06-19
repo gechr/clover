@@ -120,6 +120,26 @@ func TestScanSkipsConfiguredExcludes(t *testing.T) {
 	require.Equal(t, "keep.yaml", filepath.Base(files[0].Path))
 }
 
+func TestScanExcludeDoubleStarMatchesNestedDirs(t *testing.T) {
+	dir := write(t, map[string]string{
+		"src/service/keep.yaml": "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
+		"src/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
+			"version: 1.0.0\n",
+		"tools/build/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
+			"version: 1.0.0\n",
+	})
+	t.Chdir(dir)
+
+	files, err := pipeline.Scan(
+		context.Background(),
+		[]string{"."},
+		pipeline.WithExclude([]string{"**/generated/**"}),
+	)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "keep.yaml", filepath.Base(files[0].Path))
+}
+
 func TestRunNoCandidateIsSentinel(t *testing.T) {
 	provider.Register(fakeProvider{
 		name:       "nomatch",
