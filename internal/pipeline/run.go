@@ -383,8 +383,9 @@ func lookupProvider(name string) (provider.Provider, error) {
 		return prov, nil
 	}
 	if name == constant.ProviderAuto {
-		return nil, errors.New(
-			"could not infer a provider for the target line; set provider= explicitly",
+		return nil, fmt.Errorf(
+			"could not infer a provider for the target line; set %s= explicitly",
+			constant.DirectiveProvider,
 		)
 	}
 	return nil, fmt.Errorf("unknown provider %q", name)
@@ -506,7 +507,7 @@ func followerCandidate(value, resolved string) model.Candidate {
 	case constant.ValueCommit:
 		c.Commit = resolved
 	case constant.ValueSha256:
-		c.Digest = "sha256:" + resolved
+		c.Digest = constant.DigestSha256 + resolved
 	default:
 		c.Semver, _ = version.Parse(resolved)
 	}
@@ -575,7 +576,11 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 	replace, hasReplace := m.Directive.Get(constant.DirectiveReplace)
 	if !hasFind {
 		if hasReplace {
-			return nil, errors.New("replace= needs find=")
+			return nil, fmt.Errorf(
+				"%s= needs %s=",
+				constant.DirectiveReplace,
+				constant.DirectiveFind,
+			)
 		}
 		return match.For(match.Context{
 			Path:     m.File,

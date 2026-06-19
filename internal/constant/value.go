@@ -19,3 +19,6 @@ const (
 	Sha256Download  = "download"  // download the asset and hash it
 	Sha256Verify    = "verify"    // require the digest and checksums file to agree
 )
+
+// DigestSha256 is the algorithm prefix for a sha256 content digest ("sha256:<hex>").
+const DigestSha256 = "sha256:"

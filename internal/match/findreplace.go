@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/placeholder"
 	"github.com/gechr/clover/internal/regexlit"
@@ -181,7 +182,7 @@ func resolved(located string, candidate model.Candidate) map[string]string {
 	if candidate.Commit != "" {
 		vals["commit"] = candidate.Commit
 	}
-	if d, ok := strings.CutPrefix(candidate.Digest, "sha256:"); ok {
+	if d, ok := strings.CutPrefix(candidate.Digest, constant.DigestSha256); ok {
 		vals["sha256"] = d
 	}
 	return vals

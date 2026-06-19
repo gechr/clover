@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/version"
 	xstrings "github.com/gechr/x/strings"
 )
 
-const (
-	digestAlgo   = "sha256:"
-	digestHexLen = 64
-)
+const digestHexLen = 64
 
 // DockerPin rewrites a digest-pinned image reference, where one resolved
 // candidate drives two spans on the same line:
@@ -38,10 +36,10 @@ func (DockerPin) Locate(line string) (Located, error) {
 	}
 
 	rest := line[at+1:]
-	if !strings.HasPrefix(rest, digestAlgo) {
+	if !strings.HasPrefix(rest, constant.DigestSha256) {
 		return nil, errors.New("image pin digest must be sha256")
 	}
-	hexStart := at + 1 + len(digestAlgo)
+	hexStart := at + 1 + len(constant.DigestSha256)
 	hexEnd := hexStart
 	for hexEnd < len(line) && xstrings.IsHexChar(rune(line[hexEnd])) {
 		hexEnd++
@@ -103,6 +101,6 @@ func (l dockerPinLocated) Render(line string, candidate model.Candidate) (string
 
 // isDigest reports whether s is a full sha256:<64-hex> content digest.
 func isDigest(s string) bool {
-	rest, ok := strings.CutPrefix(s, digestAlgo)
+	rest, ok := strings.CutPrefix(s, constant.DigestSha256)
 	return ok && xstrings.IsSHA256(rest)
 }

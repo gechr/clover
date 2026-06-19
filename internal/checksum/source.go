@@ -76,7 +76,7 @@ func digest(req Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum, ok := strings.CutPrefix(asset.Digest, "sha256:")
+	sum, ok := strings.CutPrefix(asset.Digest, constant.DigestSha256)
 	if !ok || !xstrings.IsSHA256(sum) {
 		return "", fmt.Errorf("checksum: asset %q has no sha256 digest", asset.Name)
 	}
