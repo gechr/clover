@@ -249,14 +249,25 @@ func scanRoots(
 // ignoreFunc combines the ignore-file matcher with the configured exclude globs:
 // a path is skipped if either rejects it.
 func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bool {
+	exclude = validExcludes(exclude)
 	return func(path string, isDir bool) bool {
 		for _, glob := range exclude {
-			if ok, _ := doublestar.Match(glob, path); ok {
+			if doublestar.MatchUnvalidated(glob, path) {
 				return true
 			}
 		}
 		return matcher.Ignore(path, isDir)
 	}
+}
+
+func validExcludes(globs []string) []string {
+	valid := make([]string, 0, len(globs))
+	for _, glob := range globs {
+		if doublestar.ValidatePattern(glob) {
+			valid = append(valid, glob)
+		}
+	}
+	return valid
 }
 
 // build scans roots and binds the discovered directives into a plan ready for

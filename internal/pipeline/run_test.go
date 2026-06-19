@@ -103,6 +103,23 @@ func TestRunDeepReachesDiscover(t *testing.T) {
 	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
 }
 
+func TestScanSkipsConfiguredExcludes(t *testing.T) {
+	dir := write(t, map[string]string{
+		"keep.yaml":         "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
+		"ignored/drop.yaml": "# clover: provider=github repository=drop/repo\nversion: 1.0.0\n",
+	})
+	t.Chdir(dir)
+
+	files, err := pipeline.Scan(
+		context.Background(),
+		[]string{"."},
+		pipeline.WithExclude([]string{"ignored/**", "["}),
+	)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "keep.yaml", filepath.Base(files[0].Path))
+}
+
 func TestRunNoCandidateIsSentinel(t *testing.T) {
 	provider.Register(fakeProvider{
 		name:       "nomatch",
