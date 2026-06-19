@@ -50,15 +50,40 @@ func NewFindReplace(find, replace string) (FindReplace, error) {
 func (fr FindReplace) Locate(line string) (Located, error) {
 	m := fr.find.FindStringSubmatchIndex(line)
 	if m == nil {
-		return Located{}, errors.New("find pattern did not match the target line")
+		return nil, errors.New("find pattern did not match the target line")
 	}
 	value := line[fr.anchor(m, 0):fr.anchor(m, 1)]
 	semver, _ := version.Parse(value)
-	return Located{
-		Raw:    value,
-		Semver: semver,
-		token:  Token{Span: Span{Start: m[0], End: m[1]}},
+	return findReplaceLocated{
+		anchored: anchored{raw: value, semver: semver},
+		fr:       fr,
+		match:    m,
 	}, nil
+}
+
+// findReplaceLocated carries the match indices from Locate, so Render rewrites
+// the matched region without re-running the regex, plus the rewriter that holds
+// the replace template and token names.
+type findReplaceLocated struct {
+	anchored
+
+	fr    FindReplace
+	match []int
+}
+
+// Render rewrites the matched region: in place per captured token, or from the
+// replace template when one is set.
+func (l findReplaceLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
+	m := l.match
+	if m[0] < 0 || m[1] > len(line) {
+		return "", false, errors.New("located span no longer fits the line")
+	}
+	region, err := l.fr.region(line, m, l.raw, candidate)
+	if err != nil {
+		return "", false, err
+	}
+	newLine := line[:m[0]] + region + line[m[1]:]
+	return newLine, newLine != line, nil
 }
 
 // anchor returns the start (end=0) or end (end=1) offset of the value used as the
@@ -86,39 +111,15 @@ func (fr FindReplace) versionGroup() int {
 	return 0
 }
 
-// Render rewrites the matched region: in place per captured token, or from the
-// replace template when one is set.
-func (fr FindReplace) Render(
-	line string,
-	located Located,
-	candidate model.Candidate,
-) (string, bool, error) {
-	span := located.token.Span
-	if span.Start < 0 || span.End > len(line) {
-		return "", false, errors.New("located span no longer fits the line")
-	}
-	m := fr.find.FindStringSubmatchIndex(line)
-	if m == nil {
-		return "", false, errors.New("find pattern no longer matches the line")
-	}
-
-	region, err := fr.region(line, m, located, candidate)
-	if err != nil {
-		return "", false, err
-	}
-	newLine := line[:m[0]] + region + line[m[1]:]
-	return newLine, newLine != line, nil
-}
-
 // region builds the new content for the matched span.
 func (fr FindReplace) region(
 	line string,
 	m []int,
-	located Located,
+	raw string,
 	candidate model.Candidate,
 ) (string, error) {
 	if fr.replace != "" {
-		out := placeholder.Expand(fr.replace, fr.values(line, m, located, candidate))
+		out := placeholder.Expand(fr.replace, fr.values(line, m, raw, candidate))
 		if placeholder.HasToken(out) {
 			return "", fmt.Errorf("replace %q references an unavailable token", fr.replace)
 		}
@@ -153,10 +154,10 @@ func (fr FindReplace) region(
 func (fr FindReplace) values(
 	line string,
 	m []int,
-	located Located,
+	raw string,
 	candidate model.Candidate,
 ) map[string]string {
-	vals := resolved(located.Raw, candidate)
+	vals := resolved(raw, candidate)
 	for i, t := range fr.tokens {
 		if _, ok := vals[t]; ok {
 			continue

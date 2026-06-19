@@ -3,8 +3,6 @@ package match
 import (
 	"errors"
 	"strings"
-
-	"github.com/gechr/clover/internal/version"
 )
 
 // DockerTag rewrites a tag-only image reference, where the version is the tag of
@@ -17,8 +15,9 @@ import (
 // an ECR account id, or a region like us-east-1 are all version-shaped and would
 // make the line ambiguous. Instead it anchors on the image reference, taking the
 // tag as the last colon-segment after the last slash, so only the tag is read.
-// Rendering is the smart restyle, so DockerTag embeds [Smart] for Render.
-type DockerTag struct{ Smart }
+// The located tag re-styles exactly like a smart token, so Locate returns a
+// smartLocated.
+type DockerTag struct{}
 
 // NewDockerTag returns the docker tag-only rewriter (stateless value, like Smart).
 func NewDockerTag() DockerTag { return DockerTag{} }
@@ -28,14 +27,9 @@ func NewDockerTag() DockerTag { return DockerTag{} }
 func (DockerTag) Locate(line string) (Located, error) {
 	token, err := imageTag(line)
 	if err != nil {
-		return Located{}, err
+		return nil, err
 	}
-	semver, _ := version.Parse(token.Core)
-	return Located{
-		Raw:    line[token.Span.Start:token.Span.End],
-		Semver: semver,
-		token:  token,
-	}, nil
+	return locatedToken(line, token), nil
 }
 
 // imageTag locates the version token in the tag of a docker image reference

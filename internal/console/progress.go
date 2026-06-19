@@ -33,7 +33,7 @@ func New(ctx context.Context, logger *clog.Logger) *Reporter {
 // Clover comments were found at all.
 func (r *Reporter) Discovered(scanned, files, comments int) {
 	if comments == 0 {
-		r.logger.Warn().Symbol("💔").Int(field.Scanned, scanned).Msg("No Clover comments found")
+		r.logger.Warn().Symbol("🫥").Int(field.Scanned, scanned).Msg("No Clover comments found")
 		return
 	}
 	r.logger.Info().

@@ -52,10 +52,10 @@ func TestDockerPinRender(t *testing.T) {
 
 			located, err := rw.Locate(tt.line)
 			require.NoError(t, err)
-			require.Equal(t, tt.raw, located.Raw)
+			require.Equal(t, tt.raw, located.Current())
 			require.True(t, located.NeedsDigest())
 
-			out, changed, err := rw.Render(tt.line, located, tt.candidate)
+			out, changed, err := located.Render(tt.line, tt.candidate)
 			require.NoError(t, err)
 			require.True(t, changed)
 			require.Equal(t, tt.want, out)
@@ -101,7 +101,7 @@ func TestDockerPinRenderRequiresDigest(t *testing.T) {
 	located, err := rw.Locate(line)
 	require.NoError(t, err)
 
-	_, _, err = rw.Render(line, located, model.Candidate{Version: "1.29"}) // no digest
+	_, _, err = located.Render(line, model.Candidate{Version: "1.29"}) // no digest
 	require.EqualError(
 		t,
 		err,

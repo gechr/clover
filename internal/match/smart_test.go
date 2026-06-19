@@ -33,7 +33,7 @@ func TestSmartLocate(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tt.wantRaw, located.Raw)
+			require.Equal(t, tt.wantRaw, located.Current())
 		})
 	}
 }
@@ -113,15 +113,10 @@ func TestSmartRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			smart := match.NewSmart()
-			located, err := smart.Locate(tt.line)
+			located, err := match.NewSmart().Locate(tt.line)
 			require.NoError(t, err)
 
-			got, changed, err := smart.Render(
-				tt.line,
-				located,
-				model.Candidate{Version: tt.resolved},
-			)
+			got, changed, err := located.Render(tt.line, model.Candidate{Version: tt.resolved})
 			require.NoError(t, err)
 			require.Equal(t, tt.wantLine, got)
 			require.Equal(t, tt.wantChanged, changed)

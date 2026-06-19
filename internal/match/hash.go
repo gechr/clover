@@ -43,18 +43,29 @@ func (Hash) Locate(line string) (Located, error) {
 
 	switch len(spans) {
 	case 0:
-		return Located{}, errors.New("no commit or sha256 hash on the target line")
+		return nil, errors.New("no commit or sha256 hash on the target line")
 	case 1:
-		return Located{Raw: line[spans[0].Start:spans[0].End], token: Token{Span: spans[0]}}, nil
+		return hashLocated{
+			anchored: anchored{raw: line[spans[0].Start:spans[0].End]},
+			span:     spans[0],
+		}, nil
 	default:
-		return Located{}, errors.New("multiple hashes on the line; target is ambiguous")
+		return nil, errors.New("multiple hashes on the line; target is ambiguous")
 	}
+}
+
+// hashLocated is a single commit- or sha256-length hex span a follower swaps for
+// its resolved value. It carries no semver - the value is spliced verbatim.
+type hashLocated struct {
+	anchored
+
+	span Span
 }
 
 // Render splices the resolved value (carried in Candidate.Version) over the
 // located hex span.
-func (Hash) Render(line string, located Located, candidate model.Candidate) (string, bool, error) {
-	span := located.token.Span
+func (l hashLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
+	span := l.span
 	if span.Start < 0 || span.End > len(line) || span.Start > span.End {
 		return "", false, errors.New("located hash span no longer fits the line")
 	}

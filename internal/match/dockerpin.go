@@ -34,12 +34,12 @@ func NewDockerPin() DockerPin { return DockerPin{} }
 func (DockerPin) Locate(line string) (Located, error) {
 	at := strings.LastIndexByte(line, '@')
 	if at < 0 {
-		return Located{}, errors.New("image is not digest-pinned by @sha256")
+		return nil, errors.New("image is not digest-pinned by @sha256")
 	}
 
 	rest := line[at+1:]
 	if !strings.HasPrefix(rest, digestAlgo) {
-		return Located{}, errors.New("image pin digest must be sha256")
+		return nil, errors.New("image pin digest must be sha256")
 	}
 	hexStart := at + 1 + len(digestAlgo)
 	hexEnd := hexStart
@@ -47,33 +47,41 @@ func (DockerPin) Locate(line string) (Located, error) {
 		hexEnd++
 	}
 	if hexEnd-hexStart != digestHexLen {
-		return Located{}, errors.New("image pin requires a full sha256 digest")
+		return nil, errors.New("image pin requires a full sha256 digest")
 	}
 
 	// The tag anchors the current version: the same image-ref parsing the
 	// tag-only rewriter uses, scoped to the reference before the @ digest.
 	token, err := imageTag(line[:at])
 	if err != nil {
-		return Located{}, err
+		return nil, err
 	}
 
 	semver, _ := version.Parse(token.Core)
-	return Located{
-		Raw:    line[token.Span.Start:token.Span.End],
-		Semver: semver,
-		token:  token,
-		digest: Span{Start: at + 1, End: hexEnd},
+	return dockerPinLocated{
+		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		token:    token,
+		digest:   Span{Start: at + 1, End: hexEnd},
 	}, nil
 }
+
+// dockerPinLocated is a digest pin: the version tag plus the @sha256 digest span,
+// both rewritten from one candidate.
+type dockerPinLocated struct {
+	anchored
+
+	token  Token
+	digest Span
+}
+
+// NeedsDigest is true: a pin always rewrites its content digest, so the pipeline
+// resolves one for the chosen candidate.
+func (dockerPinLocated) NeedsDigest() bool { return true }
 
 // Render replaces the tag with the restyled candidate version and the digest
 // with the candidate's, in one pass. It errors rather than half-update when the
 // candidate lacks a digest or the located spans no longer fit the line.
-func (DockerPin) Render(
-	line string,
-	located Located,
-	candidate model.Candidate,
-) (string, bool, error) {
+func (l dockerPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
 	if !isDigest(candidate.Digest) {
 		return "", false, fmt.Errorf(
 			"candidate has no sha256 digest to pin, got %q",
@@ -81,12 +89,12 @@ func (DockerPin) Render(
 		)
 	}
 
-	tag, digest := located.token.Span, located.digest
+	tag, digest := l.token.Span, l.digest
 	if tag.Start < 0 || tag.End > digest.Start || digest.End > len(line) {
 		return "", false, errors.New("located spans no longer fit the line")
 	}
 
-	version := restyle(located.token, candidate.Version)
+	version := restyle(l.token, candidate.Version)
 	newLine := line[:tag.Start] + version +
 		line[tag.End:digest.Start] + candidate.Digest +
 		line[digest.End:]

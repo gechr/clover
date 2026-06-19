@@ -20,9 +20,9 @@ func TestActionPinRoundTrip(t *testing.T) {
 
 	located, err := match.NewActionPin().Locate(line)
 	require.NoError(t, err)
-	require.Equal(t, "v4.1.0", located.Raw)
+	require.Equal(t, "v4.1.0", located.Current())
 
-	got, changed, err := match.NewActionPin().Render(line, located, model.Candidate{
+	got, changed, err := located.Render(line, model.Candidate{
 		Version: "4.2.0",
 		Commit:  newSHA,
 	})
@@ -40,8 +40,7 @@ func TestActionPinSubdirAndQuotes(t *testing.T) {
 	located, err := match.NewActionPin().Locate(line)
 	require.NoError(t, err)
 
-	got, _, err := match.NewActionPin().
-		Render(line, located, model.Candidate{Version: "1.1.0", Commit: newSHA})
+	got, _, err := located.Render(line, model.Candidate{Version: "1.1.0", Commit: newSHA})
 	require.NoError(t, err)
 	require.Equal(t, `  - uses: "owner/repo/path@`+newSHA+`" # v1.1.0`, got)
 }
@@ -76,8 +75,7 @@ func TestActionPinRenderRequiresFullCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, bad := range []string{"", "abc123", "not-hex-not-hex-not-hex-not-hex-not-hex!"} {
-		_, _, err := match.NewActionPin().
-			Render(line, located, model.Candidate{Version: "4.2.0", Commit: bad})
+		_, _, err := located.Render(line, model.Candidate{Version: "4.2.0", Commit: bad})
 		require.Error(t, err, "commit %q must be rejected", bad)
 	}
 }

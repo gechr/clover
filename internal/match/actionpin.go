@@ -36,12 +36,12 @@ func NewActionPin() ActionPin { return ActionPin{} }
 func (ActionPin) Locate(line string) (Located, error) {
 	uses := strings.Index(line, "uses:")
 	if uses < 0 {
-		return Located{}, errors.New("no uses: action reference on the line")
+		return nil, errors.New("no uses: action reference on the line")
 	}
 
 	at := strings.IndexByte(line[uses:], '@')
 	if at < 0 {
-		return Located{}, errors.New("action is not pinned by @<sha> (local, docker, or unpinned)")
+		return nil, errors.New("action is not pinned by @<sha> (local, docker, or unpinned)")
 	}
 	at += uses
 
@@ -51,12 +51,12 @@ func (ActionPin) Locate(line string) (Located, error) {
 		end++
 	}
 	if end-start != shaLen {
-		return Located{}, errors.New("action pin requires a full 40-character commit SHA")
+		return nil, errors.New("action pin requires a full 40-character commit SHA")
 	}
 
 	hash := strings.IndexByte(line[end:], '#')
 	if hash < 0 {
-		return Located{}, errors.New(
+		return nil, errors.New(
 			"action pin needs a # version comment as the current-version anchor",
 		)
 	}
@@ -64,30 +64,34 @@ func (ActionPin) Locate(line string) (Located, error) {
 
 	tokens := Find(line[commentStart:])
 	if len(tokens) == 0 {
-		return Located{}, errors.New("action pin version comment has no version")
+		return nil, errors.New("action pin version comment has no version")
 	}
 	token := tokens[0]
 	token.Span.Start += commentStart
 	token.Span.End += commentStart
 
 	semver, _ := version.Parse(token.Core)
-	return Located{
-		Raw:    line[token.Span.Start:token.Span.End],
-		Semver: semver,
-		token:  token,
-		commit: Span{Start: start, End: end},
+	return actionPinLocated{
+		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		token:    token,
+		commit:   Span{Start: start, End: end},
 	}, nil
+}
+
+// actionPinLocated is a secure action pin: the commit SHA span plus the trailing
+// version-comment token, both rewritten from one candidate.
+type actionPinLocated struct {
+	anchored
+
+	token  Token
+	commit Span
 }
 
 // Render replaces the commit SHA with the candidate's commit and the version
 // comment with the restyled candidate version, both in one pass. It errors
 // rather than half-update when the candidate lacks a usable commit or the
 // located spans no longer fit the line.
-func (ActionPin) Render(
-	line string,
-	located Located,
-	candidate model.Candidate,
-) (string, bool, error) {
+func (l actionPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
 	if !xstrings.IsGitCommit(candidate.Commit) {
 		return "", false, fmt.Errorf(
 			"candidate has no full commit SHA to pin, got %q",
@@ -95,12 +99,12 @@ func (ActionPin) Render(
 		)
 	}
 
-	commit, comment := located.commit, located.token.Span
+	commit, comment := l.commit, l.token.Span
 	if commit.Start < 0 || commit.End > comment.Start || comment.End > len(line) {
 		return "", false, errors.New("located spans no longer fit the line")
 	}
 
-	version := restyle(located.token, candidate.Version)
+	version := restyle(l.token, candidate.Version)
 	newLine := line[:commit.Start] + candidate.Commit +
 		line[commit.End:comment.Start] + version +
 		line[comment.End:]

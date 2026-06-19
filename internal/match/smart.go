@@ -30,17 +30,28 @@ func (Smart) Locate(line string) (Located, error) {
 	tokens := Find(line)
 	switch len(tokens) {
 	case 0:
-		return Located{}, errors.New("no version found on target line")
+		return nil, errors.New("no version found on target line")
 	case 1:
-		token := tokens[0]
-		semver, _ := version.Parse(token.Core) // nil core only matters to a keyword constraint
-		return Located{
-			Raw:    line[token.Span.Start:token.Span.End],
-			Semver: semver,
-			token:  token,
-		}, nil
+		return locatedToken(line, tokens[0]), nil
 	default:
-		return Located{}, errors.New("multiple version-shaped tokens; target is ambiguous")
+		return nil, errors.New("multiple version-shaped tokens; target is ambiguous")
+	}
+}
+
+// smartLocated is a single version token the smart (and docker-tag) rewriter
+// re-styles in place. The token carries the span and the original's style.
+type smartLocated struct {
+	anchored
+
+	token Token
+}
+
+// locatedToken builds a smartLocated for a token already offset into line.
+func locatedToken(line string, token Token) smartLocated {
+	semver, _ := version.Parse(token.Core) // nil core only matters to a keyword constraint
+	return smartLocated{
+		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		token:    token,
 	}
 }
 
@@ -49,13 +60,13 @@ func (Smart) Locate(line string) (Located, error) {
 // its numeric core and re-dressed in the current token's style, so the splice
 // touches only the token's span and is idempotent. It errors when the located
 // span no longer fits the line.
-func (Smart) Render(line string, located Located, candidate model.Candidate) (string, bool, error) {
-	span := located.token.Span
+func (l smartLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
+	span := l.token.Span
 	if span.Start < 0 || span.End > len(line) || span.Start > span.End {
 		return "", false, errors.New("located version span no longer fits the line")
 	}
 
-	rendered := restyle(located.token, candidate.Version)
+	rendered := restyle(l.token, candidate.Version)
 	old := line[span.Start:span.End]
 	if rendered == old {
 		return line, false, nil

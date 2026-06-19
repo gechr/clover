@@ -402,7 +402,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 
-	line, rewriter, located, err := p.locate(m)
+	line, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
@@ -412,11 +412,11 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 
-	opts, err := rule.Compile(m.Directive, located.Semver)
+	opts, err := rule.Compile(m.Directive, located.Semver())
 	if err != nil {
 		return err
 	}
-	if opt, ok := variantInclude(located.Raw, m.Directive); ok {
+	if opt, ok := variantInclude(located.Current(), m.Directive); ok {
 		opts = append(opts, opt)
 	}
 	opts = append(opts, version.WithNow(p.now))
@@ -429,7 +429,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		opts = append(opts, version.WithPrerelease(*p.prerelease))
 	}
 
-	chosen, ok := version.Select(located.Semver, candidates, attrs, opts...)
+	chosen, ok := version.Select(located.Semver(), candidates, attrs, opts...)
 	if !ok {
 		return ErrNoCandidate
 	}
@@ -449,10 +449,10 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	}
 
 	if m.ID != "" {
-		old := model.Candidate{Version: located.Raw, Semver: located.Semver}
+		old := model.Candidate{Version: located.Current(), Semver: located.Semver()}
 		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
 	}
-	return p.render(i, line, rewriter, located, chosen)
+	return p.render(i, line, located, chosen)
 }
 
 // follower returns the closure that resolves marker i from the marker it
@@ -477,7 +477,7 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 		return err
 	}
 
-	line, rewriter, located, err := p.locate(m)
+	line, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
@@ -494,7 +494,7 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	// rewriter seam: the smart rewriter for a version, the hash rewriter for a
 	// commit or sha256. The candidate is typed by the follower's value so a
 	// find/replace template's <commit>/<sha256>/<major.minor> tokens resolve.
-	return p.render(i, line, rewriter, located, followerCandidate(m.Value, resolved))
+	return p.render(i, line, located, followerCandidate(m.Value, resolved))
 }
 
 // followerCandidate wraps a follower's resolved value in a Candidate typed by the
@@ -551,21 +551,21 @@ func (p *plan) report(i int, err error) {
 // the current version, failing loud when the line is absent or the rewriter
 // cannot act on it. The chosen rewriter is returned so Render reuses the same
 // located spans and style.
-func (p *plan) locate(m Marker) (string, match.Rewriter, match.Located, error) {
+func (p *plan) locate(m Marker) (string, match.Located, error) {
 	line := targetLine(p.lines, m)
 	if line == "" {
-		return "", nil, match.Located{}, errors.New("no target line for directive")
+		return "", nil, errors.New("no target line for directive")
 	}
 
 	rewriter, err := rewriterFor(m, line)
 	if err != nil {
-		return "", nil, match.Located{}, err
+		return "", nil, err
 	}
 	located, err := rewriter.Locate(line)
 	if err != nil {
-		return "", nil, match.Located{}, err
+		return "", nil, err
 	}
-	return line, rewriter, located, nil
+	return line, located, nil
 }
 
 // rewriterFor chooses the rewriter: an explicit find/replace on the directive
@@ -591,15 +591,14 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 func (p *plan) render(
 	i int,
 	line string,
-	rewriter match.Rewriter,
 	located match.Located,
 	candidate model.Candidate,
 ) error {
-	newLine, changed, err := rewriter.Render(line, located, candidate)
+	newLine, changed, err := located.Render(line, candidate)
 	if err != nil {
 		return err
 	}
-	p.results[i].Current = located.Raw
+	p.results[i].Current = located.Current()
 	p.results[i].Resolved = candidate.Version
 	p.results[i].NewLine = newLine
 	p.results[i].Changed = changed

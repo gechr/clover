@@ -10,41 +10,47 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
-// Rewriter locates the version a target line carries and rewrites the line for a
-// resolved candidate. Implementations range from the shape-based [Smart]
-// rewriter to format-specific ones. Both methods are offline and pure: Locate is
-// what lint runs to validate a marker; the located result is handed back to
-// Render so style and spans are fixed once, never re-derived.
+// Rewriter locates the version a target line carries. Implementations range from
+// the shape-based [Smart] rewriter to format-specific ones. Locate is offline and
+// pure, so lint runs it to validate a marker without resolving anything; the
+// [Located] it returns renders the line once a candidate is resolved.
 type Rewriter interface {
 	// Locate extracts the version currently on the line, erroring when the
 	// rewriter cannot act on it (no target, ambiguous, or malformed).
 	Locate(line string) (Located, error)
-	// Render rewrites the line for the resolved candidate using the prior Locate
-	// result, returning the new line and whether it changed. It errors rather than
-	// reporting a silent no-op when the candidate lacks a field it needs or the
-	// located span no longer fits the line.
-	Render(line string, located Located, candidate model.Candidate) (string, bool, error)
 }
 
-// Located is what a Rewriter found on a target line. Raw (the current version
-// text) and Semver (its parsed core, nil when unparseable) are the public
-// anchors the pipeline reads - Semver anchors selection, Raw records the old
-// value. The remaining fields are private state the locating rewriter hands to
-// its own Render, so spans and style are fixed at Locate time.
-type Located struct {
-	Raw    string
-	Semver *version.Version
-
-	token  Token // the version token, with span and style
-	commit Span  // action-pin: the commit SHA span (zero for smart)
-	digest Span  // docker-pin: the @sha256 digest span (zero otherwise)
+// Located is what a Rewriter found on a target line: the common anchors the
+// pipeline reads (Current, Semver, NeedsDigest) plus the ability to render itself
+// for a resolved candidate. Each rewriter returns its own implementation, so the
+// renderer-specific state (spans, captures) stays private to the rewriter that
+// produced it rather than piling into a shared struct.
+type Located interface {
+	// Current is the version text currently on the line, recorded as the old value.
+	Current() string
+	// Semver is the parsed core of the current version, nil when unparseable. It
+	// anchors selection.
+	Semver() *version.Version
+	// NeedsDigest reports whether rendering will rewrite a content digest, so the
+	// pipeline knows to resolve one for the candidate.
+	NeedsDigest() bool
+	// Render rewrites the line for the resolved candidate, returning the new line
+	// and whether it changed. It errors rather than reporting a silent no-op when
+	// the candidate lacks a field it needs or the located span no longer fits.
+	Render(line string, candidate model.Candidate) (string, bool, error)
 }
 
-// NeedsDigest reports whether the located target carries a content digest the
-// rewriter will rewrite, so the pipeline knows to resolve one for the candidate.
-func (l Located) NeedsDigest() bool {
-	return l.digest != Span{}
+// anchored carries the Current/Semver anchors every Located exposes; a concrete
+// located embeds it, adds its own spans, and overrides Render (and NeedsDigest
+// when it rewrites a digest).
+type anchored struct {
+	raw    string
+	semver *version.Version
 }
+
+func (a anchored) Current() string          { return a.raw }
+func (a anchored) Semver() *version.Version { return a.semver }
+func (a anchored) NeedsDigest() bool        { return false }
 
 // Context is what the dispatch table routes on: the file, the target line, the
 // marker's provider, and the follower value kind.

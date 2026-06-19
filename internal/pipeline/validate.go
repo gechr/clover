@@ -60,11 +60,11 @@ func (p *plan) checkProducer(m Marker) error {
 		return err
 	}
 
-	_, _, located, err := p.locate(m)
+	_, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
-	if _, err := rule.Compile(m.Directive, located.Semver); err != nil {
+	if _, err := rule.Compile(m.Directive, located.Semver()); err != nil {
 		return err
 	}
 	return nil
@@ -86,7 +86,7 @@ func (p *plan) checkFollower(m Marker) error {
 		return fmt.Errorf("unknown value %q", m.Value)
 	}
 
-	if _, _, _, err := p.locate(m); err != nil {
+	if _, _, err := p.locate(m); err != nil {
 		return err
 	}
 	return nil

@@ -55,10 +55,10 @@ func TestDockerTagRender(t *testing.T) {
 
 			located, err := rw.Locate(tt.line)
 			require.NoError(t, err)
-			require.Equal(t, tt.raw, located.Raw)
+			require.Equal(t, tt.raw, located.Current())
 			require.False(t, located.NeedsDigest(), "a tag-only ref carries no digest")
 
-			out, changed, err := rw.Render(tt.line, located, tt.candidate)
+			out, changed, err := located.Render(tt.line, tt.candidate)
 			require.NoError(t, err)
 			require.True(t, changed)
 			require.Equal(t, tt.want, out)

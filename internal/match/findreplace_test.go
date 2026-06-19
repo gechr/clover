@@ -75,7 +75,7 @@ func TestFindReplaceRender(t *testing.T) {
 			require.NoError(t, err)
 			located, err := fr.Locate(tt.line)
 			require.NoError(t, err)
-			out, changed, err := fr.Render(tt.line, located, tt.candidate)
+			out, changed, err := located.Render(tt.line, tt.candidate)
 			require.NoError(t, err)
 			require.True(t, changed)
 			require.Equal(t, tt.want, out)
@@ -99,6 +99,6 @@ func TestFindReplaceUnavailableToken(t *testing.T) {
 	require.NoError(t, err)
 	located, err := fr.Locate("v1.2.3")
 	require.NoError(t, err)
-	_, _, err = fr.Render("v1.2.3", located, cand(t, "1.5.0", "")) // no digest
+	_, _, err = located.Render("v1.2.3", cand(t, "1.5.0", "")) // no digest
 	require.EqualError(t, err, `replace "<version>-<sha256>" references an unavailable token`)
 }

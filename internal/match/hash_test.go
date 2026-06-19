@@ -44,7 +44,7 @@ func TestHashRender(t *testing.T) {
 
 			located, err := rw.Locate(tt.line)
 			require.NoError(t, err)
-			out, changed, err := rw.Render(tt.line, located, model.Candidate{Version: tt.resolved})
+			out, changed, err := located.Render(tt.line, model.Candidate{Version: tt.resolved})
 			require.NoError(t, err)
 			require.True(t, changed)
 			require.Equal(t, tt.want, out)
