@@ -527,7 +527,7 @@ func TestRunVerifyBranchOffTrunk(t *testing.T) {
 		"commit "+good+" for 2.0.0 is not on an allowed branch")
 }
 
-func TestRunVerifyBranchRegexDirective(t *testing.T) {
+func TestRunVerifyBranchGlobDirective(t *testing.T) {
 	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	cand := candidate(t, "2.0.0")
@@ -541,9 +541,32 @@ func TestRunVerifyBranchRegexDirective(t *testing.T) {
 	})
 
 	// verify-branch= enables the deep check (no run flag) and widens the allowed
-	// set to release branches, so a release-branch commit verifies.
+	// set to release branches; the value is a glob by default, like include.
 	dir := write(t, map[string]string{
-		".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-branch=release-[0-9.]+\n" +
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-branch=release-*\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.NoError(t, files[0].Results[0].Verify, "the glob admits the release branch")
+}
+
+func TestRunVerifyBranchRegexDirective(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}, {Name: "release-1.0"}},
+		commitBranch: map[string]string{good: "release-1.0"},
+	})
+
+	// A /regex/ value is matched as a regex, like include.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-branch=/release-[0-9.]+/\n" +
 			"  - uses: x/y@" + old + " # v1.0.0\n",
 	})
 	files, err := pipeline.Run(context.Background(), []string{dir})

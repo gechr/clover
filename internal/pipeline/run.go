@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -21,6 +19,7 @@ import (
 	"github.com/gechr/clover/internal/ignore"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/follow"
@@ -555,21 +554,20 @@ func (p *plan) allowedBranches(
 	resource provider.Resource,
 	m Marker,
 ) ([]provider.Branch, error) {
-	pattern, _ := m.Directive.Get(constant.DirectiveVerifyBranch)
-	switch {
-	case pattern == "":
+	raw, ok := m.Directive.Get(constant.DirectiveVerifyBranch)
+	if !ok || raw == "" {
 		def, err := checker.DefaultBranch(ctx, resource)
 		if err != nil {
 			return nil, err
 		}
 		return []provider.Branch{{Name: def}}, nil
-	case !regexMeta(pattern):
-		return []provider.Branch{{Name: pattern}}, nil // a literal name needs no listing
 	}
 
-	re, err := regexp.Compile("^(?:" + pattern + ")$")
+	// verify-branch is a glob by default, or a /regex/ - the same matcher
+	// include/exclude use, so the spelling is consistent across directives.
+	pat, err := pattern.Compile(raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s %q: %w", constant.DirectiveVerifyBranch, pattern, err)
+		return nil, fmt.Errorf("%s %q: %w", constant.DirectiveVerifyBranch, raw, err)
 	}
 	branches, err := checker.Branches(ctx, resource)
 	if err != nil {
@@ -577,12 +575,12 @@ func (p *plan) allowedBranches(
 	}
 	var matched []provider.Branch
 	for _, b := range branches {
-		if re.MatchString(b.Name) {
+		if pat.Matches(b.Name) {
 			matched = append(matched, b)
 		}
 	}
 	if len(matched) == 0 {
-		return nil, fmt.Errorf("no branch matches %s=%s", constant.DirectiveVerifyBranch, pattern)
+		return nil, fmt.Errorf("no branch matches %s=%s", constant.DirectiveVerifyBranch, raw)
 	}
 	return matched, nil
 }
@@ -594,12 +592,6 @@ func branchDescription(m Marker) string {
 		return "an allowed branch (" + constant.DirectiveVerifyBranch + "=" + pattern + ")"
 	}
 	return "an allowed branch"
-}
-
-// regexMeta reports whether s carries any regex metacharacter, so a literal
-// branch name can skip both compilation and the branch listing.
-func regexMeta(s string) bool {
-	return strings.ContainsAny(s, `\^$.|?*+()[]{}`)
 }
 
 // verifyPin cross-checks an up-to-date secure pin against the resolved tag: the
