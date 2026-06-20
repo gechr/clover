@@ -111,3 +111,59 @@ func TestScanIgnoreSeam(t *testing.T) {
 	require.Len(t, files, 1)
 	require.Contains(t, files[0].Path, filepath.Join("keep", "a.yaml"))
 }
+
+func TestScanSkipsMissingRoot(t *testing.T) {
+	t.Parallel()
+
+	root := tree(
+		t,
+		map[string]string{"a.yaml": "# clover: provider=github repository=owner/name\n"},
+	)
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+
+	files, _, err := scan.Scan(t.Context(), []string{missing, root})
+	require.NoError(t, err, "a missing root warns and is skipped, not fatal")
+	require.Len(t, files, 1, "the valid root is still scanned")
+}
+
+func TestScanDoesNotFollowSymlinks(t *testing.T) {
+	t.Parallel()
+
+	// A directive-bearing file lives outside the scanned tree.
+	outside := t.TempDir()
+	target := filepath.Join(outside, "secret.yaml")
+	require.NoError(t, os.WriteFile(
+		target,
+		[]byte("# clover: provider=github repository=out/of/tree\nversion: 1.0.0\n"),
+		0o644,
+	))
+
+	// The scanned tree contains a real file plus a symlink to the outside file.
+	root := tree(
+		t,
+		map[string]string{"real.yaml": "# clover: provider=github repository=in/tree\n"},
+	)
+	require.NoError(t, os.Symlink(target, filepath.Join(root, "link.yaml")))
+
+	files, _, err := scan.Scan(t.Context(), []string{root})
+	require.NoError(t, err)
+
+	// Only the real in-tree file is found; the symlink is never resolved, so the
+	// out-of-tree target is never read (nor, in the apply phase, written through).
+	require.Len(t, files, 1)
+	require.Equal(t, "real.yaml", filepath.Base(files[0].Path))
+}
+
+func TestScanMergesOverlappingRoots(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"sub/a.yaml": "# clover: provider=github repository=owner/name\n",
+	})
+
+	// The same root twice, plus a nested subpath - all coalesce to a single walk.
+	files, scanned, err := scan.Scan(t.Context(), []string{root, root, filepath.Join(root, "sub")})
+	require.NoError(t, err)
+	require.Len(t, files, 1, "the file is found once despite overlapping roots")
+	require.Equal(t, 1, scanned, "the file is examined once, not three times")
+}

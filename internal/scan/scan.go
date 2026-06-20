@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -12,11 +13,13 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
+	xfilepath "github.com/gechr/x/filepath"
 )
 
 const (
 	reasonIgnored    = "ignored"
 	reasonNonRegular = "non-regular"
+	reasonSymlink    = "symlink"
 	reasonUnreadable = "unreadable"
 	reasonVCS        = "vcs"
 )
@@ -72,6 +75,12 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 		cfg.workers = 1
 	}
 
+	// Coalesce overlapping roots (exact duplicates and paths nested under another)
+	// so a file reachable from two roots is walked once. Symlinks are skipped in
+	// the walk, so a lexical merge suffices - no two surviving roots can alias.
+	roots = xfilepath.Merge(roots)
+	warnMissingRoots(roots)
+
 	jobs := make(chan scanJob)
 	var walkErr error
 	go func() {
@@ -110,6 +119,17 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	}
 	slices.SortFunc(files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 	return files, int(scanned.Load()), nil
+}
+
+// warnMissingRoots warns about any root that does not exist, so a typo'd path is
+// visible rather than silently scanning nothing. The path is then left to the
+// walk, which skips it - a missing root warns but does not fail the run.
+func warnMissingRoots(roots []string) {
+	for _, root := range roots {
+		if _, err := os.Stat(root); err != nil {
+			clog.Warn().Path(field.Path, root).Msg("Path does not exist")
+		}
+	}
 }
 
 // walk traverses root, sending scannable file paths to paths. Unreadable entries
@@ -151,25 +171,32 @@ func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) err
 				Msg("Skipping file")
 			return nil
 		}
-		size := int64(-1)
-		if d.Type()&fs.ModeSymlink == 0 {
-			info, err := d.Info()
-			if err != nil {
-				clog.Debug().
-					Path(field.Path, path).
-					Str(field.Reason, reasonUnreadable).
-					Msg("Skipping file")
-				return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
-			}
-			if !info.Mode().IsRegular() {
-				clog.Debug().
-					Path(field.Path, path).
-					Str(field.Reason, reasonNonRegular).
-					Msg("Skipping file")
-				return nil
-			}
-			size = info.Size()
+		// Symlinks are never followed: a link could resolve outside the scanned
+		// tree, letting a scan read - or the apply phase write through it - an
+		// arbitrary path. Skip it rather than resolve it.
+		if d.Type()&fs.ModeSymlink != 0 {
+			clog.Debug().
+				Path(field.Path, path).
+				Str(field.Reason, reasonSymlink).
+				Msg("Skipping symlink")
+			return nil
 		}
+		info, err := d.Info()
+		if err != nil {
+			clog.Debug().
+				Path(field.Path, path).
+				Str(field.Reason, reasonUnreadable).
+				Msg("Skipping file")
+			return nil //nolint:nilerr // skip an unreadable entry, keep walking the rest
+		}
+		if !info.Mode().IsRegular() {
+			clog.Debug().
+				Path(field.Path, path).
+				Str(field.Reason, reasonNonRegular).
+				Msg("Skipping file")
+			return nil
+		}
+		size := info.Size()
 
 		select {
 		case jobs <- scanJob{path: path, size: size}:

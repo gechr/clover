@@ -95,7 +95,10 @@ func body(req *http.Request, content string) *http.Response {
 
 func helmChallenge(req *http.Request) *http.Response {
 	header := http.Header{}
-	header.Set("WWW-Authenticate", `Bearer realm="https://registry.example.com/token",service="registry.example.com"`)
+	header.Set(
+		"WWW-Authenticate",
+		`Bearer realm="https://registry.example.com/token",service="registry.example.com"`,
+	)
 	return &http.Response{
 		StatusCode: http.StatusUnauthorized,
 		Header:     header,
