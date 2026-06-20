@@ -38,6 +38,7 @@ const TrackInfer = "*"
 // Provider parameters shared beyond a single provider: the auto-inference
 // injects them and the relevant providers read them.
 const (
-	DirectiveRegistry   = "registry"   // container registry host (docker)
+	DirectiveChart      = "chart"      // helm chart name (helm)
+	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
 	DirectiveRepository = "repository" // repository path (github, docker)
 )

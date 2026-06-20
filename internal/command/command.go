@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
+	"github.com/gechr/clover/internal/provider/helm"
 	"github.com/gechr/clover/internal/tag"
 )
 
@@ -36,23 +37,27 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\"        clib:\"terse='Config file'\""
-	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                               clib:\"terse='Skip config'\""
-	Verbose  bool   "help:\"Enable debug logs\"                                                   clib:\"terse='Debug logs'\""
+	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file'\""
+	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config'\""
+	Verbose  bool   `help:"Enable debug logs" clib:"terse='Debug logs'"`
 
-	Init    cmdInit    "cmd:\"\" help:\"Create a starter `.clover.yaml` interactively\"           clib:\"terse='Scaffold a config'\""
-	Login   cmdLogin   `cmd:"" help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"`
-	Run     cmdRun     `cmd:"" help:"Resolve version references and update them in place"         clib:"terse='Update versions'"`
-	Lint    cmdLint    `cmd:"" help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'"`
-	Format  cmdFormat  `cmd:"" help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  aliases:"fmt"`
-	Update  cmdUpdate  `cmd:"" help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"`
-	Version cmdVersion `cmd:"" help:"Print version information"                                   clib:"terse='Print version'"`
+	Init    cmdInit    "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
+	Login   cmdLogin   `help:"Authenticate clover with a provider via its device flow"     clib:"terse='Authenticate'"     cmd:""`
+	Run     cmdRun     `help:"Resolve version references and update them in place"         clib:"terse='Update versions'"  cmd:""`
+	Lint    cmdLint    `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
+	Format  cmdFormat  `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
+	Update  cmdUpdate  `help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:""`
+	Version cmdVersion `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
 }
 
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
-	provider.RegisterAll(github.New(), docker.New())
+	provider.RegisterAll(
+		docker.New(),
+		github.New(),
+		helm.New(),
+	)
 
 	var root cli
 

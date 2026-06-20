@@ -11,14 +11,13 @@ import (
 )
 
 // pageSize bounds tag discovery to one page. The Hub API orders newest-first, so
-// its page is the most recent tags; an OCI registry orders lexically, so a
-// repository with more than this many tags may have its newest beyond the page.
-// Deep history (following the registry's Link pagination) is a future refinement.
+// its page is the most recent tags; the OCI registry path orders lexically and
+// follows pagination under --deep (see [oci.Client.Tags]).
 const pageSize = 100
 
 // Discover lists candidate versions for a resource from its registry tags,
-// routing Docker Hub to its richer API and every other registry to the OCI
-// registry v2 tags endpoint.
+// routing Docker Hub to its richer API and every other registry to the shared
+// OCI registry v2 tags endpoint.
 func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.Candidate, error) {
 	ref, ok := r.(reference)
 	if !ok {
@@ -28,6 +27,24 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		return p.discoverHub(ctx, ref)
 	}
 	return p.discoverRegistry(ctx, ref)
+}
+
+// discoverRegistry lists tags from a (non-Hub) OCI registry via the shared
+// client, noting truncation when a shallow lookup left a further page unread so
+// the edge can suggest --deep.
+func (p *Provider) discoverRegistry(ctx context.Context, ref reference) ([]model.Candidate, error) {
+	tags, truncated, err := p.client.Tags(ctx, ref.ociRepo(), provider.Deep(ctx))
+	if err != nil {
+		return nil, err
+	}
+	if truncated {
+		provider.NoteTruncated(ctx, ref.String())
+	}
+	candidates := make([]model.Candidate, 0, len(tags))
+	for _, t := range tags {
+		candidates = append(candidates, candidate(t, time.Time{}))
+	}
+	return candidates, nil
 }
 
 // candidate builds a model.Candidate, parsing the raw tag for comparison. A

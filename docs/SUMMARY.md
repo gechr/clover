@@ -6,6 +6,7 @@
 - [Providers](providers.md)
   - [GitHub](github.md)
   - [Docker](docker.md)
+  - [Helm](helm.md)
   - [Auto-detection](auto.md)
 
 - [Selecting versions]()

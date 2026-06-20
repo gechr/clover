@@ -3,6 +3,8 @@ package docker
 import (
 	"fmt"
 	"strings"
+
+	"github.com/gechr/clover/internal/oci"
 )
 
 // Registry hosts that all mean Docker Hub. Docker Hub is addressed by several
@@ -92,4 +94,17 @@ func (r reference) authHost() string {
 		return hubAuthHost
 	}
 	return r.registry
+}
+
+// ociRepo is the repository for tag discovery on a (non-Hub) OCI registry, where
+// the registry host both serves /v2 and keys credentials.
+func (r reference) ociRepo() oci.Repo {
+	return oci.Repo{Host: r.registry, Repository: r.repository}
+}
+
+// manifestRepo is the repository for digest resolution: manifests come from the
+// registry v2 host, but credentials are keyed under the (possibly distinct) auth
+// host - the two diverge for Docker Hub.
+func (r reference) manifestRepo() oci.Repo {
+	return oci.Repo{Host: r.registryV2Host(), AuthHost: r.authHost(), Repository: r.repository}
 }

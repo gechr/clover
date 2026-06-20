@@ -25,7 +25,7 @@ import (
 // through its own keychain, not a clover device flow - so revisit it only when a
 // second provider needs interactive auth.
 type cmdLogin struct {
-	Provider string `arg:"" optional:"" default:"github" enum:"github" help:"Provider to authenticate with" clib:"terse='Provider'"`
+	Provider string `help:"Provider to authenticate with" arg:"" optional:"" clib:"terse='Provider'" default:"github" enum:"github"`
 }
 
 // Run drives the provider's device flow, then reports success.

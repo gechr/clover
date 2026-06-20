@@ -57,13 +57,13 @@ func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Cand
 
 // hubPage fetches and decodes one page of Docker Hub tags.
 func (p *Provider) hubPage(ctx context.Context, url, token string) (hubTags, error) {
-	resp, err := p.do(ctx, url, token)
+	resp, err := p.client.Get(ctx, url, token)
 	if err != nil {
 		return hubTags{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return hubTags{}, statusErr("list hub tags", resp)
+		return hubTags{}, p.client.StatusErr("list hub tags", resp)
 	}
 
 	var page hubTags
@@ -85,7 +85,7 @@ func (p *Provider) hubToken(ctx context.Context) string {
 		return p.hubJWT
 	}
 
-	cfg := p.resolveAuth(hubAuthHost)
+	cfg := p.client.ResolveAuth(hubAuthHost)
 	switch {
 	case cfg != nil && cfg.RegistryToken != "":
 		p.hubJWT = cfg.RegistryToken
@@ -116,7 +116,7 @@ func (p *Provider) hubLogin(ctx context.Context, username, password string) (str
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := p.httpClient().Do(req)
+	resp, err := p.client.HTTPClient().Do(req)
 	if err != nil {
 		return "", fmt.Errorf("docker: hub login: %w", err)
 	}

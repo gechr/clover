@@ -28,7 +28,7 @@ const configPerm = 0o644
 
 // cmdInit scaffolds a .clover.yaml interactively.
 type cmdInit struct {
-	Dir string `arg:"" optional:"" default:"." help:"Directory to write the config into" predictor:"dir" clib:"terse='Target directory'"`
+	Dir string `help:"Directory to write the config into" arg:"" optional:"" clib:"terse='Target directory'" default:"." predictor:"dir"`
 }
 
 // Run drives the init wizard: choose providers, report their credential status,

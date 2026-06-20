@@ -12,27 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNextLink(t *testing.T) {
-	t.Parallel()
-
-	const base = "https://registry.example.com/v2/team/api/tags/list?n=100"
-
-	// A relative next target resolves against the request URL.
-	require.Equal(t,
-		"https://registry.example.com/v2/team/api/tags/list?last=z",
-		docker.NextLink(`</v2/team/api/tags/list?last=z>; rel="next"`, base))
-
-	// A cross-host absolute target is rejected (SSRF guard).
-	require.Empty(t,
-		docker.NextLink(`<http://169.254.169.254/latest/meta-data/>; rel="next"`, base))
-
-	// A non-next relation yields nothing.
-	require.Empty(t, docker.NextLink(`</v2/team/api/tags/list?last=z>; rel="prev"`, base))
-
-	// No header, no next page.
-	require.Empty(t, docker.NextLink("", base))
-}
-
 // hostKeychain returns credentials only for a specific host.
 type hostKeychain struct {
 	host string
