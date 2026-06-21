@@ -87,6 +87,13 @@ type dockerPinLocated struct {
 // Pinned reports the sha256:<hex> content digest currently on the line.
 func (l dockerPinLocated) Pinned() string { return l.pinned }
 
+// Rendered reports the tag text Render will write for candidate - the restyled
+// version, which may differ from candidate.Version. The pipeline resolves the
+// digest for this so the pinned digest always matches the tag written.
+func (l dockerPinLocated) Rendered(candidate model.Candidate) string {
+	return restyle(l.token, candidate.Version)
+}
+
 // NeedsDigest is true: a pin always rewrites its content digest, so the pipeline
 // resolves one for the chosen candidate.
 func (dockerPinLocated) NeedsDigest() bool { return true }

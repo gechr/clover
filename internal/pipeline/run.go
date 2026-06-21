@@ -506,13 +506,20 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	}
 
 	// A secure pin (e.g. an image @sha256 digest) needs the chosen tag's digest,
-	// resolved here for the winner only so discovery stays cheap.
+	// resolved here for the winner only so discovery stays cheap. Resolve it for
+	// the tag actually rendered (restyle can strip a variant or re-precision the
+	// core), so the pinned digest always describes the tag written, not the raw
+	// candidate.
 	if located.NeedsDigest() {
 		digester, isDigester := prov.(provider.Digester)
 		if !isDigester {
 			return fmt.Errorf("provider %q cannot resolve a digest for a pinned image", m.Provider)
 		}
-		digest, err := digester.Digest(ctx, resource, chosen.Version)
+		tag := chosen.Version
+		if r, ok := located.(match.Rendered); ok {
+			tag = r.Rendered(chosen)
+		}
+		digest, err := digester.Digest(ctx, resource, tag)
 		if err != nil {
 			return err
 		}
@@ -1003,19 +1010,21 @@ func attrs(c model.Candidate) version.Attrs {
 	return version.Attrs{Tag: c.Version, Semver: c.Semver, PublishedAt: c.PublishedAt}
 }
 
-// variantInclude returns an include option restricting selection to the variant
-// the located tag carries (1.27-alpine -> only *-alpine candidates), since the
-// rewriter re-applies that suffix on render: without it a bare 1.29 could win
-// and render as 1.29-alpine, a tag that may not exist upstream. An explicit
-// directive include takes precedence, so the rule stays in the user's hands.
+// variantInclude returns an include option restricting selection to candidates
+// whose variant matches the located tag's: a variant line (1.27-alpine) keeps
+// only that variant (*-alpine), and a plain line (1.27) keeps only plain tags.
+// The rewriter re-applies the located suffix on render, so without this rule a
+// plain 1.27 could pick 1.31-trixie's candidate and render 1.31 while pinning
+// the variant's digest - a tag and digest that disagree. An explicit directive
+// include takes precedence, so the rule stays in the user's hands.
 func variantInclude(raw string, d directive.Directive) (version.Option, bool) {
-	_, variant := version.SplitVariant(raw)
-	if variant == "" || d.Has(constant.RuleInclude) {
+	if d.Has(constant.RuleInclude) {
 		return nil, false
 	}
+	_, want := version.SplitVariant(raw)
 	return version.WithInclude(func(tag string) bool {
-		_, v := version.SplitVariant(tag)
-		return v == variant
+		_, got := version.SplitVariant(tag)
+		return got == want
 	}), true
 }
 

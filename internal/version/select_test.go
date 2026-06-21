@@ -194,14 +194,17 @@ func TestSelectCooldown(t *testing.T) {
 	require.Equal(t, "1.2.0", got.tag, "fresh 1.3.0 held back by cooldown")
 }
 
-func TestSelectTieBreakDeterministic(t *testing.T) {
+func TestSelectTieBreakPrefersShorter(t *testing.T) {
 	t.Parallel()
 
-	// 1.2 and 1.2.0 are semver-equal; the tag tie-break makes the pick stable
-	// regardless of input order.
+	// 1.2 and 1.2.0 are semver-equal; the tie-break prefers the shorter (less
+	// decorated) tag, deterministically regardless of input order. This keeps a
+	// plain tag from being out-ranked by a longer, more-decorated equal version.
 	got1, ok := version.Select(nil, candidates("1.2", "1.2.0"), attrsOf)
 	require.True(t, ok)
+	require.Equal(t, "1.2", got1.tag)
+
 	got2, ok := version.Select(nil, candidates("1.2.0", "1.2"), attrsOf)
 	require.True(t, ok)
-	require.Equal(t, got1.tag, got2.tag)
+	require.Equal(t, "1.2", got2.tag)
 }

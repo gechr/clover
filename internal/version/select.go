@@ -1,6 +1,7 @@
 package version
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 	"time"
@@ -158,6 +159,12 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 
 	slices.SortStableFunc(kept, func(x, y scored[T]) int {
 		if c := Compare(y.semver, x.semver); c != 0 {
+			return c
+		}
+		// Equal versions: prefer the shorter (less decorated) tag, so a plain
+		// tag is never out-ranked by a variant of the same version; fall back to
+		// a lexical compare for a deterministic order.
+		if c := cmp.Compare(len(x.tag), len(y.tag)); c != 0 {
 			return c
 		}
 		return strings.Compare(y.tag, x.tag)

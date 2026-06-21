@@ -63,6 +63,56 @@ func TestDockerPinRender(t *testing.T) {
 	}
 }
 
+// Rendered must report exactly the tag Render writes, so the pipeline resolves a
+// digest for that tag rather than the raw candidate. It restyles the candidate
+// onto the located shape: a variant is stripped to match a plain line, and the
+// core follows the line's precision.
+func TestDockerPinRendered(t *testing.T) {
+	t.Parallel()
+
+	digest := "sha256:" + strings.Repeat("a", 64)
+
+	tests := []struct {
+		name      string
+		line      string
+		candidate model.Candidate
+		want      string
+	}{
+		{
+			name:      "plain line strips a candidate variant",
+			line:      "FROM nginx:1.27.0@" + digest,
+			candidate: model.Candidate{Version: "1.31.2-alpine"},
+			want:      "1.31.2",
+		},
+		{
+			name:      "variant line keeps the variant",
+			line:      "FROM nginx:1.27.0-alpine@" + digest,
+			candidate: model.Candidate{Version: "1.31.2-alpine"},
+			want:      "1.31.2-alpine",
+		},
+		{
+			name:      "core follows the line's precision",
+			line:      "FROM nginx:1.27@" + digest,
+			candidate: model.Candidate{Version: "1.31.2"},
+			want:      "1.31",
+		},
+	}
+
+	rw := match.NewDockerPin()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			located, err := rw.Locate(tt.line)
+			require.NoError(t, err)
+
+			rendered, ok := located.(match.Rendered)
+			require.True(t, ok, "dockerPinLocated implements match.Rendered")
+			require.Equal(t, tt.want, rendered.Rendered(tt.candidate))
+		})
+	}
+}
+
 func TestDockerPinLocateErrors(t *testing.T) {
 	t.Parallel()
 

@@ -27,13 +27,17 @@ type fakeProvider struct {
 	deep         *bool             // when set, Discover records whether a deep lookup was requested
 	truncate     bool              // when set, Discover reports a truncated lookup
 	digest       string            // the digest the Digester capability returns
+	digestByTag  map[string]string // tag -> digest, overriding digest when the tag matches
 	defaultBr    string            // the BranchChecker default branch
 	branches     []provider.Branch // the BranchChecker branch list
 	commitBranch map[string]string // commit SHA -> the branch it is reachable from
 	tagCommit    map[string]string // tag -> commit, for the Committer fallback
 }
 
-func (f fakeProvider) Digest(context.Context, provider.Resource, string) (string, error) {
+func (f fakeProvider) Digest(_ context.Context, _ provider.Resource, tag string) (string, error) {
+	if d, ok := f.digestByTag[tag]; ok {
+		return d, nil
+	}
 	return f.digest, nil
 }
 
@@ -208,6 +212,81 @@ func TestRunResolvesDigestPin(t *testing.T) {
 	require.True(t, r.Changed)
 	require.Equal(t, "FROM x/y:1.2.0@"+newDigest, r.NewLine,
 		"tag and digest update together")
+}
+
+// variantTag builds a candidate for a variant tag (1.31.2-alpine), whose numeric
+// core is what parses - mirroring how the docker provider splits the variant off
+// before parsing the semver.
+func variantTag(t *testing.T, tag string) model.Candidate {
+	t.Helper()
+	base, _ := version.SplitVariant(tag)
+	semver, err := version.Parse(base)
+	require.NoError(t, err)
+	return model.Candidate{Version: tag, Semver: semver}
+}
+
+// A plain target line must not wander onto a variant tag, even when the variant
+// carries a strictly higher version: variantInclude keeps selection on the
+// located tag's shape, so a bare line picks plain 1.31.2 over the newer
+// 1.32.0-alpine - which would otherwise render plain (1.32.0) while pinning the
+// alpine digest. The higher variant version is what isolates this from the
+// equal-version tie-break. Regression test for the tag/digest mismatch.
+func TestRunPlainTagDoesNotPickVariant(t *testing.T) {
+	plainDigest := "sha256:" + strings.Repeat("c", 64)
+	alpineDigest := "sha256:" + strings.Repeat("d", 64)
+	provider.Register(fakeProvider{
+		name: "docker",
+		digestByTag: map[string]string{
+			"1.31.2":        plainDigest,
+			"1.32.0-alpine": alpineDigest,
+		},
+		candidates: []model.Candidate{
+			candidate(t, "1.31.2"),
+			variantTag(t, "1.32.0-alpine"),
+		},
+	})
+
+	old := "sha256:" + strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=x/y\nFROM x/y:1.0.0@" + old + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.Equal(t, "FROM x/y:1.31.2@"+plainDigest, r.NewLine,
+		"plain line stays plain over a newer variant, with the plain tag's digest")
+}
+
+// When an explicit include forces a variant the plain line lacks, restyle still
+// renders the plain tag - so the digest must be resolved for that rendered tag,
+// not the raw selected candidate. Regression test that the pinned digest always
+// describes the tag actually written.
+func TestRunDigestFollowsRenderedTag(t *testing.T) {
+	plainDigest := "sha256:" + strings.Repeat("c", 64)
+	alpineDigest := "sha256:" + strings.Repeat("d", 64)
+	provider.Register(fakeProvider{
+		name: "docker",
+		digestByTag: map[string]string{
+			"1.31.2":        plainDigest,
+			"1.31.2-alpine": alpineDigest,
+		},
+		candidates: []model.Candidate{variantTag(t, "1.31.2-alpine")},
+	})
+
+	old := "sha256:" + strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"Dockerfile": "# clover: provider=docker repository=x/y include=*-alpine\n" +
+			"FROM x/y:1.0.0@" + old + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.Equal(t, "FROM x/y:1.31.2@"+plainDigest, r.NewLine,
+		"digest matches the rendered plain tag, not the alpine candidate")
 }
 
 func TestRunResolvesSha256Follower(t *testing.T) {
