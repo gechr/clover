@@ -37,12 +37,13 @@ const (
 	ReasonEligible   Reason = iota // survived every filter
 	ReasonUnparsable               // tag is not a parsable version
 	ReasonFiltered                 // dropped by include/exclude
+	ReasonScheme                   // a different version scheme than the line (e.g. calendar tag vs dotted semver)
 	ReasonNoAsset                  // no published asset matched the asset filter
 	ReasonPrerelease               // a prerelease, and they are not allowed
 	ReasonCooldown                 // younger than the cooldown
 	ReasonConstraint               // outside the constraint
 	ReasonDowngrade                // older than current, downgrades disallowed
-	reasonCount                    // count of reasons, for tallying the dominant one
+	reasonCount                    // count of reasons, for tallying the binding one
 )
 
 // String renders the reason as a short, stable label for logging.
@@ -54,6 +55,8 @@ func (r Reason) String() string {
 		return "unparsable"
 	case ReasonFiltered:
 		return "filtered"
+	case ReasonScheme:
+		return "scheme"
 	case ReasonNoAsset:
 		return "no-asset"
 	case ReasonPrerelease:
@@ -78,6 +81,8 @@ func (r Reason) Detail() string {
 		return "no parsable version was found"
 	case ReasonFiltered:
 		return "no version matched the include/exclude filters"
+	case ReasonScheme:
+		return "no version shares the version scheme on the line"
 	case ReasonNoAsset:
 		return "no version published a matching asset"
 	case ReasonPrerelease:
@@ -107,6 +112,12 @@ type query struct {
 	prerelease bool
 	downgrade  bool
 	observe    func(tag string, reason Reason)
+
+	// currentArity is the count of dotted numeric components in the version on
+	// the line (3 for 3.18.0, 1 for a bare calendar tag like 20260127), or 0
+	// when there is no current version. It anchors the scheme guard, computed
+	// once in [SelectReason] rather than per candidate.
+	currentArity int
 }
 
 // WithConstraint limits selection to versions the constraint allows.
@@ -193,6 +204,9 @@ func SelectReason[T any](
 	for _, opt := range opts {
 		opt(&q)
 	}
+	if current != nil {
+		q.currentArity = numericArity(current.Original())
+	}
 
 	kept := make([]scored[T], 0, len(cands))
 	var rejected [reasonCount]int
@@ -255,6 +269,8 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 		return ReasonUnparsable
 	case !q.included(a.Tag) || q.excluded(a.Tag):
 		return ReasonFiltered
+	case q.schemeMismatch(a.Tag):
+		return ReasonScheme
 	case len(q.assets) > 0 && !q.hasAsset(a.Assets):
 		return ReasonNoAsset
 	case !q.prerelease && isPrerelease(a.Semver):
@@ -268,6 +284,42 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 	default:
 		return ReasonEligible
 	}
+}
+
+// schemeMismatch reports whether a candidate uses a different version scheme
+// than the line: a bare single-number tag (a calendar stamp like 20260127) may
+// not replace a dotted multi-part version (3.18.0), nor the reverse. It is the
+// scheme-level distinction only - 2- vs 3-part precision is deliberately not
+// locked - so it catches the calendar-tag-beats-semver footgun without
+// rejecting an ordinary patch or major bump. Inert when the line has no current
+// version (currentArity 0) or the candidate has no numeric core.
+func (q *query) schemeMismatch(tag string) bool {
+	if q.currentArity == 0 {
+		return false
+	}
+	if n := numericArity(tag); n != 0 {
+		return (n == 1) != (q.currentArity == 1)
+	}
+	return false
+}
+
+// numericArity counts the leading dotted numeric components of a version
+// string: 3.18.0 -> 3, 7.2 -> 2, 20260127 -> 1, 1.15.0-ent -> 3. A leading v is
+// ignored and a prerelease or build suffix is dropped, so the count reflects the
+// version core's shape. It is 0 when the string has no numeric core.
+func numericArity(tag string) int {
+	core := strings.TrimPrefix(tag, "v")
+	core, _, _ = strings.Cut(core, "-")
+	core, _, _ = strings.Cut(core, "+")
+	n := 0
+	for part := range strings.SplitSeq(core, ".") {
+		if part == "" ||
+			strings.IndexFunc(part, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // included reports whether tag matches the include set (OR), or true when no

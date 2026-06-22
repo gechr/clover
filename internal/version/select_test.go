@@ -161,6 +161,35 @@ func TestSelectReasonReportsBindingNotMostNumerous(t *testing.T) {
 	require.Equal(t, "only prerelease versions are available", reason.Detail())
 }
 
+func TestSelectSchemeGuard(t *testing.T) {
+	t.Parallel()
+
+	// A dotted-semver line never jumps to a bare calendar tag, even though the
+	// calendar number sorts highest; it stays on the newest dotted version.
+	cur := mustParse(t, "3.18.0")
+	got, ok := version.Select(cur, candidates("3.24.1", "20260127"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "3.24.1", got.tag, "calendar tag rejected against a dotted line")
+
+	// The guard is symmetric: a calendar line never jumps to dotted semver.
+	cur = mustParse(t, "20240101")
+	got, ok = version.Select(cur, candidates("20260127", "3.24.1"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "20260127", got.tag, "dotted tag rejected against a calendar line")
+
+	// When only a different-scheme candidate exists, the failure names scheme.
+	cur = mustParse(t, "3.18.0")
+	_, reason, ok := version.SelectReason(cur, candidates("20260127"), attrsOf)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonScheme, reason)
+
+	// 2- vs 3-part precision is not a scheme change: a patch bump is allowed.
+	cur = mustParse(t, "7.2")
+	got, ok = version.Select(cur, candidates("7.4.9"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "7.4.9", got.tag, "precision difference is not a scheme mismatch")
+}
+
 func TestSelectConstraint(t *testing.T) {
 	t.Parallel()
 
