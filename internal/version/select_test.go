@@ -12,14 +12,21 @@ import (
 // cand is a minimal candidate the tests select over, mapped to version.Attrs by
 // attrsOf.
 type cand struct {
-	tag       string
-	published time.Time
-	assets    []string
+	tag        string
+	published  time.Time
+	assets     []string
+	prerelease bool
 }
 
 func attrsOf(c cand) version.Attrs {
 	v, _ := version.Parse(c.tag)
-	return version.Attrs{Tag: c.tag, Semver: v, PublishedAt: c.published, Assets: c.assets}
+	return version.Attrs{
+		Tag:         c.tag,
+		Semver:      v,
+		Prerelease:  c.prerelease,
+		PublishedAt: c.published,
+		Assets:      c.assets,
+	}
 }
 
 func candidates(tags ...string) []cand {
@@ -222,6 +229,34 @@ func TestSelectQualifierExempt(t *testing.T) {
 	)
 	require.False(t, ok)
 	require.Equal(t, version.ReasonPrerelease, reason)
+}
+
+func TestSelectPrereleaseFlag(t *testing.T) {
+	t.Parallel()
+
+	// A clean-tagged candidate the upstream flags prerelease is excluded, even
+	// though its tag carries no prerelease segment.
+	cands := []cand{{tag: "1.2.0"}, {tag: "1.3.0", prerelease: true}}
+	got, ok := version.Select(nil, cands, attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag, "flagged prerelease excluded despite a clean tag")
+
+	// The flag is additive: a structural -rc prerelease is still excluded with no
+	// flag set, so an unflagged rc release does not slip through.
+	cands = []cand{{tag: "1.2.0"}, {tag: "1.3.0-rc1"}}
+	got, ok = version.Select(nil, cands, attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag, "unflagged -rc still excluded by semver")
+
+	// --prerelease opts into both.
+	got, ok = version.Select(
+		nil,
+		[]cand{{tag: "1.3.0", prerelease: true}},
+		attrsOf,
+		version.WithPrerelease(true),
+	)
+	require.True(t, ok)
+	require.Equal(t, "1.3.0", got.tag)
 }
 
 func TestSelectConstraint(t *testing.T) {

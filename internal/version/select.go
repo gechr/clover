@@ -16,6 +16,11 @@ type Attrs struct {
 	// Semver is the parsed version. A nil Semver is unorderable and never
 	// selected.
 	Semver *Version
+	// Prerelease marks a candidate the upstream declares a prerelease out of band
+	// of its tag (e.g. a GitHub release flagged pre-release). It is excluded like
+	// a semver prerelease and, being an explicit upstream signal, is not waived by
+	// the qualifier exemption.
+	Prerelease bool
 	// PublishedAt is the release time, consulted by cooldown. Zero disables
 	// cooldown for the candidate.
 	PublishedAt time.Time
@@ -285,7 +290,7 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 		return ReasonScheme
 	case len(q.assets) > 0 && !q.hasAsset(a.Assets):
 		return ReasonNoAsset
-	case !q.prerelease && isPrerelease(a.Semver) && !q.qualifierExempt(a.Tag):
+	case !q.prerelease && (a.Prerelease || (isPrerelease(a.Semver) && !q.qualifierExempt(a.Tag))):
 		return ReasonPrerelease
 	case q.tooFresh(a.PublishedAt):
 		return ReasonCooldown

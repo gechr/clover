@@ -25,6 +25,12 @@ type Candidate struct {
 	// semver-shaped (calver, a commit pin) and so cannot be ordered.
 	Semver *version.Version
 
+	// Prerelease marks a version the upstream declares a prerelease out of band
+	// of its tag - e.g. a GitHub release flagged pre-release on a clean tag.
+	// Selection excludes it like a semver prerelease unless prereleases are
+	// allowed. Providers with no such signal leave it false.
+	Prerelease bool
+
 	// PublishedAt is when the version was released, used by cooldown. Zero when
 	// the provider's listing does not carry a timestamp.
 	PublishedAt time.Time

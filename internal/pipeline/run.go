@@ -1047,6 +1047,7 @@ func attrs(c model.Candidate) version.Attrs {
 	return version.Attrs{
 		Tag:         c.Version,
 		Semver:      c.Semver,
+		Prerelease:  c.Prerelease,
 		PublishedAt: c.PublishedAt,
 		Assets:      names,
 	}
@@ -1063,7 +1064,12 @@ func prefixedAttrs(prefix string) func(model.Candidate) version.Attrs {
 			return version.Attrs{Tag: c.Version}
 		}
 		semver, _ := version.Parse(rest)
-		return version.Attrs{Tag: rest, Semver: semver, PublishedAt: c.PublishedAt}
+		return version.Attrs{
+			Tag:         rest,
+			Semver:      semver,
+			Prerelease:  c.Prerelease,
+			PublishedAt: c.PublishedAt,
+		}
 	}
 }
 

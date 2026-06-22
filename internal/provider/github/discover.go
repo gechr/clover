@@ -33,6 +33,7 @@ type release struct {
 	TagName     string    `json:"tag_name"`
 	PublishedAt time.Time `json:"published_at"`
 	Draft       bool      `json:"draft"`
+	Prerelease  bool      `json:"prerelease"`
 	Assets      []struct {
 		Name   string `json:"name"`
 		Digest string `json:"digest"`
@@ -76,7 +77,7 @@ func discoverTags(
 
 	candidates := make([]model.Candidate, 0, len(tags))
 	for _, t := range tags {
-		candidates = append(candidates, candidate(t.Name, t.Commit.SHA, time.Time{}, nil))
+		candidates = append(candidates, candidate(t.Name, t.Commit.SHA, false, time.Time{}, nil))
 	}
 	return candidates, nil
 }
@@ -124,7 +125,7 @@ func discoverReleases(
 		}
 		candidates = append(
 			candidates,
-			candidate(rel.TagName, commits[rel.TagName], rel.PublishedAt, assets),
+			candidate(rel.TagName, commits[rel.TagName], rel.Prerelease, rel.PublishedAt, assets),
 		)
 	}
 	return candidates, nil
@@ -217,11 +218,17 @@ func tagCommits(
 
 // candidate builds a model.Candidate, parsing the raw tag for comparison. A tag
 // that is not semver-shaped yields a nil Semver and is skipped by selection.
-func candidate(raw, commit string, published time.Time, assets []model.Asset) model.Candidate {
+func candidate(
+	raw, commit string,
+	prerelease bool,
+	published time.Time,
+	assets []model.Asset,
+) model.Candidate {
 	semver, _ := version.Parse(raw)
 	return model.Candidate{
 		Version:     raw,
 		Semver:      semver,
+		Prerelease:  prerelease,
 		Commit:      commit,
 		Ref:         raw,
 		PublishedAt: published,

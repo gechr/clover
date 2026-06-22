@@ -196,6 +196,38 @@ func TestDiscoverReleases(t *testing.T) {
 	}}, candidates[0].Assets, "release assets and their digests are captured")
 }
 
+func TestDiscoverReleasesPrereleaseFlag(t *testing.T) {
+	t.Parallel()
+
+	// A published (non-draft) release flagged pre-release on a clean tag: the
+	// flag is captured so selection can exclude it without the tag saying so.
+	const releases = `[
+		{"tag_name": "v2.0.0", "published_at": "2026-01-02T03:04:05Z", "draft": false, "prerelease": false},
+		{"tag_name": "v2.1.0", "published_at": "2026-02-02T03:04:05Z", "draft": false, "prerelease": true}
+	]`
+	const tags = `[{"name": "v2.0.0", "commit": {"sha": "deadbeef"}}]`
+	provider := github.New(github.WithTransport(routeTransport(map[string]string{
+		"/releases": releases,
+		"/tags":     tags,
+	})))
+
+	res, err := provider.Resource(directiveOf(
+		directive.KV{Key: "repository", Value: "owner/name"},
+		directive.KV{Key: "source", Value: "releases"},
+	))
+	require.NoError(t, err)
+	candidates, err := provider.Discover(t.Context(), res)
+	require.NoError(t, err)
+
+	require.Len(t, candidates, 2, "a flagged prerelease is still discovered, just marked")
+	byTag := map[string]bool{}
+	for _, c := range candidates {
+		byTag[c.Version] = c.Prerelease
+	}
+	require.False(t, byTag["v2.0.0"], "stable release not flagged")
+	require.True(t, byTag["v2.1.0"], "flagged release carries Prerelease")
+}
+
 func TestDiscoverReleasesUnmatchedTagHasNoCommit(t *testing.T) {
 	t.Parallel()
 
