@@ -10,4 +10,5 @@ const (
 	RuleExclude    = "exclude"
 	RuleInclude    = "include"
 	RulePrerelease = "prerelease"
+	RuleTagPrefix  = "tag-prefix"
 )

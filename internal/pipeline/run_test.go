@@ -107,6 +107,34 @@ func TestRunDeepReachesDiscover(t *testing.T) {
 	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
 }
 
+// A tag-prefix scopes selection to one component of a monorepo and renders just
+// the version: only api/* tags are considered, the newest wins, and the api/
+// prefix is stripped on render (keeping the line's v prefix).
+func TestRunTagPrefixSelectsComponent(t *testing.T) {
+	provider.Register(fakeProvider{
+		name: "monorepo",
+		candidates: []model.Candidate{
+			{Version: "api/v1.4.0"},
+			{Version: "api/v1.5.0"},
+			{Version: "worker/v2.0.0"},
+			{Version: "web/v3.1.0"},
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"versions.yaml": "# clover: provider=monorepo repository=x/y tag-prefix=api/\n" +
+			"version: v1.4.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.Equal(t, "version: v1.5.0", r.NewLine,
+		"newest api/ component, prefix stripped, v preserved - not worker/v2 or web/v3")
+	require.Equal(t, "v1.5.0", r.Written)
+}
+
 func TestScanSkipsConfiguredExcludes(t *testing.T) {
 	dir := write(t, map[string]string{
 		"keep.yaml":         "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
@@ -288,7 +316,12 @@ func TestRunDigestFollowsRenderedTag(t *testing.T) {
 	require.Equal(t, "FROM x/y:1.31.2@"+plainDigest, r.NewLine,
 		"digest matches the rendered plain tag, not the alpine candidate")
 	require.Equal(t, "1.31.2-alpine", r.Resolved, "resolved keeps the raw candidate")
-	require.Equal(t, "1.31.2", r.Written, "written is the rendered plain tag, what the report shows")
+	require.Equal(
+		t,
+		"1.31.2",
+		r.Written,
+		"written is the rendered plain tag, what the report shows",
+	)
 }
 
 func TestRunResolvesSha256Follower(t *testing.T) {

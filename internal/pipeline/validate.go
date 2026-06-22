@@ -63,6 +63,7 @@ var trackConflicts = []string{
 	constant.RuleBehind,
 	constant.RulePrerelease,
 	constant.RuleDowngrade,
+	constant.RuleTagPrefix,
 	constant.DirectiveFrom,
 	constant.DirectiveSelect,
 	constant.DirectiveValue,

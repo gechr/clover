@@ -29,6 +29,7 @@ var (
 	}
 	canonicalTrailing = []string{
 		constant.RuleConstraint,
+		constant.RuleTagPrefix,
 		constant.RuleInclude,
 		constant.RuleExclude,
 		constant.RulePrerelease,

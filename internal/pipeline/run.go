@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -501,9 +502,22 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		}))
 	}
 
-	chosen, ok := version.Select(located.Semver(), candidates, attrs, opts...)
+	// A monorepo tag-prefix scopes selection to one component's tags
+	// (api/v1.4.0), parsing and ordering on the version after the prefix; the
+	// prefix is stripped from the winner so everything downstream - render, the
+	// published value, a digest - sees the bare version.
+	extract := attrs
+	prefix, _ := m.Directive.Get(constant.RuleTagPrefix)
+	if prefix != "" {
+		extract = prefixedAttrs(prefix)
+	}
+
+	chosen, ok := version.Select(located.Semver(), candidates, extract, opts...)
 	if !ok {
 		return ErrNoCandidate
+	}
+	if prefix != "" {
+		chosen.Version = strings.TrimPrefix(chosen.Version, prefix)
 	}
 
 	// A secure pin (e.g. an image @sha256 digest) needs the chosen tag's digest,
@@ -1021,6 +1035,21 @@ func targetLine(lines map[string][]string, m Marker) string {
 // attrs maps a discovered candidate onto the slice the selection chain reads.
 func attrs(c model.Candidate) version.Attrs {
 	return version.Attrs{Tag: c.Version, Semver: c.Semver, PublishedAt: c.PublishedAt}
+}
+
+// prefixedAttrs maps a candidate by stripping a monorepo tag prefix (api/) before
+// parsing, so a component-scoped tag (api/v1.4.0) selects on its version
+// (v1.4.0). A candidate lacking the prefix yields a nil Semver and is dropped, so
+// only the named component's tags are considered.
+func prefixedAttrs(prefix string) func(model.Candidate) version.Attrs {
+	return func(c model.Candidate) version.Attrs {
+		rest, ok := strings.CutPrefix(c.Version, prefix)
+		if !ok {
+			return version.Attrs{Tag: c.Version}
+		}
+		semver, _ := version.Parse(rest)
+		return version.Attrs{Tag: rest, Semver: semver, PublishedAt: c.PublishedAt}
+	}
 }
 
 // variantInclude returns an include option restricting selection to candidates
