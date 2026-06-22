@@ -28,6 +28,7 @@ const authHint = "run `docker login` (or the registry's), or set CLOVER_DOCKER_T
 const (
 	keyRepository = constant.DirectiveRepository
 	keyRegistry   = constant.DirectiveRegistry
+	keyPlatform   = constant.DirectivePlatform
 )
 
 // Provider resolves versions from a container image registry's tags. The OCI
@@ -83,6 +84,7 @@ func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyRepository, Required: true},
 		{Name: keyRegistry},
+		{Name: keyPlatform},
 	}
 }
 
@@ -93,7 +95,8 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 		return nil, fmt.Errorf("docker: %s is required", keyRepository)
 	}
 	registry, _ := d.Get(keyRegistry)
-	return newReference(registry, repo)
+	platform, _ := d.Get(keyPlatform)
+	return newReference(registry, repo, platform)
 }
 
 // Describe returns a human-readable label for a resource.

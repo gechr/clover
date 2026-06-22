@@ -32,11 +32,14 @@ var defaultRateHeaders = ratelimit.Headers{
 // AuthHost is where credentials are keyed (it diverges from Host only for Docker
 // Hub, whose registry is registry-1.docker.io but whose login is stored under
 // index.docker.io) and defaults to Host when empty; Repository is the path
-// within the registry and the basis for the pull scope.
+// within the registry and the basis for the pull scope. Platform, when set
+// (os/arch), selects that platform's manifest digest from a multi-arch index
+// instead of the index digest.
 type Repo struct {
 	Host       string
 	AuthHost   string
 	Repository string
+	Platform   string
 }
 
 // authHost returns the host whose credentials apply, defaulting to Host.

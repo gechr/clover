@@ -39,6 +39,7 @@ const TrackInfer = "*"
 // injects them and the relevant providers read them.
 const (
 	DirectiveChart      = "chart"      // helm chart name (helm)
+	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
 	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
 	DirectiveRepository = "repository" // repository path (github, docker)
 )

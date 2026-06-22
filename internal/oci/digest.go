@@ -2,7 +2,9 @@ package oci
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -17,26 +19,18 @@ var acceptManifests = strings.Join([]string{
 	"application/vnd.docker.distribution.manifest.v2+json",
 }, ", ")
 
-// Digest resolves the content digest a tag points at, from the registry's
-// Docker-Content-Digest header. It performs the bearer-token challenge the same
-// way tag discovery does.
+// Digest resolves the content digest a tag points at. By default it returns the
+// multi-arch index digest from the Docker-Content-Digest header (a HEAD). When
+// repo.Platform is set, it instead returns that os/arch's manifest digest from
+// the index - what `docker pull --platform` would pin.
 func (c *Client) Digest(ctx context.Context, repo Repo, tag string) (string, error) {
-	url := fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Host, repo.Repository, tag)
+	if repo.Platform != "" {
+		return c.digestForPlatform(ctx, repo, tag)
+	}
 
-	resp, err := c.send(ctx, http.MethodHead, url, "", acceptManifests)
+	resp, err := c.fetchManifest(ctx, http.MethodHead, repo, tag)
 	if err != nil {
 		return "", err
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		challenge := resp.Header.Get("WWW-Authenticate")
-		_ = resp.Body.Close()
-		token, terr := c.fetchToken(ctx, challenge, repo)
-		if terr != nil {
-			return "", terr
-		}
-		if resp, err = c.send(ctx, http.MethodHead, url, token, acceptManifests); err != nil {
-			return "", err
-		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -48,4 +42,80 @@ func (c *Client) Digest(ctx context.Context, repo Repo, tag string) (string, err
 		return "", fmt.Errorf("%s: registry returned no digest for %s", c.label, tag)
 	}
 	return digest, nil
+}
+
+// fetchManifest issues method against the tag's manifest, performing the
+// bearer-token challenge the same way tag discovery does and retrying once with
+// the token. The caller closes the response body.
+func (c *Client) fetchManifest(
+	ctx context.Context,
+	method string,
+	repo Repo,
+	tag string,
+) (*http.Response, error) {
+	url := fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Host, repo.Repository, tag)
+
+	resp, err := c.send(ctx, method, url, "", acceptManifests)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		challenge := resp.Header.Get("WWW-Authenticate")
+		_ = resp.Body.Close()
+		token, terr := c.fetchToken(ctx, challenge, repo)
+		if terr != nil {
+			return nil, terr
+		}
+		if resp, err = c.send(ctx, method, url, token, acceptManifests); err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
+}
+
+// digestForPlatform GETs the tag's manifest and returns the digest of the
+// manifest matching repo.Platform (os/arch) from a multi-arch index. A
+// single-arch image is not an index (no manifests array), so its sole digest is
+// returned from the header.
+func (c *Client) digestForPlatform(ctx context.Context, repo Repo, tag string) (string, error) {
+	resp, err := c.fetchManifest(ctx, http.MethodGet, repo, tag)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", c.StatusErr("get manifest for "+tag, resp)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("%s: read manifest for %s: %w", c.label, tag, err)
+	}
+	var index struct {
+		Manifests []struct {
+			Digest   string `json:"digest"`
+			Platform struct {
+				OS   string `json:"os"`
+				Arch string `json:"architecture"`
+			} `json:"platform"`
+		} `json:"manifests"`
+	}
+	if err := json.Unmarshal(body, &index); err != nil {
+		return "", fmt.Errorf("%s: parse manifest for %s: %w", c.label, tag, err)
+	}
+
+	if len(index.Manifests) == 0 {
+		if digest := resp.Header.Get("Docker-Content-Digest"); digest != "" {
+			return digest, nil
+		}
+		return "", fmt.Errorf("%s: registry returned no digest for %s", c.label, tag)
+	}
+
+	os, arch, _ := strings.Cut(repo.Platform, "/")
+	for _, m := range index.Manifests {
+		if m.Platform.OS == os && m.Platform.Arch == arch {
+			return m.Digest, nil
+		}
+	}
+	return "", fmt.Errorf("%s: no manifest for platform %s in %s", c.label, repo.Platform, tag)
 }

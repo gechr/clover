@@ -31,9 +31,12 @@ var dockerHubAliases = map[string]bool{
 // reference is docker's validated descriptor: the registry host and the
 // repository path within it, plus whether it points at Docker Hub - which has
 // its own, richer tags API and an implicit library/ namespace for bare names.
+// platform, when set, pins a specific os/arch manifest digest instead of the
+// multi-arch index digest.
 type reference struct {
 	registry   string
 	repository string
+	platform   string
 	dockerHub  bool
 }
 
@@ -57,7 +60,7 @@ func splitHost(repository string) (host, repo string) {
 // (nginx -> library/nginx), matching docker's own resolution. With no explicit
 // registry, an inline host on the repository (ghcr.io/owner/img) is split out, so
 // a `docker pull`-shaped reference works without a separate registry=.
-func newReference(registry, repository string) (reference, error) {
+func newReference(registry, repository, platform string) (reference, error) {
 	registry = strings.TrimSuffix(strings.TrimPrefix(registry, "https://"), "/")
 	repository = strings.Trim(repository, "/")
 	switch {
@@ -75,6 +78,9 @@ func newReference(registry, repository string) (reference, error) {
 			keyRegistry, keyRepository, repository,
 		)
 	}
+	if err := validatePlatform(platform); err != nil {
+		return reference{}, err
+	}
 
 	// Explicit registry= always wins; only an unset registry parses an inline host.
 	if registry == "" {
@@ -87,9 +93,23 @@ func newReference(registry, repository string) (reference, error) {
 		if !strings.Contains(repository, "/") {
 			repository = hubDefaultNamespace + repository
 		}
-		return reference{registry: hubAPIHost, repository: repository, dockerHub: true}, nil
+		return reference{registry: hubAPIHost, repository: repository, platform: platform, dockerHub: true}, nil
 	}
-	return reference{registry: registry, repository: repository}, nil
+	return reference{registry: registry, repository: repository, platform: platform}, nil
+}
+
+// validatePlatform rejects a platform that is not os/arch (exactly one slash,
+// both halves non-empty, no whitespace). An empty platform is valid and means
+// "pin the multi-arch index digest", the default.
+func validatePlatform(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	os, arch, ok := strings.Cut(platform, "/")
+	if !ok || os == "" || arch == "" || strings.ContainsAny(platform, " \t") {
+		return fmt.Errorf("docker: %s %q must be os/arch", keyPlatform, platform)
+	}
+	return nil
 }
 
 // String returns a human-readable label for the reference.
@@ -129,5 +149,10 @@ func (r reference) ociRepo() oci.Repo {
 // registry v2 host, but credentials are keyed under the (possibly distinct) auth
 // host - the two diverge for Docker Hub.
 func (r reference) manifestRepo() oci.Repo {
-	return oci.Repo{Host: r.registryV2Host(), AuthHost: r.authHost(), Repository: r.repository}
+	return oci.Repo{
+		Host:       r.registryV2Host(),
+		AuthHost:   r.authHost(),
+		Repository: r.repository,
+		Platform:   r.platform,
+	}
 }

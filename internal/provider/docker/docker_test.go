@@ -96,11 +96,13 @@ func TestNameAndKeys(t *testing.T) {
 	require.Equal(t, "docker", p.Name())
 
 	keys := p.Keys()
-	require.Len(t, keys, 2)
+	require.Len(t, keys, 3)
 	require.Equal(t, "repository", keys[0].Name)
 	require.True(t, keys[0].Required)
 	require.Equal(t, "registry", keys[1].Name)
 	require.False(t, keys[1].Required)
+	require.Equal(t, "platform", keys[2].Name)
+	require.False(t, keys[2].Required)
 }
 
 func TestResource(t *testing.T) {
@@ -180,6 +182,22 @@ func TestResource(t *testing.T) {
 			name:    "a host in the repository is rejected",
 			pairs:   []directive.KV{{Key: "repository", Value: "ghcr.io://owner/img"}},
 			wantErr: `docker: put the registry host in registry, not repository (got "ghcr.io://owner/img")`,
+		},
+		{
+			name: "a valid platform is accepted",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "ghcr.io/owner/img"},
+				{Key: "platform", Value: "linux/arm64"},
+			},
+			want: "ghcr.io/owner/img",
+		},
+		{
+			name: "a malformed platform is rejected",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "nginx"},
+				{Key: "platform", Value: "amd64"},
+			},
+			wantErr: `docker: platform "amd64" must be os/arch`,
 		},
 	}
 

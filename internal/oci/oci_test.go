@@ -246,3 +246,82 @@ func TestDigest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, digest)
 }
+
+const (
+	amdDigest = "sha256:" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	armDigest = "sha256:" + "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+// indexTransport serves a multi-arch image index for a tag, behind a bearer
+// challenge, so a platform lookup reads the per-arch manifest digests.
+func indexTransport() roundTripFunc {
+	const index = `{"manifests":[` +
+		`{"digest":"` + amdDigest + `","platform":{"architecture":"amd64","os":"linux"}},` +
+		`{"digest":"` + armDigest + `","platform":{"architecture":"arm64","os":"linux"}}` +
+		`]}`
+	return func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			return jsonResponse(req, `{"token":"abc"}`), nil
+		case strings.Contains(req.URL.Path, "/manifests/"):
+			if req.Header.Get("Authorization") == "" {
+				return challengeResponse(req), nil
+			}
+			return jsonResponse(req, index), nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	}
+}
+
+func TestDigestPlatformSelectsArch(t *testing.T) {
+	t.Parallel()
+
+	digest, err := newClient(indexTransport()).Digest(
+		t.Context(),
+		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/arm64"},
+		"1.27",
+	)
+	require.NoError(t, err)
+	require.Equal(t, armDigest, digest, "the arm64 manifest digest, not the index digest")
+}
+
+func TestDigestPlatformNotFound(t *testing.T) {
+	t.Parallel()
+
+	_, err := newClient(indexTransport()).Digest(
+		t.Context(),
+		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/s390x"},
+		"1.27",
+	)
+	require.EqualError(t, err, "oci: no manifest for platform linux/s390x in 1.27")
+}
+
+// A single-arch image is not an index, so a platform lookup falls back to the
+// sole digest in the Docker-Content-Digest header.
+func TestDigestPlatformSingleArch(t *testing.T) {
+	t.Parallel()
+
+	const want = "sha256:" + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			return jsonResponse(req, `{"token":"abc"}`), nil
+		case strings.Contains(req.URL.Path, "/manifests/"):
+			if req.Header.Get("Authorization") == "" {
+				return challengeResponse(req), nil
+			}
+			resp := jsonResponse(req, `{"schemaVersion":2,"config":{},"layers":[]}`)
+			resp.Header.Set("Docker-Content-Digest", want)
+			return resp, nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	})
+
+	digest, err := newClient(transport).Digest(
+		t.Context(),
+		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/amd64"},
+		"1.27",
+	)
+	require.NoError(t, err)
+	require.Equal(t, want, digest)
+}
