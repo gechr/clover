@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 )
 
 // Confirm asks a yes/no question, returning the user's choice. It requires a
@@ -11,7 +11,7 @@ import (
 func Confirm(title, description string) (bool, error) {
 	var ok bool
 	field := huh.NewConfirm().Title(title).Description(description).Value(&ok)
-	if err := huh.NewForm(huh.NewGroup(field)).Run(); err != nil {
+	if err := huh.NewForm(huh.NewGroup(field)).WithTheme(Theme()).Run(); err != nil {
 		return false, fmt.Errorf("confirm: %w", err)
 	}
 	return ok, nil

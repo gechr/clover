@@ -111,9 +111,9 @@ func authSummary(ctx context.Context, providers []string) string {
 	var b strings.Builder
 	for _, status := range auth.Check(ctx, providers) {
 		if status.Authenticated {
-			fmt.Fprintf(&b, "✓ %s: authenticated\n", status.Provider)
+			fmt.Fprintf(&b, "◉ %s: authenticated\n", status.Provider)
 		} else {
-			fmt.Fprintf(&b, "• %s: anonymous - %s\n", status.Provider, status.Hint)
+			fmt.Fprintf(&b, "○ %s: anonymous - %s\n", status.Provider, status.Hint)
 		}
 	}
 	return strings.TrimRight(b.String(), "\n")

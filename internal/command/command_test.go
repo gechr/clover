@@ -87,7 +87,7 @@ func TestAuthSummary(t *testing.T) {
 
 	got := command.AuthSummary(context.Background(), []string{"csumok", "csumanon"})
 	require.Equal(t,
-		"✓ csumok: authenticated\n• csumanon: anonymous - run the login flow",
+		"◉ csumok: authenticated\n○ csumanon: anonymous - run the login flow",
 		got,
 	)
 

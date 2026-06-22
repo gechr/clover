@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 )
 
 // SelectProviders asks which upstream providers the project will use, with every
@@ -22,9 +22,12 @@ func SelectProviders(names []string) ([]string, error) {
 		Title("Which providers will this project use?").
 		Description("clover checks credentials for the providers you select.").
 		Options(options...).
+		// huh sizes the viewport as options-height minus the title+description
+		// lines, so size for all options plus those two header lines.
+		Height(len(names) + 2). //nolint:mnd // title + description header lines
 		Value(&selected)
 
-	if err := huh.NewForm(huh.NewGroup(field)).Run(); err != nil {
+	if err := huh.NewForm(huh.NewGroup(field)).WithTheme(ProviderTheme()).Run(); err != nil {
 		return nil, fmt.Errorf("select providers: %w", err)
 	}
 	return selected, nil
@@ -99,13 +102,14 @@ func Configure(in ConfigureInput) (Settings, error) {
 		huh.NewMultiSelect[string]().
 			Title("Paths to exclude from scanning").
 			Options(excludeOptions...).
+			Height(len(excludeOptions)+1). // viewport offset: title line only
 			Value(&settings.Excludes),
 		huh.NewConfirm().
 			Title(confirmTitle).
 			Value(&settings.Write),
 	)
 
-	if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+	if err := huh.NewForm(huh.NewGroup(fields...)).WithTheme(Theme()).Run(); err != nil {
 		return Settings{}, fmt.Errorf("configure: %w", err)
 	}
 	settings.RequiredVersion = strings.TrimSpace(settings.RequiredVersion)
