@@ -27,14 +27,14 @@ required_version = "1.7.0"
 
 Every annotation is a flat list of space-separated `key=value` pairs. The available keys fall into a few groups:
 
-| Group         | Keys                                                                                                                                                                  |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source        | [`provider`](providers.md), `repository`, `registry`                                                                                                                  |
-| Selection     | [`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `downgrade` |
-| Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                  |
-| Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                       |
-| Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                     |
-| Matching      | `find`, `replace`, `skip`, `tags`                                                                                                                                     |
+| Group         | Keys                                                                                                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source        | [`provider`](providers.md), `repository`, `registry`, `source`, [`platform`](docker.md)                                                                                                                                   |
+| Selection     | [`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`tag-prefix`](filtering.md), [`asset`](github.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `downgrade` |
+| Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                                                                      |
+| Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                                                                           |
+| Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                                                                         |
+| Matching      | `find`, `replace`, `skip`, `tags`                                                                                                                                                                                         |
 
 You rarely need most of them. Clover infers sensible patterns from the existing content of the target line, so a `provider` and a `repository` are usually enough.
 

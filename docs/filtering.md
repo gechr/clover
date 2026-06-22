@@ -35,3 +35,14 @@ FROM redis:7.2.0
 ```
 
 For an age-based delay rather than a fixed offset, see [Cooldown](cooldown.md).
+
+## tag-prefix
+
+A monorepo publishes component-scoped tags - `storage/v1.40.0`, `pubsub/v1.33.0` - where the prefix names the component and the rest is its version. `tag-prefix` scopes selection to one component: it keeps only tags under the prefix, orders them by the version after it, and strips the prefix on render so the line pins the bare version.
+
+```yaml
+# clover: provider=github repository=owner/monorepo tag-prefix=storage/ constraint=minor
+version: v1.40.0
+```
+
+With tags `storage/v1.40.0`, `storage/v1.41.0`, and `pubsub/v1.33.0`, this resolves `v1.41.0` (the newest `storage/`), never the unrelated `pubsub/` line. The prefix governs selection only; the value written stays `v1.41.0`.
