@@ -37,7 +37,10 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line(field.Location, r.Marker.File, line(r)).Err(r.Err).Msg("Failed")
+			logger.Error().
+				Line(field.Location, r.Marker.File, line(r)).
+				Err(r.Err).
+				Msg("Update check failed")
 		case r.Skipped:
 			logger.Warn().
 				Line(field.Location, r.Marker.File, line(r)).
