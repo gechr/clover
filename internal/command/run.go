@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"errors"
 	"os"
 	"slices"
 	"sync"
@@ -89,48 +88,33 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 	}
 
 	reportAuth(ctx, summary)
-	reportDeep(summary, truncated, c.Deep)
+	reportDeep(truncated, c.Deep)
 	report.Run(clog.Default, summary, c.DryRun, c.Output)
 	return nil
 }
 
 // reportDeep hints, after a run, that a deeper lookup might help: it warns about
-// each lexically-ordered registry whose shallow listing was truncated (the newest
-// version may have been missed), and once if any marker found no matching version
-// on the first page. Both suggest --deep. The no-candidate hint fires on any
-// ErrNoCandidate, so it can show when --deep will not help (nothing qualifies at
-// all) - the wording stays a suggestion rather than a promise.
-func reportDeep(summary mode.Summary, truncated []string, deep bool) {
-	resources, noCandidate := deepHints(summary, truncated, deep)
-	for _, resource := range resources {
+// each lexically-ordered resource whose shallow listing was truncated, so the
+// newest version may sit on a later page. Every provider reports truncation (the
+// OCI registries and GitHub alike), so this single per-resource warning is the
+// only --deep hint; a no-candidate failure explains itself in its own error.
+func reportDeep(truncated []string, deep bool) {
+	for _, resource := range deepHints(truncated, deep) {
 		clog.Warn().
 			Str(field.Resource, resource).
 			Str(field.Hint, "pass --deep").
 			Msg("Shallow lookup may have missed newer versions")
 	}
-	if noCandidate {
-		clog.Hint().
-			Str(field.Hint, "pass --deep to fetch all pages").
-			Msg("No matching version found in first page of results")
-	}
 }
 
-// deepHints is the pure decision behind reportDeep: which truncated resources to
-// warn about, and whether any marker found no candidate on the first page. A deep
-// run already paged to exhaustion, so it suggests nothing.
-func deepHints(summary mode.Summary, truncated []string, deep bool) ([]string, bool) {
+// deepHints is the pure decision behind reportDeep: the unique truncated
+// resources to warn about. A deep run already paged to exhaustion, so it warns
+// about nothing.
+func deepHints(truncated []string, deep bool) []string {
 	if deep {
-		return nil, false
+		return nil
 	}
-	resources := xslices.Unique(truncated)
-	for _, outcome := range summary.Outcomes {
-		for _, result := range outcome.Results {
-			if errors.Is(result.Err, pipeline.ErrNoCandidate) {
-				return resources, true
-			}
-		}
-	}
-	return resources, false
+	return xslices.Unique(truncated)
 }
 
 // confirmDeep reports whether to go ahead with a deep lookup. --yes and a
