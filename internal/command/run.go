@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"slices"
 	"sync"
@@ -84,13 +85,24 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 	// be noise in a CI log.
 	if c.Output == report.OutputGitHub {
 		report.GitHub(os.Stdout, summary, c.DryRun)
-		return nil
+		return runErr(summary)
 	}
 
 	reportAuth(ctx, summary)
 	reportDeep(truncated, c.Deep)
 	report.Run(clog.Default, summary, c.DryRun, c.Output)
-	return nil
+	return runErr(summary)
+}
+
+// runErr turns a run summary into the command's exit status: a failed or skipped
+// marker makes `clover run` exit non-zero, so a CI step fails when a directive
+// could not be resolved rather than passing on a green-looking log. The
+// per-marker errors are already reported; this only sets the code.
+func runErr(summary mode.Summary) error {
+	if summary.OK() {
+		return nil
+	}
+	return fmt.Errorf("%d failed, %d skipped", summary.Errored(), summary.Skipped())
 }
 
 // reportDeep hints, after a run, that a deeper lookup might help: it warns about
