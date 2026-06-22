@@ -403,6 +403,13 @@ func (p *plan) resolve(ctx context.Context) {
 			p.results[i].Skipped = true
 			p.results[i].Reason = r.Reason
 			p.tasks[i].Skip(r.Reason)
+		case r.Err != nil && errors.Is(r.Err, directive.ErrUnknownKey):
+			// An unknown key is a config-hygiene problem lint rejects, but run
+			// stays resilient: warn, leave the line untouched, and carry on with
+			// the other markers rather than failing the whole run.
+			p.results[i].Skipped = true
+			p.results[i].Reason = r.Err.Error()
+			p.tasks[i].Skip(r.Err.Error())
 		case r.Err != nil:
 			p.results[i].Err = r.Err
 		}

@@ -58,13 +58,18 @@ func (p *plan) check(i int) error {
 // checkKeys rejects a marker carrying a key outside the common vocabulary and
 // its resolved provider's own keys - a typo or a stale annotation from another
 // tool. It is the one validation both lint and run apply up front, so an unknown
-// key fails the marker (logged, its line left untouched) rather than surviving
-// as inert configuration that silently changes nothing. The provider's keys are
-// added when it resolves; an unknown provider is left for the provider check to
-// report, so only the common keys gate here.
+// key is caught (logged, its line left untouched) rather than surviving as inert
+// configuration that silently changes nothing. A producer whose provider does
+// not resolve is deferred entirely - without the provider's keys its own keys
+// (repository, chart, …) would look unknown, so the dedicated provider check
+// reports the real fault. A follower carries only common keys, so it still gates.
 func checkKeys(m Marker) error {
 	var providerKeys []string
-	if prov, err := lookupProvider(m.Provider); err == nil {
+	if !m.IsFollower() {
+		prov, ok := provider.Get(m.Provider)
+		if !ok {
+			return nil // provider does not resolve; the provider check reports it
+		}
 		for _, k := range prov.Keys() {
 			providerKeys = append(providerKeys, k.Name)
 		}

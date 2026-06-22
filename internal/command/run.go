@@ -94,15 +94,17 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 	return runErr(summary)
 }
 
-// runErr turns a run summary into the command's exit status: a failed or skipped
-// marker makes `clover run` exit non-zero, so a CI step fails when a directive
-// could not be resolved rather than passing on a green-looking log. The
-// per-marker errors are already reported; this only sets the code.
+// runErr turns a run summary into the command's exit status: a failed marker
+// makes `clover run` exit non-zero, so a CI step fails when a directive could
+// not be resolved rather than passing on a green-looking log. A skip is not a
+// failure - it is a dependency waiting on a failed producer (already counted) or
+// a warned unknown key run deliberately tolerates - so it does not set the code.
+// The per-marker errors are already reported; this only sets the code.
 func runErr(summary mode.Summary) error {
-	if summary.OK() {
+	if summary.Errored() == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d failed, %d skipped", summary.Errored(), summary.Skipped())
+	return fmt.Errorf("%d failed", summary.Errored())
 }
 
 // reportDeep hints, after a run, that a deeper lookup might help: it warns about

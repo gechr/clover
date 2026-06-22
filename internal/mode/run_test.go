@@ -135,3 +135,20 @@ func TestRunErroredMarkerNotWritten(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, original, string(got))
 }
+
+func TestRunWarnsAndSkipsUnknownKey(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "ukrun", candidates: []model.Candidate{candidate(t, "1.5.0")}},
+	)
+	// The first marker carries an unknown key; the second is valid.
+	dir := write(t,
+		"# clover: provider=ukrun repository=x/y max-major=4\nversion: 1.2.0\n"+
+			"# clover: provider=ukrun repository=x/y\nother: 1.2.0\n",
+	)
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Skipped(), "an unknown-key marker is skipped, not errored")
+	require.Equal(t, 0, summary.Errored(), "run tolerates an unknown key")
+	require.Equal(t, 1, summary.Changed(), "the valid marker still resolves")
+}

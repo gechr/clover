@@ -1,11 +1,17 @@
 package directive
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
 )
+
+// ErrUnknownKey is the sentinel a [Directive.CheckKeys] failure wraps, so a
+// caller can tell an unknown-key rejection apart from other validation errors
+// and treat it accordingly - lint rejects it, run downgrades it to a skip.
+var ErrUnknownKey = errors.New("unknown key")
 
 // commonKeys is the provider-agnostic directive vocabulary: every key valid on
 // any marker regardless of provider. Provider-specific keys (repository, chart,
@@ -51,9 +57,9 @@ func (d Directive) CheckKeys(providerKeys []string) error {
 	case !found:
 		return nil
 	case suggestion != "":
-		return fmt.Errorf("unknown key %q (did you mean %q?)", key, suggestion)
+		return fmt.Errorf("%w %q (did you mean %q?)", ErrUnknownKey, key, suggestion)
 	default:
-		return fmt.Errorf("unknown key %q", key)
+		return fmt.Errorf("%w %q", ErrUnknownKey, key)
 	}
 }
 

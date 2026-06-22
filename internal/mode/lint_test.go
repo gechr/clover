@@ -107,3 +107,13 @@ func TestLintWritesNothing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, original, string(got))
 }
+
+func TestLintRejectsUnknownKey(t *testing.T) {
+	provider.Register(fakeProvider{name: "uklint"})
+	dir := write(t, "# clover: provider=uklint repository=x/y max-major=4\nversion: 1.2.0\n")
+
+	summary, err := mode.Lint(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Errored(), "lint rejects an unknown key")
+	require.Equal(t, 0, summary.Skipped())
+}
