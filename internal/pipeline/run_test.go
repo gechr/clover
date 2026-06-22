@@ -184,8 +184,15 @@ func TestRunNoCandidateIsSentinel(t *testing.T) {
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
-	require.ErrorIs(t, files[0].Results[0].Err, pipeline.ErrNoCandidate,
+	resErr := files[0].Results[0].Err
+	require.ErrorIs(t, resErr, pipeline.ErrNoCandidate,
 		"a minor-ceiling constraint rejects the only candidate (a major bump)")
+	require.EqualError(
+		t,
+		resErr,
+		"no candidate satisfies the rule: no version satisfies the constraint",
+		"the error names the dominant rejection reason",
+	)
 }
 
 func TestRunMalformedDirectiveErrors(t *testing.T) {

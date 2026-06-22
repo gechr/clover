@@ -512,8 +512,11 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		extract = prefixedAttrs(prefix)
 	}
 
-	chosen, ok := version.Select(located.Semver(), candidates, extract, opts...)
+	chosen, reason, ok := version.SelectReason(located.Semver(), candidates, extract, opts...)
 	if !ok {
+		if detail := reason.Detail(); detail != "" {
+			return fmt.Errorf("%w: %s", ErrNoCandidate, detail)
+		}
 		return ErrNoCandidate
 	}
 	if prefix != "" {

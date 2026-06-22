@@ -127,6 +127,22 @@ func TestSelectAssetAndsWithExclude(t *testing.T) {
 	require.Equal(t, "1.2.0", got.tag)
 }
 
+func TestSelectReasonReportsDominant(t *testing.T) {
+	t.Parallel()
+
+	cur, _ := version.Parse("2.0.0")
+	// Both candidates are older than current, so downgrade is the dominant reason.
+	_, reason, ok := version.SelectReason(cur, candidates("1.0.0", "1.1.0"), attrsOf)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonDowngrade, reason)
+	require.Equal(t, "every version is older than the current one", reason.Detail())
+
+	// A successful select reports ReasonEligible.
+	_, reason, ok = version.SelectReason(nil, candidates("1.0.0", "2.0.0"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, version.ReasonEligible, reason)
+}
+
 func TestSelectConstraint(t *testing.T) {
 	t.Parallel()
 

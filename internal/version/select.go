@@ -42,6 +42,7 @@ const (
 	ReasonCooldown                 // younger than the cooldown
 	ReasonConstraint               // outside the constraint
 	ReasonDowngrade                // older than current, downgrades disallowed
+	reasonCount                    // count of reasons, for tallying the dominant one
 )
 
 // String renders the reason as a short, stable label for logging.
@@ -65,6 +66,30 @@ func (r Reason) String() string {
 		return "downgrade"
 	default:
 		return "unknown"
+	}
+}
+
+// Detail is a human phrase explaining a rejection, used to enrich the
+// no-candidate error so a failed run says why. It is empty for reasons that need
+// no elaboration.
+func (r Reason) Detail() string {
+	switch r {
+	case ReasonUnparsable:
+		return "no parsable version was found"
+	case ReasonFiltered:
+		return "no version matched the include/exclude filters"
+	case ReasonNoAsset:
+		return "no version published a matching asset"
+	case ReasonPrerelease:
+		return "only prerelease versions are available"
+	case ReasonCooldown:
+		return "every version is still within its cooldown"
+	case ReasonConstraint:
+		return "no version satisfies the constraint"
+	case ReasonDowngrade:
+		return "every version is older than the current one"
+	default:
+		return ""
 	}
 }
 
@@ -148,15 +173,31 @@ type scored[T any] struct {
 // constraint, anchors the allowed range. The sort tie-breaks equal versions by
 // raw tag so the result is deterministic regardless of discovery order.
 func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Option) (T, bool) {
+	item, _, ok := SelectReason(current, cands, attrs, opts...)
+	return item, ok
+}
+
+// SelectReason is [Select], additionally reporting why no candidate was chosen.
+// When ok is false it returns the dominant reason candidates were rejected (the
+// most common, ties broken toward the earlier-checked reason), so a caller can
+// explain the failure; when ok is true the reason is [ReasonEligible].
+func SelectReason[T any](
+	current *Version,
+	cands []T,
+	attrs func(T) Attrs,
+	opts ...Option,
+) (T, Reason, bool) {
 	q := query{}
 	for _, opt := range opts {
 		opt(&q)
 	}
 
 	kept := make([]scored[T], 0, len(cands))
+	var rejected [reasonCount]int
 	for _, c := range cands {
 		a := attrs(c)
 		if r := q.eligible(current, a); r != ReasonEligible {
+			rejected[r]++
 			if q.observe != nil {
 				q.observe(a.Tag, r)
 			}
@@ -167,7 +208,7 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 
 	if q.behind >= len(kept) {
 		var zero T
-		return zero, false
+		return zero, dominantReason(rejected), false
 	}
 
 	slices.SortStableFunc(kept, func(x, y scored[T]) int {
@@ -182,7 +223,20 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 		}
 		return strings.Compare(y.tag, x.tag)
 	})
-	return kept[q.behind].item, true
+	return kept[q.behind].item, ReasonEligible, true
+}
+
+// dominantReason returns the most common rejection reason from a tally, breaking
+// ties toward the earlier-checked (lower) reason. It is [ReasonEligible] when
+// nothing was rejected (no candidates at all).
+func dominantReason(rejected [reasonCount]int) Reason {
+	best, count := ReasonEligible, 0
+	for r := ReasonEligible + 1; r < reasonCount; r++ {
+		if rejected[r] > count {
+			best, count = r, rejected[r]
+		}
+	}
+	return best
 }
 
 // eligible reports the [Reason] a candidate was rejected, or [ReasonEligible]
