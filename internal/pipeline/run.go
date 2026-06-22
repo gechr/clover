@@ -441,6 +441,10 @@ func lookupProvider(name string) (provider.Provider, error) {
 func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
 
+	if err := checkKeys(m); err != nil {
+		return err
+	}
+
 	if m.Directive.Has(constant.DirectiveTrack) {
 		if err := trackPreconditions(m); err != nil {
 			return err
@@ -826,6 +830,10 @@ func (p *plan) follower(i int) func(context.Context) error {
 // projections; sha256 is fetched from the producer's version's checksum file.
 func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	m := p.markers[i]
+
+	if err := checkKeys(m); err != nil {
+		return err
+	}
 
 	// A track= marker carries no provider, so it lands here misclassified as a
 	// follower; its preconditions reject it with the actionable error.

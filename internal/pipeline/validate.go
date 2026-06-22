@@ -43,6 +43,9 @@ func (p *plan) validate(ctx context.Context) {
 // problem it finds or nil when the marker is well-formed.
 func (p *plan) check(i int) error {
 	m := p.markers[i]
+	if err := checkKeys(m); err != nil {
+		return err
+	}
 	if m.Directive.Has(constant.DirectiveTrack) {
 		return p.checkTrack(m)
 	}
@@ -50,6 +53,30 @@ func (p *plan) check(i int) error {
 		return p.checkFollower(m)
 	}
 	return p.checkProducer(m)
+}
+
+// checkKeys rejects a marker carrying a key outside the common vocabulary and
+// its resolved provider's own keys - a typo or a stale annotation from another
+// tool. It is the one validation both lint and run apply up front, so an unknown
+// key fails the marker (logged, its line left untouched) rather than surviving
+// as inert configuration that silently changes nothing. The provider's keys are
+// added when it resolves; an unknown provider is left for the provider check to
+// report, so only the common keys gate here.
+func checkKeys(m Marker) error {
+	var providerKeys []string
+	if prov, err := lookupProvider(m.Provider); err == nil {
+		for _, k := range prov.Keys() {
+			providerKeys = append(providerKeys, k.Name)
+		}
+	}
+	key, suggestion, found := m.Directive.FirstUnknownKey(providerKeys)
+	if !found {
+		return nil
+	}
+	if suggestion != "" {
+		return fmt.Errorf("unknown key %q (did you mean %q?)", key, suggestion)
+	}
+	return fmt.Errorf("unknown key %q", key)
 }
 
 // trackConflicts are the keys a track= marker may not also carry: the selection
