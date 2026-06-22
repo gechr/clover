@@ -103,6 +103,13 @@ type actionPinLocated struct {
 // Pinned reports the commit SHA currently on the line.
 func (l actionPinLocated) Pinned() string { return l.pinned }
 
+// Rendered reports the version-comment text Render will write for candidate -
+// the restyled current version, so the report shows what lands on the line
+// (e.g. v7.0.0) rather than the upstream tag's bare core (e.g. 7).
+func (l actionPinLocated) Rendered(candidate model.Candidate) string {
+	return restyle(l.token, candidate.Version)
+}
+
 // Render replaces the commit SHA with the candidate's commit and the version
 // comment with the restyled candidate version, both in one pass. It errors
 // rather than half-update when the candidate lacks a usable commit or the

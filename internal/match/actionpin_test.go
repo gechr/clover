@@ -45,6 +45,21 @@ func TestActionPinSubdirAndQuotes(t *testing.T) {
 	require.Equal(t, `  - uses: "owner/repo/path@`+newSHA+`" # v1.1.0`, got)
 }
 
+func TestActionPinRendered(t *testing.T) {
+	t.Parallel()
+
+	// The comment is # v3.5.0 (v-prefixed, 3-part); an upstream tag with a bare
+	// core (e.g. v7 -> "7") is restyled to match, and Rendered reports that
+	// written text so the run report shows v7.0.0, not the raw candidate "7".
+	line := "  - uses: actions/checkout@" + oldSHA + " # v3.5.0"
+	located, err := match.NewActionPin().Locate(line)
+	require.NoError(t, err)
+
+	r, ok := located.(match.Rendered)
+	require.True(t, ok, "action pin must report its rendered value")
+	require.Equal(t, "v7.0.0", r.Rendered(model.Candidate{Version: "7", Commit: newSHA}))
+}
+
 func TestActionPinLocateErrors(t *testing.T) {
 	t.Parallel()
 
