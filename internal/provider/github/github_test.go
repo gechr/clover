@@ -53,6 +53,23 @@ func TestResource(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "asset with releases is accepted",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/name"},
+				{Key: "source", Value: "releases"},
+				{Key: "asset", Value: "*linux*"},
+			},
+			wantDescribe: "github.com/owner/name (releases)",
+		},
+		{
+			name: "asset requires releases, not the default tags",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/name"},
+				{Key: "asset", Value: "*linux*"},
+			},
+			wantErr: true,
+		},
 	}
 
 	provider := github.New()

@@ -131,6 +131,16 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 		source = s
 	}
 
+	// asset= filters on release asset filenames, which only releases publish.
+	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
+		return nil, fmt.Errorf(
+			"github: %s= requires %s=%s",
+			constant.RuleAsset,
+			keySource,
+			sourceReleases,
+		)
+	}
+
 	return resource{owner: owner, name: name, source: source}, nil
 }
 

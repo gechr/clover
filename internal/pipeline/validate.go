@@ -60,6 +60,7 @@ var trackConflicts = []string{
 	constant.RuleConstraint,
 	constant.RuleInclude,
 	constant.RuleExclude,
+	constant.RuleAsset,
 	constant.RuleBehind,
 	constant.RulePrerelease,
 	constant.RuleDowngrade,

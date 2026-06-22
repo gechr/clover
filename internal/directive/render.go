@@ -32,6 +32,7 @@ var (
 		constant.RuleTagPrefix,
 		constant.RuleInclude,
 		constant.RuleExclude,
+		constant.RuleAsset,
 		constant.RulePrerelease,
 		constant.RuleCooldown,
 		constant.RuleBehind,

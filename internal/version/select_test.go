@@ -14,11 +14,12 @@ import (
 type cand struct {
 	tag       string
 	published time.Time
+	assets    []string
 }
 
 func attrsOf(c cand) version.Attrs {
 	v, _ := version.Parse(c.tag)
-	return version.Attrs{Tag: c.tag, Semver: v, PublishedAt: c.published}
+	return version.Attrs{Tag: c.tag, Semver: v, PublishedAt: c.published, Assets: c.assets}
 }
 
 func candidates(tags ...string) []cand {
@@ -86,6 +87,44 @@ func TestSelectIncludeExclude(t *testing.T) {
 	got, ok = version.Select(nil, cands, attrsOf, version.WithExclude(contains("1.4")))
 	require.True(t, ok)
 	require.Equal(t, "1.3.0", got.tag, "exclude drops matching tags")
+}
+
+func TestSelectAsset(t *testing.T) {
+	t.Parallel()
+
+	// Only releases publishing a linux asset qualify; the newest of those wins,
+	// even though 1.3.0 (darwin-only) is newer than 1.2.0.
+	cands := []cand{
+		{tag: "1.2.0", assets: []string{"app_1.2.0_linux_amd64.tar.gz"}},
+		{tag: "1.4.0", assets: []string{"app_1.4.0_linux_amd64.tar.gz"}},
+		{tag: "1.3.0", assets: []string{"app_1.3.0_darwin_arm64.tar.gz"}},
+	}
+	got, ok := version.Select(nil, cands, attrsOf, version.WithAsset(contains("linux_amd64")))
+	require.True(t, ok)
+	require.Equal(t, "1.4.0", got.tag)
+}
+
+func TestSelectAssetNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	cands := []cand{{tag: "1.2.0", assets: []string{"app_darwin.tar.gz"}}}
+	_, ok := version.Select(nil, cands, attrsOf, version.WithAsset(contains("linux")))
+	require.False(t, ok)
+}
+
+func TestSelectAssetAndsWithExclude(t *testing.T) {
+	t.Parallel()
+
+	// asset and exclude both narrow: 1.4.0 has the asset but is excluded by tag,
+	// so the older 1.2.0 wins.
+	cands := []cand{
+		{tag: "1.2.0", assets: []string{"app_linux.tar.gz"}},
+		{tag: "1.4.0", assets: []string{"app_linux.tar.gz"}},
+	}
+	got, ok := version.Select(nil, cands, attrsOf,
+		version.WithAsset(contains("linux")), version.WithExclude(contains("1.4")))
+	require.True(t, ok)
+	require.Equal(t, "1.2.0", got.tag)
 }
 
 func TestSelectConstraint(t *testing.T) {

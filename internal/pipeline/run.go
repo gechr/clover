@@ -1034,7 +1034,16 @@ func targetLine(lines map[string][]string, m Marker) string {
 
 // attrs maps a discovered candidate onto the slice the selection chain reads.
 func attrs(c model.Candidate) version.Attrs {
-	return version.Attrs{Tag: c.Version, Semver: c.Semver, PublishedAt: c.PublishedAt}
+	names := make([]string, len(c.Assets))
+	for i, a := range c.Assets {
+		names[i] = a.Name
+	}
+	return version.Attrs{
+		Tag:         c.Version,
+		Semver:      c.Semver,
+		PublishedAt: c.PublishedAt,
+		Assets:      names,
+	}
 }
 
 // prefixedAttrs maps a candidate by stripping a monorepo tag prefix (api/) before

@@ -40,6 +40,14 @@ func Compile(d directive.Directive, current *version.Version) ([]version.Option,
 		opts = append(opts, version.WithExclude(excludes...))
 	}
 
+	assets, err := predicates(d.All(constant.RuleAsset))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", constant.RuleAsset, err)
+	}
+	if len(assets) > 0 {
+		opts = append(opts, version.WithAsset(assets...))
+	}
+
 	prerelease, err := d.Bool(constant.RulePrerelease)
 	if err != nil {
 		return nil, err

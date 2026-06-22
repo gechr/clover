@@ -19,6 +19,9 @@ type Attrs struct {
 	// PublishedAt is the release time, consulted by cooldown. Zero disables
 	// cooldown for the candidate.
 	PublishedAt time.Time
+	// Assets are the candidate's published asset filenames, matched by the asset
+	// predicate. Empty for a provider that publishes none (tags, docker, helm).
+	Assets []string
 }
 
 // Predicate reports whether a raw tag matches. include/exclude are supplied as
@@ -34,6 +37,7 @@ const (
 	ReasonEligible   Reason = iota // survived every filter
 	ReasonUnparsable               // tag is not a parsable version
 	ReasonFiltered                 // dropped by include/exclude
+	ReasonNoAsset                  // no published asset matched the asset filter
 	ReasonPrerelease               // a prerelease, and they are not allowed
 	ReasonCooldown                 // younger than the cooldown
 	ReasonConstraint               // outside the constraint
@@ -49,6 +53,8 @@ func (r Reason) String() string {
 		return "unparsable"
 	case ReasonFiltered:
 		return "filtered"
+	case ReasonNoAsset:
+		return "no-asset"
 	case ReasonPrerelease:
 		return "prerelease"
 	case ReasonCooldown:
@@ -69,6 +75,7 @@ type query struct {
 	constraint *Constraint
 	includes   []Predicate
 	excludes   []Predicate
+	assets     []Predicate
 	cooldown   time.Duration
 	now        time.Time
 	behind     int
@@ -89,6 +96,12 @@ func WithInclude(preds ...Predicate) Option {
 // WithExclude drops candidates matching any predicate.
 func WithExclude(preds ...Predicate) Option {
 	return func(q *query) { q.excludes = append(q.excludes, preds...) }
+}
+
+// WithAsset keeps only candidates publishing an asset whose filename matches at
+// least one predicate. With no asset predicates every candidate is eligible.
+func WithAsset(preds ...Predicate) Option {
+	return func(q *query) { q.assets = append(q.assets, preds...) }
 }
 
 // WithPrerelease allows prerelease versions, which are otherwise excluded.
@@ -181,6 +194,8 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 		return ReasonUnparsable
 	case !q.included(a.Tag) || q.excluded(a.Tag):
 		return ReasonFiltered
+	case len(q.assets) > 0 && !q.hasAsset(a.Assets):
+		return ReasonNoAsset
 	case !q.prerelease && isPrerelease(a.Semver):
 		return ReasonPrerelease
 	case q.tooFresh(a.PublishedAt):
@@ -213,6 +228,19 @@ func (q *query) excluded(tag string) bool {
 	for _, p := range q.excludes {
 		if p(tag) {
 			return true
+		}
+	}
+	return false
+}
+
+// hasAsset reports whether any asset filename matches any asset predicate, so a
+// candidate qualifies when it publishes at least one matching asset.
+func (q *query) hasAsset(names []string) bool {
+	for _, p := range q.assets {
+		for _, name := range names {
+			if p(name) {
+				return true
+			}
 		}
 	}
 	return false
