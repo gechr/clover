@@ -55,6 +55,14 @@ func locatedToken(line string, token Token) smartLocated {
 	}
 }
 
+// Rendered reports the version text Render will write for candidate - the token
+// restyled onto the current's shape, which may differ from candidate.Version (a
+// stripped variant, a re-precisioned or re-prefixed core). The report shows this
+// as the new value, so it matches what lands in the file.
+func (l smartLocated) Rendered(candidate model.Candidate) string {
+	return restyle(l.token, candidate.Version)
+}
+
 // Render rewrites the located token on line to the resolved candidate's version,
 // returning the new line and whether it changed. The version is normalised to
 // its numeric core and re-dressed in the current token's style, so the splice

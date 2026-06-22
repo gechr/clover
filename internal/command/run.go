@@ -97,7 +97,9 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 // reportDeep hints, after a run, that a deeper lookup might help: it warns about
 // each lexically-ordered registry whose shallow listing was truncated (the newest
 // version may have been missed), and once if any marker found no matching version
-// on the first page. Both suggest --deep.
+// on the first page. Both suggest --deep. The no-candidate hint fires on any
+// ErrNoCandidate, so it can show when --deep will not help (nothing qualifies at
+// all) - the wording stays a suggestion rather than a promise.
 func reportDeep(summary mode.Summary, truncated []string, deep bool) {
 	resources, noCandidate := deepHints(summary, truncated, deep)
 	for _, resource := range resources {
@@ -108,8 +110,8 @@ func reportDeep(summary mode.Summary, truncated []string, deep bool) {
 	}
 	if noCandidate {
 		clog.Hint().
-			Str(field.Hint, "pass --deep").
-			Msg("Some markers found no matching version on the first page")
+			Str(field.Hint, "pass --deep to fetch all pages").
+			Msg("No matching version found in first page of results")
 	}
 }
 

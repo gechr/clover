@@ -48,6 +48,7 @@ type Result struct {
 	Marker   Marker
 	Current  string // the version token currently on the target line
 	Resolved string // the value the marker resolved to upstream, or via follow
+	Written  string // the value rendered onto the line; what the report shows as `to`
 	NewLine  string // the target line after rendering, == original when unchanged
 	Changed  bool   // whether rendering altered the target line
 	Skipped  bool   // the marker's dependency failed, was missing, or cycled
@@ -958,9 +959,21 @@ func (p *plan) render(
 	}
 	p.results[i].Current = located.Current()
 	p.results[i].Resolved = candidate.Version
+	p.results[i].Written = renderedValue(located, candidate)
 	p.results[i].NewLine = newLine
 	p.results[i].Changed = changed
 	return nil
+}
+
+// renderedValue is the version text actually written onto the line, which a
+// restyle can shift from candidate.Version (a stripped variant, a re-precisioned
+// core). A located that cannot report it falls back to the resolved value, so a
+// follower projecting its value verbatim is unaffected.
+func renderedValue(located match.Located, candidate model.Candidate) string {
+	if r, ok := located.(match.Rendered); ok {
+		return r.Rendered(candidate)
+	}
+	return candidate.Version
 }
 
 // group buckets the resolved markers back into their files, preserving file

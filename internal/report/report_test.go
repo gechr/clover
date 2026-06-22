@@ -43,6 +43,28 @@ func TestRun(t *testing.T) {
 	)
 }
 
+// TestRunReportsWrittenValue confirms a change reports the value actually written
+// to the line (Written) - here a variant stripped to plain - not the raw resolved
+// candidate, so the preview matches the file. It falls back to Resolved when no
+// Written value was recorded (a follower projecting its value verbatim).
+func TestRunReportsWrittenValue(t *testing.T) {
+	written := result("app.txt", 0)
+	written.Current, written.Resolved, written.Written, written.Changed =
+		"1.20.0", "1.31.2-alpine", "1.31.2", true
+	fallback := result("app.txt", 2)
+	fallback.Current, fallback.Resolved, fallback.Changed = "1.0.0", "2.0.0", true
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(written, fallback), false, report.OutputText)
+
+	require.Equal(t,
+		"INF ⬆️ Update applied location=app.txt:1 from=1.20.0 to=1.31.2\n"+
+			"INF ⬆️ Update applied location=app.txt:3 from=1.0.0 to=2.0.0\n"+
+			"INF 🏁 Run complete changed=2 skipped=0 failed=0 elapsed=1.5s\n",
+		buf.String(),
+	)
+}
+
 func TestGitHub(t *testing.T) {
 	updated := result("x/app.txt", 1) // target 1 -> line 2
 	updated.Current, updated.Resolved, updated.Changed = "1.2.0", "1.3.0", true

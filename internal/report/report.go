@@ -1,6 +1,7 @@
 package report
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 
@@ -51,7 +52,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 				Symbol("⬆️").
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.From, value(r.Current, output)).
-				Str(field.To, value(r.Resolved, output)).
+				Str(field.To, value(reportTo(r), output)).
 				Msg(msg)
 		case output == OutputWide:
 			logger.Debug().
@@ -148,7 +149,7 @@ func GitHub(w io.Writer, summary mode.Summary, dryRun bool) {
 				verb = "available"
 			}
 			fmt.Fprintln(w, github.Warning(r.Marker.File, line(r),
-				fmt.Sprintf("update %s: %s → %s", verb, r.Current, r.Resolved)))
+				fmt.Sprintf("update %s: %s → %s", verb, r.Current, reportTo(r))))
 		}
 		if r.Verify != nil {
 			fmt.Fprintln(w, github.Error(r.Marker.File, line(r),
@@ -178,6 +179,13 @@ func summarize(logger *clog.Logger, dry bool) *clog.Event {
 // line is a result's 1-based target line, for a clog file:line hyperlink.
 func line(r pipeline.Result) int {
 	return r.Marker.Target + 1
+}
+
+// reportTo is the new value a change reports: the text actually written to the
+// line, falling back to the resolved value for a result that did not record one
+// (a follower projecting its value verbatim).
+func reportTo(r pipeline.Result) string {
+	return cmp.Or(r.Written, r.Resolved)
 }
 
 // value formats a resolved value for the report: abbreviated under text output

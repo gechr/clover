@@ -287,6 +287,8 @@ func TestRunDigestFollowsRenderedTag(t *testing.T) {
 	require.NoError(t, r.Err)
 	require.Equal(t, "FROM x/y:1.31.2@"+plainDigest, r.NewLine,
 		"digest matches the rendered plain tag, not the alpine candidate")
+	require.Equal(t, "1.31.2-alpine", r.Resolved, "resolved keeps the raw candidate")
+	require.Equal(t, "1.31.2", r.Written, "written is the rendered plain tag, what the report shows")
 }
 
 func TestRunResolvesSha256Follower(t *testing.T) {
