@@ -37,10 +37,26 @@ type reference struct {
 	dockerHub  bool
 }
 
+// splitHost separates an inline registry host from a repository path when the
+// first segment looks like a host. The canonical Docker rule (matching
+// `docker pull`): the first segment is a host if it contains a "." or a ":"
+// (port), or equals "localhost". So ghcr.io/owner/img splits to host ghcr.io +
+// repo owner/img, but library/redis and team/app (no dot) stay whole repository
+// paths. A single-segment value never splits.
+func splitHost(repository string) (host, repo string) {
+	first, rest, ok := strings.Cut(repository, "/")
+	if ok && (strings.ContainsAny(first, ".:") || first == "localhost") {
+		return first, rest
+	}
+	return "", repository
+}
+
 // newReference validates and normalises a registry host and repository path. An
 // empty or Docker Hub registry routes to the Hub API; a bare single-segment
 // repository on Docker Hub gains the implicit library/ namespace
-// (nginx -> library/nginx), matching docker's own resolution.
+// (nginx -> library/nginx), matching docker's own resolution. With no explicit
+// registry, an inline host on the repository (ghcr.io/owner/img) is split out, so
+// a `docker pull`-shaped reference works without a separate registry=.
 func newReference(registry, repository string) (reference, error) {
 	registry = strings.TrimSuffix(strings.TrimPrefix(registry, "https://"), "/")
 	repository = strings.Trim(repository, "/")
@@ -58,6 +74,13 @@ func newReference(registry, repository string) (reference, error) {
 			"docker: put the registry host in %s, not %s (got %q)",
 			keyRegistry, keyRepository, repository,
 		)
+	}
+
+	// Explicit registry= always wins; only an unset registry parses an inline host.
+	if registry == "" {
+		if host, repo := splitHost(repository); host != "" {
+			registry, repository = host, repo
+		}
 	}
 
 	if dockerHubAliases[registry] {

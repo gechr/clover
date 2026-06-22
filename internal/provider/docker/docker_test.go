@@ -139,6 +139,34 @@ func TestResource(t *testing.T) {
 			want: "docker.io/library/redis",
 		},
 		{
+			name:  "inline host on the repository is split out",
+			pairs: []directive.KV{{Key: "repository", Value: "ghcr.io/owner/img"}},
+			want:  "ghcr.io/owner/img",
+		},
+		{
+			name:  "inline host with a port is split out",
+			pairs: []directive.KV{{Key: "repository", Value: "registry.example.com:5000/team/app"}},
+			want:  "registry.example.com:5000/team/app",
+		},
+		{
+			name:  "inline docker.io host routes to the hub",
+			pairs: []directive.KV{{Key: "repository", Value: "docker.io/library/redis"}},
+			want:  "docker.io/library/redis",
+		},
+		{
+			name:  "a dotless first segment stays a hub repository",
+			pairs: []directive.KV{{Key: "repository", Value: "bitnamicharts/nginx"}},
+			want:  "docker.io/bitnamicharts/nginx",
+		},
+		{
+			name: "explicit registry wins over an inline host",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "ghcr.io/x/y"},
+				{Key: "registry", Value: "quay.io"},
+			},
+			want: "quay.io/ghcr.io/x/y",
+		},
+		{
 			name:    "repository is required",
 			pairs:   []directive.KV{{Key: "registry", Value: "ghcr.io"}},
 			wantErr: "docker: repository is required",
