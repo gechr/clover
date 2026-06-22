@@ -123,12 +123,17 @@ type route struct {
 // not user configuration (yet).
 var routes = []route{
 	{
+		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z.
+		// The secure-pin *shape* - not the file path - selects the action-pin
+		// rewriter, so a pin in a composite action.yml or a reusable-workflow
+		// caller is updated in lockstep (SHA + version comment) wherever it
+		// lives, never half-updated to a comment that disagrees with its commit.
+		// A tag-pinned uses: (@v4, no SHA) carries no paired value, so it fails
+		// this guard and falls through to smart, which bumps the ref alone. The
+		// whitespace each side of uses: anchors it to a real list key (- uses: x),
+		// never a substring like reuses: or a bare uses: with no value.
 		when: conditions{
-			// ** spans any leading directories, so this matches a workflow file
-			// whether the scan root is the repo, an absolute path, or a sub-dir,
-			// while .github stays a real path segment (not hello.github).
-			path:      "**/.github/workflows/*.{yml,yaml}",
-			lineMatch: mustPattern("* uses: *"),
+			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
 			provider:  constant.ProviderGithub,
 		},
 		rw: NewActionPin(),

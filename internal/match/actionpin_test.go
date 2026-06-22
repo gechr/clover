@@ -80,39 +80,65 @@ func TestActionPinRenderRequiresFullCommit(t *testing.T) {
 	}
 }
 
-func TestForRoutesWorkflowToActionPin(t *testing.T) {
+func TestForRoutesSHAPinToActionPin(t *testing.T) {
 	t.Parallel()
 
-	line := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0"
-	// .github/workflows matches as a path component however the path is rooted.
+	pinLine := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0"
+	// The secure-pin shape selects the action-pin rewriter regardless of where
+	// the file lives - a workflow, a composite action.yml, or anywhere else a
+	// SHA-pinned reference appears - so the SHA and comment never desync.
 	for _, path := range []string{
 		".github/workflows/ci.yml",
 		"/abs/repo/.github/workflows/ci.yml",
 		"sub/dir/.github/workflows/release.yaml",
+		".github/actions/setup/action.yml",
+		"deeply/nested/composite/action.yaml",
+		"hello.github/workflows/x.yml", // not under a real .github segment, still a pin
 	} {
 		t.Run(path, func(t *testing.T) {
 			t.Parallel()
-			rw := match.For(match.Context{Path: path, Line: line, Provider: "github"})
+			rw := match.For(match.Context{Path: path, Line: pinLine, Provider: "github"})
 			require.IsType(t, match.ActionPin{}, rw)
 		})
 	}
 }
 
-func TestForLeavesNonWorkflowToSmart(t *testing.T) {
+func TestForLeavesNonPinToSmart(t *testing.T) {
 	t.Parallel()
 
 	pinLine := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0"
 	tests := map[string]match.Context{
+		// No uses: pin at all.
 		"dockerfile": {Path: "Dockerfile", Line: "FROM nginx:1.27.0", Provider: "github"},
-		"stray github dir": {
-			Path:     "hello.github/workflows/x.yml",
-			Line:     pinLine,
+		// A tag-pinned reference carries no paired SHA, so smart bumps the ref.
+		"tag pinned": {
+			Path:     ".github/workflows/ci.yml",
+			Line:     "  - uses: actions/checkout@v4",
 			Provider: "github",
 		},
-		"workflow non-github": {
+		// A short (non-40-hex) SHA is not a valid secure pin.
+		"short sha": {
+			Path:     ".github/workflows/ci.yml",
+			Line:     "  - uses: actions/checkout@abc123 # v4",
+			Provider: "github",
+		},
+		// The action-pin route is provider-gated to github.
+		"pin non-github": {
 			Path:     ".github/workflows/ci.yml",
 			Line:     pinLine,
 			Provider: "docker",
+		},
+		// uses: must be a real key (whitespace each side), not a substring.
+		"reuses substring": {
+			Path:     ".github/workflows/ci.yml",
+			Line:     "      reuses: actions/checkout@" + oldSHA + " # v4.1.0",
+			Provider: "github",
+		},
+		// A bare uses: with no reference before the @ is malformed, not a pin.
+		"no reference": {
+			Path:     ".github/workflows/ci.yml",
+			Line:     "      - uses: @" + oldSHA + " # v4.1.0",
+			Provider: "github",
 		},
 	}
 	for name, ctx := range tests {
