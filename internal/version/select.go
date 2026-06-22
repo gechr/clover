@@ -178,9 +178,11 @@ func Select[T any](current *Version, cands []T, attrs func(T) Attrs, opts ...Opt
 }
 
 // SelectReason is [Select], additionally reporting why no candidate was chosen.
-// When ok is false it returns the dominant reason candidates were rejected (the
-// most common, ties broken toward the earlier-checked reason), so a caller can
-// explain the failure; when ok is true the reason is [ReasonEligible].
+// When ok is false it returns the binding reason: the latest-stage filter any
+// candidate reached before being rejected (see [bindingReason]), so a caller
+// explains the failure by the constraint that actually stood in the way rather
+// than the one the most tags happened to trip. When ok is true the reason is
+// [ReasonEligible].
 func SelectReason[T any](
 	current *Version,
 	cands []T,
@@ -208,7 +210,7 @@ func SelectReason[T any](
 
 	if q.behind >= len(kept) {
 		var zero T
-		return zero, dominantReason(rejected), false
+		return zero, bindingReason(rejected), false
 	}
 
 	slices.SortStableFunc(kept, func(x, y scored[T]) int {
@@ -226,17 +228,22 @@ func SelectReason[T any](
 	return kept[q.behind].item, ReasonEligible, true
 }
 
-// dominantReason returns the most common rejection reason from a tally, breaking
-// ties toward the earlier-checked (lower) reason. It is [ReasonEligible] when
-// nothing was rejected (no candidates at all).
-func dominantReason(rejected [reasonCount]int) Reason {
-	best, count := ReasonEligible, 0
-	for r := ReasonEligible + 1; r < reasonCount; r++ {
-		if rejected[r] > count {
-			best, count = r, rejected[r]
+// bindingReason returns the binding rejection reason from a tally: the
+// latest-stage filter any candidate reached before being rejected. Because
+// [query.eligible] checks filters in a fixed order and the [Reason] constants
+// are declared in that same order, the highest reason with a hit is the furthest
+// a candidate progressed - the constraint that actually stood between the field
+// and a selection. Reporting that, rather than the most numerous reason, keeps a
+// flood of tags failing an early filter (say include/exclude) from masking the
+// handful that passed it only to fail a later one (say prerelease). It is
+// [ReasonEligible] when nothing was rejected (no candidates at all).
+func bindingReason(rejected [reasonCount]int) Reason {
+	for r := reasonCount - 1; r > ReasonEligible; r-- {
+		if rejected[r] > 0 {
+			return r
 		}
 	}
-	return best
+	return ReasonEligible
 }
 
 // eligible reports the [Reason] a candidate was rejected, or [ReasonEligible]

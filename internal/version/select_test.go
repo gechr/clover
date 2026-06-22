@@ -127,11 +127,11 @@ func TestSelectAssetAndsWithExclude(t *testing.T) {
 	require.Equal(t, "1.2.0", got.tag)
 }
 
-func TestSelectReasonReportsDominant(t *testing.T) {
+func TestSelectReasonReportsBinding(t *testing.T) {
 	t.Parallel()
 
 	cur, _ := version.Parse("2.0.0")
-	// Both candidates are older than current, so downgrade is the dominant reason.
+	// Both candidates are older than current, so downgrade is the binding reason.
 	_, reason, ok := version.SelectReason(cur, candidates("1.0.0", "1.1.0"), attrsOf)
 	require.False(t, ok)
 	require.Equal(t, version.ReasonDowngrade, reason)
@@ -141,6 +141,24 @@ func TestSelectReasonReportsDominant(t *testing.T) {
 	_, reason, ok = version.SelectReason(nil, candidates("1.0.0", "2.0.0"), attrsOf)
 	require.True(t, ok)
 	require.Equal(t, version.ReasonEligible, reason)
+}
+
+func TestSelectReasonReportsBindingNotMostNumerous(t *testing.T) {
+	t.Parallel()
+
+	// Two tags fail the include filter and only one reaches the prerelease gate.
+	// The binding reason is the furthest a candidate got - prerelease - not the
+	// more numerous include/exclude rejection.
+	keep := version.WithInclude(func(tag string) bool { return strings.HasSuffix(tag, "-ent") })
+	_, reason, ok := version.SelectReason(
+		nil,
+		candidates("1.0.0", "1.1.0", "2.0.0-ent"),
+		attrsOf,
+		keep,
+	)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonPrerelease, reason)
+	require.Equal(t, "only prerelease versions are available", reason.Detail())
 }
 
 func TestSelectConstraint(t *testing.T) {
