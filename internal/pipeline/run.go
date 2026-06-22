@@ -479,6 +479,9 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if opt, ok := variantInclude(located.Current(), m.Directive); ok {
 		opts = append(opts, opt)
 	}
+	// Exempt the line's own suffix from the prerelease gate, so a vendor track
+	// (1.15.0-ent) the include above already scoped to stays selectable.
+	opts = append(opts, version.WithQualifier(version.Qualifier(located.Current())))
 	opts = append(opts, version.WithNow(p.now))
 	// Run-level overrides are appended after the directive's own options, so a
 	// non-nil flag wins over the per-directive rule.
@@ -1075,10 +1078,19 @@ func variantInclude(raw string, d directive.Directive) (version.Option, bool) {
 	if d.Has(constant.RuleInclude) {
 		return nil, false
 	}
-	_, want := version.SplitVariant(raw)
+	if want := version.Qualifier(raw); want != "" {
+		// A qualified line (1.27-alpine, 1.15.0-ent) keeps only its own suffix,
+		// recognized variant or not, so a vendor track stays on that track.
+		return version.WithInclude(func(tag string) bool {
+			return version.Qualifier(tag) == want
+		}), true
+	}
+	// A plain line keeps only plain tags: a recognized variant is dropped here,
+	// while a genuine prerelease still reaches the prerelease gate so the failure
+	// names prerelease rather than the filter.
 	return version.WithInclude(func(tag string) bool {
 		_, got := version.SplitVariant(tag)
-		return got == want
+		return got == ""
 	}), true
 }
 

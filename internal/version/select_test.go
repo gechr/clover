@@ -190,6 +190,40 @@ func TestSelectSchemeGuard(t *testing.T) {
 	require.Equal(t, "7.4.9", got.tag, "precision difference is not a scheme mismatch")
 }
 
+func TestSelectQualifierExempt(t *testing.T) {
+	t.Parallel()
+
+	// An -ent line, scoped to -ent by an include, selects the newest -ent even
+	// though semver reads -ent as a prerelease: WithQualifier spares the track.
+	cur := mustParse(t, "1.15.0-ent")
+	keep := version.WithInclude(func(tag string) bool { return version.Qualifier(tag) == "ent" })
+	got, ok := version.Select(
+		cur,
+		candidates("1.15.0-ent", "2.0.3-ent"),
+		attrsOf,
+		keep,
+		version.WithQualifier("ent"),
+	)
+	require.True(t, ok)
+	require.Equal(t, "2.0.3-ent", got.tag)
+
+	// Without the exemption the same field is rejected as prerelease.
+	_, reason, ok := version.SelectReason(cur, candidates("1.15.0-ent", "2.0.3-ent"), attrsOf, keep)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonPrerelease, reason)
+
+	// The exemption is scoped to the matched suffix: a true prerelease on a
+	// different track is still excluded.
+	_, reason, ok = version.SelectReason(
+		cur,
+		candidates("2.1.0-rc1"),
+		attrsOf,
+		version.WithQualifier("ent"),
+	)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonPrerelease, reason)
+}
+
 func TestSelectConstraint(t *testing.T) {
 	t.Parallel()
 

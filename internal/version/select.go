@@ -118,6 +118,12 @@ type query struct {
 	// when there is no current version. It anchors the scheme guard, computed
 	// once in [SelectReason] rather than per candidate.
 	currentArity int
+
+	// qualifier is the trailing suffix on the line (the "ent" in 1.15.0-ent), or
+	// "". A candidate sharing it is exempt from the prerelease gate, so a line
+	// pinned to a vendor track keeps that track without the suffix counting as a
+	// prerelease.
+	qualifier string
 }
 
 // WithConstraint limits selection to versions the constraint allows.
@@ -158,6 +164,12 @@ func WithBehind(n int) Option { return func(q *query) { q.behind = n } }
 
 // WithDowngrade permits selecting a version older than current.
 func WithDowngrade(allow bool) Option { return func(q *query) { q.downgrade = allow } }
+
+// WithQualifier exempts candidates carrying the same trailing suffix as the line
+// (e.g. "ent" for a 1.15.0-ent pin) from the prerelease gate, so a vendor track
+// that semver reads as a prerelease stays selectable without opening every
+// prerelease. Empty disables the exemption.
+func WithQualifier(q string) Option { return func(query *query) { query.qualifier = q } }
 
 // WithObserver reports each candidate the chain rejects, together with the
 // [Reason]. It fires only for skipped candidates, letting a caller surface why a
@@ -273,7 +285,7 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 		return ReasonScheme
 	case len(q.assets) > 0 && !q.hasAsset(a.Assets):
 		return ReasonNoAsset
-	case !q.prerelease && isPrerelease(a.Semver):
+	case !q.prerelease && isPrerelease(a.Semver) && !q.qualifierExempt(a.Tag):
 		return ReasonPrerelease
 	case q.tooFresh(a.PublishedAt):
 		return ReasonCooldown
@@ -284,6 +296,15 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 	default:
 		return ReasonEligible
 	}
+}
+
+// qualifierExempt reports whether a candidate shares the line's trailing
+// suffix, so its prerelease segment is the wanted vendor track (1.15.0-ent
+// selecting 2.0.3-ent) rather than a true prerelease to exclude. The scoping to
+// that suffix is the include's job; this only spares the matched track from the
+// prerelease gate.
+func (q *query) qualifierExempt(tag string) bool {
+	return q.qualifier != "" && Qualifier(tag) == q.qualifier
 }
 
 // schemeMismatch reports whether a candidate uses a different version scheme

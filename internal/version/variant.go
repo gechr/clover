@@ -32,6 +32,21 @@ func IsVariant(segment string) bool {
 	return variants[strings.ToLower(word)]
 }
 
+// Qualifier returns the trailing dash-suffix of a tag - the prerelease or
+// variant portion, recognized or not: "1.15.0-ent" -> "ent", "1.27-slim-bookworm"
+// -> "slim-bookworm", "v3.5.0" -> "", "3.18.0" -> "". Build metadata (+...) is
+// dropped. Unlike [SplitVariant], which only reports a curated set, this reports
+// whatever decorates the version, so a marker can scope selection to its own
+// suffix without that suffix needing to be on the list.
+func Qualifier(tag string) string {
+	_, rest, found := strings.Cut(strings.TrimPrefix(tag, "v"), "-")
+	if !found {
+		return ""
+	}
+	rest, _, _ = strings.Cut(rest, "+")
+	return rest
+}
+
 // SplitVariant separates a recognized image variant suffix from tag, returning
 // the base (tag without the variant) and the variant ("" when none). It splits
 // on the first dash: "1.27-alpine" -> ("1.27", "alpine"), while a true
