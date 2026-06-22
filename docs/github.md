@@ -43,11 +43,20 @@ clover login
 
 ## Pinning an action to a commit
 
-GitHub Actions are commonly pinned to a commit SHA with the moving tag kept in a trailing comment. Clover keeps the pin fresh by tracking the branch and re-resolving its commit - see [Tracking](tracking.md) and [Verification](verification.md).
+GitHub Actions are pinned to a full commit SHA, with the human-readable ref kept in a trailing comment. Clover keeps both halves of the pin in step - the commit SHA *and* the comment - so the comment can never drift away from the commit it names. A secure pin is recognized by its shape (`uses: owner/repo@<40-hex-sha>`), not its location, so a pin is kept fresh wherever it lives: a workflow, a composite `action.yml`, or a reusable-workflow caller.
+
+A pin whose comment is a **version tag** tracks releases. Clover resolves the newest tag allowed by the directive's [`constraint`](constraints.md), then rewrites the SHA to that tag's commit and the comment to the tag - together, in one pass:
+
+```yaml
+# clover: provider=github repository=actions/checkout constraint=major
+- uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
+```
+
+A pin whose comment is a **branch name** tracks that branch's HEAD instead of selecting a version: the comment stays put while the SHA is re-resolved each run. See [Tracking](tracking.md) and [Verification](verification.md):
 
 ```yaml
 # clover: provider=github track=main verify-branch=main
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main
 ```
 
-To project the resolved commit into a target line, use [`value=commit`](checksums.md).
+A tag-pinned `uses:` with no SHA (`@v4`) carries no paired commit, so Clover simply bumps the ref in place. To project a resolved commit onto a separate target line, use [`value=commit`](checksums.md).
