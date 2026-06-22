@@ -1,6 +1,7 @@
 package directive
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
@@ -37,6 +38,47 @@ var commonKeys = map[string]bool{
 	constant.RuleCooldown:          true,
 	constant.RuleBehind:            true,
 	constant.RuleDowngrade:         true,
+}
+
+// CheckKeys returns an error naming the first key outside the common vocabulary
+// and providerKeys (the resolved provider's own keys), with the closest known
+// key suggested when one is near. It returns nil when every key is known. Both
+// lint/run validation and format share it, so the rejection reads identically
+// wherever a stale or mistyped key surfaces.
+func (d Directive) CheckKeys(providerKeys []string) error {
+	key, suggestion, found := d.FirstUnknownKey(providerKeys)
+	switch {
+	case !found:
+		return nil
+	case suggestion != "":
+		return fmt.Errorf("unknown key %q (did you mean %q?)", key, suggestion)
+	default:
+		return fmt.Errorf("unknown key %q", key)
+	}
+}
+
+// PruneUnknownKeys returns the directive with every key outside the common
+// vocabulary and providerKeys removed, plus the removed keys in written order.
+// The directive is returned unchanged (and removed is nil) when all keys are
+// known, so a caller can tell a prune happened. It backs `format --prune`,
+// stripping stale annotations a default format would instead reject.
+func (d Directive) PruneUnknownKeys(providerKeys []string) (Directive, []string) {
+	var removed []string
+	for _, kv := range d.Pairs {
+		if !commonKeys[kv.Key] && !slices.Contains(providerKeys, kv.Key) {
+			removed = append(removed, kv.Key)
+		}
+	}
+	if len(removed) == 0 {
+		return d, nil
+	}
+	kept := make([]KV, 0, len(d.Pairs)-len(removed))
+	for _, kv := range d.Pairs {
+		if commonKeys[kv.Key] || slices.Contains(providerKeys, kv.Key) {
+			kept = append(kept, kv)
+		}
+	}
+	return Directive{Pairs: kept}, removed
 }
 
 // FirstUnknownKey returns the first directive key that is neither in the common

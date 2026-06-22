@@ -12,6 +12,7 @@ const (
 	Files    = "files"
 	From     = "from"
 	Hint     = "hint"
+	Key      = "key"
 	Location = "location"
 	Path     = "path"
 	Provider = "provider"

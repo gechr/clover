@@ -12,18 +12,28 @@ import (
 )
 
 // FormatChange is a directive comment line format would rewrite: its 0-based
-// line index and the before and after text.
+// line index, the before and after text, and any unknown keys --prune removed.
 type FormatChange struct {
+	Line   int
+	Old    string
+	New    string
+	Pruned []string
+}
+
+// FormatError is a directive format left untouched because it carries an unknown
+// key, reported (and exited on) rather than silently reformatted. --prune turns
+// these into changes instead.
+type FormatError struct {
 	Line int
-	Old  string
-	New  string
+	Err  error
 }
 
 // FormatFile is the format outcome for one file: the comment lines it would
-// canonicalise and, unless checking, whether they were written.
+// canonicalise, any rejected for an unknown key, and whether they were written.
 type FormatFile struct {
 	Path     string
 	Changes  []FormatChange
+	Errors   []FormatError
 	Written  bool
 	WriteErr error
 }
@@ -42,9 +52,19 @@ func (s FormatSummary) Changed() int {
 	return n
 }
 
-// OK reports whether every directive is already canonical - the signal a
-// format --check gate exits on.
-func (s FormatSummary) OK() bool { return s.Changed() == 0 }
+// Errored reports the total number of directives format rejected for an unknown
+// key (always zero under --prune, which removes them instead).
+func (s FormatSummary) Errored() int {
+	var n int
+	for _, f := range s.Files {
+		n += len(f.Errors)
+	}
+	return n
+}
+
+// OK reports whether every directive is already canonical and carries no unknown
+// key - the signal a format --check gate, and an unknown-key rejection, exit on.
+func (s FormatSummary) OK() bool { return s.Changed() == 0 && s.Errored() == 0 }
 
 // Format canonicalises every directive comment under roots - reordering keys
 // into their canonical sequence and normalising quoting - without resolving or
@@ -55,7 +75,7 @@ func (s FormatSummary) OK() bool { return s.Changed() == 0 }
 func Format(
 	ctx context.Context,
 	roots []string,
-	check bool,
+	check, prune bool,
 	opts ...pipeline.Option,
 ) (FormatSummary, error) {
 	files, err := pipeline.Scan(ctx, roots, opts...)
@@ -65,7 +85,7 @@ func Format(
 
 	out := make([]FormatFile, 0, len(files))
 	for _, file := range files {
-		formatted := formatFile(file)
+		formatted := formatFile(file, prune)
 		if len(formatted.Changes) > 0 && !check {
 			lines := applyChanges(file.Lines, formatted.Changes)
 			if err := writeFile(file.Path, lines); err != nil {
@@ -80,18 +100,32 @@ func Format(
 }
 
 // formatFile canonicalises each directive in file and collects the lines that
-// would change.
-func formatFile(file scan.File) FormatFile {
+// would change. A directive carrying an unknown key is rejected (recorded as an
+// error and left untouched) so a stale or mistyped key cannot ride along as
+// inert configuration; with prune set the unknown keys are stripped instead and
+// the strip recorded as a change.
+func formatFile(file scan.File, prune bool) FormatFile {
 	syntax := comment.For(file.Path)
 	formatted := FormatFile{Path: file.Path}
 	for _, located := range file.Found {
+		d := located.Directive
+		name, _ := d.Get(constant.DirectiveProvider)
+		var pruned []string
+		if prune {
+			d, pruned = d.PruneUnknownKeys(providerKeys(name))
+		} else if err := d.CheckKeys(providerKeys(name)); err != nil {
+			formatted.Errors = append(formatted.Errors, FormatError{Line: located.Line, Err: err})
+			continue
+		}
+
 		old := file.Lines[located.Line]
-		canonical, changed := canonicalLine(old, syntax, located.Directive)
+		canonical, changed := canonicalLine(old, syntax, d)
 		if changed {
 			formatted.Changes = append(formatted.Changes, FormatChange{
-				Line: located.Line,
-				Old:  old,
-				New:  canonical,
+				Line:   located.Line,
+				Old:    old,
+				New:    canonical,
+				Pruned: pruned,
 			})
 		}
 	}

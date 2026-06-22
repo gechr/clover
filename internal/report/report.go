@@ -128,7 +128,16 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
+			for _, key := range change.Pruned {
+				logger.Warn().
+					Line(field.Location, file.Path, change.Line+1).
+					Str(field.Key, key).
+					Msg("Pruned unknown key")
+			}
 			logger.Info().Line(field.Location, file.Path, change.Line+1).Msg("Formatted")
+		}
+		for _, e := range file.Errors {
+			logger.Error().Line(field.Location, file.Path, e.Line+1).Err(e.Err).Msg("Invalid")
 		}
 	}
 

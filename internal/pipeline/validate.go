@@ -69,14 +69,7 @@ func checkKeys(m Marker) error {
 			providerKeys = append(providerKeys, k.Name)
 		}
 	}
-	key, suggestion, found := m.Directive.FirstUnknownKey(providerKeys)
-	if !found {
-		return nil
-	}
-	if suggestion != "" {
-		return fmt.Errorf("unknown key %q (did you mean %q?)", key, suggestion)
-	}
-	return fmt.Errorf("unknown key %q", key)
+	return m.Directive.CheckKeys(providerKeys)
 }
 
 // trackConflicts are the keys a track= marker may not also carry: the selection
