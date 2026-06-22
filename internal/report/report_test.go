@@ -49,8 +49,7 @@ func TestRun(t *testing.T) {
 // Written value was recorded (a follower projecting its value verbatim).
 func TestRunReportsWrittenValue(t *testing.T) {
 	written := result("app.txt", 0)
-	written.Current, written.Resolved, written.Written, written.Changed =
-		"1.20.0", "1.31.2-alpine", "1.31.2", true
+	written.Current, written.Resolved, written.Written, written.Changed = "1.20.0", "1.31.2-alpine", "1.31.2", true
 	fallback := result("app.txt", 2)
 	fallback.Current, fallback.Resolved, fallback.Changed = "1.0.0", "2.0.0", true
 

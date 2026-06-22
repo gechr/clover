@@ -47,7 +47,7 @@ const (
 
 // String renders the reason as a short, stable label for logging.
 func (r Reason) String() string {
-	switch r {
+	switch r { //nolint:exhaustive // reasonCount is a tallying sentinel, not a reason; default covers it
 	case ReasonEligible:
 		return "eligible"
 	case ReasonUnparsable:
@@ -73,7 +73,7 @@ func (r Reason) String() string {
 // no-candidate error so a failed run says why. It is empty for reasons that need
 // no elaboration.
 func (r Reason) Detail() string {
-	switch r {
+	switch r { //nolint:exhaustive // ReasonEligible and the reasonCount sentinel need no detail; default covers them
 	case ReasonUnparsable:
 		return "no parsable version was found"
 	case ReasonFiltered:
@@ -291,10 +291,8 @@ func (q *query) excluded(tag string) bool {
 // candidate qualifies when it publishes at least one matching asset.
 func (q *query) hasAsset(names []string) bool {
 	for _, p := range q.assets {
-		for _, name := range names {
-			if p(name) {
-				return true
-			}
+		if slices.ContainsFunc(names, p) {
+			return true
 		}
 	}
 	return false

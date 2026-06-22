@@ -46,7 +46,7 @@ type reference struct {
 // (port), or equals "localhost". So ghcr.io/owner/img splits to host ghcr.io +
 // repo owner/img, but library/redis and team/app (no dot) stay whole repository
 // paths. A single-segment value never splits.
-func splitHost(repository string) (host, repo string) {
+func splitHost(repository string) (string, string) {
 	first, rest, ok := strings.Cut(repository, "/")
 	if ok && (strings.ContainsAny(first, ".:") || first == "localhost") {
 		return first, rest
@@ -93,7 +93,12 @@ func newReference(registry, repository, platform string) (reference, error) {
 		if !strings.Contains(repository, "/") {
 			repository = hubDefaultNamespace + repository
 		}
-		return reference{registry: hubAPIHost, repository: repository, platform: platform, dockerHub: true}, nil
+		return reference{
+			registry:   hubAPIHost,
+			repository: repository,
+			platform:   platform,
+			dockerHub:  true,
+		}, nil
 	}
 	return reference{registry: registry, repository: repository, platform: platform}, nil
 }
