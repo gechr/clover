@@ -56,6 +56,11 @@ type Result struct {
 	Reason   string // why the marker was skipped
 	Err      error  // why resolution failed
 	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
+
+	// ResolvedURL is the upstream web page for the resolved candidate (e.g. a
+	// GitHub release/tag page), when the provider supplies one. The report
+	// hyperlinks the reported version to it; empty when unavailable.
+	ResolvedURL string
 }
 
 // FileResult groups a scanned file's original lines with the results of every
@@ -663,6 +668,9 @@ func (p *plan) finalize(
 	}
 	if err := p.render(i, line, located, chosen); err != nil {
 		return err
+	}
+	if linker, ok := prov.(provider.Linker); ok {
+		p.results[i].ResolvedURL = linker.URL(resource, chosen)
 	}
 	p.results[i].Verify = verifyPin(located, chosen)
 	if p.results[i].Verify == nil && p.deepVerify(m) {

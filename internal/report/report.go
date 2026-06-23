@@ -55,12 +55,12 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 				Symbol("⬆️").
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.From, value(r.Current, output)).
-				Str(field.To, value(reportTo(r), output)).
+				Link(field.To, r.ResolvedURL, value(reportTo(r), output)).
 				Msg(msg)
 		case output == OutputWide:
 			logger.Debug().
 				Line(field.Location, r.Marker.File, line(r)).
-				Str(field.Version, value(r.Current, output)).
+				Link(field.Version, r.ResolvedURL, value(r.Current, output)).
 				Msg("Already up-to-date")
 		}
 

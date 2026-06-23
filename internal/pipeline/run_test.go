@@ -26,6 +26,7 @@ type fakeProvider struct {
 	err          error
 	deep         *bool             // when set, Discover records whether a deep lookup was requested
 	truncate     bool              // when set, Discover reports a truncated lookup
+	link         string            // when set, the Linker capability returns link+candidate.Ref
 	digest       string            // the digest the Digester capability returns
 	digestByTag  map[string]string // tag -> digest, overriding digest when the tag matches
 	defaultBr    string            // the BranchChecker default branch
@@ -43,6 +44,13 @@ func (f fakeProvider) Digest(_ context.Context, _ provider.Resource, tag string)
 
 func (f fakeProvider) Commit(_ context.Context, _ provider.Resource, tag string) (string, error) {
 	return f.tagCommit[tag], nil
+}
+
+func (f fakeProvider) URL(_ provider.Resource, c model.Candidate) string {
+	if f.link == "" {
+		return ""
+	}
+	return f.link + c.Ref
 }
 
 func (f fakeProvider) DefaultBranch(context.Context, provider.Resource) (string, error) {
@@ -133,6 +141,39 @@ func TestRunTagPrefixSelectsComponent(t *testing.T) {
 	require.Equal(t, "version: v1.5.0", r.NewLine,
 		"newest api/ component, prefix stripped, v preserved - not worker/v2 or web/v3")
 	require.Equal(t, "v1.5.0", r.Written)
+}
+
+// A provider implementing Linker has its resolved candidate's URL captured on
+// the result, so the report can hyperlink the reported version; a provider that
+// supplies no URL leaves it empty.
+func TestRunResolvedURL(t *testing.T) {
+	chosen := candidate(t, "1.3.0")
+	chosen.Ref = "v1.3.0"
+	provider.Register(fakeProvider{
+		name:       "linkfake",
+		link:       "https://example.test/releases/tag/",
+		candidates: []model.Candidate{chosen},
+	})
+	provider.Register(fakeProvider{
+		name:       "nolinkfake",
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"linked.txt":   "# clover: provider=linkfake repository=x/y\nversion: 1.2.0\n",
+		"unlinked.txt": "# clover: provider=nolinkfake repository=x/y\nversion: 1.2.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	byName := map[string]pipeline.Result{}
+	for _, f := range files {
+		byName[filepath.Base(f.Path)] = f.Results[0]
+	}
+
+	require.Equal(t, "https://example.test/releases/tag/v1.3.0", byName["linked.txt"].ResolvedURL)
+	require.Empty(t, byName["unlinked.txt"].ResolvedURL, "no URL when the provider supplies none")
 }
 
 func TestScanSkipsConfiguredExcludes(t *testing.T) {

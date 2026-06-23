@@ -45,6 +45,15 @@ type Digester interface {
 	Digest(ctx context.Context, r Resource, tag string) (string, error)
 }
 
+// Linker is an optional capability for providers that can build a web URL for a
+// resolved candidate (e.g. a GitHub release/tag page). clover hyperlinks the
+// reported version when the provider implements it; absent, the value logs as
+// plain text. An empty return means no meaningful URL, so the value is not
+// linked.
+type Linker interface {
+	URL(r Resource, c model.Candidate) string
+}
+
 // Committer is an optional capability for providers that can resolve a specific
 // tag's commit SHA - the peeled commit for an annotated tag. clover uses it under
 // --verify to deep-check an action pin against the tag it claims, including tags
