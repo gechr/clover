@@ -4,6 +4,7 @@ package command
 
 import (
 	"os"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	clib "github.com/gechr/clib/cli/kong"
@@ -11,6 +12,7 @@ import (
 	"github.com/gechr/clib/help"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clive"
+	"github.com/gechr/clive/update/notify"
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
@@ -109,11 +111,38 @@ func Run() int {
 	}
 	kctx.Bind(cfg)
 
-	if err := kctx.Run(); err != nil {
-		clog.Error().Err(err).Msg("Command failed")
-		return exitFailure
+	flush := startNotify(kctx.Command())
+	runErr := kctx.Run()
+	code := exitSuccess
+	if runErr != nil {
+		clog.Error().Err(runErr).Msg("Command failed")
+		code = exitFailure
 	}
-	return exitSuccess
+	flush()
+	return code
+}
+
+// startNotify begins clive's update check before dispatch, for the commands a
+// user runs repeatedly, and returns a function that prints any pending hint once
+// the command finishes. clive serves the hint from cache and refreshes in the
+// background, so this never blocks or slows the run; CLOVER_NO_UPDATE_CHECK
+// disables it.
+func startNotify(command string) func() {
+	switch firstField(command) {
+	case "run", "lint", "format":
+		return notify.Check(updateConfig())
+	default:
+		return func() {}
+	}
+}
+
+// firstField returns the first space-separated word of s, the leading verb of a
+// kong command path like "run <path>".
+func firstField(s string) string {
+	if before, _, ok := strings.Cut(s, " "); ok {
+		return before
+	}
+	return s
 }
 
 // loadConfig loads the project config, honouring --config and --no-config.

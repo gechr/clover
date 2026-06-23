@@ -59,3 +59,19 @@ Authenticate with a provider (for higher rate limits or private sources) via its
 ```bash
 clover login
 ```
+
+## `update`
+
+Update Clover to the latest release through Homebrew, the sanctioned update path.
+
+```text
+clover update [options]
+```
+
+| Option     | Description                                                |
+| ---------- | ---------------------------------------------------------- |
+| `--check`  | Report whether an update is available without installing.  |
+| `--stable` | Install the latest stable release.                         |
+| `--dev`    | Install the latest source build.                           |
+
+Clover will periodically check for updates and hint when a newer release is available. Set `CLOVER_NO_UPDATE_CHECK=1` to disable it.

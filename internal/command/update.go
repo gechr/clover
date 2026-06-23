@@ -19,15 +19,22 @@ type cmdUpdate struct {
 	Dev    bool `help:"Install the latest source build"                          clib:"terse='Dev build'"    xor:"channel"`
 }
 
-// Run checks for, or installs, the latest clover via Homebrew.
-func (c *cmdUpdate) Run() error {
-	ctx := context.Background()
-	cfg := brew.Config{
+// updateConfig describes clover for both self-update paths: the `update` command
+// (Homebrew) and the periodic check (which reads it for the display name, the
+// `clover update` command, and the GitHub repo behind the tag lookup).
+func updateConfig() brew.Config {
+	return brew.Config{
 		Info:    clive.Info{Module: module},
 		Name:    "Clover",
 		Formula: name,
 		Tap:     updateTap,
 	}
+}
+
+// Run checks for, or installs, the latest clover via Homebrew.
+func (c *cmdUpdate) Run() error {
+	ctx := context.Background()
+	cfg := updateConfig()
 	if c.Check {
 		return brew.Check(ctx, cfg)
 	}
