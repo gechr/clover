@@ -106,8 +106,8 @@ func TestDockerPinRendered(t *testing.T) {
 			located, err := rw.Locate(tt.line)
 			require.NoError(t, err)
 
-			rendered, ok := located.(match.Rendered)
-			require.True(t, ok, "dockerPinLocated implements match.Rendered")
+			rendered, ok := located.(match.Renderer)
+			require.True(t, ok, "dockerPinLocated implements match.Renderer")
 			require.Equal(t, tt.want, rendered.Rendered(tt.candidate))
 		})
 	}

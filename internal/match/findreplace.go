@@ -40,7 +40,7 @@ func NewFindReplace(find, replace string) (FindReplace, error) {
 // Locate matches find against the line: the whole match is the span to rewrite,
 // and the value anchoring selection is the first version-shaped capture (glob)
 // or capture group 1 (regex), falling back to the whole match.
-func (fr FindReplace) Locate(line string) (Located, error) {
+func (fr FindReplace) Locate(line string) (Location, error) {
 	m := fr.find.FindStringSubmatchIndex(line)
 	if m == nil {
 		return nil, errors.New("find pattern did not match the target line")

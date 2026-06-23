@@ -13,19 +13,19 @@ import (
 // Rewriter locates the version a target line carries. Implementations range from
 // the shape-based [Smart] rewriter to format-specific ones. Locate is offline and
 // pure, so lint runs it to validate a marker without resolving anything; the
-// [Located] it returns renders the line once a candidate is resolved.
+// [Location] it returns renders the line once a candidate is resolved.
 type Rewriter interface {
 	// Locate extracts the version currently on the line, erroring when the
 	// rewriter cannot act on it (no target, ambiguous, or malformed).
-	Locate(line string) (Located, error)
+	Locate(line string) (Location, error)
 }
 
-// Located is what a Rewriter found on a target line: the common anchors the
+// Location is what a Rewriter found on a target line: the common anchors the
 // pipeline reads (Current, Semver, NeedsDigest) plus the ability to render itself
 // for a resolved candidate. Each rewriter returns its own implementation, so the
 // renderer-specific state (spans, captures) stays private to the rewriter that
 // produced it rather than piling into a shared struct.
-type Located interface {
+type Location interface {
 	// Current is the version text currently on the line, recorded as the old value.
 	Current() string
 	// Semver is the parsed core of the current version, nil when unparseable. It
@@ -40,7 +40,7 @@ type Located interface {
 	Render(line string, candidate model.Candidate) (string, bool, error)
 }
 
-// SecurePin is the optional capability of a [Located] whose target pins a secure
+// SecurePin is the optional capability of a [Location] whose target pins a secure
 // value beside the version - an action commit SHA or an image content digest.
 // Pinned reports the value currently on the line, so a run can cross-check it
 // against the value the resolved tag reports and catch a committed pin that no
@@ -49,16 +49,16 @@ type SecurePin interface {
 	Pinned() string
 }
 
-// Rendered is the optional capability of a [Located] that can report the exact
+// Renderer is the optional capability of a [Location] that can report the exact
 // version text it will write for a candidate, which may differ from the
 // candidate's raw version once restyled (a stripped variant, a re-precisioned or
 // re-prefixed core). The pipeline resolves a digest for this text rather than the
 // raw candidate, so a pinned image's digest always describes the tag written.
-type Rendered interface {
+type Renderer interface {
 	Rendered(candidate model.Candidate) string
 }
 
-// anchored carries the Current/Semver anchors every Located exposes; a concrete
+// anchored carries the Current/Semver anchors every Location exposes; a concrete
 // located embeds it, adds its own spans, and overrides Render (and NeedsDigest
 // when it rewrites a digest).
 type anchored struct {

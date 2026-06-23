@@ -37,6 +37,18 @@ type Provider interface {
 	Discover(ctx context.Context, r Resource) ([]model.Candidate, error)
 }
 
+// Anchorer is an optional capability for a provider whose resolved value is the
+// value already on the target line, not one discovered upstream. clover skips
+// discovery and selection for an anchored provider, publishing the located value
+// under the marker's id so followers and side values stay in step, and leaves
+// the line itself untouched. The manual provider uses it to declare a
+// human-owned root.
+type Anchorer interface {
+	// Anchor marks the provider as line-anchored; the method body is empty, its
+	// presence is the signal.
+	Anchor()
+}
+
 // Digester is an optional capability for providers that can resolve a version's
 // content digest (e.g. an OCI image's manifest digest), for secure-pin
 // rewriting. clover resolves it only for the chosen candidate of a digest-pinned

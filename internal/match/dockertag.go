@@ -24,7 +24,7 @@ func NewDockerTag() DockerTag { return DockerTag{} }
 
 // Locate finds the version token in the image tag, ignoring the registry host,
 // port, and path so they are never mistaken for the version.
-func (DockerTag) Locate(line string) (Located, error) {
+func (DockerTag) Locate(line string) (Location, error) {
 	token, err := imageTag(line)
 	if err != nil {
 		return nil, err

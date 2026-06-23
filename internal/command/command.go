@@ -22,6 +22,7 @@ import (
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/provider/helm"
+	"github.com/gechr/clover/internal/provider/manual"
 	"github.com/gechr/clover/internal/tag"
 )
 
@@ -59,6 +60,7 @@ func Run() int {
 		docker.New(),
 		github.New(),
 		helm.New(),
+		manual.New(),
 	)
 
 	var root cli

@@ -26,7 +26,7 @@ func NewSmart() Smart { return Smart{} }
 // version-shaped token, or more than one (the ambiguity the design fails loud on
 // rather than guessing). Locate does no I/O, so lint runs it to validate a
 // marker without resolving anything.
-func (Smart) Locate(line string) (Located, error) {
+func (Smart) Locate(line string) (Location, error) {
 	tokens := Find(line)
 	switch len(tokens) {
 	case 0:

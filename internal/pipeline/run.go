@@ -483,6 +483,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return p.resolveTrack(ctx, i, m, prov, resource, line, located)
 	}
 
+	// A line-anchored provider (manual) resolves to the value already on the
+	// line, skipping discovery and selection entirely.
+	if _, ok := prov.(provider.Anchorer); ok {
+		return p.anchor(i, m, line, located)
+	}
+
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
 		return err
@@ -553,7 +559,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 			return fmt.Errorf("provider %q cannot resolve a digest for a pinned image", m.Provider)
 		}
 		tag := chosen.Version
-		if r, ok := located.(match.Rendered); ok {
+		if r, ok := located.(match.Renderer); ok {
 			tag = r.Rendered(chosen)
 		}
 		digest, err := digester.Digest(ctx, resource, tag)
@@ -578,7 +584,7 @@ func (p *plan) resolveTrack(
 	prov provider.Provider,
 	resource provider.Resource,
 	line string,
-	located match.Located,
+	located match.Location,
 ) error {
 	ref, _ := m.Directive.Get(constant.DirectiveTrack)
 	if ref == constant.TrackInfer {
@@ -659,7 +665,7 @@ func (p *plan) finalize(
 	prov provider.Provider,
 	resource provider.Resource,
 	line string,
-	located match.Located,
+	located match.Location,
 	chosen model.Candidate,
 ) error {
 	if m.ID != "" {
@@ -676,6 +682,24 @@ func (p *plan) finalize(
 	if p.results[i].Verify == nil && p.deepVerify(m) {
 		p.results[i].Verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
 	}
+	return nil
+}
+
+// anchor resolves a line-anchored provider (manual): the value is whatever the
+// target line already carries, published under the marker's id so followers and
+// side values can track it. The line is never rewritten - a person owns the
+// value - so this skips discovery, selection, digest resolution, render, and pin
+// verification, and reports the marker as up to date.
+func (p *plan) anchor(i int, m Marker, line string, located match.Location) error {
+	current := model.Candidate{Version: located.Current(), Semver: located.Semver()}
+	if m.ID != "" {
+		p.registry.Set(m.ID, registry.Entry{Old: current, New: current})
+	}
+	p.results[i].Current = located.Current()
+	p.results[i].Resolved = located.Current()
+	p.results[i].Written = located.Current()
+	p.results[i].NewLine = line
+	p.results[i].Changed = false
 	return nil
 }
 
@@ -698,7 +722,7 @@ func (p *plan) verifyBranch(
 	ctx context.Context,
 	prov provider.Provider,
 	resource provider.Resource,
-	located match.Located,
+	located match.Location,
 	chosen model.Candidate,
 	m Marker,
 ) error {
@@ -807,7 +831,7 @@ func branchDescription(m Marker) string {
 // being bumped (the new pin is correct by construction, and the old version's tag
 // may be off the fetched page), or when there is no upstream value to compare. A
 // non-nil result is non-fatal: the marker still resolved.
-func verifyPin(located match.Located, chosen model.Candidate) error {
+func verifyPin(located match.Location, chosen model.Candidate) error {
 	pin, ok := located.(match.SecurePin)
 	if !ok {
 		return nil
@@ -937,7 +961,7 @@ func (p *plan) report(i int, err error) {
 // the current version, failing loud when the line is absent or the rewriter
 // cannot act on it. The chosen rewriter is returned so Render reuses the same
 // located spans and style.
-func (p *plan) locate(m Marker) (string, match.Located, error) {
+func (p *plan) locate(m Marker) (string, match.Location, error) {
 	line := targetLine(p.lines, m)
 	if line == "" {
 		return "", nil, errors.New("no target line for directive")
@@ -993,7 +1017,7 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 func (p *plan) render(
 	i int,
 	line string,
-	located match.Located,
+	located match.Location,
 	candidate model.Candidate,
 ) error {
 	newLine, changed, err := located.Render(line, candidate)
@@ -1012,8 +1036,8 @@ func (p *plan) render(
 // restyle can shift from candidate.Version (a stripped variant, a re-precisioned
 // core). A located that cannot report it falls back to the resolved value, so a
 // follower projecting its value verbatim is unaffected.
-func renderedValue(located match.Located, candidate model.Candidate) string {
-	if r, ok := located.(match.Rendered); ok {
+func renderedValue(located match.Location, candidate model.Candidate) string {
+	if r, ok := located.(match.Renderer); ok {
 		return r.Rendered(candidate)
 	}
 	return candidate.Version

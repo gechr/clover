@@ -10,4 +10,7 @@ const (
 	ProviderFollow = "follow"
 	ProviderGithub = "github"
 	ProviderHelm   = "helm"
+	// ProviderManual is a human-owned root: it publishes the value already on
+	// the target line under an id for followers, contacting no upstream.
+	ProviderManual = "manual"
 )

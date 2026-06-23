@@ -24,7 +24,7 @@ func NewHash() Hash { return Hash{} }
 
 // Locate finds the single commit- or sha256-length hex run on the line, erroring
 // when there is none or more than one (the ambiguity it fails loud on).
-func (Hash) Locate(line string) (Located, error) {
+func (Hash) Locate(line string) (Location, error) {
 	var spans []Span
 	for i := 0; i < len(line); {
 		if !xstrings.IsHexChar(rune(line[i])) {

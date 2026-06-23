@@ -26,7 +26,7 @@ func NewDockerTrack() DockerTrack { return DockerTrack{} }
 // Locate finds the literal tag and the @sha256 digest, reusing the digest
 // parsing the docker-pin rewriter uses and taking the tag verbatim so a
 // non-version tag like "latest" is captured rather than rejected.
-func (DockerTrack) Locate(line string) (Located, error) {
+func (DockerTrack) Locate(line string) (Location, error) {
 	at, digest, err := digestSpan(line)
 	if err != nil {
 		return nil, err

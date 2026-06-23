@@ -26,7 +26,7 @@ func NewActionTrack() ActionTrack { return ActionTrack{} }
 // Locate finds the @<sha> commit and the # comment, reusing the SHA parsing the
 // action-pin rewriter uses and taking the comment verbatim so a branch name like
 // "main" is captured rather than rejected.
-func (ActionTrack) Locate(line string) (Located, error) {
+func (ActionTrack) Locate(line string) (Location, error) {
 	commit, end, err := commitSpan(line)
 	if err != nil {
 		return nil, err

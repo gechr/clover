@@ -33,7 +33,7 @@ func NewActionPin() ActionPin { return ActionPin{} }
 // version-shaped token in the trailing comment. It errors specifically for each
 // way a line can fail to be a secure pin (no reference, not SHA-pinned, short
 // SHA, no version comment), so lint can explain the problem.
-func (ActionPin) Locate(line string) (Located, error) {
+func (ActionPin) Locate(line string) (Location, error) {
 	commit, end, err := commitSpan(line)
 	if err != nil {
 		return nil, err

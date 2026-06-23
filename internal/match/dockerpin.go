@@ -29,7 +29,7 @@ func NewDockerPin() DockerPin { return DockerPin{} }
 // Locate finds the version tag and the @sha256 digest, erroring specifically for
 // each way a line can fail to be a digest pin (not pinned, short or non-sha256
 // digest, no tag, non-version tag) so lint can explain it.
-func (DockerPin) Locate(line string) (Located, error) {
+func (DockerPin) Locate(line string) (Location, error) {
 	at, digest, err := digestSpan(line)
 	if err != nil {
 		return nil, err

@@ -55,7 +55,7 @@ func TestActionPinRendered(t *testing.T) {
 	located, err := match.NewActionPin().Locate(line)
 	require.NoError(t, err)
 
-	r, ok := located.(match.Rendered)
+	r, ok := located.(match.Renderer)
 	require.True(t, ok, "action pin must report its rendered value")
 	require.Equal(t, "v7.0.0", r.Rendered(model.Candidate{Version: "7", Commit: newSHA}))
 }

@@ -7,6 +7,7 @@
   - [GitHub](github.md)
   - [Docker](docker.md)
   - [Helm](helm.md)
+  - [Manual](manual.md)
   - [Auto-detection](auto.md)
 
 - [Selecting versions]()
