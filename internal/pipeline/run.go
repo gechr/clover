@@ -61,6 +61,11 @@ type Result struct {
 	// GitHub release/tag page), when the provider supplies one. The report
 	// hyperlinks the reported version to it; empty when unavailable.
 	ResolvedURL string
+
+	// CurrentURL is the upstream web page for the version currently on the line,
+	// with its ref inferred from the resolved ref's format. The report
+	// hyperlinks the from value to it; empty when unavailable.
+	CurrentURL string
 }
 
 // FileResult groups a scanned file's original lines with the results of every
@@ -95,7 +100,7 @@ type config struct {
 	now            time.Time
 	prerelease     *bool
 	reporter       progress.Reporter
-	truncationSink func(resource string)
+	truncationSink func(provider.Truncation)
 	verify         *bool
 	workers        int
 }
@@ -141,10 +146,11 @@ func WithPrerelease(allow *bool) Option {
 // more requests that may be slow or hit rate limits. The default is shallow.
 func WithDeep(deep bool) Option { return func(c *config) { c.deep = deep } }
 
-// WithTruncationSink sets a callback invoked with a resource's label when a
-// shallow lookup stopped with more results available, so the caller can suggest
-// a deep lookup. It may be called concurrently.
-func WithTruncationSink(sink func(resource string)) Option {
+// WithTruncationSink sets a callback invoked with a truncated resource (its
+// label and upstream page) when a shallow lookup stopped with more results
+// available, so the caller can suggest a deep lookup. It may be called
+// concurrently.
+func WithTruncationSink(sink func(provider.Truncation)) Option {
 	return func(c *config) { c.truncationSink = sink }
 }
 
@@ -310,7 +316,7 @@ type plan struct {
 	reporter       progress.Reporter
 	results        []Result
 	tasks          []progress.Task
-	truncationSink func(resource string)
+	truncationSink func(provider.Truncation)
 	verify         *bool
 	workers        int
 }
@@ -677,12 +683,32 @@ func (p *plan) finalize(
 	}
 	if linker, ok := prov.(provider.Linker); ok {
 		p.results[i].ResolvedURL = linker.URL(resource, chosen)
+		p.results[i].CurrentURL = linker.URL(resource, currentCandidate(located, chosen))
 	}
 	p.results[i].Verify = verifyPin(located, chosen)
 	if p.results[i].Verify == nil && p.deepVerify(m) {
 		p.results[i].Verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
 	}
 	return nil
+}
+
+// currentCandidate builds a candidate for the version currently on the line so a
+// linker can resolve its upstream page. The current value carries no upstream
+// ref of its own, so it is inferred from the resolved ref's prefix - e.g. a
+// resolved ref of "v7.0.0" yields prefix "v" and a current ref of "v6.0.3". It
+// is empty when the current value is not a parseable version, leaving the from
+// value unlinked.
+func currentCandidate(located match.Location, chosen model.Candidate) model.Candidate {
+	if located.Semver() == nil {
+		return model.Candidate{}
+	}
+	cur := located.Current()
+	prefix := strings.TrimSuffix(chosen.Ref, cversion.RemovePrefix(chosen.Ref))
+	return model.Candidate{
+		Version: cur,
+		Semver:  located.Semver(),
+		Ref:     prefix + cversion.RemovePrefix(cur),
+	}
 }
 
 // anchor resolves a line-anchored provider (manual): the value is whatever the

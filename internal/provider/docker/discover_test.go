@@ -179,9 +179,9 @@ func TestDiscoverRegistryDeepPaginates(t *testing.T) {
 	))
 	require.NoError(t, err)
 
-	var truncated []string
+	var truncated []provider.Truncation
 	ctx := provider.WithTruncationSink(provider.WithDeep(t.Context(), true),
-		func(r string) { truncated = append(truncated, r) })
+		func(t provider.Truncation) { truncated = append(truncated, t) })
 	candidates, err := p.Discover(ctx, res)
 	require.NoError(t, err)
 
@@ -215,15 +215,17 @@ func TestDiscoverRegistryShallowNotesTruncation(t *testing.T) {
 	))
 	require.NoError(t, err)
 
-	var truncated []string
+	var truncated []provider.Truncation
 	ctx := provider.WithTruncationSink(
 		t.Context(),
-		func(r string) { truncated = append(truncated, r) },
+		func(t provider.Truncation) { truncated = append(truncated, t) },
 	)
 	_, err = p.Discover(ctx, res) // shallow: a next page exists but is not fetched
 	require.NoError(t, err)
-	require.Equal(t, []string{"registry.example.com/team/img"}, truncated,
-		"a shallow lookup with more pages notes the truncation")
+	require.Equal(t, []provider.Truncation{{
+		Resource: "registry.example.com/team/img",
+		URL:      "https://registry.example.com/team/img",
+	}}, truncated, "a shallow lookup with more pages notes the truncation")
 }
 
 // challengeResponse is a 401 advertising a bearer-token realm, the way a

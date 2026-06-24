@@ -20,13 +20,16 @@ func TestTruncationSink(t *testing.T) {
 	t.Parallel()
 
 	require.NotPanics(t, func() {
-		provider.NoteTruncated(context.Background(), "x") // no sink set
+		provider.NoteTruncated(context.Background(), "x", "https://x") // no sink set
 	})
 
-	var got []string
-	ctx := provider.WithTruncationSink(context.Background(), func(r string) {
-		got = append(got, r)
+	var got []provider.Truncation
+	ctx := provider.WithTruncationSink(context.Background(), func(t provider.Truncation) {
+		got = append(got, t)
 	})
-	provider.NoteTruncated(ctx, "ghcr.io/owner/img")
-	require.Equal(t, []string{"ghcr.io/owner/img"}, got)
+	provider.NoteTruncated(ctx, "ghcr.io/owner/img", "https://ghcr.io/owner/img")
+	require.Equal(t, []provider.Truncation{{
+		Resource: "ghcr.io/owner/img",
+		URL:      "https://ghcr.io/owner/img",
+	}}, got)
 }

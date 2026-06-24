@@ -16,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/clover/internal/tui"
 	xslices "github.com/gechr/x/slices"
@@ -60,17 +61,17 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 	// hints do not interleave with the live progress display.
 	var (
 		mu        sync.Mutex
-		truncated []string
+		truncated []provider.Truncation
 	)
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
 		pipeline.WithReporter(reporter),
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
 		pipeline.WithTagFilter(filter),
 		pipeline.WithDeep(deep),
-		pipeline.WithTruncationSink(func(resource string) {
+		pipeline.WithTruncationSink(func(t provider.Truncation) {
 			mu.Lock()
 			defer mu.Unlock()
-			truncated = append(truncated, resource)
+			truncated = append(truncated, t)
 		}),
 		pipeline.WithDowngrade(c.Downgrade),
 		pipeline.WithPrerelease(c.Prerelease),
@@ -112,10 +113,10 @@ func runErr(summary mode.Summary) error {
 // newest version may sit on a later page. Every provider reports truncation (the
 // OCI registries and GitHub alike), so this single per-resource warning is the
 // only --deep hint; a no-candidate failure explains itself in its own error.
-func reportDeep(truncated []string, deep bool) {
-	for _, resource := range deepHints(truncated, deep) {
+func reportDeep(truncated []provider.Truncation, deep bool) {
+	for _, t := range deepHints(truncated, deep) {
 		clog.Warn().
-			Str(field.Resource, resource).
+			Link(field.Resource, t.URL, t.Resource).
 			Str(field.Hint, "pass --deep").
 			Msg("Shallow lookup may have missed newer versions")
 	}
@@ -124,7 +125,7 @@ func reportDeep(truncated []string, deep bool) {
 // deepHints is the pure decision behind reportDeep: the unique truncated
 // resources to warn about. A deep run already paged to exhaustion, so it warns
 // about nothing.
-func deepHints(truncated []string, deep bool) []string {
+func deepHints(truncated []provider.Truncation, deep bool) []provider.Truncation {
 	if deep {
 		return nil
 	}

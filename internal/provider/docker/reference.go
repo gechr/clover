@@ -125,6 +125,19 @@ func (r reference) String() string {
 	return r.registry + "/" + r.repository
 }
 
+// url is the reference's upstream web page, mirroring String: a Docker Hub
+// repository links to its hub.docker.com page (the /_ namespace for official
+// library images), and any other registry to its host path.
+func (r reference) url() string {
+	if r.dockerHub {
+		if name, ok := strings.CutPrefix(r.repository, hubDefaultNamespace); ok {
+			return "https://" + hubAPIHost + "/_/" + name
+		}
+		return "https://" + hubAPIHost + "/r/" + r.repository
+	}
+	return "https://" + r.registry + "/" + r.repository
+}
+
 // registryV2Host is the OCI registry host that serves manifests for the
 // reference. Docker Hub discovery uses its web API, but digests come from the
 // registry, so Hub maps to registry-1.docker.io.

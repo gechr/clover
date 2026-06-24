@@ -4,25 +4,36 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/command"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeepHintsShallowDeduplicates(t *testing.T) {
 	t.Parallel()
 
+	nginx := provider.Truncation{
+		Resource: "ghcr.io/owner/nginx",
+		URL:      "https://ghcr.io/owner/nginx",
+	}
+	redis := provider.Truncation{
+		Resource: "ghcr.io/owner/redis",
+		URL:      "https://ghcr.io/owner/redis",
+	}
+
 	// A shallow run warns about each truncated resource, deduplicated.
-	resources := command.DeepHints(
-		[]string{"docker.io/library/nginx", "docker.io/library/nginx", "github.com/owner/name"},
-		false,
-	)
-	require.Equal(t, []string{"docker.io/library/nginx", "github.com/owner/name"}, resources)
+	resources := command.DeepHints([]provider.Truncation{nginx, nginx, redis}, false)
+	require.Equal(t, []provider.Truncation{nginx, redis}, resources)
 }
 
 func TestDeepHintsDeepSuggestsNothing(t *testing.T) {
 	t.Parallel()
 
 	// A deep run already paged to exhaustion, so it never re-suggests --deep.
-	require.Empty(t, command.DeepHints([]string{"docker.io/library/nginx"}, true))
+	nginx := provider.Truncation{
+		Resource: "ghcr.io/owner/nginx",
+		URL:      "https://ghcr.io/owner/nginx",
+	}
+	require.Empty(t, command.DeepHints([]provider.Truncation{nginx}, true))
 }
 
 func TestDeepHintsNoTruncationNoHint(t *testing.T) {

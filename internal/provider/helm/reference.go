@@ -89,3 +89,12 @@ func (r reference) String() string {
 	}
 	return strings.TrimPrefix(strings.TrimPrefix(r.baseURL, "https://"), "http://") + "/" + r.chart
 }
+
+// url is the reference's upstream web page: an OCI registry's repository over
+// https, or a classic repository's chart under its base URL (scheme kept).
+func (r reference) url() string {
+	if r.isOCI {
+		return "https://" + r.repo.Host + "/" + r.repo.Repository
+	}
+	return r.baseURL + "/" + r.chart
+}

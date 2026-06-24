@@ -21,6 +21,13 @@ func Deep(ctx context.Context) bool {
 	return deep
 }
 
+// Truncation identifies a resource whose shallow lookup was incomplete, paired
+// with the upstream web page a --deep hint can link to.
+type Truncation struct {
+	Resource string // short label shown in the hint
+	URL      string // upstream web page the label links to
+}
+
 // truncationSinkKey is the unexported context key for the truncation sink.
 type truncationSinkKey struct{}
 
@@ -29,15 +36,16 @@ type truncationSinkKey struct{}
 // available - so the edge can suggest --deep without the provider depending on a
 // logger. The sink may be called from multiple goroutines, so it must be safe
 // for concurrent use. A nil sink disables the notification.
-func WithTruncationSink(ctx context.Context, sink func(resource string)) context.Context {
+func WithTruncationSink(ctx context.Context, sink func(Truncation)) context.Context {
 	return context.WithValue(ctx, truncationSinkKey{}, sink)
 }
 
 // NoteTruncated reports that resource's shallow lookup was incomplete, invoking
-// the sink set by WithTruncationSink if any. It is a no-op otherwise, so a
-// provider can call it unconditionally.
-func NoteTruncated(ctx context.Context, resource string) {
-	if sink, ok := ctx.Value(truncationSinkKey{}).(func(string)); ok && sink != nil {
-		sink(resource)
+// the sink set by WithTruncationSink if any with the resource's label and its
+// upstream web page. It is a no-op otherwise, so a provider can call it
+// unconditionally.
+func NoteTruncated(ctx context.Context, resource, url string) {
+	if sink, ok := ctx.Value(truncationSinkKey{}).(func(Truncation)); ok && sink != nil {
+		sink(Truncation{Resource: resource, URL: url})
 	}
 }

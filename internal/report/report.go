@@ -54,7 +54,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 			summarize(logger, dryRun).
 				Symbol("⬆️").
 				Line(field.Location, r.Marker.File, line(r)).
-				Str(field.From, value(r.Current, output)).
+				Link(field.From, r.CurrentURL, value(r.Current, output)).
 				Link(field.To, r.ResolvedURL, value(reportTo(r), output)).
 				Msg(msg)
 		case output == OutputWide:

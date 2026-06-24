@@ -38,7 +38,7 @@ func (p *Provider) discoverRegistry(ctx context.Context, ref reference) ([]model
 		return nil, err
 	}
 	if truncated {
-		provider.NoteTruncated(ctx, ref.String())
+		provider.NoteTruncated(ctx, ref.String(), ref.url())
 	}
 	candidates := make([]model.Candidate, 0, len(tags))
 	for _, t := range tags {

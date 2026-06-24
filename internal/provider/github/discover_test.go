@@ -82,9 +82,9 @@ func TestDiscoverTagsShallowReportsNoTruncation(t *testing.T) {
 	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
 	require.NoError(t, err)
 
-	var trunc []string
+	var trunc []provider.Truncation
 	ctx := provider.WithTruncationSink(t.Context(),
-		func(r string) { trunc = append(trunc, r) })
+		func(t provider.Truncation) { trunc = append(trunc, t) })
 	_, err = p.Discover(ctx, res)
 	require.NoError(t, err)
 	require.Empty(t, trunc,

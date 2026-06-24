@@ -89,7 +89,7 @@ func (f fakeProvider) Discover(
 		*f.deep = provider.Deep(ctx)
 	}
 	if f.truncate {
-		provider.NoteTruncated(ctx, f.name)
+		provider.NoteTruncated(ctx, f.name, "https://"+f.name)
 	}
 	return f.candidates, f.err
 }
@@ -158,10 +158,18 @@ func TestRunResolvedURL(t *testing.T) {
 		name:       "nolinkfake",
 		candidates: []model.Candidate{candidate(t, "1.3.0")},
 	})
+	bare := candidate(t, "1.3.0")
+	bare.Ref = "1.3.0"
+	provider.Register(fakeProvider{
+		name:       "barefake",
+		link:       "https://example.test/releases/tag/",
+		candidates: []model.Candidate{bare},
+	})
 
 	dir := write(t, map[string]string{
 		"linked.txt":   "# clover: provider=linkfake repository=x/y\nversion: 1.2.0\n",
 		"unlinked.txt": "# clover: provider=nolinkfake repository=x/y\nversion: 1.2.0\n",
+		"bare.txt":     "# clover: provider=barefake repository=x/y\nversion: 1.2.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -174,6 +182,14 @@ func TestRunResolvedURL(t *testing.T) {
 
 	require.Equal(t, "https://example.test/releases/tag/v1.3.0", byName["linked.txt"].ResolvedURL)
 	require.Empty(t, byName["unlinked.txt"].ResolvedURL, "no URL when the provider supplies none")
+
+	// The from URL links the current version, inferring its ref's "v" prefix from
+	// the resolved ref (v1.3.0) even though the line carries a bare 1.2.0.
+	require.Equal(t, "https://example.test/releases/tag/v1.2.0", byName["linked.txt"].CurrentURL)
+	require.Empty(t, byName["unlinked.txt"].CurrentURL, "no URL when the provider supplies none")
+
+	// A prefixless resolved ref (1.3.0) infers a prefixless from ref (1.2.0).
+	require.Equal(t, "https://example.test/releases/tag/1.2.0", byName["bare.txt"].CurrentURL)
 }
 
 func TestScanSkipsConfiguredExcludes(t *testing.T) {
@@ -261,11 +277,11 @@ func TestRunTruncationSinkReceivesNotices(t *testing.T) {
 		"app.txt": "# clover: provider=trunc repository=x/y\nversion: 1.2.0\n",
 	})
 
-	var noted []string
+	var noted []provider.Truncation
 	_, err := pipeline.Run(context.Background(), []string{dir},
-		pipeline.WithTruncationSink(func(r string) { noted = append(noted, r) }))
+		pipeline.WithTruncationSink(func(t provider.Truncation) { noted = append(noted, t) }))
 	require.NoError(t, err)
-	require.Equal(t, []string{"trunc"}, noted)
+	require.Equal(t, []provider.Truncation{{Resource: "trunc", URL: "https://trunc"}}, noted)
 }
 
 func TestRunResolvesDigestPin(t *testing.T) {
