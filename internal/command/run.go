@@ -1,6 +1,7 @@
 package command
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -25,15 +26,15 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string      `name:"path" help:"Files or directories to scan"                                         arg:"" optional:"" clib:"terse='Paths to scan'"     predictor:"path"`
-	Tags       []string      `name:"tag"  help:"Only process directives matching these tags"                                             clib:"terse='Filter by tags'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun     bool          `            help:"Resolve and render but write nothing"                                                    clib:"terse='Dry run'"                            short:"n" aliases:"dry"`
-	Deep       bool          `            help:"Follow pagination to fetch every version (more accurate, but slower)"                    clib:"terse='Deep lookup'"`
-	Yes        bool          `            help:"Proceed without confirming a deep lookup"                                                clib:"terse='Assume yes'"                         short:"y"`
-	Downgrade  *bool         `            help:"Allow selecting versions older than the current one"                                     clib:"terse='Allow downgrades'"                                                                negatable:""`
-	Prerelease *bool         `            help:"Allow selecting prerelease versions"                                                     clib:"terse='Allow prereleases'"                                                               negatable:""`
-	Verify     *bool         "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
-	Output     report.Output `            help:"Output detail"                                                                           clib:"terse='Output detail'"                      short:"o"                                                 default:"text" enum:"text,wide,github"`
+	Paths      []string       `name:"path" help:"Files or directories to scan"                                         arg:"" optional:"" clib:"terse='Paths to scan'"     predictor:"path"`
+	Tags       []string       `name:"tag"  help:"Only process directives matching these tags"                                             clib:"terse='Filter by tags'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun     bool           `            help:"Resolve and render but write nothing"                                                    clib:"terse='Dry run'"                            short:"n" aliases:"dry"`
+	Deep       *bool          `            help:"Follow pagination to fetch every version (more accurate, but slower)"                    clib:"terse='Deep lookup'"                                                                     negatable:""`
+	Yes        bool           `            help:"Proceed without confirming a deep lookup"                                                clib:"terse='Assume yes'"                         short:"y"`
+	Downgrade  *bool          `            help:"Allow selecting versions older than the current one"                                     clib:"terse='Allow downgrades'"                                                                negatable:""`
+	Prerelease *bool          `            help:"Allow selecting prerelease versions"                                                     clib:"terse='Allow prereleases'"                                                               negatable:""`
+	Verify     *bool          "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
+	Output     *report.Output "            help:\"Output detail\"                                                                           clib:\"terse='Output detail'\"                      short:\"o\"                                                                enum:\"text,wide,github\""
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -48,14 +49,19 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 		return err
 	}
 
-	if c.Deep && !confirmDeep(c.Yes) {
+	// Only an explicit --deep triggers the confirmation; a configured run.deep or
+	// a verify-implied deep proceed without prompting, like --verify.
+	if enabled(c.Deep) && !confirmDeep(c.Yes) {
 		clog.Info().Msg("Deep lookup cancelled")
 		return nil
 	}
-	// --verify needs the complete tag and branch history to resolve the true
-	// newest version and its commit, so it implies a deep lookup. It is its own
-	// explicit opt-in, so it does not trigger the deep-lookup confirmation.
-	deep := c.Deep || (c.Verify != nil && *c.Verify)
+	// Resolve each toggle as CLI-over-config: an explicit flag wins, else the
+	// configured run default, else nil leaves the per-marker directive in charge.
+	downgrade := cmp.Or(c.Downgrade, cfg.Downgrade())
+	prerelease := cmp.Or(c.Prerelease, cfg.Prerelease())
+	verify := cmp.Or(c.Verify, cfg.Verify())
+	output := cfg.RunOutput(c.Output)
+	deep := resolveDeep(c.Deep, cfg, verify)
 
 	// Collect truncated lookups during the run and report them after, so the
 	// hints do not interleave with the live progress display.
@@ -73,9 +79,9 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 			defer mu.Unlock()
 			truncated = append(truncated, t)
 		}),
-		pipeline.WithDowngrade(c.Downgrade),
-		pipeline.WithPrerelease(c.Prerelease),
-		pipeline.WithVerify(c.Verify),
+		pipeline.WithDowngrade(downgrade),
+		pipeline.WithPrerelease(prerelease),
+		pipeline.WithVerify(verify),
 	)
 	if err != nil {
 		return err
@@ -84,14 +90,14 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 
 	// GitHub mode emits machine-parseable annotations only; the human hints would
 	// be noise in a CI log.
-	if c.Output == report.OutputGitHub {
+	if output == report.OutputGitHub {
 		report.GitHub(os.Stdout, summary, c.DryRun)
 		return runErr(summary)
 	}
 
 	reportAuth(ctx, summary)
-	reportDeep(truncated, c.Deep)
-	report.Run(clog.Default, summary, c.DryRun, c.Output)
+	reportDeep(truncated, deep)
+	report.Run(clog.Default, summary, c.DryRun, output)
 	return runErr(summary)
 }
 

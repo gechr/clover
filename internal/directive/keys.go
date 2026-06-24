@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // ErrUnknownKey is the sentinel a [Directive.CheckKeys] failure wraps, so a
@@ -102,55 +103,16 @@ func (d Directive) FirstUnknownKey(providerKeys []string) (string, string, bool)
 	return "", "", false
 }
 
-// suggestionMaxDistanceDivisor bounds how far a known key may sit from an
-// unknown one to be offered as a typo suggestion: at most a key-length fraction
-// of edits (one third), so a long key tolerates more than a short one. A near
-// miss like constriant→constraint is suggested; an unrelated stale key is not.
-const suggestionMaxDistanceDivisor = 3
-
-// closest returns the known key nearest to unknown by Levenshtein distance, or
-// "" when the nearest is too far to be a plausible typo. It considers the common
-// vocabulary plus the provider's keys, so a mistyped repository on docker
-// suggests "repository".
+// closest returns the known key nearest to unknown as a typo suggestion, or ""
+// when none is near enough. It considers the common vocabulary plus the
+// provider's keys, so a mistyped repository on docker suggests "repository".
+// Candidates are sorted so an equidistant tie resolves deterministically.
 func closest(unknown string, providerKeys []string) string {
-	best, bestDist := "", 0
-	consider := func(candidate string) {
-		d := levenshtein(unknown, candidate)
-		if best == "" || d < bestDist {
-			best, bestDist = candidate, d
-		}
-	}
+	candidates := make([]string, 0, len(commonKeys)+len(providerKeys))
 	for k := range commonKeys {
-		consider(k)
+		candidates = append(candidates, k)
 	}
-	for _, k := range providerKeys {
-		consider(k)
-	}
-	if bestDist > max(len(unknown)/suggestionMaxDistanceDivisor, 1) {
-		return ""
-	}
-	return best
-}
-
-// levenshtein is the edit distance between a and b, the minimum single-character
-// insertions, deletions, or substitutions to turn one into the other. It backs
-// the typo suggestion and so needs only correctness, not speed.
-func levenshtein(a, b string) int {
-	prev := make([]int, len(b)+1)
-	for j := range prev {
-		prev[j] = j
-	}
-	for i := 1; i <= len(a); i++ {
-		curr := make([]int, len(b)+1)
-		curr[0] = i
-		for j := 1; j <= len(b); j++ {
-			cost := 1
-			if a[i-1] == b[j-1] {
-				cost = 0
-			}
-			curr[j] = min(prev[j]+1, curr[j-1]+1, prev[j-1]+cost)
-		}
-		prev = curr
-	}
-	return prev[len(b)]
+	candidates = append(candidates, providerKeys...)
+	slices.Sort(candidates)
+	return xstrings.Closest(unknown, candidates)
 }

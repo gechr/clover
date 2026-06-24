@@ -2,9 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/gechr/clover/main/internal/config/schema.json",
   "title": "clover configuration",
-  "description": "Schema for Clover YAML configuration (.clover.yaml / .clover.yml).",
+  "description": "Schema for Clover YAML configuration (.clover.yaml / .clover.yml and the user config.yaml).",
   "type": ["object", "null"],
-  "additionalProperties": false,
   "properties": {
     "required-version": {
       "type": "string",
@@ -12,15 +11,68 @@
     },
     "paths": {
       "type": "object",
-      "additionalProperties": false,
       "description": "Which paths clover scans.",
       "properties": {
         "exclude": {
           "type": "array",
           "description": "Doublestar globs excluded from scanning (e.g. \"vendor/**\", \"**/testdata/**\").",
-          "items": { "type": "string" }
+          "items": { "type": "string", "minLength": 1 }
         }
       }
+    },
+    "global": {
+      "type": "object",
+      "description": "Cross-command defaults; a per-command block overrides these.",
+      "properties": {
+        "output": { "$ref": "#/$defs/output" }
+      }
+    },
+    "run": {
+      "type": "object",
+      "description": "Defaults for `clover run`.",
+      "properties": {
+        "verify": {
+          "type": "boolean",
+          "description": "Verify secure pins against their upstream tags by default (implies a deep lookup)."
+        },
+        "prerelease": {
+          "type": "boolean",
+          "description": "Allow selecting prerelease versions by default."
+        },
+        "downgrade": {
+          "type": "boolean",
+          "description": "Allow selecting versions older than the current one by default."
+        },
+        "deep": {
+          "type": "boolean",
+          "description": "Follow pagination to fetch every version by default (more accurate, but slower)."
+        },
+        "output": { "$ref": "#/$defs/output" }
+      }
+    },
+    "lint": {
+      "type": "object",
+      "description": "Defaults for `clover lint`.",
+      "properties": {
+        "output": { "$ref": "#/$defs/output" }
+      }
+    },
+    "fmt": {
+      "type": "object",
+      "description": "Defaults for `clover fmt`.",
+      "properties": {
+        "prune": {
+          "type": "boolean",
+          "description": "Remove unknown directive keys instead of erroring on them."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "output": {
+      "type": "string",
+      "enum": ["text", "wide", "github"],
+      "description": "Output detail: \"text\" (concise), \"wide\" (every marker), or \"github\" (GitHub Actions annotations)."
     }
   }
 }

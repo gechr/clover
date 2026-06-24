@@ -64,7 +64,11 @@ func TestStarterRoundTrips(t *testing.T) {
 			cfg, err := config.Load(dir, "")
 			require.NoError(t, err, "generated config must be schema-valid")
 			require.NotNil(t, cfg)
-			require.Equal(t, tc.wantVersion, cfg.RequiredVersion)
+			if tc.wantVersion == "" {
+				require.Nil(t, cfg.RequiredVersion, "an omitted constraint stays unset")
+			} else {
+				require.Equal(t, tc.wantVersion, *cfg.RequiredVersion)
+			}
 			require.Equal(t, tc.wantExcludes, cfg.ExcludeGlobs())
 		})
 	}

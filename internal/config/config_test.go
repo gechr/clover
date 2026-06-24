@@ -1,12 +1,15 @@
 package config_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/report"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func writeConfig(t *testing.T, name, body string) string {
@@ -28,7 +31,7 @@ func TestLoad(t *testing.T) {
 	cfg, err := config.Load(dir, "")
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.Equal(t, ">=0.1.0", cfg.RequiredVersion)
+	require.Equal(t, new(">=0.1.0"), cfg.RequiredVersion)
 	require.Equal(t, []string{"vendor/**", "**/testdata/**"}, cfg.ExcludeGlobs())
 }
 
@@ -76,15 +79,25 @@ func TestLoadPrefersYamlOverYml(t *testing.T) {
 
 	cfg, err := config.Load(dir, "")
 	require.NoError(t, err)
-	require.Equal(t, ">=1.0.0", cfg.RequiredVersion, ".clover.yaml takes precedence")
+	require.Equal(t, new(">=1.0.0"), cfg.RequiredVersion, ".clover.yaml takes precedence")
 }
 
-func TestLoadRejectsUnknownKey(t *testing.T) {
+// TestLoadWarnsUnknownKey confirms an unknown key no longer fails the load: it
+// is warned about (see unknownField) while the known keys still decode, so a
+// config written for a newer clover stays usable on an older one.
+func TestLoadWarnsUnknownKey(t *testing.T) {
 	t.Parallel()
 
-	dir := writeConfig(t, ".clover.yaml", "nonsense: true\n")
-	_, err := config.Load(dir, "")
-	require.Error(t, err, "additionalProperties:false rejects unknown keys")
+	dir := writeConfig(t, ".clover.yaml", "nonsense: true\nrequired-version: \">=0.1.0\"\n")
+	cfg, err := config.Load(dir, "")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(
+		t,
+		new(">=0.1.0"),
+		cfg.RequiredVersion,
+		"known keys decode despite the unknown one",
+	)
 }
 
 func TestLoadRejectsWrongType(t *testing.T) {
@@ -126,7 +139,7 @@ func TestCheckVersion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			cfg := &config.Config{RequiredVersion: tc.constraint}
+			cfg := &config.Config{RequiredVersion: &tc.constraint}
 			err := cfg.CheckVersion(tc.current)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -143,4 +156,223 @@ func TestNilConfigSafe(t *testing.T) {
 	var cfg *config.Config
 	require.Nil(t, cfg.ExcludeGlobs())
 	require.NoError(t, cfg.CheckVersion("0.1.0"))
+	require.Nil(t, cfg.Verify())
+	require.Nil(t, cfg.Prerelease())
+	require.Nil(t, cfg.Downgrade())
+	require.Nil(t, cfg.Deep())
+	require.Nil(t, cfg.Prune())
+	require.Equal(t, report.OutputText, cfg.RunOutput(nil))
+	require.Equal(t, report.OutputText, cfg.LintOutput(nil))
+}
+
+// TestLoadUser confirms the user config is read from
+// $XDG_CONFIG_HOME/clover/config.yaml. The env var is set (not parallel) so the
+// XDG config dir resolves to a temp tree.
+func TestLoadUser(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, "clover")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "config.yaml"),
+		[]byte("paths:\n  exclude: [vendor/**]\n"), 0o644))
+	t.Setenv("XDG_CONFIG_HOME", home)
+
+	cfg, err := config.LoadUser()
+	require.NoError(t, err)
+	require.Equal(t, []string{"vendor/**"}, cfg.ExcludeGlobs())
+}
+
+// TestLoadUserAbsentIsNil confirms a missing user config is nil, not an error,
+// so users without one run normally.
+func TestLoadUserAbsentIsNil(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	cfg, err := config.LoadUser()
+	require.NoError(t, err)
+	require.Nil(t, cfg)
+}
+
+func TestMerge(t *testing.T) {
+	t.Parallel()
+
+	base := &config.Config{
+		RequiredVersion: new(">=0.1.0"),
+		Paths:           config.Paths{Exclude: []string{"vendor/**"}},
+	}
+
+	tests := []struct {
+		name    string
+		user    *config.Config
+		project *config.Config
+		want    *config.Config
+	}{
+		{
+			name: "nil user returns project",
+			user: nil, project: base, want: base,
+		},
+		{
+			name: "nil project returns user",
+			user: base, project: nil, want: base,
+		},
+		{
+			name:    "project wins field by field",
+			user:    base,
+			project: &config.Config{RequiredVersion: new(">=0.2.0")},
+			want: &config.Config{
+				RequiredVersion: new(">=0.2.0"),
+				Paths:           config.Paths{Exclude: []string{"vendor/**"}},
+			},
+		},
+		{
+			name:    "unset project fields fall back to user",
+			user:    base,
+			project: &config.Config{Paths: config.Paths{Exclude: []string{"build/**"}}},
+			want: &config.Config{
+				RequiredVersion: new(">=0.1.0"),
+				Paths:           config.Paths{Exclude: []string{"build/**"}},
+			},
+		},
+		{
+			name:    "project clears user to empty",
+			user:    base,
+			project: &config.Config{Paths: config.Paths{Exclude: []string{}}},
+			want: &config.Config{
+				RequiredVersion: new(">=0.1.0"),
+				Paths:           config.Paths{Exclude: []string{}},
+			},
+		},
+		{
+			name:    "project clears user required-version",
+			user:    base,
+			project: &config.Config{RequiredVersion: new("")},
+			want: &config.Config{
+				RequiredVersion: new(""),
+				Paths:           config.Paths{Exclude: []string{"vendor/**"}},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, config.Merge(tc.user, tc.project))
+		})
+	}
+}
+
+// TestReferenceConfigValid guards that the documented .clover.reference.yaml in
+// the repo root stays in sync with the schema and the struct: it must load
+// cleanly, and - since Load only warns on unknown keys - a strict decode must
+// find no key the struct does not know, so a typo in the reference is caught.
+func TestReferenceConfigValid(t *testing.T) {
+	t.Parallel()
+
+	const path = "../../.clover.reference.yaml"
+	cfg, err := config.Load("", path)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	require.NoError(t, dec.Decode(new(config.Config)), "every documented key must be known")
+}
+
+// TestLoadCommandSettings parses the per-command blocks and confirms the typed
+// accessors read them back, including the command-over-global output override.
+func TestLoadCommandSettings(t *testing.T) {
+	t.Parallel()
+
+	body := "global:\n  output: wide\n" +
+		"run:\n  verify: true\n  prerelease: false\n  deep: true\n  output: github\n" +
+		"lint:\n  output: text\n" +
+		"fmt:\n  prune: true\n"
+	dir := writeConfig(t, ".clover.yaml", body)
+
+	cfg, err := config.Load(dir, "")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.True(t, *cfg.Verify())
+	require.False(t, *cfg.Prerelease())
+	require.Nil(t, cfg.Downgrade(), "an absent key stays nil, distinct from false")
+	require.True(t, *cfg.Deep())
+	require.True(t, *cfg.Prune())
+	require.Equal(t, report.OutputGitHub, cfg.RunOutput(nil), "run.output overrides global.output")
+	require.Equal(t, report.OutputText, cfg.LintOutput(nil), "lint.output overrides global.output")
+}
+
+func TestLoadRejectsInvalidOutput(t *testing.T) {
+	t.Parallel()
+
+	dir := writeConfig(t, ".clover.yaml", "run:\n  output: fancy\n")
+	_, err := config.Load(dir, "")
+	require.Error(t, err, "the output enum is validated by the schema")
+}
+
+func TestLoadRejectsEmptyExclude(t *testing.T) {
+	t.Parallel()
+
+	dir := writeConfig(t, ".clover.yaml", "paths:\n  exclude: [\"\"]\n")
+	_, err := config.Load(dir, "")
+	require.Error(t, err, "an empty glob is rejected by the schema (minLength)")
+}
+
+func TestLoadRejectsBadRequiredVersion(t *testing.T) {
+	t.Parallel()
+
+	dir := writeConfig(t, ".clover.yaml", "required-version: \"not-a-constraint!\"\n")
+	_, err := config.Load(dir, "")
+	require.Error(t, err, "an unparseable constraint is caught at load")
+}
+
+// TestOutputPrecedence exercises the CLI > command > global > text chain that
+// RunOutput and LintOutput apply.
+func TestOutputPrecedence(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Global: config.Global{Output: new(report.OutputWide)}}
+
+	require.Equal(
+		t,
+		report.OutputGitHub,
+		cfg.RunOutput(new(report.OutputGitHub)),
+		"CLI wins over global",
+	)
+	require.Equal(t, report.OutputWide, cfg.RunOutput(nil), "global applies when CLI absent")
+	require.Equal(t, report.OutputWide, cfg.LintOutput(nil), "global is shared across commands")
+
+	cfg.Run.Output = new(report.OutputGitHub)
+	require.Equal(t, report.OutputGitHub, cfg.RunOutput(nil), "run.output overrides global")
+	require.Equal(t, report.OutputWide, cfg.LintOutput(nil), "lint still sees global")
+
+	var nilCfg *config.Config
+	require.Equal(t, report.OutputText, nilCfg.RunOutput(nil), "no config defaults to text")
+	require.Equal(
+		t,
+		report.OutputGitHub,
+		nilCfg.RunOutput(new(report.OutputGitHub)),
+		"CLI works without a config",
+	)
+}
+
+// TestMergeCommandSettings confirms the deep merge overrides set leaves while
+// preserving unset ones across the nested command blocks.
+func TestMergeCommandSettings(t *testing.T) {
+	t.Parallel()
+
+	user := &config.Config{
+		Global: config.Global{Output: new(report.OutputWide)},
+		Run:    config.Run{Verify: new(true), Deep: new(true)},
+	}
+	project := &config.Config{
+		Run:  config.Run{Verify: new(false)},
+		Lint: config.Lint{Output: new(report.OutputGitHub)},
+	}
+
+	got := config.Merge(user, project)
+	require.False(t, *got.Verify(), "project run.verify overrides user")
+	require.True(t, *got.Deep(), "unset project run.deep falls back to user")
+	require.Equal(t, report.OutputWide, got.RunOutput(nil), "user global.output preserved")
+	require.Equal(t, report.OutputGitHub, got.LintOutput(nil), "project lint.output applied")
 }

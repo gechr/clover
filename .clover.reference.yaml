@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/gechr/clover/main/internal/config/schema.json
+#
+# Reference Clover configuration: every supported key, with its default.
+#
+# This file documents the whole surface in one place; a real config sets only
+# the keys it cares about, since every key is optional. Clover reads two layers
+# that share this shape:
+#
+#   * a user config at $XDG_CONFIG_HOME/clover/config.yaml (e.g.
+#     ~/.config/clover/config.yaml) for personal defaults, and
+#   * a project .clover.yaml (or .clover.yml) at a repository root.
+#
+# The project config overlays the user one key by key, and an explicit CLI flag
+# overrides both. Unknown keys are warned about, not rejected, so a config
+# written for a newer Clover still loads on an older one.
+
+# A version constraint the running clover binary must satisfy. Clover refuses to
+# run when its own version falls outside the range, e.g. ">=0.1.0" or "~>0.1".
+required-version: ""
+
+# Which paths clover scans.
+paths:
+  # Doublestar globs excluded from scanning. Everything else under the scanned
+  # paths is searched for annotations.
+  exclude: []
+    # - vendor/**
+    # - "**/testdata/**"
+
+# Cross-command defaults. A per-command block below overrides these.
+global:
+  # Output detail shared by run and lint: "text" (concise), "wide" (every
+  # marker, including up-to-date ones), or "github" (GitHub Actions annotations).
+  output: text
+
+# Defaults for `clover run`. Each maps to a flag; an explicit flag wins, then
+# this block, then the per-marker directive.
+run:
+  # Verify secure pins against their upstream tags (implies a deep lookup).
+  verify: false
+  # Allow selecting prerelease versions.
+  prerelease: false
+  # Allow selecting versions older than the current one.
+  downgrade: false
+  # Follow pagination to fetch every version (more accurate, but slower).
+  deep: false
+  # Output detail for run; overrides global.output.
+  output: text
+
+# Defaults for `clover lint`.
+lint:
+  # Output detail for lint; overrides global.output.
+  output: text
+
+# Defaults for `clover fmt`.
+fmt:
+  # Remove unknown directive keys instead of erroring on them.
+  prune: false

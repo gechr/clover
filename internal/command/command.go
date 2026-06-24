@@ -3,6 +3,7 @@
 package command
 
 import (
+	"cmp"
 	"os"
 	"strings"
 
@@ -147,16 +148,26 @@ func firstField(s string) string {
 	return s
 }
 
-// loadConfig loads the project config, honouring --config and --no-config.
+// loadConfig loads the effective config: the user config overlaid by the
+// project config. It honours --config and --no-config, the latter skipping both
+// layers for a fully unconfigured run.
 func loadConfig(root cli) (*config.Config, error) {
 	if root.NoConfig {
 		return nil, nil //nolint:nilnil // no config requested
+	}
+	user, err := config.LoadUser()
+	if err != nil {
+		return nil, err
 	}
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return config.Load(dir, root.Config)
+	project, err := config.Load(dir, root.Config)
+	if err != nil {
+		return nil, err
+	}
+	return config.Merge(user, project), nil
 }
 
 // newGenerator builds the shell-completion generator from the CLI's flags, plus
@@ -179,6 +190,23 @@ func launch() {
 		event = event.Str(field.Version, v)
 	}
 	event.Msg("Launching Clover")
+}
+
+// enabled reports whether a tri-state bool pointer is set and true, the form a
+// resolved CLI-or-config toggle takes before it feeds a plain-bool decision.
+func enabled(b *bool) bool { return b != nil && *b }
+
+// resolveDeep reports whether a run does a deep lookup: an explicit --deep /
+// --no-deep wins over a configured run.deep, and --verify forces it on because
+// verification needs the complete history.
+func resolveDeep(cli *bool, cfg *config.Config, verify *bool) bool {
+	return enabled(cmp.Or(cli, cfg.Deep())) || enabled(verify)
+}
+
+// resolvePrune reports whether format strips unknown keys: an explicit --prune /
+// --no-prune wins over a configured fmt.prune.
+func resolvePrune(cli *bool, cfg *config.Config) bool {
+	return enabled(cmp.Or(cli, cfg.Prune()))
 }
 
 // roots returns the paths to scan, defaulting to the current directory when none

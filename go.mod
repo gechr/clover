@@ -13,7 +13,7 @@ require (
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.5.4
 	github.com/gechr/clog v0.11.7
-	github.com/gechr/x v0.1.8
+	github.com/gechr/x v0.1.9
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0

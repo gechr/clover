@@ -17,7 +17,7 @@ import (
 type cmdFormat struct {
 	Paths []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
 	Check bool     `            help:"Report directives that need formatting and exit non-zero (do not write)"                    clib:"terse='Check only'"`
-	Prune bool     `            help:"Remove unknown keys instead of erroring on them"                                            clib:"terse='Prune unknown keys'"`
+	Prune *bool    `            help:"Remove unknown keys instead of erroring on them"                                            clib:"terse='Prune unknown keys'"                  negatable:""`
 }
 
 // Run canonicalises (or, with --check, checks) the directives under the paths.
@@ -25,11 +25,12 @@ func (c *cmdFormat) Run(cfg *config.Config) error {
 	launch()
 	ctx := context.Background()
 
+	prune := resolvePrune(c.Prune, cfg)
 	summary, err := mode.Format(
 		ctx,
 		roots(c.Paths),
 		c.Check,
-		c.Prune,
+		prune,
 		pipeline.WithExclude(cfg.ExcludeGlobs()),
 	)
 	if err != nil {
