@@ -15,7 +15,8 @@ import (
 
 // Reporter renders overall resolution progress as a single live line carrying a
 // progress=done/total field. On a TTY clog updates the line in place; off a TTY
-// it falls back to plain line logging. The per-marker detail the seam reports is
+// (CI, pipes) it is suppressed entirely, since a progress line that never
+// animates is just noise there. The per-marker detail the seam reports is
 // aggregated into the one counter for now; a richer per-marker view can be added
 // later without changing the seam.
 type Reporter struct {
@@ -53,7 +54,7 @@ func (r *Reporter) Begin(names []string) ([]progress.Task, func()) {
 	}
 
 	group := r.logger.Group(r.ctx)
-	update, finish := group.Add(r.logger.Spinner("Resolving")).Manual()
+	update, finish := group.Add(r.logger.Spinner("Resolving").NonTTYSilent(true)).Manual()
 	update.Fraction("progress", 0, total).Send()
 
 	shared := &line{update: update, finish: finish, total: total}

@@ -11,10 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReporterAggregatesTasks drives every task to a terminal state and confirms
-// the three markers collapse to one progress line reading 3/3. Off a TTY clog
-// emits the final state as a single line, so the rendered output is exact.
-func TestReporterAggregatesTasks(t *testing.T) {
+// TestReporterSuppressesProgressOffTTY drives every task to a terminal state and
+// confirms that off a TTY the aggregated progress line is suppressed entirely
+// (NonTTYSilent): a progress line that never animates is just noise in CI and
+// pipes, so the rendered output is empty.
+func TestReporterSuppressesProgressOffTTY(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := console.New(context.Background(), clog.NewWriter(&buf))
 
@@ -26,7 +27,7 @@ func TestReporterAggregatesTasks(t *testing.T) {
 	tasks[2].Skip("dependency failed")
 
 	wait()
-	require.Equal(t, "INF ⏳ Resolving progress=3/3\n", buf.String())
+	require.Empty(t, buf.String(), "off a TTY the progress line is suppressed entirely")
 }
 
 // TestReporterDiscovered confirms the scan-total line: the discovery counts
