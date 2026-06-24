@@ -70,32 +70,25 @@ func TestDiscoverTagsDeepPaginates(t *testing.T) {
 	require.Equal(t, []string{"1", "2"}, pages, "a deep lookup follows pages until a short one")
 }
 
-func TestDiscoverTagsShallowNotesTruncation(t *testing.T) {
+func TestDiscoverTagsShallowReportsNoTruncation(t *testing.T) {
 	t.Parallel()
 
-	var p1, p2 []string
-	shallow := github.New(github.WithTransport(pagedTags(&p1)))
-	deep := github.New(github.WithTransport(pagedTags(&p2)))
+	// github lists tags newest-first, so a shallow page-one lookup already holds
+	// the latest version - it never hints --deep, even when the first page is
+	// full. Regression guard: a blanket truncation hint was wrongly added once
+	// (it belongs to the lexically-ordered OCI registries, not github).
+	var pages []string
+	p := github.New(github.WithTransport(pagedTags(&pages)))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
 
-	res, err := shallow.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	var trunc []string
+	ctx := provider.WithTruncationSink(t.Context(),
+		func(r string) { trunc = append(trunc, r) })
+	_, err = p.Discover(ctx, res)
 	require.NoError(t, err)
-	resDeep, err := deep.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
-	require.NoError(t, err)
-
-	var shallowTrunc []string
-	sctx := provider.WithTruncationSink(t.Context(),
-		func(r string) { shallowTrunc = append(shallowTrunc, r) })
-	_, err = shallow.Discover(sctx, res)
-	require.NoError(t, err)
-	require.Equal(t, []string{"github.com/owner/name"}, shallowTrunc,
-		"a full first page on a shallow lookup means more tags exist")
-
-	var deepTrunc []string
-	dctx := provider.WithTruncationSink(provider.WithDeep(t.Context(), true),
-		func(r string) { deepTrunc = append(deepTrunc, r) })
-	_, err = deep.Discover(dctx, resDeep)
-	require.NoError(t, err)
-	require.Empty(t, deepTrunc, "a deep lookup exhausts the pages, so nothing is truncated")
+	require.Empty(t, trunc,
+		"github is recency-ordered, so a full first page is not truncation-hinted")
 }
 
 // roundTripFunc adapts a function to an http.RoundTripper.

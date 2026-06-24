@@ -67,12 +67,9 @@ func discoverTags(
 	rest *api.RESTClient,
 	res resource,
 ) ([]model.Candidate, error) {
-	tags, truncated, err := listTags(ctx, rest, res)
+	tags, err := listTags(ctx, rest, res)
 	if err != nil {
 		return nil, err
-	}
-	if truncated {
-		provider.NoteTruncated(ctx, res.label())
 	}
 
 	candidates := make([]model.Candidate, 0, len(tags))
@@ -87,7 +84,7 @@ func discoverReleases(
 	rest *api.RESTClient,
 	res resource,
 ) ([]model.Candidate, error) {
-	releases, truncated, err := listAll[release](ctx, rest, "releases", func(page int) string {
+	releases, err := listAll[release](ctx, rest, "releases", func(page int) string {
 		return fmt.Sprintf(
 			"repos/%s/%s/releases?per_page=%d&page=%d",
 			res.owner,
@@ -98,9 +95,6 @@ func discoverReleases(
 	})
 	if err != nil {
 		return nil, err
-	}
-	if truncated {
-		provider.NoteTruncated(ctx, res.label())
 	}
 
 	// The releases payload carries no commit SHA, but action-pinning needs one.
@@ -132,8 +126,8 @@ func discoverReleases(
 }
 
 // listTags returns the newest page of a repository's tags, or every page when
-// ctx requests a deep lookup; truncated reports whether a shallow page left more.
-func listTags(ctx context.Context, rest *api.RESTClient, res resource) ([]tag, bool, error) {
+// ctx requests a deep lookup.
+func listTags(ctx context.Context, rest *api.RESTClient, res resource) ([]tag, error) {
 	return listAll[tag](ctx, rest, "tags", func(page int) string {
 		return fmt.Sprintf(
 			"repos/%s/%s/tags?per_page=%d&page=%d",
@@ -148,28 +142,24 @@ func listTags(ctx context.Context, rest *api.RESTClient, res resource) ([]tag, b
 // listAll fetches the first page of pathFor(page), or every page when ctx
 // requests a deep lookup, stopping at the first short page (the last one). The
 // shallow default is one request of the newest perPage entries, which suffices
-// for these recency-ordered listings; deep lookup trades requests for
-// completeness across a repository's whole history. truncated is true when a
-// shallow lookup stopped on a full page, so more entries exist - the caller can
-// then suggest --deep, matching the OCI registry path.
+// for these recency-ordered listings (github returns tags and releases
+// newest-first, so page one holds the latest version); deep lookup trades
+// requests for completeness across a repository's whole history.
 func listAll[T any](
 	ctx context.Context,
 	rest *api.RESTClient,
 	what string,
 	pathFor func(page int) string,
-) ([]T, bool, error) {
+) ([]T, error) {
 	var all []T
 	for page := 1; ; page++ {
 		var batch []T
 		if err := rest.DoWithContext(ctx, http.MethodGet, pathFor(page), nil, &batch); err != nil {
-			return nil, false, fmt.Errorf("github: list %s: %w", what, err)
+			return nil, fmt.Errorf("github: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
-		if len(batch) < perPage {
-			return all, false, nil // a short page is the last one: complete
-		}
-		if !provider.Deep(ctx) {
-			return all, true, nil // a full page on a shallow lookup: more exist
+		if len(batch) < perPage || !provider.Deep(ctx) {
+			return all, nil // short page = last; shallow = stop after page one
 		}
 	}
 }
@@ -205,7 +195,7 @@ func tagCommits(
 	rest *api.RESTClient,
 	res resource,
 ) (map[string]string, error) {
-	tags, _, err := listTags(ctx, rest, res) // truncation is reported by the primary listing
+	tags, err := listTags(ctx, rest, res)
 	if err != nil {
 		return nil, err
 	}

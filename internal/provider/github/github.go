@@ -191,10 +191,6 @@ type resource struct {
 	source string
 }
 
-// label identifies the resource in a truncation notice, mirroring the registry
-// path the OCI providers report.
-func (r resource) label() string { return host + "/" + r.owner + "/" + r.name }
-
 // client lazily builds the REST client, resolving the gh-compatible token and
 // wrapping the transport with caching and rate-limit handling. It is built once
 // and reused, so the cache and rate-limit state are shared across the run.
