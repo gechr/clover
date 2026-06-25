@@ -30,14 +30,26 @@ func NewResolver() *Resolver {
 // - or "" when the file is not inside a repository. The result is the namespace
 // under which the file's id= is unique.
 func (r *Resolver) Root(path string) string {
-	dir := path
-	if abs, err := filepath.Abs(path); err == nil {
-		dir = abs
-	}
+	return r.RootDir(filepath.Dir(abs(path)))
+}
 
+// RootDir returns the absolute path of the repository containing the directory
+// dir - the nearest ancestor, dir itself included, holding a VCS marker - or ""
+// when dir is not inside a repository. Unlike Root, dir is the search start
+// rather than a file whose parent is searched, so a scanned directory anchors on
+// its own repository root.
+func (r *Resolver) RootDir(dir string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.resolve(filepath.Dir(dir))
+	return r.resolve(abs(dir))
+}
+
+// abs returns path made absolute, or path unchanged when that is not possible.
+func abs(path string) string {
+	if a, err := filepath.Abs(path); err == nil {
+		return a
+	}
+	return path
 }
 
 // resolve walks up from dir to find the repository root. The caller holds r.mu;

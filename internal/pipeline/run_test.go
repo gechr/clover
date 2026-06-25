@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pipeline"
@@ -110,9 +111,29 @@ func TestRunDeepReachesDiscover(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, got, "the default run is shallow")
 
-	_, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithDeep(true))
+	_, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithDeep(new(true)))
 	require.NoError(t, err)
 	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
+}
+
+// A repository's run.deep default drives a deep lookup for its own markers,
+// without any CLI override - the per-root toggle path.
+func TestRunConfigDeepReachesDiscover(t *testing.T) {
+	var got bool
+	provider.Register(fakeProvider{
+		name:       "deepcfg",
+		deep:       &got,
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := writeRepo(t, "run:\n  deep: true\n", map[string]string{
+		"app.txt": "# clover: provider=deepcfg repository=x/y\nversion: 1.2.0\n",
+	})
+
+	_, err := pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)))
+	require.NoError(t, err)
+	require.True(t, got, "run.deep in the repo config drives a deep lookup")
 }
 
 // A tag-prefix scopes selection to one component of a monorepo and renders just
@@ -193,16 +214,18 @@ func TestRunResolvedURL(t *testing.T) {
 }
 
 func TestScanSkipsConfiguredExcludes(t *testing.T) {
-	dir := write(t, map[string]string{
-		"keep.yaml":         "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
-		"ignored/drop.yaml": "# clover: provider=github repository=drop/repo\nversion: 1.0.0\n",
-	})
+	dir := writeRepo(t,
+		"paths:\n  exclude:\n    - ignored/**\n    - \"[\"\n",
+		map[string]string{
+			"keep.yaml":         "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
+			"ignored/drop.yaml": "# clover: provider=github repository=drop/repo\nversion: 1.0.0\n",
+		})
 	t.Chdir(dir)
 
 	files, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
-		pipeline.WithExclude([]string{"ignored/**", "["}),
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
 	)
 	require.NoError(t, err)
 	require.Len(t, files, 1)
@@ -210,23 +233,91 @@ func TestScanSkipsConfiguredExcludes(t *testing.T) {
 }
 
 func TestScanExcludeDoubleStarMatchesNestedDirs(t *testing.T) {
-	dir := write(t, map[string]string{
-		"src/service/keep.yaml": "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
-		"src/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
-			"version: 1.0.0\n",
-		"tools/build/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
-			"version: 1.0.0\n",
-	})
+	dir := writeRepo(t,
+		"paths:\n  exclude:\n    - \"**/generated/**\"\n",
+		map[string]string{
+			"src/service/keep.yaml": "# clover: provider=github repository=keep/repo\nversion: 1.0.0\n",
+			"src/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
+				"version: 1.0.0\n",
+			"tools/build/service/generated/drop.yaml": "# clover: provider=github repository=drop/repo\n" +
+				"version: 1.0.0\n",
+		})
 	t.Chdir(dir)
 
 	files, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
-		pipeline.WithExclude([]string{"**/generated/**"}),
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
 	)
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.Equal(t, "keep.yaml", filepath.Base(files[0].Path))
+}
+
+// repoAt marks dir as a repository root carrying the given .clover.yaml and
+// files, for tests spanning several repositories under one parent.
+func repoAt(t *testing.T, dir, cloverYAML string, files map[string]string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".clover.yaml"), []byte(cloverYAML), 0o644))
+	for name, body := range files {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+	}
+}
+
+const gateDirective = "# clover: provider=github repository=x/y\nversion: 1.0.0\n"
+
+// A scan spanning several repositories under one parent skips a repository whose
+// required-version the running clover does not satisfy, while its siblings are
+// scanned normally.
+func TestScanGatesUnsatisfiedRequiredVersion(t *testing.T) {
+	parent := t.TempDir()
+	repoAt(t, filepath.Join(parent, "ok"), "", map[string]string{"app.yaml": gateDirective})
+	repoAt(t, filepath.Join(parent, "blocked"),
+		"required-version: \">=9.0.0\"\n", map[string]string{"app.yaml": gateDirective})
+
+	files, err := pipeline.Scan(
+		context.Background(),
+		[]string{parent},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
+		pipeline.WithVersion("1.0.0"),
+	)
+	require.NoError(t, err)
+	require.Len(t, files, 1, "the blocked repository's file is dropped")
+	require.Contains(t, files[0].Path, "ok")
+}
+
+// A malformed project config is a hard error - a bug to fix - not a benign skip.
+func TestScanRejectsMalformedConfig(t *testing.T) {
+	dir := writeRepo(t,
+		"required-version: \"not a constraint!!\"\n",
+		map[string]string{"app.yaml": gateDirective})
+
+	_, err := pipeline.Scan(
+		context.Background(),
+		[]string{dir},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
+		pipeline.WithVersion("1.0.0"),
+	)
+	require.Error(t, err)
+}
+
+// A malformed config is rejected even in a repo carrying no directive file: the
+// walk visits the bad .clover.yaml, so the resolver records the load error and
+// the scan surfaces it rather than reporting "no comments" and exiting 0.
+func TestScanRejectsMalformedConfigWithoutDirectives(t *testing.T) {
+	dir := t.TempDir()
+	repoAt(t, dir, "required-version: \"not a constraint!!\"\n", nil)
+
+	_, err := pipeline.Scan(
+		context.Background(),
+		[]string{dir},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
+		pipeline.WithVersion("1.0.0"),
+	)
+	require.Error(t, err)
 }
 
 func TestRunNoCandidateIsSentinel(t *testing.T) {
@@ -821,6 +912,16 @@ func write(t *testing.T, files map[string]string) string {
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	}
 	return dir
+}
+
+// writeRepo writes files into a temp dir marked as a repository root (a .git
+// marker) and carrying a .clover.yaml of the given project config, so a per-root
+// config resolver governs the scanned tree.
+func writeRepo(t *testing.T, cloverYAML string, files map[string]string) string {
+	t.Helper()
+	files[".git"] = "gitdir: .\n"
+	files[".clover.yaml"] = cloverYAML
+	return write(t, files)
 }
 
 func TestRunResolvesProducer(t *testing.T) {

@@ -20,20 +20,10 @@ func TestDeepHintsShallowDeduplicates(t *testing.T) {
 		URL:      "https://ghcr.io/owner/redis",
 	}
 
-	// A shallow run warns about each truncated resource, deduplicated.
-	resources := command.DeepHints([]provider.Truncation{nginx, nginx, redis}, false)
+	// Only shallow lookups feed the truncation sink, so every truncated resource
+	// warrants a warning, deduplicated.
+	resources := command.DeepHints([]provider.Truncation{nginx, nginx, redis})
 	require.Equal(t, []provider.Truncation{nginx, redis}, resources)
-}
-
-func TestDeepHintsDeepSuggestsNothing(t *testing.T) {
-	t.Parallel()
-
-	// A deep run already paged to exhaustion, so it never re-suggests --deep.
-	nginx := provider.Truncation{
-		Resource: "ghcr.io/owner/nginx",
-		URL:      "https://ghcr.io/owner/nginx",
-	}
-	require.Empty(t, command.DeepHints([]provider.Truncation{nginx}, true))
 }
 
 func TestDeepHintsNoTruncationNoHint(t *testing.T) {
@@ -41,5 +31,5 @@ func TestDeepHintsNoTruncationNoHint(t *testing.T) {
 
 	// Nothing truncated, nothing to suggest - a no-candidate failure explains
 	// itself in its own error rather than through a separate hint.
-	require.Empty(t, command.DeepHints(nil, false))
+	require.Empty(t, command.DeepHints(nil))
 }

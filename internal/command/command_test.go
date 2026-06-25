@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/command"
-	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
@@ -93,52 +92,4 @@ func TestAuthSummary(t *testing.T) {
 	)
 
 	require.Empty(t, command.AuthSummary(context.Background(), nil), "no providers, no summary")
-}
-
-func TestResolveDeep(t *testing.T) {
-	t.Parallel()
-
-	cfgDeep := &config.Config{Run: config.Run{Deep: new(true)}}
-	tests := []struct {
-		name   string
-		cli    *bool
-		cfg    *config.Config
-		verify *bool
-		want   bool
-	}{
-		{name: "--no-deep overrides config", cli: new(false), cfg: cfgDeep, want: false},
-		{name: "config enables when CLI absent", cfg: cfgDeep, want: true},
-		{name: "--deep enables without config", cli: new(true), want: true},
-		{name: "verify forces deep over --no-deep", cli: new(false), verify: new(true), want: true},
-		{name: "all unset is shallow", want: false},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.want, command.ResolveDeep(tc.cli, tc.cfg, tc.verify))
-		})
-	}
-}
-
-func TestResolvePrune(t *testing.T) {
-	t.Parallel()
-
-	cfgPrune := &config.Config{Format: config.Format{Prune: new(true)}}
-	tests := []struct {
-		name string
-		cli  *bool
-		cfg  *config.Config
-		want bool
-	}{
-		{name: "--no-prune overrides config", cli: new(false), cfg: cfgPrune, want: false},
-		{name: "config enables when CLI absent", cfg: cfgPrune, want: true},
-		{name: "--prune enables without config", cli: new(true), want: true},
-		{name: "all unset keeps unknown keys", want: false},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.want, command.ResolvePrune(tc.cli, tc.cfg))
-		})
-	}
 }

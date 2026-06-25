@@ -17,6 +17,7 @@ const (
 	Path     = "path"
 	Provider = "provider"
 	Reason   = "reason"
+	Required = "required"
 	Resource = "resource"
 	Scanned  = "scanned"
 	Skipped  = "skipped"

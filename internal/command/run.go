@@ -1,7 +1,6 @@
 package command
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
 	"github.com/gechr/clover/internal/config"
@@ -16,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/report"
@@ -26,19 +27,19 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string       `name:"path" help:"Files or directories to scan"                                         arg:"" optional:"" clib:"terse='Paths to scan'"     predictor:"path"`
-	Tags       []string       `name:"tag"  help:"Only process directives matching these tags"                                             clib:"terse='Filter by tags'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
-	DryRun     bool           `            help:"Resolve and render but write nothing"                                                    clib:"terse='Dry run'"                            short:"n" aliases:"dry"`
-	Deep       *bool          `            help:"Follow pagination to fetch every version (more accurate, but slower)"                    clib:"terse='Deep lookup'"                                                                     negatable:""`
-	Yes        bool           `            help:"Proceed without confirming a deep lookup"                                                clib:"terse='Assume yes'"                         short:"y"`
-	Downgrade  *bool          `            help:"Allow selecting versions older than the current one"                                     clib:"terse='Allow downgrades'"                                                                negatable:""`
-	Prerelease *bool          `            help:"Allow selecting prerelease versions"                                                     clib:"terse='Allow prereleases'"                                                               negatable:""`
-	Verify     *bool          "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
-	Output     *report.Output "            help:\"Output detail\"                                                                           clib:\"terse='Output detail'\"                      short:\"o\"                                                                enum:\"text,wide,github\""
+	Paths      []string     `name:"path" help:"Files or directories to scan"                                         arg:"" optional:"" clib:"terse='Paths to scan'"     predictor:"path"`
+	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                             clib:"terse='Filter by tags'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
+	DryRun     bool         `            help:"Resolve and render but write nothing"                                                    clib:"terse='Dry run'"                            short:"n" aliases:"dry"`
+	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                    clib:"terse='Deep lookup'"                                                                     negatable:""`
+	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                clib:"terse='Assume yes'"                         short:"y"`
+	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                     clib:"terse='Allow downgrades'"                                                                negatable:""`
+	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                     clib:"terse='Allow prereleases'"                                                               negatable:""`
+	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
+	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail'\"                      short:\"o\"                                                                enum:\"text,wide,github\""
 }
 
 // Run resolves the markers under the given paths and reports a summary.
-func (c *cmdRun) Run(cfg *config.Config) error {
+func (c *cmdRun) Run(configs *config.Resolver) error {
 	launch()
 	start := time.Now()
 	ctx := context.Background()
@@ -55,13 +56,6 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 		clog.Info().Msg("Deep lookup cancelled")
 		return nil
 	}
-	// Resolve each toggle as CLI-over-config: an explicit flag wins, else the
-	// configured run default, else nil leaves the per-marker directive in charge.
-	downgrade := cmp.Or(c.Downgrade, cfg.Downgrade())
-	prerelease := cmp.Or(c.Prerelease, cfg.Prerelease())
-	verify := cmp.Or(c.Verify, cfg.Verify())
-	output := cfg.RunOutput(c.Output)
-	deep := resolveDeep(c.Deep, cfg, verify)
 
 	// Collect truncated lookups during the run and report them after, so the
 	// hints do not interleave with the live progress display.
@@ -69,35 +63,42 @@ func (c *cmdRun) Run(cfg *config.Config) error {
 		mu        sync.Mutex
 		truncated []provider.Truncation
 	)
+	// The selection toggles resolve per repository root inside the pipeline; only
+	// the CLI overrides and the running version (for the per-root required-version
+	// gate) pass through here.
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
 		pipeline.WithReporter(reporter),
-		pipeline.WithExclude(cfg.ExcludeGlobs()),
+		pipeline.WithConfig(configs),
+		pipeline.WithVersion(clive.Current()),
 		pipeline.WithTagFilter(filter),
-		pipeline.WithDeep(deep),
+		pipeline.WithDeep(c.Deep),
 		pipeline.WithTruncationSink(func(t provider.Truncation) {
 			mu.Lock()
 			defer mu.Unlock()
 			truncated = append(truncated, t)
 		}),
-		pipeline.WithDowngrade(downgrade),
-		pipeline.WithPrerelease(prerelease),
-		pipeline.WithVerify(verify),
+		pipeline.WithDowngrade(c.Downgrade),
+		pipeline.WithPrerelease(c.Prerelease),
+		pipeline.WithVerify(c.Verify),
 	)
 	if err != nil {
 		return err
 	}
 	summary.Elapsed = time.Since(start)
 
+	// Output detail is per-invocation, resolved after the scan: a single-repo
+	// scan honours that repo's config, a multi-repo scan the user default.
+	detail := configs.Primary().RunOutput(c.Output)
 	// GitHub mode emits machine-parseable annotations only; the human hints would
 	// be noise in a CI log.
-	if output == report.OutputGitHub {
+	if detail == output.GitHub {
 		report.GitHub(os.Stdout, summary, c.DryRun)
 		return runErr(summary)
 	}
 
 	reportAuth(ctx, summary)
-	reportDeep(truncated, deep)
-	report.Run(clog.Default, summary, c.DryRun, output)
+	reportDeep(truncated)
+	report.Run(clog.Default, summary, c.DryRun, detail)
 	return runErr(summary)
 }
 
@@ -119,8 +120,8 @@ func runErr(summary mode.Summary) error {
 // newest version may sit on a later page. Every provider reports truncation (the
 // OCI registries and GitHub alike), so this single per-resource warning is the
 // only --deep hint; a no-candidate failure explains itself in its own error.
-func reportDeep(truncated []provider.Truncation, deep bool) {
-	for _, t := range deepHints(truncated, deep) {
+func reportDeep(truncated []provider.Truncation) {
+	for _, t := range deepHints(truncated) {
 		clog.Warn().
 			Link(field.Resource, t.URL, t.Resource).
 			Str(field.Hint, "pass --deep").
@@ -129,12 +130,10 @@ func reportDeep(truncated []provider.Truncation, deep bool) {
 }
 
 // deepHints is the pure decision behind reportDeep: the unique truncated
-// resources to warn about. A deep run already paged to exhaustion, so it warns
-// about nothing.
-func deepHints(truncated []provider.Truncation, deep bool) []provider.Truncation {
-	if deep {
-		return nil
-	}
+// resources to warn about. Only shallow lookups feed the truncation sink - a
+// deep lookup pages to exhaustion - so every collected truncation warrants a
+// hint, even when other roots in the same run went deep.
+func deepHints(truncated []provider.Truncation) []provider.Truncation {
 	return xslices.Unique(truncated)
 }
 

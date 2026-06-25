@@ -1,9 +1,11 @@
 package mode
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/gechr/clover/internal/comment"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/pipeline"
@@ -75,12 +77,26 @@ func (s FormatSummary) OK() bool { return s.Changed() == 0 && s.Errored() == 0 }
 func Format(
 	ctx context.Context,
 	roots []string,
-	check, prune bool,
+	check bool,
+	cliPrune *bool,
+	configs *config.Resolver,
 	opts ...pipeline.Option,
 ) (FormatSummary, error) {
+	// The resolver is the single source of per-root config: wire it into the scan
+	// itself so format applies each root's paths.exclude and required-version gate,
+	// not just the fmt.prune Primary reads below.
+	opts = append(opts, pipeline.WithConfig(configs))
 	files, err := pipeline.Scan(ctx, roots, opts...)
 	if err != nil {
 		return FormatSummary{}, err
+	}
+
+	// Prune is per-invocation: a CLI --prune/--no-prune wins, else the primary
+	// root's fmt.prune - the sole repo's config, or the user default across a
+	// multi-repo scan - resolved after the scan has settled which roots it spans.
+	prune := false
+	if p := cmp.Or(cliPrune, configs.Primary().Prune()); p != nil {
+		prune = *p
 	}
 
 	out := make([]FormatFile, 0, len(files))

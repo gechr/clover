@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/config"
-	"github.com/gechr/clover/internal/report"
+	"github.com/gechr/clover/internal/output"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -161,8 +161,8 @@ func TestNilConfigSafe(t *testing.T) {
 	require.Nil(t, cfg.Downgrade())
 	require.Nil(t, cfg.Deep())
 	require.Nil(t, cfg.Prune())
-	require.Equal(t, report.OutputText, cfg.RunOutput(nil))
-	require.Equal(t, report.OutputText, cfg.LintOutput(nil))
+	require.Equal(t, output.Text, cfg.RunOutput(nil))
+	require.Equal(t, output.Text, cfg.LintOutput(nil))
 }
 
 // TestLoadUser confirms the user config is read from
@@ -298,8 +298,8 @@ func TestLoadCommandSettings(t *testing.T) {
 	require.Nil(t, cfg.Downgrade(), "an absent key stays nil, distinct from false")
 	require.True(t, *cfg.Deep())
 	require.True(t, *cfg.Prune())
-	require.Equal(t, report.OutputGitHub, cfg.RunOutput(nil), "run.output overrides global.output")
-	require.Equal(t, report.OutputText, cfg.LintOutput(nil), "lint.output overrides global.output")
+	require.Equal(t, output.GitHub, cfg.RunOutput(nil), "run.output overrides global.output")
+	require.Equal(t, output.Text, cfg.LintOutput(nil), "lint.output overrides global.output")
 }
 
 func TestLoadRejectsInvalidOutput(t *testing.T) {
@@ -331,27 +331,27 @@ func TestLoadRejectsBadRequiredVersion(t *testing.T) {
 func TestOutputPrecedence(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{Global: config.Global{Output: new(report.OutputWide)}}
+	cfg := &config.Config{Global: config.Global{Output: new(output.Wide)}}
 
 	require.Equal(
 		t,
-		report.OutputGitHub,
-		cfg.RunOutput(new(report.OutputGitHub)),
+		output.GitHub,
+		cfg.RunOutput(new(output.GitHub)),
 		"CLI wins over global",
 	)
-	require.Equal(t, report.OutputWide, cfg.RunOutput(nil), "global applies when CLI absent")
-	require.Equal(t, report.OutputWide, cfg.LintOutput(nil), "global is shared across commands")
+	require.Equal(t, output.Wide, cfg.RunOutput(nil), "global applies when CLI absent")
+	require.Equal(t, output.Wide, cfg.LintOutput(nil), "global is shared across commands")
 
-	cfg.Run.Output = new(report.OutputGitHub)
-	require.Equal(t, report.OutputGitHub, cfg.RunOutput(nil), "run.output overrides global")
-	require.Equal(t, report.OutputWide, cfg.LintOutput(nil), "lint still sees global")
+	cfg.Run.Output = new(output.GitHub)
+	require.Equal(t, output.GitHub, cfg.RunOutput(nil), "run.output overrides global")
+	require.Equal(t, output.Wide, cfg.LintOutput(nil), "lint still sees global")
 
 	var nilCfg *config.Config
-	require.Equal(t, report.OutputText, nilCfg.RunOutput(nil), "no config defaults to text")
+	require.Equal(t, output.Text, nilCfg.RunOutput(nil), "no config defaults to text")
 	require.Equal(
 		t,
-		report.OutputGitHub,
-		nilCfg.RunOutput(new(report.OutputGitHub)),
+		output.GitHub,
+		nilCfg.RunOutput(new(output.GitHub)),
 		"CLI works without a config",
 	)
 }
@@ -362,17 +362,17 @@ func TestMergeCommandSettings(t *testing.T) {
 	t.Parallel()
 
 	user := &config.Config{
-		Global: config.Global{Output: new(report.OutputWide)},
+		Global: config.Global{Output: new(output.Wide)},
 		Run:    config.Run{Verify: new(true), Deep: new(true)},
 	}
 	project := &config.Config{
 		Run:  config.Run{Verify: new(false)},
-		Lint: config.Lint{Output: new(report.OutputGitHub)},
+		Lint: config.Lint{Output: new(output.GitHub)},
 	}
 
 	got := config.Merge(user, project)
 	require.False(t, *got.Verify(), "project run.verify overrides user")
 	require.True(t, *got.Deep(), "unset project run.deep falls back to user")
-	require.Equal(t, report.OutputWide, got.RunOutput(nil), "user global.output preserved")
-	require.Equal(t, report.OutputGitHub, got.LintOutput(nil), "project lint.output applied")
+	require.Equal(t, output.Wide, got.RunOutput(nil), "user global.output preserved")
+	require.Equal(t, output.GitHub, got.LintOutput(nil), "project lint.output applied")
 }

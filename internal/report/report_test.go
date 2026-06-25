@@ -8,6 +8,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,7 @@ func TestRun(t *testing.T) {
 	skipped.Skipped, skipped.Reason = true, "dep failed"
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(updated, skipped), false, report.OutputText)
+	report.Run(clog.NewWriter(&buf), summary(updated, skipped), false, output.Text)
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
@@ -54,7 +55,7 @@ func TestRunReportsWrittenValue(t *testing.T) {
 	fallback.Current, fallback.Resolved, fallback.Changed = "1.0.0", "2.0.0", true
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(written, fallback), false, report.OutputText)
+	report.Run(clog.NewWriter(&buf), summary(written, fallback), false, output.Text)
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=app.txt:1 from=1.20.0 to=1.31.2\n"+
@@ -105,7 +106,7 @@ func TestRunReportsPinVerification(t *testing.T) {
 	upToDate.Verify = errors.New("pinned aaa but 1.0.0 upstream is bbb")
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(upToDate), false, report.OutputText)
+	report.Run(clog.NewWriter(&buf), summary(upToDate), false, output.Text)
 
 	require.Equal(t,
 		"ERR 🔓 Pin does not match upstream location=ci.yml:1 "+
@@ -126,7 +127,7 @@ func TestRunAbbreviatesHashValues(t *testing.T) {
 	pinned.Current, pinned.Resolved, pinned.Changed = oldSHA, newSHA, true
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputText)
+	report.Run(clog.NewWriter(&buf), summary(pinned), false, output.Text)
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
@@ -143,7 +144,7 @@ func TestRunWideShowsFullHash(t *testing.T) {
 	pinned.Current, pinned.Resolved, pinned.Changed = "1.0.0", sha, true
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(pinned), false, report.OutputWide)
+	report.Run(clog.NewWriter(&buf), summary(pinned), false, output.Wide)
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
@@ -157,7 +158,7 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 	updated.Current, updated.Resolved, updated.Changed = "1.0.0", "2.0.0", true
 
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), summary(updated), true, report.OutputText)
+	report.Run(clog.NewWriter(&buf), summary(updated), true, output.Text)
 
 	require.Equal(t,
 		"DRY ⬆️ Update available location=app.txt:1 from=1.0.0 to=2.0.0\n"+
@@ -170,7 +171,7 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 // "No Clover comments found" warning stands alone, with no "Run complete".
 func TestRunEmptyLogsNoSummary(t *testing.T) {
 	var buf bytes.Buffer
-	report.Run(clog.NewWriter(&buf), mode.Summary{}, false, report.OutputText)
+	report.Run(clog.NewWriter(&buf), mode.Summary{}, false, output.Text)
 	require.Empty(t, buf.String())
 }
 
@@ -196,7 +197,7 @@ func TestLint(t *testing.T) {
 	bad.Err = errors.New("boom")
 
 	var buf bytes.Buffer
-	report.Lint(clog.NewWriter(&buf), summary(bad), report.OutputText)
+	report.Lint(clog.NewWriter(&buf), summary(bad), output.Text)
 
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
@@ -214,7 +215,7 @@ func TestRunWideReportsUpToDate(t *testing.T) {
 	var buf bytes.Buffer
 	logger := clog.NewWriter(&buf)
 	logger.SetLevel(clog.LevelDebug) // the up-to-date line is logged at debug
-	report.Run(logger, summary(updated, steady), false, report.OutputWide)
+	report.Run(logger, summary(updated, steady), false, output.Wide)
 
 	require.Equal(t,
 		"INF ⬆️ Update applied location=app.txt:1 from=1.0.0 to=2.0.0\n"+
@@ -230,7 +231,7 @@ func TestLintWideReportsValid(t *testing.T) {
 	ok := result("b.txt", 1) // valid: no error, not skipped
 
 	var buf bytes.Buffer
-	report.Lint(clog.NewWriter(&buf), summary(bad, ok), report.OutputWide)
+	report.Lint(clog.NewWriter(&buf), summary(bad, ok), output.Wide)
 
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+

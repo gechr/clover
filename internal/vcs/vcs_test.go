@@ -63,6 +63,38 @@ func TestRoot(t *testing.T) {
 	}
 }
 
+func TestRootDir(t *testing.T) {
+	t.Parallel()
+
+	base := t.TempDir()
+	repo := filepath.Join(base, "repo")
+	nested := filepath.Join(repo, "deep", "pkg")
+	mkmarker(t, repo, ".git", false)
+	require.NoError(t, os.MkdirAll(nested, 0o755))
+
+	resolver := vcs.NewResolver()
+
+	tests := []struct {
+		name string
+		dir  string
+		want string
+	}{
+		// Unlike Root, the directory itself is the search start, not a file whose
+		// parent is searched: the repo root resolves to itself, not its parent.
+		{name: "repo root resolves to itself", dir: repo, want: repo},
+		{name: "nested dir resolves to root", dir: nested, want: repo},
+		{name: "dir outside any repo", dir: base, want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, resolver.RootDir(tt.dir))
+		})
+	}
+}
+
 func TestSameIDDistinctReposDoNotClash(t *testing.T) {
 	t.Parallel()
 

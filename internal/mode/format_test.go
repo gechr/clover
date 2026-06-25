@@ -6,9 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +44,70 @@ func formatDir(t *testing.T, body string) (string, string) {
 	return dir, path
 }
 
+// formatRepo writes a repository root (a .git marker, a .clover.yaml, and one
+// named directive file) and returns the root and that file's path. It exercises
+// the per-root config wiring Format applies through its own resolver.
+func formatRepo(t *testing.T, cloverYAML, name, body string) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".clover.yaml"), []byte(cloverYAML), 0o644))
+	path := filepath.Join(dir, name)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+	return dir, path
+}
+
+func TestFormatHonorsPerRootExclude(t *testing.T) {
+	provider.Register(orderedProvider{name: "fmtexcl"})
+	// A file under the root's paths.exclude is skipped by the scan, so format
+	// never reformats it - the resolver Format wires in supplies the glob.
+	original := "# clover: source=tags repository=a/b provider=fmtexcl\nversion: 1.0.0\n"
+	dir, path := formatRepo(
+		t,
+		"paths:\n  exclude:\n    - vendor/**\n",
+		"vendor/app.txt",
+		original,
+	)
+
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
+	require.NoError(t, err)
+	require.True(t, summary.OK(), "the excluded file yields no changes")
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, string(got), "an excluded file is left untouched")
+}
+
+func TestFormatSkipsUnsatisfiedRequiredVersion(t *testing.T) {
+	provider.Register(orderedProvider{name: "fmtreq"})
+	// The repo's required-version the running clover does not satisfy is skipped,
+	// so its directive file is dropped before formatting.
+	original := "# clover: source=tags repository=a/b provider=fmtreq\nversion: 1.0.0\n"
+	dir, path := formatRepo(t, "required-version: \">=9.0.0\"\n", "app.txt", original)
+
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+		pipeline.WithVersion("1.0.0"),
+	)
+	require.NoError(t, err)
+	require.True(t, summary.OK(), "the skipped repository yields no changes")
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, string(got), "a skipped repo's file is left untouched")
+}
+
 func TestFormatReordersAndWrites(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtp"})
 	dir, path := formatDir(
@@ -49,7 +115,13 @@ func TestFormatReordersAndWrites(t *testing.T) {
 		"# clover: source=tags constraint=patch repository=a/b provider=fmtp\nversion: 1.0.0\n",
 	)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
 	require.True(t, summary.Files[0].Written)
@@ -69,7 +141,13 @@ func TestFormatLowercasesAndUniquesTags(t *testing.T) {
 		"# clover:  provider=fmttag   repository=a/b  tags=PROD,Ci,prod\nversion: 1.0.0\n",
 	)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
 
@@ -86,7 +164,13 @@ func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtv"})
 	dir, path := formatDir(t, "# clover: repository=a/b provider=fmtv\nversion: 1.2.3-rc.1\n")
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)
@@ -99,7 +183,13 @@ func TestFormatCheckWritesNothing(t *testing.T) {
 	original := "# clover: repository=a/b provider=fmtc\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, true, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		true,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
 	require.False(t, summary.OK())
@@ -115,7 +205,13 @@ func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 	original := "# clover: provider=fmtn repository=a/b\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.True(t, summary.OK())
 	require.False(t, summary.Files[0].Written)
@@ -129,12 +225,24 @@ func TestFormatIsIdempotent(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmti"})
 	dir, path := formatDir(t, "# clover: source=tags repository=a/b provider=fmti\nv: 1.0.0\n")
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	first, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.True(t, summary.OK()) // second pass finds nothing to change
 	second, err := os.ReadFile(path)
@@ -146,7 +254,13 @@ func TestFormatNormalisesQuoting(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmtq"})
 	dir, path := formatDir(t, `# clover: provider=fmtq repository="a/b"`+"\nv: 1.0.0\n")
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)
@@ -167,7 +281,13 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 		),
 	)
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)
@@ -180,7 +300,13 @@ func TestFormatPreservesFileMode(t *testing.T) {
 	dir, path := formatDir(t, "# clover: repository=a/b provider=fmtperm\nv: 1.0.0\n")
 	require.NoError(t, os.Chmod(path, 0o777))
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 
 	info, err := os.Stat(path)
@@ -193,7 +319,13 @@ func TestFormatRejectsUnknownKey(t *testing.T) {
 	original := "# clover: provider=fmtuk repository=a/b max-major=4\nversion: 1.0.0\n"
 	dir, path := formatDir(t, original)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, false)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Errored())
 	require.Equal(t, 0, summary.Changed(), "a directive with an unknown key is left untouched")
@@ -211,7 +343,13 @@ func TestFormatPruneRemovesUnknownKey(t *testing.T) {
 		"# clover: provider=fmtpr repository=a/b max-major=4 constraint=minor\nversion: 1.0.0\n",
 	)
 
-	summary, err := mode.Format(context.Background(), []string{dir}, false, true)
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		new(true),
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 	require.Equal(t, 0, summary.Errored(), "prune removes the key rather than erroring")
 	require.Equal(t, 1, summary.Changed())
@@ -230,7 +368,13 @@ func TestFormatFollowerReordersCommonKeys(t *testing.T) {
 	// No provider= ⇒ a follower; only common keys, reordered (from before value).
 	dir, path := formatDir(t, "# clover: value=version from=app\nv: 1.0.0\n")
 
-	_, err := mode.Format(context.Background(), []string{dir}, false, false)
+	_, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+	)
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(path)

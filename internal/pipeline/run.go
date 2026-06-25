@@ -16,6 +16,7 @@ import (
 	cversion "github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/checksum"
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/exec"
@@ -90,10 +91,11 @@ func (f FileResult) Rewritten() []string {
 	return lines
 }
 
-type config struct {
+type settings struct {
+	configs        *config.Resolver
+	current        string
+	deep           *bool
 	downgrade      *bool
-	deep           bool
-	exclude        []string
 	filter         tag.Filter
 	ignoreFiles    []string
 	maxSize        int64
@@ -106,73 +108,84 @@ type config struct {
 }
 
 // Option configures [Run].
-type Option func(*config)
+type Option func(*settings)
 
 // WithReporter sets the progress reporter that observes markers as they resolve.
 // The default discards everything; the CLI supplies a live display.
 func WithReporter(r progress.Reporter) Option {
-	return func(c *config) { c.reporter = r }
+	return func(s *settings) { s.reporter = r }
 }
 
-// WithExclude sets the doublestar globs whose matching paths are skipped during
-// the scan, in addition to the ignore files.
-func WithExclude(globs []string) Option {
-	return func(c *config) { c.exclude = globs }
+// WithConfig sets the per-root config resolver. Each scanned file's repository
+// root supplies its own paths.exclude, required-version gate, and selection
+// toggle defaults (verify/prerelease/downgrade/deep); a CLI override still wins
+// over every root. Without it the scan applies no project config.
+func WithConfig(r *config.Resolver) Option {
+	return func(s *settings) { s.configs = r }
+}
+
+// WithVersion sets the running clover version the per-root required-version gate
+// checks each repository against. Unset (or an unparseable dev build), the gate
+// is inert.
+func WithVersion(current string) Option {
+	return func(s *settings) { s.current = current }
 }
 
 // WithTagFilter restricts the run to markers the filter matches. The zero filter
 // matches every marker; a non-empty one drops markers whose tags do not satisfy
 // it, including untagged markers.
 func WithTagFilter(filter tag.Filter) Option {
-	return func(c *config) { c.filter = filter }
+	return func(s *settings) { s.filter = filter }
 }
 
 // WithDowngrade overrides the per-directive downgrade rule for every
 // marker: a non-nil allow forces downgrades on or off run-wide, while nil leaves
 // each directive's own setting in force.
 func WithDowngrade(allow *bool) Option {
-	return func(c *config) { c.downgrade = allow }
+	return func(s *settings) { s.downgrade = allow }
 }
 
 // WithPrerelease overrides the per-directive prerelease rule for every marker: a
 // non-nil allow forces prereleases on or off run-wide, while nil leaves each
 // directive's own setting in force.
 func WithPrerelease(allow *bool) Option {
-	return func(c *config) { c.prerelease = allow }
+	return func(s *settings) { s.prerelease = allow }
 }
 
-// WithDeep enables a deep lookup: providers follow pagination to exhaustion
-// instead of reading only the first (newest) page. More accurate, at the cost of
-// more requests that may be slow or hit rate limits. The default is shallow.
-func WithDeep(deep bool) Option { return func(c *config) { c.deep = deep } }
+// WithDeep overrides the per-root run.deep default for every marker: a deep
+// lookup follows pagination to exhaustion instead of reading only the first
+// (newest) page - more accurate, at the cost of more requests that may be slow or
+// hit rate limits. A non-nil value forces it on or off run-wide; nil leaves each
+// root's run.deep (and a verify-implied deep) in force. The default is shallow.
+func WithDeep(deep *bool) Option { return func(s *settings) { s.deep = deep } }
 
 // WithTruncationSink sets a callback invoked with a truncated resource (its
 // label and upstream page) when a shallow lookup stopped with more results
 // available, so the caller can suggest a deep lookup. It may be called
 // concurrently.
 func WithTruncationSink(sink func(provider.Truncation)) Option {
-	return func(c *config) { c.truncationSink = sink }
+	return func(s *settings) { s.truncationSink = sink }
 }
 
 // WithVerify overrides the per-directive verify rule for every marker: a non-nil
 // value forces the deep tag-on-branch check on or off run-wide, while nil leaves
 // each directive's own verify/verify-branch setting in force.
-func WithVerify(on *bool) Option { return func(c *config) { c.verify = on } }
+func WithVerify(on *bool) Option { return func(s *settings) { s.verify = on } }
 
 // WithWorkers sets how many markers resolve concurrently (default: NumCPU).
-func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
+func WithWorkers(n int) Option { return func(s *settings) { s.workers = n } }
 
 // WithMaxSize sets the largest file the scan will read.
-func WithMaxSize(n int64) Option { return func(c *config) { c.maxSize = n } }
+func WithMaxSize(n int64) Option { return func(s *settings) { s.maxSize = n } }
 
 // WithNow injects the reference time cooldown measures against, keeping a run
 // deterministic. Unset, the current time is used.
-func WithNow(t time.Time) Option { return func(c *config) { c.now = t } }
+func WithNow(t time.Time) Option { return func(s *settings) { s.now = t } }
 
 // WithIgnoreFiles sets the ignore-file names honoured during the walk (default:
 // .gitignore).
 func WithIgnoreFiles(names ...string) Option {
-	return func(c *config) { c.ignoreFiles = names }
+	return func(s *settings) { s.ignoreFiles = names }
 }
 
 // Run scans roots for directives, resolves every marker it finds against its
@@ -219,83 +232,183 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 // Validate build on, exposed for format mode, which rewrites directive comments
 // without ever binding markers or touching the network.
 func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, error) {
-	_, files, _, err := scanRoots(ctx, roots, newConfig(opts...))
+	_, files, _, err := scanRoots(ctx, roots, newSettings(opts...))
 	return files, err
 }
 
-// newConfig applies opts over the defaults, clamping the worker count and
+// newSettings applies opts over the defaults, clamping the worker count and
 // defaulting the clock so cooldown has a reference time.
-func newConfig(opts ...Option) config {
-	cfg := config{workers: runtime.NumCPU(), reporter: progress.Nop{}}
+func newSettings(opts ...Option) settings {
+	set := settings{workers: runtime.NumCPU(), reporter: progress.Nop{}}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(&set)
 	}
-	if cfg.workers < 1 {
-		cfg.workers = 1
+	if set.workers < 1 {
+		set.workers = 1
 	}
-	if cfg.now.IsZero() {
-		cfg.now = time.Now()
+	if set.now.IsZero() {
+		set.now = time.Now()
 	}
-	if cfg.reporter == nil {
-		cfg.reporter = progress.Nop{}
+	if set.reporter == nil {
+		set.reporter = progress.Nop{}
 	}
-	return cfg
+	return set
 }
 
-// scanRoots walks roots, pruning ignored paths, and returns the VCS resolver
-// (for marker namespacing) alongside the files found.
+// scanRoots walks roots, pruning ignored paths, then applies each repository's
+// required-version gate, and returns the VCS resolver (for marker namespacing)
+// alongside the surviving files found.
 func scanRoots(
 	ctx context.Context,
 	roots []string,
-	cfg config,
+	set settings,
 ) (*vcs.Resolver, []scan.File, int, error) {
 	resolver := vcs.NewResolver()
-	matcher := ignore.New(resolver, ignore.WithFiles(cfg.ignoreFiles...))
+	matcher := ignore.New(resolver, ignore.WithFiles(set.ignoreFiles...))
 
 	scanOpts := []scan.Option{
-		scan.WithWorkers(cfg.workers),
-		scan.WithIgnore(ignoreFunc(matcher, cfg.exclude)),
+		scan.WithWorkers(set.workers),
+		scan.WithIgnore(ignoreFunc(matcher, set.configs)),
 	}
-	if cfg.maxSize > 0 {
-		scanOpts = append(scanOpts, scan.WithMaxSize(cfg.maxSize))
+	if set.maxSize > 0 {
+		scanOpts = append(scanOpts, scan.WithMaxSize(set.maxSize))
 	}
 	files, scanned, err := scan.Scan(ctx, roots, scanOpts...)
+	if err != nil {
+		return resolver, files, scanned, err
+	}
+	// The walk visits every directory and file - including a repo carrying only
+	// .git and a malformed .clover.yaml - so a bad config is seen even when no
+	// directive file survives. excludedByConfig swallowed its load error to keep
+	// scanning; surface it now as the hard error it is, before the version gate
+	// (which would otherwise drop every file and exit 0).
+	if err = set.configs.Err(); err != nil {
+		return resolver, files, scanned, err
+	}
+	files, err = gateVersions(set.configs, set.current, files)
 	return resolver, files, scanned, err
 }
 
-// ignoreFunc combines the ignore-file matcher with the configured exclude globs:
-// a path is skipped if either rejects it.
-func ignoreFunc(matcher *ignore.Matcher, exclude []string) func(string, bool) bool {
-	exclude = validExcludes(exclude)
+// ignoreFunc combines the ignore-file matcher with each repository's configured
+// paths.exclude globs (resolved per root through configs): a path is skipped
+// when either rejects it. A nil resolver applies no excludes.
+func ignoreFunc(matcher *ignore.Matcher, configs *config.Resolver) func(string, bool) bool {
 	return func(path string, isDir bool) bool {
-		for _, glob := range exclude {
-			if doublestar.MatchUnvalidated(glob, path) {
-				return true
-			}
+		if excludedByConfig(configs, path, isDir) {
+			return true
 		}
 		return matcher.Ignore(path, isDir)
 	}
 }
 
-func validExcludes(globs []string) []string {
-	valid := make([]string, 0, len(globs))
+// excludedByConfig reports whether path matches a paths.exclude glob in the
+// config governing its repository root. The globs are matched relative to that
+// root, so a repo's "vendor/**" excludes its own vendored tree wherever the scan
+// was launched from. A malformed config is treated as no excludes here and left
+// for the version gate to surface.
+func excludedByConfig(configs *config.Resolver, path string, isDir bool) bool {
+	if configs == nil {
+		return false
+	}
+	dir := path
+	if !isDir {
+		dir = filepath.Dir(path)
+	}
+	cfg, err := configs.ForDir(dir)
+	if err != nil {
+		return false
+	}
+	globs := cfg.ExcludeGlobs()
+	if len(globs) == 0 {
+		return false
+	}
+	rel := relTo(configs.Root(dir), path)
 	for _, glob := range globs {
-		if doublestar.ValidatePattern(glob) {
-			valid = append(valid, glob)
+		if doublestar.ValidatePattern(glob) && doublestar.MatchUnvalidated(glob, rel) {
+			return true
 		}
 	}
-	return valid
+	return false
+}
+
+// relTo returns path relative to root in slash form, falling back to path's own
+// slash form when it does not lie under root.
+func relTo(root, path string) string {
+	abs := path
+	if a, err := filepath.Abs(path); err == nil {
+		abs = a
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
+// gateVersions applies each repository's required-version gate: a repo whose
+// required-version the running clover does not satisfy is skipped - its files
+// dropped with a one-line warning - and the run proceeds for the rest. A
+// malformed project config is a hard error instead, a bug to fix rather than a
+// benign version mismatch. The gate is inert without a resolver or a parseable
+// current version.
+func gateVersions(
+	configs *config.Resolver,
+	current string,
+	files []scan.File,
+) ([]scan.File, error) {
+	if configs == nil {
+		return files, nil
+	}
+	blocked := map[string]bool{}
+	decided := map[string]bool{}
+	for _, f := range files {
+		root := configs.Root(filepath.Dir(f.Path))
+		if decided[root] {
+			continue
+		}
+		decided[root] = true
+		cfg, err := configs.ForDir(filepath.Dir(f.Path))
+		if err != nil {
+			return nil, err
+		}
+		if verr := cfg.CheckVersion(current); verr != nil {
+			blocked[root] = true
+			clog.Warn().
+				Path(field.Path, root).
+				Str(field.Required, requiredConstraint(cfg)).
+				Str(field.Version, cversion.RemovePrefix(current)).
+				Msg("Skipping repository - clover does not satisfy its `required-version`")
+		}
+	}
+	if len(blocked) == 0 {
+		return files, nil
+	}
+	kept := make([]scan.File, 0, len(files))
+	for _, f := range files {
+		if !blocked[configs.Root(filepath.Dir(f.Path))] {
+			kept = append(kept, f)
+		}
+	}
+	return kept, nil
+}
+
+// requiredConstraint returns the constraint a config requires, "" when unset.
+func requiredConstraint(cfg *config.Config) string {
+	if cfg == nil || cfg.RequiredVersion == nil {
+		return ""
+	}
+	return *cfg.RequiredVersion
 }
 
 // build scans roots and binds the discovered directives into a plan ready for
 // either resolution or validation.
 func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.File, int, error) {
-	cfg := newConfig(opts...)
-	resolver, files, scanned, err := scanRoots(ctx, roots, cfg)
+	set := newSettings(opts...)
+	resolver, files, scanned, err := scanRoots(ctx, roots, set)
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	return newPlan(files, resolver, cfg), files, scanned, nil
+	return newPlan(files, resolver, set), files, scanned, nil
 }
 
 // plan holds the state a run threads between seams: the flattened markers, each
@@ -304,9 +417,10 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // own slot, so the slice needs no lock - the same discipline the executor uses
 // internally.
 type plan struct {
+	configs        *config.Resolver
 	downgrade      *bool
 	checksumClient *http.Client
-	deep           bool
+	deep           *bool
 	lines          map[string][]string
 	markers        []Marker
 	now            time.Time
@@ -324,7 +438,7 @@ type plan struct {
 // newPlan flattens the scanned files into markers and pre-seeds a result per
 // marker, namespacing ids by repository so the same id in two repositories does
 // not collide.
-func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
+func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 	lines := make(map[string][]string, len(files))
 	var markers []Marker
 	var parseErrors []Result
@@ -332,7 +446,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 		lines[f.Path] = f.Lines
 		parseErrors = append(parseErrors, parseErrorResults(f)...)
 		for _, m := range Markers(f, resolver) {
-			if cfg.filter.Match(m.Tags) {
+			if set.filter.Match(m.Tags) {
 				markers = append(markers, m)
 			}
 		}
@@ -344,20 +458,21 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, cfg config) *plan {
 	}
 
 	return &plan{
-		downgrade:      cfg.downgrade,
+		configs:        set.configs,
+		downgrade:      set.downgrade,
 		checksumClient: httpcache.New(),
-		deep:           cfg.deep,
+		deep:           set.deep,
 		lines:          lines,
 		markers:        markers,
-		now:            cfg.now,
+		now:            set.now,
 		parseErrors:    parseErrors,
-		prerelease:     cfg.prerelease,
+		prerelease:     set.prerelease,
 		registry:       registry.New(),
-		reporter:       cfg.reporter,
+		reporter:       set.reporter,
 		results:        results,
-		truncationSink: cfg.truncationSink,
-		verify:         cfg.verify,
-		workers:        cfg.workers,
+		truncationSink: set.truncationSink,
+		verify:         set.verify,
+		workers:        set.workers,
 	}
 }
 
@@ -386,7 +501,6 @@ func lineAt(lines []string, i int) string {
 // marker finishes; skipped markers never run a closure, so resolve reports their
 // Skip here.
 func (p *plan) resolve(ctx context.Context) {
-	ctx = provider.WithDeep(ctx, p.deep)
 	ctx = provider.WithTruncationSink(ctx, p.truncationSink)
 
 	names := make([]string, len(p.markers))
@@ -431,12 +545,36 @@ func (p *plan) resolve(ctx context.Context) {
 // provider, reporting the outcome to the marker's progress task.
 func (p *plan) producer(i int) func(context.Context) error {
 	return func(ctx context.Context) error {
+		ctx = provider.WithDeep(ctx, p.deepFor(p.markers[i]))
 		p.tasks[i].Update("resolving")
 		err := p.resolveProducer(ctx, i)
 		p.report(i, err)
 		return err
 	}
 }
+
+// configFor returns the config governing marker file's repository root, nil-safe.
+// A load error degrades to no config here; the version gate surfaces a malformed
+// config authoritatively before any marker resolves.
+func (p *plan) configFor(file string) *config.Config {
+	if p.configs == nil {
+		return nil
+	}
+	cfg, _ := p.configs.ForDir(filepath.Dir(file))
+	return cfg
+}
+
+// deepFor reports whether marker m does a deep lookup: the --deep override, else
+// its root's run.deep, and always on when verify is in force (verification needs
+// the complete history).
+func (p *plan) deepFor(m Marker) bool {
+	cfg := p.configFor(m.File)
+	verify := cmp.Or(p.verify, cfg.Verify())
+	return truthy(cmp.Or(p.deep, cfg.Deep())) || truthy(verify)
+}
+
+// truthy reports whether a tri-state bool pointer is set and true.
+func truthy(b *bool) bool { return b != nil && *b }
 
 // resolveProducer locates the current token, selects the newest allowed
 // candidate, publishes it under the marker's id for followers, and renders it.
@@ -511,13 +649,15 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// (1.15.0-ent) the include above already scoped to stays selectable.
 	opts = append(opts, version.WithQualifier(version.Qualifier(located.Current())))
 	opts = append(opts, version.WithNow(p.now))
-	// Run-level overrides are appended after the directive's own options, so a
-	// non-nil flag wins over the per-directive rule.
-	if p.downgrade != nil {
-		opts = append(opts, version.WithDowngrade(*p.downgrade))
+	// A CLI override wins over the root's config default, which wins over the
+	// directive's own rule; appended after the directive options so a set value
+	// takes precedence. nil at both levels leaves the per-directive rule in force.
+	cfg := p.configFor(m.File)
+	if downgrade := cmp.Or(p.downgrade, cfg.Downgrade()); downgrade != nil {
+		opts = append(opts, version.WithDowngrade(*downgrade))
 	}
-	if p.prerelease != nil {
-		opts = append(opts, version.WithPrerelease(*p.prerelease))
+	if prerelease := cmp.Or(p.prerelease, cfg.Prerelease()); prerelease != nil {
+		opts = append(opts, version.WithPrerelease(*prerelease))
 	}
 	// Surface why each candidate was passed over, visible under --verbose. Only
 	// wire the observer when debug is on, so the common path does no work per
@@ -730,10 +870,11 @@ func (p *plan) anchor(i int, m Marker, line string, located match.Location) erro
 }
 
 // deepVerify reports whether the deep tag-on-branch check runs for marker m: the
-// --verify run flag overrides, else the marker's own verify=/verify-branch=.
+// --verify override wins, then the root's run.verify default, else the marker's
+// own verify=/verify-branch=.
 func (p *plan) deepVerify(m Marker) bool {
-	if p.verify != nil {
-		return *p.verify
+	if verify := cmp.Or(p.verify, p.configFor(m.File).Verify()); verify != nil {
+		return *verify
 	}
 	on, _ := m.Directive.Bool(constant.DirectiveVerify)
 	return on || m.Directive.Has(constant.DirectiveVerifyBranch)

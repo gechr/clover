@@ -10,30 +10,15 @@ import (
 	"github.com/gechr/clover/internal/display"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report/github"
-)
-
-// Output is the detail level of a report. Its string values double as the CLI's
-// --output enum.
-type Output string
-
-const (
-	// OutputText is the concise default: only changes and problems, plus a
-	// summary.
-	OutputText Output = "text"
-	// OutputWide additionally reports every marker that was already up to date or
-	// valid, so the output accounts for all of them.
-	OutputWide Output = "wide"
-	// OutputGitHub emits GitHub Actions annotations (::error/::warning file=,line=)
-	// so changes and problems surface inline on a pull request.
-	OutputGitHub Output = "github"
 )
 
 // Run renders a run's per-marker outcomes and a closing summary. A dry run logs
 // the summary at the Dry level so the output itself signals nothing was written.
 // In wide output, markers already up to date are reported too.
-func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) {
+func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.Mode) {
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
@@ -54,13 +39,13 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, output Output) 
 			summarize(logger, dryRun).
 				Symbol("⬆️").
 				Line(field.Location, r.Marker.File, line(r)).
-				Link(field.From, r.CurrentURL, value(r.Current, output)).
-				Link(field.To, r.ResolvedURL, value(reportTo(r), output)).
+				Link(field.From, r.CurrentURL, value(r.Current, detail)).
+				Link(field.To, r.ResolvedURL, value(reportTo(r), detail)).
 				Msg(msg)
-		case output == OutputWide:
+		case detail == output.Wide:
 			logger.Debug().
 				Line(field.Location, r.Marker.File, line(r)).
-				Link(field.Version, r.ResolvedURL, value(r.Current, output)).
+				Link(field.Version, r.ResolvedURL, value(r.Current, detail)).
 				Msg("Already up-to-date")
 		}
 
@@ -102,7 +87,7 @@ func empty(summary mode.Summary) bool {
 
 // Lint renders each invalid or skipped marker and a closing summary. In wide
 // output, valid markers are reported too.
-func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
+func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
@@ -112,7 +97,7 @@ func Lint(logger *clog.Logger, summary mode.Summary, output Output) {
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
-		case output == OutputWide:
+		case detail == output.Wide:
 			logger.Info().Line(field.Location, r.Marker.File, line(r)).Msg("OK")
 		}
 	})
@@ -203,13 +188,13 @@ func reportTo(r pipeline.Result) string {
 // value formats a resolved value for the report: abbreviated under text output
 // so a long hash (a commit SHA or sha256 sum) stays readable, shown in full
 // under wide output where accounting for the exact value matters.
-func value(v string, output Output) string {
+func value(v string, detail output.Mode) string {
 	// Trim a leading v only from an actual version - never from a commit SHA,
 	// sha256, or other follower-projected value that merely starts with "v".
 	if _, err := version.Parse(v); err == nil {
 		v = version.RemovePrefix(v)
 	}
-	if output == OutputWide {
+	if detail == output.Wide {
 		return v
 	}
 	return display.Value(v)

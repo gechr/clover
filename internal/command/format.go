@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/mode"
@@ -21,17 +22,17 @@ type cmdFormat struct {
 }
 
 // Run canonicalises (or, with --check, checks) the directives under the paths.
-func (c *cmdFormat) Run(cfg *config.Config) error {
+func (c *cmdFormat) Run(configs *config.Resolver) error {
 	launch()
 	ctx := context.Background()
 
-	prune := resolvePrune(c.Prune, cfg)
 	summary, err := mode.Format(
 		ctx,
 		roots(c.Paths),
 		c.Check,
-		prune,
-		pipeline.WithExclude(cfg.ExcludeGlobs()),
+		c.Prune,
+		configs,
+		pipeline.WithVersion(clive.Current()),
 	)
 	if err != nil {
 		return err

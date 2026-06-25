@@ -23,7 +23,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
-	"github.com/gechr/clover/internal/report"
+	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/version"
 	"github.com/gechr/x/shell"
 	xstrings "github.com/gechr/x/strings"
@@ -61,21 +61,21 @@ type Paths struct {
 
 // Global holds cross-command defaults. A per-command block overrides these.
 type Global struct {
-	Output *report.Output `yaml:"output"`
+	Output *output.Mode `yaml:"output"`
 }
 
 // Run holds defaults for `clover run`.
 type Run struct {
-	Verify     *bool          `yaml:"verify"`
-	Prerelease *bool          `yaml:"prerelease"`
-	Downgrade  *bool          `yaml:"downgrade"`
-	Deep       *bool          `yaml:"deep"`
-	Output     *report.Output `yaml:"output"`
+	Verify     *bool        `yaml:"verify"`
+	Prerelease *bool        `yaml:"prerelease"`
+	Downgrade  *bool        `yaml:"downgrade"`
+	Deep       *bool        `yaml:"deep"`
+	Output     *output.Mode `yaml:"output"`
 }
 
 // Lint holds defaults for `clover lint`.
 type Lint struct {
-	Output *report.Output `yaml:"output"`
+	Output *output.Mode `yaml:"output"`
 }
 
 // Format holds defaults for `clover fmt`.
@@ -294,13 +294,13 @@ func (c *Config) Prune() *bool {
 
 // RunOutput resolves the output detail for `clover run`: the CLI value when set,
 // then run.output, then global.output, then the built-in text default.
-func (c *Config) RunOutput(cli *report.Output) report.Output {
+func (c *Config) RunOutput(cli *output.Mode) output.Mode {
 	return c.output(cli, c.run().Output)
 }
 
 // LintOutput resolves the output detail for `clover lint`, with the same
 // precedence as [Config.RunOutput] but keyed on lint.output.
-func (c *Config) LintOutput(cli *report.Output) report.Output {
+func (c *Config) LintOutput(cli *output.Mode) output.Mode {
 	if c == nil {
 		return derefOutput(cli)
 	}
@@ -309,8 +309,8 @@ func (c *Config) LintOutput(cli *report.Output) report.Output {
 
 // output applies the CLI > command > global > text precedence, given the
 // already-selected command-level value.
-func (c *Config) output(cli, command *report.Output) report.Output {
-	var global *report.Output
+func (c *Config) output(cli, command *output.Mode) output.Mode {
+	var global *output.Mode
 	if c != nil {
 		global = c.Global.Output
 	}
@@ -318,9 +318,9 @@ func (c *Config) output(cli, command *report.Output) report.Output {
 }
 
 // derefOutput dereferences a resolved output pointer, defaulting to text.
-func derefOutput(o *report.Output) report.Output {
+func derefOutput(o *output.Mode) output.Mode {
 	if o == nil {
-		return report.OutputText
+		return output.Text
 	}
 	return *o
 }
