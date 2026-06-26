@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: clover
+
+report_sizes: true
+
+env:
+  - CGO_ENABLED=0
+
+builds:
+  - binary: clover
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+      - -mod=readonly
+    ldflags:
+      - -s -w
+      - -X github.com/gechr/clive.version={{ .Version }}
+      - -X github.com/gechr/clive.commit={{ .Commit }}
+      - -X github.com/gechr/clive.buildTime={{ .CommitDate }}
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+scoops:
+  - repository:
+      owner: gechr
+      name: scoop-bucket
+      branch: main
+      token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
+    commit_msg_template: "{{ .ProjectName }}: {{ .Tag }}"
+    commit_author:
+      name: gechr-releaser[bot]
+      email: 273362899+gechr-releaser[bot]@users.noreply.github.com
+    directory: bucket
+    homepage: https://github.com/gechr/clover
+    description: Automatically manage version strings across arbitrary files
+    license: MIT

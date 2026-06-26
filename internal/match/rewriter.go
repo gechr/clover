@@ -1,0 +1,215 @@
+package match
+
+import (
+	"fmt"
+
+	"github.com/bmatcuk/doublestar/v4"
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/pattern"
+	"github.com/gechr/clover/internal/version"
+)
+
+// Rewriter locates the version a target line carries. Implementations range from
+// the shape-based [Smart] rewriter to format-specific ones. Locate is offline and
+// pure, so lint runs it to validate a marker without resolving anything; the
+// [Location] it returns renders the line once a candidate is resolved.
+type Rewriter interface {
+	// Locate extracts the version currently on the line, erroring when the
+	// rewriter cannot act on it (no target, ambiguous, or malformed).
+	Locate(line string) (Location, error)
+}
+
+// Location is what a Rewriter found on a target line: the common anchors the
+// pipeline reads (Current, Semver, NeedsDigest) plus the ability to render itself
+// for a resolved candidate. Each rewriter returns its own implementation, so the
+// renderer-specific state (spans, captures) stays private to the rewriter that
+// produced it rather than piling into a shared struct.
+type Location interface {
+	// Current is the version text currently on the line, recorded as the old value.
+	Current() string
+	// Semver is the parsed core of the current version, nil when unparseable. It
+	// anchors selection.
+	Semver() *version.Version
+	// NeedsDigest reports whether rendering will rewrite a content digest, so the
+	// pipeline knows to resolve one for the candidate.
+	NeedsDigest() bool
+	// Render rewrites the line for the resolved candidate, returning the new line
+	// and whether it changed. It errors rather than reporting a silent no-op when
+	// the candidate lacks a field it needs or the located span no longer fits.
+	Render(line string, candidate model.Candidate) (string, bool, error)
+}
+
+// SecurePin is the optional capability of a [Location] whose target pins a secure
+// value beside the version - an action commit SHA or an image content digest.
+// Pinned reports the value currently on the line, so a run can cross-check it
+// against the value the resolved tag reports and catch a committed pin that no
+// longer matches upstream.
+type SecurePin interface {
+	Pinned() string
+}
+
+// Renderer is the optional capability of a [Location] that can report the exact
+// version text it will write for a candidate, which may differ from the
+// candidate's raw version once restyled (a stripped variant, a re-precisioned or
+// re-prefixed core). The pipeline resolves a digest for this text rather than the
+// raw candidate, so a pinned image's digest always describes the tag written.
+type Renderer interface {
+	Rendered(candidate model.Candidate) string
+}
+
+// anchored carries the Current/Semver anchors every Location exposes; a concrete
+// located embeds it, adds its own spans, and overrides Render (and NeedsDigest
+// when it rewrites a digest).
+type anchored struct {
+	raw    string
+	semver *version.Version
+}
+
+func (a anchored) Current() string          { return a.raw }
+func (a anchored) Semver() *version.Version { return a.semver }
+func (a anchored) NeedsDigest() bool        { return false }
+
+// Context is what the dispatch table routes on: the file, the target line, the
+// marker's provider, and the follower value kind.
+type Context struct {
+	Path     string
+	Line     string
+	Provider string
+	Value    string
+}
+
+// conditions guards a route; every set field must match (AND). path uses a
+// doublestar (**-aware) glob - the right dialect for file paths, where **
+// spans directories - while lineMatch reuses the token pattern engine for the
+// target line's content. Both are optional; an empty field matches any.
+type conditions struct {
+	path      string
+	lineMatch *pattern.Pattern
+	provider  string
+	value     string
+}
+
+func (c conditions) match(ctx Context) bool {
+	switch {
+	case c.path != "" && !matchPath(c.path, ctx.Path):
+		return false
+	case c.lineMatch != nil && !c.lineMatch.Matches(ctx.Line):
+		return false
+	case c.provider != "" && c.provider != ctx.Provider:
+		return false
+	case c.value != "" && c.value != ctx.Value:
+		return false
+	default:
+		return true
+	}
+}
+
+// matchPath reports whether path matches the doublestar glob. A malformed glob
+// (only a programmer error for the built-in routes) never matches.
+func matchPath(glob, path string) bool {
+	ok, err := doublestar.Match(glob, path)
+	return err == nil && ok
+}
+
+// route pairs a guard with the rewriter to use when it matches.
+type route struct {
+	when conditions
+	rw   Rewriter
+}
+
+// routes is the ordered, first-match-wins dispatch table. Smart is the
+// empty-condition catch-all and must stay last. It is a curated built-in list,
+// not user configuration (yet).
+var routes = []route{
+	{
+		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z.
+		// The secure-pin *shape* - not the file path - selects the action-pin
+		// rewriter, so a pin in a composite action.yml or a reusable-workflow
+		// caller is updated in lockstep (SHA + version comment) wherever it
+		// lives, never half-updated to a comment that disagrees with its commit.
+		// A tag-pinned uses: (@v4, no SHA) carries no paired value, so it fails
+		// this guard and falls through to smart, which bumps the ref alone. The
+		// whitespace each side of uses: anchors it to a real list key (- uses: x),
+		// never a substring like reuses: or a bare uses: with no value.
+		when: conditions{
+			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
+			provider:  constant.ProviderGithub,
+		},
+		rw: NewActionPin(),
+	},
+	{
+		// A digest-pinned Dockerfile FROM; the @sha256 makes it a secure pin,
+		// so the docker-pin rewriter updates tag and digest together. Must
+		// precede the tag-only FROM route.
+		when: conditions{
+			path:      "**/{Dockerfile,Containerfile}*",
+			lineMatch: mustPattern("FROM *@sha256:*"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerPin(),
+	},
+	{
+		// A digest-pinned compose/Kubernetes image: mapping.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* image: *@sha256:*"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerPin(),
+	},
+	{
+		// A tag-only Dockerfile FROM instruction; the docker-tag rewriter
+		// anchors on the image reference so a registry :port or account id is
+		// never mistaken for the version.
+		when: conditions{
+			path:      "**/{Dockerfile,Containerfile}*",
+			lineMatch: mustPattern("FROM *"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerTag(),
+	},
+	{
+		// A tag-only compose/Kubernetes image: mapping. The leading and
+		// trailing spaces in the pattern avoid matching keys like customimage:.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* image: *"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerTag(),
+	},
+	{
+		// A follower projecting a commit or sha256 onto its own line; the hash
+		// rewriter swaps the existing hex token. Followers carry provider=follow,
+		// so this never collides with the provider-gated routes above.
+		when: conditions{value: constant.ValueCommit},
+		rw:   NewHash(),
+	},
+	{
+		when: conditions{value: constant.ValueSha256},
+		rw:   NewHash(),
+	},
+	{rw: NewSmart()},
+}
+
+// mustPattern compiles a built-in route pattern, panicking on a malformed one
+// since the patterns are constant literals that cannot fail at runtime.
+func mustPattern(raw string) *pattern.Pattern {
+	p, err := pattern.Compile(raw)
+	if err != nil {
+		panic(fmt.Sprintf("match: invalid built-in route pattern %q: %v", raw, err))
+	}
+	return p
+}
+
+// For selects the rewriter for a target line, walking the routes first-match-wins
+// and falling back to the smart rewriter.
+func For(ctx Context) Rewriter {
+	for _, r := range routes {
+		if r.when.match(ctx) {
+			return r.rw
+		}
+	}
+	return NewSmart()
+}
