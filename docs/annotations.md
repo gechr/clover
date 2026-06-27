@@ -34,13 +34,13 @@ Every annotation is a flat list of space-separated `key=value` pairs. The availa
 | Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                                                                      |
 | Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                                                                           |
 | Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                                                                         |
-| Matching      | `find`, `replace`, `skip`, `tags`                                                                                                                                                                                         |
+| Matching      | [`find`, `replace`](find-replace.md), `skip`, `tags`                                                                                                                                                                      |
 
 You rarely need most of them. Clover infers sensible patterns from the existing content of the target line, so a `provider` and a `repository` are usually enough.
 
 ## Matching the value
 
-By default Clover finds the version on the target line by inspecting its existing content and preserves that line's style - a leading `v`, the number of components, and recognized suffixes all stay as written. When the target needs an explicit pattern, set `find` (a glob with `<placeholders>`, or a `/regex/`) and `replace` (the template that renders the new line).
+By default Clover finds the version on the target line by inspecting its existing content and preserves that line's style - a leading `v`, the number of components, and recognized suffixes all stay as written. When the target is unusual enough that automatic matching can't pin the right region, or you want to rewrite more than the bare version, set [`find` and `replace`](find-replace.md) to take explicit control.
 
 ## Disabling and filtering
 

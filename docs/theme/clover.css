@@ -149,7 +149,8 @@
   background: rgba(210, 15, 57, 0.15);
 }
 .light :is(h1, h2, h3, h4, h5, h6) a code {
-  color: #4c4f69;
+  color: #14532d;
+  padding: 0 0.2em;
 }
 .light a code {
   color: #2f9e44;
@@ -342,7 +343,8 @@
   background: rgba(243, 139, 168, 0.15);
 }
 .dark :is(h1, h2, h3, h4, h5, h6) a code {
-  color: #cdd6f4;
+  color: #40a02b;
+  padding: 0 0.2em;
 }
 .dark a code {
   color: #a6e3a1;

@@ -127,8 +127,8 @@ func TestCapture(t *testing.T) {
 		{"version token", "<version>", "FROM nginx:1.27", []string{"version"}, "1.27"},
 		{
 			"literal context",
-			"catalyst-<version>-linux",
-			"x catalyst-1.2.3-linux y",
+			"toolkit-<version>-linux",
+			"x toolkit-1.2.3-linux y",
 			[]string{"version"},
 			"1.2.3",
 		},

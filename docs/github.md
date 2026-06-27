@@ -41,7 +41,7 @@ Anonymous requests work but are rate-limited, and private repositories need a to
 clover login
 ```
 
-## Pinning an action to a commit
+## Pinning an Action to a commit
 
 GitHub Actions are pinned to a full commit SHA, with the human-readable ref kept in a trailing comment. Clover keeps both halves of the pin in step - the commit SHA *and* the comment - so the comment can never drift away from the commit it names. A secure pin is recognized by its shape (`uses: owner/repo@<40-hex-sha>`), not its location, so a pin is kept fresh wherever it lives: a workflow, a composite `action.yml`, or a reusable-workflow caller.
 

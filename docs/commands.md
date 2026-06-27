@@ -31,10 +31,11 @@ clover run [options] [<path>…]
 | `--[no-]downgrade`       | Allow selecting versions older than the current one.                                    |
 | `--[no-]prerelease`      | Allow selecting [prerelease](prereleases.md) versions.                                  |
 | `-o, --output <output>`  | Output detail: `text` (default) or `wide`.                                              |
+| `--no-ignore`            | Scan files [`.gitignore`](ignoring.md) would exclude; VCS directories stay excluded.    |
 | `--config <path>`        | Path to a `.clover.yaml` [config](configuration.md) file.                               |
 | `--no-config`            | Do not load any `.clover.yaml` config.                                                  |
 
-With no paths, Clover scans the current directory. Pass files or directories to narrow the run.
+With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
 
 ## `lint`
 

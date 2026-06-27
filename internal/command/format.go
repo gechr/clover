@@ -16,9 +16,10 @@ import (
 // cmdFormat canonicalises directive comments. With --check it reports what would
 // change and exits non-zero without writing - the formatting CI gate.
 type cmdFormat struct {
-	Paths []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
-	Check bool     `            help:"Report directives that need formatting and exit non-zero (do not write)"                    clib:"terse='Check only'"`
-	Prune *bool    `            help:"Remove unknown keys instead of erroring on them"                                            clib:"terse='Prune unknown keys'"                  negatable:""`
+	Paths    []string `name:"path" help:"Files or directories to scan"                                             arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
+	Check    bool     `            help:"Report directives that need formatting and exit non-zero (do not write)"                     clib:"terse='Check only'"`
+	NoIgnore bool     `            help:"Scan files that .gitignore would exclude (VCS directories stay excluded)"                    clib:"terse='No ignore'"`
+	Prune    *bool    `            help:"Remove unknown keys instead of erroring on them"                                             clib:"terse='Prune unknown keys'"                  negatable:""`
 }
 
 // Help returns the detailed blurb shown in `clover format --help`.
@@ -38,6 +39,7 @@ func (c *cmdFormat) Run(configs *config.Resolver) error {
 		c.Prune,
 		configs,
 		pipeline.WithVersion(clive.Current()),
+		pipeline.WithNoIgnore(c.NoIgnore),
 	)
 	if err != nil {
 		return err

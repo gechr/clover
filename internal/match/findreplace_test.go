@@ -30,9 +30,9 @@ func TestFindReplaceRender(t *testing.T) {
 	}{
 		{
 			name: "glob in place preserves context",
-			find: "catalyst-<version>-linux", line: "FROM catalyst-1.2.3-linux AS build",
+			find: "toolkit-<version>-linux", line: "FROM toolkit-1.2.3-linux AS build",
 			candidate: cand(t, "1.5.0", ""),
-			want:      "FROM catalyst-1.5.0-linux AS build",
+			want:      "FROM toolkit-1.5.0-linux AS build",
 		},
 		{
 			name: "glob preserves a match-only hex",
@@ -86,7 +86,7 @@ func TestFindReplaceRender(t *testing.T) {
 func TestFindReplaceLocateNoMatch(t *testing.T) {
 	t.Parallel()
 
-	fr, err := match.NewFindReplace("catalyst-<version>", "")
+	fr, err := match.NewFindReplace("toolkit-<version>", "")
 	require.NoError(t, err)
 	_, err = fr.Locate("nothing here")
 	require.EqualError(t, err, "find pattern did not match the target line")

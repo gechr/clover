@@ -1,6 +1,11 @@
 [Home](home.md)
 
 - [Annotations](annotations.md)
+
+- [Find & replace](find-replace.md)
+
+- [Ignoring files & lines](ignoring.md)
+
 - [Configuration](configuration.md)
 
 - [Providers](providers.md)
@@ -16,7 +21,7 @@
   - [Prereleases](prereleases.md)
   - [Cooldown](cooldown.md)
 
-- [Floating refs & links]()
+- [Floating refs]()
   - [Tracking](tracking.md)
   - [Following](following.md)
   - [Checksums & digests](checksums.md)

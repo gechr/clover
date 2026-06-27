@@ -32,6 +32,7 @@ func TestScanIgnoreControls(t *testing.T) {
 			"z: 3\n",
 		// clover:ignore-file drops the whole file.
 		"whole.yaml": "# clover:ignore-file\n" +
+			"\n" +
 			"# clover: provider=github repository=whole/file\n" +
 			"w: 4\n",
 	})

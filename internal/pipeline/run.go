@@ -98,6 +98,7 @@ type settings struct {
 	downgrade      *bool
 	filter         tag.Filter
 	ignoreFiles    []string
+	noIgnore       bool
 	maxSize        int64
 	now            time.Time
 	prerelease     *bool
@@ -188,6 +189,12 @@ func WithIgnoreFiles(names ...string) Option {
 	return func(s *settings) { s.ignoreFiles = names }
 }
 
+// WithNoIgnore disables ignore-file pruning (.gitignore) so otherwise-ignored
+// files are scanned. VCS directories stay excluded.
+func WithNoIgnore(on bool) Option {
+	return func(s *settings) { s.noIgnore = on }
+}
+
 // Run scans roots for directives, resolves every marker it finds against its
 // provider (or the marker it follows), and renders the resolved version onto
 // each target line. It is the read-and-resolve keystone: it performs the file
@@ -264,7 +271,14 @@ func scanRoots(
 	set settings,
 ) (*vcs.Resolver, []scan.File, int, error) {
 	resolver := vcs.NewResolver()
-	matcher := ignore.New(resolver, ignore.WithFiles(set.ignoreFiles...))
+	var ignoreOpts []ignore.Option
+	switch {
+	case set.noIgnore:
+		ignoreOpts = append(ignoreOpts, ignore.WithDisabled())
+	case len(set.ignoreFiles) > 0:
+		ignoreOpts = append(ignoreOpts, ignore.WithFiles(set.ignoreFiles...))
+	}
+	matcher := ignore.New(resolver, ignoreOpts...)
 
 	scanOpts := []scan.Option{
 		scan.WithWorkers(set.workers),

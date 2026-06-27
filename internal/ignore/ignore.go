@@ -21,6 +21,7 @@ var defaultFiles = []string{".gitignore"}
 type Matcher struct {
 	resolver *vcs.Resolver
 	files    []string
+	disabled bool
 
 	mu    sync.Mutex
 	cache map[string][]pattern
@@ -33,6 +34,13 @@ type Option func(*Matcher)
 // first (default: .gitignore). This is the seam for a future .cloverignore.
 func WithFiles(names ...string) Option {
 	return func(m *Matcher) { m.files = names }
+}
+
+// WithDisabled turns the matcher into a no-op that ignores nothing, for
+// --no-ignore. VCS directories are pruned by the walker, not here, so they stay
+// excluded regardless.
+func WithDisabled() Option {
+	return func(m *Matcher) { m.disabled = true }
 }
 
 // New returns a matcher that resolves repository roots through resolver.
@@ -49,6 +57,9 @@ func New(resolver *vcs.Resolver, opts ...Option) *Matcher {
 // files from the repository root down to the path's directory are applied in
 // order, the last matching pattern deciding - matching git, including negation.
 func (m *Matcher) Ignore(path string, isDir bool) bool {
+	if m.disabled {
+		return false
+	}
 	root := m.resolver.Root(path)
 	if root == "" {
 		return false
