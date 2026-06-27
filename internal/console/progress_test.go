@@ -43,7 +43,7 @@ func TestReporterDiscovered(t *testing.T) {
 	t.Run("none", func(t *testing.T) {
 		var buf bytes.Buffer
 		console.New(context.Background(), clog.NewWriter(&buf)).Discovered(10, 0, 0)
-		require.Equal(t, "WRN 🫥 No Clover comments found scanned=10\n", buf.String())
+		require.Equal(t, "WRN 🫠 No Clover comments found scanned=10\n", buf.String())
 	})
 }
 

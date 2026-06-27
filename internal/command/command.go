@@ -204,7 +204,7 @@ func newGenerator(flags []complete.FlagMeta) *complete.Generator {
 func launch() {
 	event := clog.Info().Symbol("🍀")
 	if v := version.RemovePrefix(clive.Current()); v != "" {
-		event = event.Str(field.Version, v)
+		event = event.Link(field.Version, clive.Info{Module: module}.VersionURL(v), v)
 	}
 	event.Msg("Launching Clover")
 }
