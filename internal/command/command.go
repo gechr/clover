@@ -82,7 +82,7 @@ func Run() int {
 			help.NewRenderer(
 				theme.Auto(),
 				//nolint:mnd // self-explanatory
-				help.WithMaxWidth(80),
+				help.WithDescriptionWidth(80),
 			),
 			clib.NodeSectionsFunc(),
 			help.WithHelpFlags("Print short help", "Print long help"),
@@ -233,7 +233,7 @@ func tagFilter(tags []string) (tag.Filter, error) {
 		return tag.Filter{}, err
 	}
 	if !filter.Empty() {
-		clog.Info().Str(field.Tags, filter.String()).Msg("Filtering by tags")
+		clog.Info().Symbol("🏷️").Str(field.Tags, filter.String()).Msg("Filtering by tags")
 	}
 	return filter, nil
 }

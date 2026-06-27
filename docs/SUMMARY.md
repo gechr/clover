@@ -4,7 +4,7 @@
 
 - [Find & replace](find-replace.md)
 
-- [Ignoring files & lines](ignoring.md)
+- [Ignoring files & lines](ignore.md)
 
 - [Configuration](configuration.md)
 

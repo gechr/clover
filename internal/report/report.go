@@ -98,19 +98,26 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
 		case detail == output.Wide:
-			logger.Info().Line(field.Location, r.Marker.File, line(r)).Msg("OK")
+			logger.Info().Symbol("✅").Line(field.Location, r.Marker.File, line(r)).Msg("Valid")
 		}
 	})
 
 	logger.Info().
+		Symbol("🏁").
 		Int(field.Errored, summary.Errored()).
 		Int(field.Skipped, summary.Skipped()).
 		Msg("Lint complete")
 }
 
-// Format renders the directives that were (or, when checking, would be)
-// reformatted, then a closing summary at the Dry level under --check.
-func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
+// Format renders the directives that were (or, when not writing, would be)
+// reformatted, then a closing summary. A written line reads "Formatted" (✨);
+// with dry set - under --check or --dry-run - nothing is written, so each line
+// reads "Would format" and both it and the summary log at the Dry level.
+func Format(logger *clog.Logger, summary mode.FormatSummary, dry bool) {
+	msg := "Formatted"
+	if dry {
+		msg = "Would format"
+	}
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
 			for _, key := range change.Pruned {
@@ -119,14 +126,18 @@ func Format(logger *clog.Logger, summary mode.FormatSummary, check bool) {
 					Str(field.Key, key).
 					Msg("Pruned unknown key")
 			}
-			logger.Info().Line(field.Location, file.Path, change.Line+1).Msg("Formatted")
+			event := summarize(logger, dry).Line(field.Location, file.Path, change.Line+1)
+			if !dry {
+				event = event.Symbol("✨")
+			}
+			event.Msg(msg)
 		}
 		for _, e := range file.Errors {
 			logger.Error().Line(field.Location, file.Path, e.Line+1).Err(e.Err).Msg("Invalid")
 		}
 	}
 
-	summarize(logger, check).Int(field.Changed, summary.Changed()).Msg("Format complete")
+	summarize(logger, dry).Symbol("🏁").Int(field.Changed, summary.Changed()).Msg("Format complete")
 }
 
 // GitHub writes each actionable result as a GitHub Actions annotation, so a run

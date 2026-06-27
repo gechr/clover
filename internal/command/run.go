@@ -66,7 +66,7 @@ func (c *cmdRun) Run(configs *config.Resolver) error {
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
 	// a verify-implied deep proceed without prompting, like --verify.
 	if enabled(c.Deep) && !confirmDeep(c.Yes) {
-		clog.Info().Msg("Deep lookup cancelled")
+		clog.Info().Symbol("🛑").Msg("Deep lookup cancelled")
 		return nil
 	}
 

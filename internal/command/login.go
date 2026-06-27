@@ -40,7 +40,7 @@ func (c *cmdLogin) Run() error {
 		return err
 	}
 
-	clog.Info().Str(field.Provider, constant.ProviderGithub).Msg("Authenticated")
+	clog.Info().Symbol("🔑").Str(field.Provider, constant.ProviderGithub).Msg("Authenticated")
 	return nil
 }
 

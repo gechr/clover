@@ -22,18 +22,18 @@ Resolve every annotation and rewrite its target line.
 clover run [options] [<path>…]
 ```
 
-| Option                   | Description                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------- |
-| `-t, --tag <tag>`        | Only process directives matching these tags.                                            |
-| `-n, --dry-run`          | Resolve and render but write nothing.                                                   |
-| `--deep`                 | Follow pagination to fetch every version - more accurate, but slower and more requests. |
-| `-y, --yes`              | Proceed without confirming a deep lookup.                                               |
-| `--[no-]downgrade`       | Allow selecting versions older than the current one.                                    |
-| `--[no-]prerelease`      | Allow selecting [prerelease](prereleases.md) versions.                                  |
-| `-o, --output <output>`  | Output detail: `text` (default) or `wide`.                                              |
-| `--no-ignore`            | Scan files [`.gitignore`](ignoring.md) would exclude; VCS directories stay excluded.    |
-| `--config <path>`        | Path to a `.clover.yaml` [config](configuration.md) file.                               |
-| `--no-config`            | Do not load any `.clover.yaml` config.                                                  |
+| Option                  | Description                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| `-t, --tag <tag>`       | Only process directives matching these tags.                                            |
+| `-n, --dry-run`         | Resolve and render but write nothing.                                                   |
+| `--deep`                | Follow pagination to fetch every version - more accurate, but slower and more requests. |
+| `-y, --yes`             | Proceed without confirming a deep lookup.                                               |
+| `--[no-]downgrade`      | Allow selecting versions older than the current one.                                    |
+| `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions.                                  |
+| `-o, --output <output>` | Output detail: `text` (default) or `wide`.                                              |
+| `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded.      |
+| `--config <path>`       | Path to a `.clover.yaml` [config](configuration.md) file.                               |
+| `--no-config`           | Do not load any `.clover.yaml` config.                                                  |
 
 With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
 
@@ -52,6 +52,17 @@ Rewrite directive comments into canonical form and key order, migrating deprecat
 ```text
 clover format [options] [<path>…]
 ```
+
+| Option            | Description                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `--check`         | Report directives that need formatting and exit non-zero without writing.          |
+| `-n, --dry-run`   | Report what would be reformatted without writing.                                  |
+| `--[no-]prune`    | Remove unknown keys instead of erroring on them.                                   |
+| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded. |
+| `--config <path>` | Path to a `.clover.yaml` [config](configuration.md) file.                          |
+| `--no-config`     | Do not load any `.clover.yaml` config.                                             |
+
+`--check` is the CI gate; `--dry-run` previews the same rewrites but exits zero.
 
 ## `login`
 

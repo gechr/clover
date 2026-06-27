@@ -71,13 +71,13 @@ func (s FormatSummary) OK() bool { return s.Changed() == 0 && s.Errored() == 0 }
 // Format canonicalises every directive comment under roots - reordering keys
 // into their canonical sequence and normalising quoting - without resolving or
 // touching the version. It only ever rewrites the comment, never the target
-// line, and is idempotent. With check set it reports what would change and
-// writes nothing, the read-only CI gate; otherwise it rewrites each changed file
-// atomically.
+// line, and is idempotent. With dry set it reports what would change and writes
+// nothing, the read-only path shared by --check and --dry-run; otherwise it
+// rewrites each changed file atomically.
 func Format(
 	ctx context.Context,
 	roots []string,
-	check bool,
+	dry bool,
 	cliPrune *bool,
 	configs *config.Resolver,
 	opts ...pipeline.Option,
@@ -102,7 +102,7 @@ func Format(
 	out := make([]FormatFile, 0, len(files))
 	for _, file := range files {
 		formatted := formatFile(file, prune)
-		if len(formatted.Changes) > 0 && !check {
+		if len(formatted.Changes) > 0 && !dry {
 			lines := applyChanges(file.Lines, formatted.Changes)
 			if err := writeFile(file.Path, lines); err != nil {
 				formatted.WriteErr = err

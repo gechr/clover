@@ -186,8 +186,8 @@ func TestFormatUsesFullPathForHyperlink(t *testing.T) {
 	report.Format(clog.NewWriter(&buf), fs, false)
 
 	require.Equal(t,
-		"INF ℹ️ Formatted location=dir/app.txt:5\n"+
-			"INF ℹ️ Format complete changed=1\n",
+		"INF ✨ Formatted location=dir/app.txt:5\n"+
+			"INF 🏁 Format complete changed=1\n",
 		buf.String(),
 	)
 }
@@ -201,7 +201,7 @@ func TestLint(t *testing.T) {
 
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
-			"INF ℹ️ Lint complete errored=1 skipped=0\n",
+			"INF 🏁 Lint complete errored=1 skipped=0\n",
 		buf.String(),
 	)
 }
@@ -235,8 +235,8 @@ func TestLintWideReportsValid(t *testing.T) {
 
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
-			"INF ℹ️ OK location=b.txt:2\n"+
-			"INF ℹ️ Lint complete errored=1 skipped=0\n",
+			"INF ✅ Valid location=b.txt:2\n"+
+			"INF 🏁 Lint complete errored=1 skipped=0\n",
 		buf.String(),
 	)
 }
@@ -250,8 +250,8 @@ func TestFormatCheckLogsAtDryLevel(t *testing.T) {
 	report.Format(clog.NewWriter(&buf), fs, true)
 
 	require.Equal(t,
-		"INF ℹ️ Formatted location=d/app.txt:1\n"+
-			"DRY 🚧 Format complete changed=1\n",
+		"DRY 🚧 Would format location=d/app.txt:1\n"+
+			"DRY 🏁 Format complete changed=1\n",
 		buf.String(),
 	)
 }
