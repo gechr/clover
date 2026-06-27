@@ -25,11 +25,12 @@ type entry struct {
 	file string
 }
 
-// Fetch downloads the checksum file at rawURL (with {version} substituted) and
+// Fetch downloads the checksum file at rawURL (with <version> expanded) and
 // returns the sha256 for the asset matching pat. An empty pat is allowed only
 // when the file holds a single entry.
 func Fetch(ctx context.Context, client *http.Client, rawURL, version, pat string) (string, error) {
-	url := strings.ReplaceAll(rawURL, "{version}", version)
+	//nolint:exhaustive // a substitution map supplies only the tokens it has a value for.
+	url := pattern.Expand(rawURL, pattern.TokenMap{pattern.TokenVersion: version})
 	data, err := fetchBody(ctx, client, url, maxSize)
 	if err != nil {
 		return "", err

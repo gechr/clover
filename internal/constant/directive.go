@@ -28,7 +28,7 @@ const (
 
 	DirectivePattern      = "pattern"       // asset filename glob for value=sha256
 	DirectiveSha256Source = "sha256-source" // how to source a value=sha256 (see constant/value.go)
-	DirectiveSha256URL    = "sha256-url"    // checksum-file URL (templated with {version}) for value=sha256
+	DirectiveSha256URL    = "sha256-url"    // checksum-file URL (templated with <version>) for value=sha256
 )
 
 // TrackInfer is the track= value that infers the floating ref from the target

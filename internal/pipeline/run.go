@@ -1122,7 +1122,7 @@ func followerCandidate(value, resolved string) model.Candidate {
 
 // followValue computes a follower's value: version and commit are projected from
 // the producer's candidate, while sha256 is fetched from the producer version's
-// checksum file (tier one: an explicit sha256-url, templated with {version}).
+// checksum file (tier one: an explicit sha256-url, templated with <version>).
 func (p *plan) followValue(ctx context.Context, m Marker) (string, error) {
 	if m.Value != constant.ValueSha256 {
 		return follow.Resolve(p.registry, m.From, m.Value, m.Select)

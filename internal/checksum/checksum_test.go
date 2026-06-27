@@ -44,11 +44,11 @@ func TestFetchByPattern(t *testing.T) {
 	var gotURL string
 	client := server(t, body, &gotURL)
 	got, err := checksum.Fetch(t.Context(), client,
-		"https://host/v{version}/checksums.txt", "1.2.3", "*linux_amd64*")
+		"https://host/v<version>/checksums.txt", "1.2.3", "*linux_amd64*")
 	require.NoError(t, err)
 
 	require.Equal(t, sumB, got)
-	require.Equal(t, "https://host/v1.2.3/checksums.txt", gotURL, "{version} is substituted")
+	require.Equal(t, "https://host/v1.2.3/checksums.txt", gotURL, "<version> is substituted")
 }
 
 func TestFetchSingleEntryNeedsNoPattern(t *testing.T) {

@@ -94,11 +94,11 @@ func TestMatches(t *testing.T) {
 		// regex: empty pattern matches anything.
 		{name: "empty regex matches", raw: "//", subject: "anything", want: true},
 		// glob with a <token>: filters like a wildcard run (the monorepo case).
-		{name: "token matches", raw: "sg2-test/<version>", subject: "sg2-test/v1.7.19", want: true},
+		{name: "token matches", raw: "app-test/<version>", subject: "app-test/v1.7.19", want: true},
 		{
 			name:    "token rejects sibling",
-			raw:     "sg2-test/<version>",
-			subject: "sg2-fuzz/v0.1.2",
+			raw:     "app-test/<version>",
+			subject: "app-fuzz/v0.1.2",
 			want:    false,
 		},
 	}
@@ -121,30 +121,30 @@ func TestCapture(t *testing.T) {
 		name       string
 		glob       string
 		line       string
-		wantTokens []string
+		wantTokens pattern.Tokens
 		wantValue  string // text of capture group 1, "" when no match expected
 	}{
-		{"version token", "<version>", "FROM nginx:1.27", []string{"version"}, "1.27"},
+		{"version token", "<version>", "FROM nginx:1.27", pattern.Tokens{"version"}, "1.27"},
 		{
 			"literal context",
 			"toolkit-<version>-linux",
 			"x toolkit-1.2.3-linux y",
-			[]string{"version"},
+			pattern.Tokens{"version"},
 			"1.2.3",
 		},
 		{
 			"two tokens",
 			"<major.minor.patch>*<hex>.tgz",
 			"tool-1.2.3-deadbeef.tgz",
-			[]string{"major.minor.patch", "hex"},
+			pattern.Tokens{"major.minor.patch", "hex"},
 			"1.2.3",
 		},
-		{"dot is literal", "app.<major.minor>", "app.1.27", []string{"major.minor"}, "1.27"},
+		{"dot is literal", "app.<major.minor>", "app.1.27", pattern.Tokens{"major.minor"}, "1.27"},
 		{
 			"build metadata",
 			"img:<version>",
 			"img:1.2.3+build.5",
-			[]string{"version"},
+			pattern.Tokens{"version"},
 			"1.2.3+build.5",
 		},
 		{"no match", "<version>", "no version here", nil, ""},
@@ -209,7 +209,7 @@ func TestTokenBoundaries(t *testing.T) {
 	// Only the tight inner <version> is a token; the extra brackets are literal.
 	p, err := pattern.Compile("<<<<<version>>>>>>")
 	require.NoError(t, err)
-	require.Equal(t, []string{"version"}, p.Tokens())
+	require.Equal(t, pattern.Tokens{"version"}, p.Tokens())
 	require.True(t, p.Regexp().MatchString("<<<<1.2.3>>>>>"))
 
 	// A leading or trailing dot is not a token, so it stays literal text.
@@ -221,7 +221,8 @@ func TestTokenBoundaries(t *testing.T) {
 func TestExpand(t *testing.T) {
 	t.Parallel()
 
-	values := map[string]string{"version": "1.5.0", "commit": "abc123", "major.minor": "1.5"}
+	//nolint:exhaustive // a substitution map supplies only the tokens under test.
+	values := pattern.TokenMap{"version": "1.5.0", "commit": "abc123", "major.minor": "1.5"}
 	require.Equal(t, "@abc123 # 1.5.0", pattern.Expand("@<commit> # <version>", values))
 	require.Equal(t, "1.5", pattern.Expand("<major.minor>", values))
 	require.Equal(t, "<sha256>", pattern.Expand("<sha256>", values), "unprovided tokens stay")

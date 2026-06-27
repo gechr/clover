@@ -32,5 +32,5 @@ A side value is only refreshed when its version actually changed, so a checksum 
 
 Two keys refine `checksums`/`download`:
 
-- `sha256-url` - the checksum-file URL, templated with `{version}`.
+- `sha256-url` - the checksum-file URL, templated with `<version>`.
 - `pattern` - an asset filename glob selecting which asset to hash.

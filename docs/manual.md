@@ -33,7 +33,7 @@ ARG NGINX_VERSION=1.27.3
 image: nginx:1.27.3
 ```
 
-[Side values](checksums.md) work too: a follower can project a `sha256` for the manual version - sourced from a `sha256-url` templated with `{version}` - so a checksum tracks the hand-set version without a registry.
+[Side values](checksums.md) work too: a follower can project a `sha256` for the manual version - sourced from a `sha256-url` templated with `<version>` - so a checksum tracks the hand-set version without a registry.
 
 ## What it does not do
 

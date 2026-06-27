@@ -39,13 +39,13 @@ The index serves the whole release history in one response, so Clover always see
 
 ## Checksums
 
-Node.js publishes a `SHASUMS256.txt` file for every release at a predictable URL, so a [follower](checksums.md) can keep a checksum in lockstep with the version by templating [`sha256-url`](checksums.md#sourcing-a-sha256) with `{version}` and selecting the artifact with `pattern`:
+Node.js publishes a `SHASUMS256.txt` file for every release at a predictable URL, so a [follower](checksums.md) can keep a checksum in lockstep with the version by templating [`sha256-url`](checksums.md#sourcing-a-sha256) with `<version>` and selecting the artifact with `pattern`:
 
 ```yaml
 # clover: provider=node id=node constraint=minor
 node_version: 24.18.0
 
-# clover: from=node value=sha256 sha256-url=https://nodejs.org/dist/v{version}/SHASUMS256.txt pattern=node-*-linux-x64.tar.xz
+# clover: from=node value=sha256 sha256-url=https://nodejs.org/dist/v<version>/SHASUMS256.txt pattern=node-<version>-linux-x64.tar.xz
 node_sha256: 0000000000000000000000000000000000000000000000000000000000000000
 ```
 

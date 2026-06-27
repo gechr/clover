@@ -17,18 +17,45 @@ const (
 	KindRegex             // RE2, unanchored (substring); bound with ^ and $
 )
 
+// Token is the name of a <placeholder> the grammar recognizes, e.g. <version>.
+type Token string
+
+// Token names the grammar recognizes - the keys of matchRegex, the names a find
+// captures, and the keys Expand substitutes. They are the single source of truth
+// for the vocabulary, shared by the match and checksum packages so a token name
+// is never spelled as a literal.
+const (
+	TokenCommit          Token = "commit"
+	TokenHex             Token = "hex"
+	TokenMajor           Token = "major"
+	TokenMajorMinor      Token = "major.minor"
+	TokenMajorMinorPatch Token = "major.minor.patch"
+	TokenMinor           Token = "minor"
+	TokenPatch           Token = "patch"
+	TokenSHA256          Token = "sha256"
+	TokenVersion         Token = "version"
+)
+
+// Tokens is an ordered list of token names, as a glob find captures them.
+type Tokens []Token
+
+// TokenMap maps a token to a substitution value, the input to Expand.
+type TokenMap map[Token]string
+
 // matchRegex maps a token to the regex it matches inside a glob. hex is
 // match-only (no rendered value); the rest can also render.
-var matchRegex = map[string]string{
-	"version":           `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?(?:\+[0-9A-Za-z.-]+)?`,
-	"major":             `\d+`,
-	"minor":             `\d+`,
-	"patch":             `\d+`,
-	"major.minor":       `\d+\.\d+`,
-	"major.minor.patch": `\d+\.\d+\.\d+`,
-	"commit":            `[0-9a-fA-F]{40}`,
-	"sha256":            `[0-9a-fA-F]{64}`,
-	"hex":               `[0-9a-fA-F]+`,
+//
+//nolint:gosec // G101 false positive: a token name, not a hardcoded credential.
+var matchRegex = TokenMap{
+	TokenCommit:          `[0-9a-fA-F]{40}`,
+	TokenHex:             `[0-9a-fA-F]+`,
+	TokenMajor:           `\d+`,
+	TokenMajorMinor:      `\d+\.\d+`,
+	TokenMajorMinorPatch: `\d+\.\d+\.\d+`,
+	TokenMinor:           `\d+`,
+	TokenPatch:           `\d+`,
+	TokenSHA256:          `[0-9a-fA-F]{64}`,
+	TokenVersion:         `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?(?:\+[0-9A-Za-z.-]+)?`,
 }
 
 // token matches a <placeholder>: dot-separated alphanumeric segments, so a dot
@@ -44,7 +71,7 @@ type Pattern struct {
 	raw    string
 	glob   glob.Glob      // whole-string matcher (KindGlob)
 	re     *regexp.Regexp // unanchored: /regex/ (KindRegex), else the glob's capture regex
-	tokens []string       // capture-group token names in order; nil for KindRegex
+	tokens Tokens         // capture-group token names in order; nil for KindRegex
 }
 
 // Compile parses a pattern value. A value bracketed by / is compiled as an
@@ -65,7 +92,7 @@ func Compile(raw string) (*Pattern, error) {
 		return nil, err
 	}
 	// The whole-string matcher reads each <token> as a run of any character, so a
-	// token-bearing glob still filters (sg2-test/<version> matches sg2-test/v1).
+	// token-bearing glob still filters (app-test/<version> matches app-test/v1).
 	g, err := glob.Compile(token.ReplaceAllString(raw, "*"))
 	if err != nil {
 		return nil, fmt.Errorf("compile glob pattern %q: %w", raw, err)
@@ -77,15 +104,15 @@ func Compile(raw string) (*Pattern, error) {
 // it captures, one per group in order. A <token> becomes a capturing group of
 // its shape; * matches any run, ? any char, everything else is literal. An
 // unknown <token> is an error.
-func compileGlob(raw string) (*regexp.Regexp, []string, error) {
+func compileGlob(raw string) (*regexp.Regexp, Tokens, error) {
 	var (
 		b      strings.Builder
-		tokens []string
+		tokens Tokens
 	)
 	last := 0
 	for _, loc := range token.FindAllStringIndex(raw, -1) {
 		writeGlob(&b, raw[last:loc[0]])
-		name := raw[loc[0]+1 : loc[1]-1]
+		name := Token(raw[loc[0]+1 : loc[1]-1])
 		re, ok := matchRegex[name]
 		if !ok {
 			return nil, nil, fmt.Errorf("pattern: unknown token <%s>", name)
@@ -136,7 +163,7 @@ func (p *Pattern) Matches(s string) bool {
 func (p *Pattern) Regexp() *regexp.Regexp { return p.re }
 
 // Tokens returns the capture-group token names in order, or nil for a /regex/.
-func (p *Pattern) Tokens() []string { return p.tokens }
+func (p *Pattern) Tokens() Tokens { return p.tokens }
 
 // Kind reports which dialect the pattern was compiled as.
 func (p *Pattern) Kind() Kind { return p.kind }
@@ -146,9 +173,9 @@ func (p *Pattern) String() string { return p.raw }
 
 // Expand fills a replace template, substituting each provided token for its
 // value and leaving the rest untouched.
-func Expand(template string, values map[string]string) string {
+func Expand(template string, values TokenMap) string {
 	return token.ReplaceAllStringFunc(template, func(t string) string {
-		if v, ok := values[t[1:len(t)-1]]; ok {
+		if v, ok := values[Token(t[1:len(t)-1])]; ok {
 			return v
 		}
 		return t

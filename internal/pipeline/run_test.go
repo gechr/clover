@@ -534,7 +534,7 @@ func TestRunResolvesSha256Follower(t *testing.T) {
 		"versions.env": "# clover: provider=fake id=tool repository=x/y\n" +
 			"VERSION=1.0.0\n" +
 			"# clover: from=tool value=sha256 sha256-url=" + srv.URL +
-			"/v{version}/checksums.txt pattern=*linux_amd64*\n" +
+			"/v<version>/checksums.txt pattern=*linux_amd64*\n" +
 			"SHA256=" + old + "\n",
 	})
 
@@ -554,7 +554,7 @@ func TestRunResolvesSha256Follower(t *testing.T) {
 		follower.NewLine,
 		"the follower fetched the producer version's sha256",
 	)
-	require.Equal(t, "/v1.2.0/checksums.txt", gotPath, "{version} is the bare producer version")
+	require.Equal(t, "/v1.2.0/checksums.txt", gotPath, "<version> is the bare producer version")
 }
 
 func TestRunResolvesSha256FromAssetDigest(t *testing.T) {

@@ -22,8 +22,8 @@ import (
 // captured, so a match-only <hex> is preserved.
 type FindReplace struct {
 	find    *regexp.Regexp
-	tokens  []string // capture-group token names; nil in regex mode
 	replace string
+	tokens  pattern.Tokens // capture-group token names; nil in regex mode
 }
 
 // NewFindReplace compiles a find/replace pair through the shared pattern grammar:
@@ -96,8 +96,14 @@ func (fr FindReplace) anchor(m []int, end int) int {
 // or 0 when there is none (a commit- or hex-only find has no semver anchor).
 func (fr FindReplace) versionGroup() int {
 	for i, t := range fr.tokens {
+		//nolint:exhaustive // version-family subset; other tokens intentionally fall through.
 		switch t {
-		case "version", "major", "minor", "patch", "major.minor", "major.minor.patch":
+		case pattern.TokenVersion,
+			pattern.TokenMajor,
+			pattern.TokenMinor,
+			pattern.TokenPatch,
+			pattern.TokenMajorMinor,
+			pattern.TokenMajorMinorPatch:
 			return i + 1
 		}
 	}
@@ -149,7 +155,7 @@ func (fr FindReplace) values(
 	m []int,
 	raw string,
 	candidate model.Candidate,
-) map[string]string {
+) pattern.TokenMap {
 	vals := resolved(raw, candidate)
 	for i, t := range fr.tokens {
 		if _, ok := vals[t]; ok {
@@ -164,25 +170,26 @@ func (fr FindReplace) values(
 
 // resolved is the map of tokens clover computes from the candidate, styling
 // <version> to the located value.
-func resolved(located string, candidate model.Candidate) map[string]string {
-	vals := map[string]string{"version": restyle(decompose(located), candidate.Version)}
+func resolved(located string, candidate model.Candidate) pattern.TokenMap {
+	//nolint:exhaustive // built incrementally below; only the computable tokens are set.
+	vals := pattern.TokenMap{pattern.TokenVersion: restyle(decompose(located), candidate.Version)}
 	if seg := segments(candidate.Semver); seg != nil {
-		vals["major"], vals["minor"], vals["patch"] = seg[0], seg[1], seg[2]
-		vals["major.minor"] = seg[0] + "." + seg[1]
-		vals["major.minor.patch"] = strings.Join(seg, ".")
+		vals[pattern.TokenMajor], vals[pattern.TokenMinor], vals[pattern.TokenPatch] = seg[0], seg[1], seg[2]
+		vals[pattern.TokenMajorMinor] = seg[0] + "." + seg[1]
+		vals[pattern.TokenMajorMinorPatch] = strings.Join(seg, ".")
 	}
 	if candidate.Commit != "" {
-		vals["commit"] = candidate.Commit
+		vals[pattern.TokenCommit] = candidate.Commit
 	}
 	if d, ok := strings.CutPrefix(candidate.Digest, constant.DigestSha256); ok {
-		vals["sha256"] = d
+		vals[pattern.TokenSHA256] = d
 	}
 	return vals
 }
 
 // tokenValue is the resolved value for an in-place token, styling <version> to
 // the captured text, or the captured text itself when nothing is resolved.
-func tokenValue(t, captured string, candidate model.Candidate) string {
+func tokenValue(t pattern.Token, captured string, candidate model.Candidate) string {
 	if v, ok := resolved(captured, candidate)[t]; ok {
 		return v
 	}
