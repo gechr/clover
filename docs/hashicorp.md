@@ -54,4 +54,4 @@ terraform_version: 1.9.8
 terraform_sha256: 0000000000000000000000000000000000000000000000000000000000000000
 ```
 
-The same follower works for a `build=` flavor: `<version>` resolves to the full value, so the `+ent.hsm.fips1403` suffix is substituted into the `SHA256SUMS` URL and matched by the `<version>` glob token in `pattern`. The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step.
+The same follower works for a `build=` flavor: `<version>` resolves to the full value, so the `+ent.hsm.fips1403` suffix is substituted into the `SHA256SUMS` URL and matched by the `<version>` glob token in `pattern`. The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step - a digest that was once pinned never moves on its own. Pass `--force` (or set `run.force`) to deliberately re-pin it when an unchanged version's artifact was legitimately re-published.

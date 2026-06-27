@@ -104,6 +104,7 @@ type settings struct {
 	deep           *bool
 	downgrade      *bool
 	filter         tag.Filter
+	force          *bool
 	ignoreFiles    []string
 	noIgnore       bool
 	maxSize        int64
@@ -166,6 +167,13 @@ func WithPrerelease(allow *bool) Option {
 // hit rate limits. A non-nil value forces it on or off run-wide; nil leaves each
 // root's run.deep (and a verify-implied deep) in force. The default is shallow.
 func WithDeep(deep *bool) Option { return func(s *settings) { s.deep = deep } }
+
+// WithForce overrides the per-root run.force default for every marker. When in
+// force, a followed digest (sha256 or commit) is re-pinned even if the version
+// it follows is unchanged, so a re-published artifact's new digest is adopted.
+// nil leaves each root's run.force in force; the default holds an unchanged
+// version's digest, so a pin never moves on its own.
+func WithForce(force *bool) Option { return func(s *settings) { s.force = force } }
 
 // WithTruncationSink sets a callback invoked with a truncated resource (its
 // label and upstream page) when a shallow lookup stopped with more results
@@ -442,6 +450,7 @@ type plan struct {
 	downgrade      *bool
 	checksumClient *http.Client
 	deep           *bool
+	force          *bool
 	lines          map[string][]string
 	markers        []Marker
 	now            time.Time
@@ -483,6 +492,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		downgrade:      set.downgrade,
 		checksumClient: httpcache.New(),
 		deep:           set.deep,
+		force:          set.force,
 		lines:          lines,
 		markers:        markers,
 		now:            set.now,
@@ -1079,12 +1089,21 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 		}
 	}
 
-	resolved, err := p.followValue(ctx, m)
+	// Locate first so the held-digest guard can read the value already on the
+	// line before deciding whether a network fetch is even warranted.
+	line, located, err := p.locate(m)
 	if err != nil {
 		return err
 	}
 
-	line, located, err := p.locate(m)
+	// Security guard: a followed digest is held in place while the version it
+	// follows is unchanged, so a re-published artifact can never move a pin on its
+	// own. --force (or run.force) re-pins deliberately.
+	if p.heldDigest(m, located) && !p.forceFor(m) {
+		return p.holdFollower(i, m, line, located)
+	}
+
+	resolved, err := p.followValue(ctx, m)
 	if err != nil {
 		return err
 	}
@@ -1102,6 +1121,75 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	// commit or sha256. The candidate is typed by the follower's value so a
 	// find/replace template's <commit>/<sha256>/<major.minor> tokens resolve.
 	return p.render(i, line, located, followerCandidate(m.Value, resolved))
+}
+
+// heldDigest reports whether follower m resolves a digest (sha256 or commit)
+// that must not move: its value kind is a cryptographic pin, the version it
+// follows is unchanged, and a digest is already on the line. An anchored
+// (manual) producer is exempt - its Old==New holds even across a human's edit,
+// so the guard would otherwise freeze a deliberate manual version bump.
+func (p *plan) heldDigest(m Marker, located match.Location) bool {
+	if m.Value != constant.ValueSha256 && m.Value != constant.ValueCommit {
+		return false
+	}
+	// An empty or all-zero line carries no pin to protect (the conventional
+	// 000... placeholder of an unbootstrapped digest): let it populate.
+	if unpinnedDigest(located.Current()) {
+		return false
+	}
+	if p.producerAnchored(m.From) {
+		return false
+	}
+	entry, ok := p.registry.Get(m.From)
+	return ok && entry.Old.Version != "" &&
+		cversion.EqualString(entry.Old.Version, entry.New.Version)
+}
+
+// holdFollower records follower m as up to date without re-fetching: the line
+// keeps its current digest, the producer entry is republished so any chain stays
+// consistent, and the result reports the held value as a clean no-op.
+func (p *plan) holdFollower(i int, m Marker, line string, located match.Location) error {
+	if m.ID != "" {
+		if entry, ok := p.registry.Get(m.From); ok {
+			p.registry.Set(m.ID, entry)
+		}
+	}
+	current := located.Current()
+	p.results[i].Current = current
+	p.results[i].Resolved = current
+	p.results[i].Written = current
+	p.results[i].NewLine = line
+	p.results[i].Changed = false
+	clog.Debug().
+		Str(field.Version, current).
+		Msg("Held digest - version unchanged; pass --force to re-pin")
+	return nil
+}
+
+// unpinnedDigest reports whether s is an empty or all-zero digest - the
+// conventional placeholder for a value not yet pinned, which carries nothing to
+// protect and so always populates.
+func unpinnedDigest(s string) bool {
+	return s == "" || strings.Trim(s, "0") == ""
+}
+
+// producerAnchored reports whether the producer named by from is a line-anchored
+// (manual) provider. Such a producer publishes Old==New unconditionally, so the
+// held-digest guard must skip it or a manual version bump would never re-pin.
+func (p *plan) producerAnchored(from string) bool {
+	for _, m := range p.markers {
+		if m.ID == from {
+			return m.Provider == constant.ProviderManual
+		}
+	}
+	return false
+}
+
+// forceFor reports whether followed digests are re-pinned for marker m even when
+// their version is unchanged: the --force override wins, else the root's
+// run.force. The default holds an unchanged version's digest.
+func (p *plan) forceFor(m Marker) bool {
+	return truthy(cmp.Or(p.force, p.configFor(m.File).Force()))
 }
 
 // followerCandidate wraps a follower's resolved value in a Candidate typed by the

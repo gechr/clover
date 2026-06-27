@@ -1,5 +1,7 @@
 [Home](home.md)
 
+- [Concepts](concepts.md)
+
 - [Annotations](annotations.md)
 
 - [Find & replace](find-replace.md)

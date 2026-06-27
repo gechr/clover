@@ -36,6 +36,7 @@ type cmdRun struct {
 	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                    clib:"terse='Assume yes'"                         short:"y"`
 	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                         clib:"terse='Allow downgrades'"                                                                negatable:""`
 	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                         clib:"terse='Allow prereleases'"                                                               negatable:""`
+	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                      clib:"terse='Force re-pin'"                                                                    negatable:""`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
 	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail'\"                      short:\"o\"                                                                enum:\"text,wide,github\""
 }
@@ -92,6 +93,7 @@ func (c *cmdRun) Run(configs *config.Resolver) error {
 		}),
 		pipeline.WithDowngrade(c.Downgrade),
 		pipeline.WithPrerelease(c.Prerelease),
+		pipeline.WithForce(c.Force),
 		pipeline.WithVerify(c.Verify),
 		pipeline.WithNoIgnore(c.NoIgnore),
 	)

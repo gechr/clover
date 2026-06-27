@@ -47,6 +47,10 @@
           "type": "boolean",
           "description": "Follow pagination to fetch every version by default (more accurate, but slower)."
         },
+        "force": {
+          "type": "boolean",
+          "description": "Re-pin a followed digest even when the version it follows is unchanged."
+        },
         "output": { "$ref": "#/$defs/output" }
       }
     },

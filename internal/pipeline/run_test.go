@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/manual"
 	"github.com/gechr/clover/internal/version"
 	"github.com/stretchr/testify/require"
 )
@@ -523,7 +524,7 @@ func TestRunResolvesSha256Follower(t *testing.T) {
 		_, _ = io.WriteString(w, sum+"  tool_1.2.0_linux_amd64.tar.gz\n"+
 			strings.Repeat("f", 64)+"  tool_1.2.0_windows.zip\n")
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	provider.Register(
 		fakeProvider{name: "fake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
@@ -555,6 +556,182 @@ func TestRunResolvesSha256Follower(t *testing.T) {
 		"the follower fetched the producer version's sha256",
 	)
 	require.Equal(t, "/v1.2.0/checksums.txt", gotPath, "<version> is the bare producer version")
+}
+
+// sha256FollowerEnv writes a producer pinned at version, followed by a sha256
+// side value already holding have, against a checksum server returning serve.
+// hit reports whether the server was reached.
+func sha256FollowerEnv(t *testing.T, version, have, serve string) (string, *bool) {
+	t.Helper()
+	reached := new(false)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		*reached = true
+		_, _ = io.WriteString(w, serve+"  tool_linux_amd64.tar.gz\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := write(t, map[string]string{
+		"versions.env": "# clover: provider=holdfake id=tool repository=x/y\n" +
+			"VERSION=" + version + "\n" +
+			"# clover: from=tool value=sha256 sha256-url=" + srv.URL +
+			"/v<version>/checksums.txt pattern=*linux_amd64*\n" +
+			"SHA256=" + have + "\n",
+	})
+	return dir, reached
+}
+
+// follower returns the SHA256= result from a single-file run.
+func sha256Result(t *testing.T, files []pipeline.FileResult) pipeline.Result {
+	t.Helper()
+	for _, r := range files[0].Results {
+		if strings.HasPrefix(r.NewLine, "SHA256=") {
+			return r
+		}
+	}
+	t.Fatal("no SHA256= follower result")
+	return pipeline.Result{}
+}
+
+func TestRunHoldsSha256WhenVersionUnchanged(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "holdfake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
+	)
+
+	old := strings.Repeat("a", 64)
+	dir, hit := sha256FollowerEnv(t, "1.2.0", old, strings.Repeat("b", 64))
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	follower := sha256Result(t, files)
+	require.NoError(t, follower.Err)
+	require.False(t, follower.Skipped, "the producer resolved, so the follower ran the hold path")
+	require.False(t, follower.Changed, "an unchanged version holds its pinned digest")
+	require.Equal(t, "SHA256="+old, follower.NewLine)
+	require.False(t, *hit, "the held digest is not even fetched")
+}
+
+func TestRunForceRepinsSha256WhenVersionUnchanged(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "holdfake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
+	)
+
+	old, moved := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	dir, hit := sha256FollowerEnv(t, "1.2.0", old, moved)
+
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithForce(new(true)))
+	require.NoError(t, err)
+
+	follower := sha256Result(t, files)
+	require.NoError(t, follower.Err)
+	require.True(t, follower.Changed, "--force re-pins even when the version is unchanged")
+	require.Equal(t, "SHA256="+moved, follower.NewLine)
+	require.True(t, *hit)
+}
+
+func TestRunPopulatesSha256PlaceholderWhenVersionUnchanged(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "holdfake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
+	)
+
+	sum := strings.Repeat("e", 64)
+	dir, _ := sha256FollowerEnv(t, "1.2.0", strings.Repeat("0", 64), sum)
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	follower := sha256Result(t, files)
+	require.NoError(t, follower.Err)
+	require.True(t, follower.Changed, "an all-zero placeholder is unpinned and populates")
+	require.Equal(t, "SHA256="+sum, follower.NewLine)
+}
+
+func TestRunHoldsSha256AcrossVersionPrefix(t *testing.T) {
+	// The line carries a "v" prefix while the candidate is bare: the hold must
+	// normalize the prefix, or a raw == would treat them as a version change.
+	provider.Register(
+		fakeProvider{name: "holdfake", candidates: []model.Candidate{candidate(t, "1.2.0")}},
+	)
+
+	old := strings.Repeat("a", 64)
+	dir, hit := sha256FollowerEnv(t, "v1.2.0", old, strings.Repeat("b", 64))
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	follower := sha256Result(t, files)
+	require.NoError(t, follower.Err)
+	require.False(t, follower.Changed, "v1.2.0 and 1.2.0 are the same version")
+	require.Equal(t, "SHA256="+old, follower.NewLine)
+	require.False(t, *hit)
+}
+
+func TestRunRefreshesSha256ForAnchoredProducer(t *testing.T) {
+	// A manual (anchored) producer publishes Old==New unconditionally, so the
+	// hold must not apply or a deliberate manual bump would never re-pin.
+	provider.Register(manual.New())
+
+	sum := strings.Repeat("e", 64)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, sum+"  tool_linux_amd64.tar.gz\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	old := strings.Repeat("a", 64)
+	dir := write(t, map[string]string{
+		"versions.env": "# clover: provider=manual id=tool\n" +
+			"VERSION=1.2.0\n" +
+			"# clover: from=tool value=sha256 sha256-url=" + srv.URL +
+			"/v<version>/checksums.txt pattern=*linux_amd64*\n" +
+			"SHA256=" + old + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	follower := sha256Result(t, files)
+	require.NoError(t, follower.Err)
+	require.True(t, follower.Changed, "a manual producer's digest still refreshes")
+	require.Equal(t, "SHA256="+sum, follower.NewLine)
+}
+
+func TestRunHoldsCommitWhenVersionUnchanged(t *testing.T) {
+	const moved = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	pinned := strings.Repeat("a", 40)
+	// The producer's tag was force-moved to a new commit while its version held.
+	register := func() {
+		provider.Register(fakeProvider{name: "holdcommit", candidates: []model.Candidate{
+			{Version: "2.0.0", Semver: mustSemver(t, "2.0.0"), Commit: moved},
+		}})
+	}
+	env := func() string {
+		return write(t, map[string]string{
+			"a.txt": "# clover: provider=holdcommit repository=x/y id=app\nlead: 2.0.0\n",
+			"b.txt": "# clover: from=app value=commit find=pin-<commit>\n" +
+				"image: pin-" + pinned + "\n",
+		})
+	}
+
+	t.Run("held", func(t *testing.T) {
+		register()
+		files, err := pipeline.Run(context.Background(), []string{env()})
+		require.NoError(t, err)
+		require.Equal(t, "image: pin-"+pinned, files[1].Results[0].NewLine,
+			"an unchanged version holds the committed pin")
+		require.False(t, files[1].Results[0].Changed)
+	})
+
+	t.Run("force", func(t *testing.T) {
+		register()
+		files, err := pipeline.Run(
+			context.Background(),
+			[]string{env()},
+			pipeline.WithForce(new(true)),
+		)
+		require.NoError(t, err)
+		require.Equal(t, "image: pin-"+moved, files[1].Results[0].NewLine,
+			"--force re-pins the moved commit")
+	})
 }
 
 func TestRunResolvesSha256FromAssetDigest(t *testing.T) {

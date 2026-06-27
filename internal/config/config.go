@@ -70,6 +70,7 @@ type Run struct {
 	Prerelease *bool        `yaml:"prerelease"`
 	Downgrade  *bool        `yaml:"downgrade"`
 	Deep       *bool        `yaml:"deep"`
+	Force      *bool        `yaml:"force"`
 	Output     *output.Mode `yaml:"output"`
 }
 
@@ -126,6 +127,7 @@ func Merge(user, project *Config) *Config {
 	merged.Run.Prerelease = cmp.Or(project.Run.Prerelease, merged.Run.Prerelease)
 	merged.Run.Downgrade = cmp.Or(project.Run.Downgrade, merged.Run.Downgrade)
 	merged.Run.Deep = cmp.Or(project.Run.Deep, merged.Run.Deep)
+	merged.Run.Force = cmp.Or(project.Run.Force, merged.Run.Force)
 	merged.Run.Output = cmp.Or(project.Run.Output, merged.Run.Output)
 	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
 	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
@@ -283,6 +285,10 @@ func (c *Config) Downgrade() *bool { return c.run().Downgrade }
 
 // Deep returns the configured run.deep default (nil = unset).
 func (c *Config) Deep() *bool { return c.run().Deep }
+
+// Force returns the configured run.force default (nil = unset). When true, a
+// followed digest is re-pinned even if the version it follows is unchanged.
+func (c *Config) Force() *bool { return c.run().Force }
 
 // Prune returns the configured fmt.prune default (nil = unset).
 func (c *Config) Prune() *bool {

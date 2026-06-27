@@ -4,15 +4,15 @@
 clover <command>
 ```
 
-| Command   | Description                                                  |
-| --------- | ------------------------------------------------------------ |
-| `init`    | Create a starter `.clover.yaml` interactively.               |
-| `run`     | Resolve version references and update them in place.         |
-| `lint`    | Check every directive resolves, offline and without writing. |
-| `format`  | Canonicalize directive comments.                             |
-| `login`   | Authenticate Clover with a provider via its device flow.     |
-| `update`  | Update Clover to the latest release via Homebrew.            |
-| `version` | Print version information.                                   |
+| Command   | Description                                                        |
+| --------- | ------------------------------------------------------------------ |
+| `init`    | Create a starter [`.clover.yaml`](configuration.md) interactively. |
+| `run`     | Resolve version references and update them in place.               |
+| `lint`    | Check every directive resolves, offline and without writing.       |
+| `format`  | Canonicalize directive comments.                                   |
+| `login`   | Authenticate Clover with a provider via its device flow.           |
+| `update`  | Update Clover to the latest release via Homebrew.                  |
+| `version` | Print version information.                                         |
 
 ## `run`
 
@@ -32,7 +32,7 @@ clover run [options] [<path>…]
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions.                                  |
 | `-o, --output <output>` | Output detail: `text` (default) or `wide`.                                              |
 | `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded.      |
-| `--config <path>`       | Path to a `.clover.yaml` [config](configuration.md) file.                               |
+| `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file.                                      |
 | `--no-config`           | Do not load any `.clover.yaml` config.                                                  |
 
 With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
@@ -59,7 +59,7 @@ clover format [options] [<path>…]
 | `-n, --dry-run`   | Report what would be reformatted without writing.                                  |
 | `--[no-]prune`    | Remove unknown keys instead of erroring on them.                                   |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded. |
-| `--config <path>` | Path to a `.clover.yaml` [config](configuration.md) file.                          |
+| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file.                                 |
 | `--no-config`     | Do not load any `.clover.yaml` config.                                             |
 
 `--check` is the CI gate; `--dry-run` previews the same rewrites but exits zero.

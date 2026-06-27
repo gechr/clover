@@ -16,7 +16,7 @@ version: 2.40.0
 checksum: 17f3c21f3f4c3b0175a9a0ee8f8e42e36f58e2713de81440ea9c0cb94c5a08a8
 ```
 
-A side value is only refreshed when its version actually changed, so a checksum never drifts out of step with the version it belongs to.
+A side value is only refreshed when its version actually changed, so a checksum never drifts out of step with the version it belongs to. This is also a safety guarantee: a digest that was once pinned never moves on its own, so a re-published artifact cannot silently change a checksum under an unchanged version. Pass `--force` (or set `run.force` in [`.clover.yaml`](configuration.md)) to deliberately re-pin every followed digest against its current version - for the rare case where an upstream release was legitimately re-published.
 
 ## Sourcing a sha256
 

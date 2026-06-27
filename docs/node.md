@@ -49,4 +49,4 @@ node_version: 24.18.0
 node_sha256: 0000000000000000000000000000000000000000000000000000000000000000
 ```
 
-The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step.
+The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step - a digest that was once pinned never moves on its own. Pass `--force` (or set `run.force`) to deliberately re-pin it when an unchanged version's artifact was legitimately re-published.
