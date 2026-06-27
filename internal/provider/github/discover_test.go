@@ -147,7 +147,7 @@ func TestDiscoverTags(t *testing.T) {
 	candidates, err := provider.Discover(t.Context(), res)
 	require.NoError(t, err)
 
-	require.Contains(t, path, "/repos/owner/name/tags")
+	require.Equal(t, "/repos/owner/name/tags", path)
 	require.Len(t, candidates, 3)
 	require.Equal(t, "v1.2.0", candidates[0].Version)
 	require.Equal(t, "aaa", candidates[0].Commit)

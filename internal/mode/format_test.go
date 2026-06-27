@@ -175,7 +175,7 @@ func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Contains(t, string(got), "version: 1.2.3-rc.1") // version untouched
+	require.Equal(t, "# clover: provider=fmtv repository=a/b\nversion: 1.2.3-rc.1\n", string(got))
 }
 
 func TestFormatCheckWritesNothing(t *testing.T) {
@@ -265,7 +265,7 @@ func TestFormatNormalisesQuoting(t *testing.T) {
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Contains(t, string(got), "repository=a/b") // redundant quotes dropped
+	require.Equal(t, "# clover: provider=fmtq repository=a/b\nv: 1.0.0\n", string(got))
 }
 
 func TestFormatPreservesBlockComment(t *testing.T) {

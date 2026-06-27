@@ -12,6 +12,7 @@
   - [GitHub](github.md)
   - [Docker](docker.md)
   - [Helm](helm.md)
+  - [HashiCorp](hashicorp.md)
   - [Manual](manual.md)
   - [Auto-detection](auto.md)
 

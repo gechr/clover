@@ -33,7 +33,7 @@ func TestDiscoverHub(t *testing.T) {
 	candidates, err := p.Discover(t.Context(), res)
 	require.NoError(t, err)
 
-	require.Contains(t, path, "/v2/repositories/library/nginx/tags")
+	require.Equal(t, "/v2/repositories/library/nginx/tags", path)
 	require.Len(t, candidates, 3)
 	require.Equal(t, "1.27.0", candidates[0].Version)
 	require.NotNil(t, candidates[0].Semver)

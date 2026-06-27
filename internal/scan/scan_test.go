@@ -109,7 +109,7 @@ func TestScanIgnoreSeam(t *testing.T) {
 	files, _, err := scan.Scan(t.Context(), []string{root}, scan.WithIgnore(ignore))
 	require.NoError(t, err)
 	require.Len(t, files, 1)
-	require.Contains(t, files[0].Path, filepath.Join("keep", "a.yaml"))
+	require.Equal(t, filepath.Join(root, "keep", "a.yaml"), files[0].Path)
 }
 
 func TestScanSkipsMissingRoot(t *testing.T) {

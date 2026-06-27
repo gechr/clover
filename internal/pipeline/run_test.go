@@ -286,7 +286,7 @@ func TestScanGatesUnsatisfiedRequiredVersion(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Len(t, files, 1, "the blocked repository's file is dropped")
-	require.Contains(t, files[0].Path, "ok")
+	require.Equal(t, filepath.Join(parent, "ok", "app.yaml"), files[0].Path)
 }
 
 // A malformed project config is a hard error - a bug to fix - not a benign skip.

@@ -116,7 +116,7 @@ func TestUnknownFromSkipped(t *testing.T) {
 	}, 4))
 
 	require.True(t, results["a"].Skipped)
-	require.Contains(t, results["a"].Reason, "ghost")
+	require.Equal(t, `unknown from "ghost"`, results["a"].Reason)
 	require.NoError(t, results["b"].Err)
 }
 

@@ -38,8 +38,11 @@ const TrackInfer = "*"
 // Provider parameters shared beyond a single provider: the auto-inference
 // injects them and the relevant providers read them.
 const (
+	DirectiveBuild      = "build"      // hashicorp build-metadata flavor, e.g. ent.hsm.fips1403 (hashicorp)
 	DirectiveChart      = "chart"      // helm chart name (helm)
+	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
+	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)
 	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
 	DirectiveRepository = "repository" // repository path (github, docker)
 )

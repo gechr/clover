@@ -236,7 +236,7 @@ func TestDiscoverRegistryBearerChallenge(t *testing.T) {
 			gotScope = req.URL.Query().Get("scope")
 			return bodyResponse(req, `{"token":"abc"}`), nil
 		case strings.Contains(req.URL.Path, "/tags/list"):
-			require.Contains(t, req.URL.Path, "/v2/charts/app/tags/list")
+			require.Equal(t, "/v2/charts/app/tags/list", req.URL.Path)
 			if req.Header.Get("Authorization") == "" {
 				return challengeResponse(req), nil
 			}
