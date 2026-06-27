@@ -10,5 +10,6 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `hashicorp` | Release versions of a HashiCorp tool (Terraform, Vault, ...). | [HashiCorp](hashicorp.md) |
 | `helm`      | Chart versions from a classic or OCI repository.              | [Helm](helm.md)           |
 | `manual`    | A value you maintain by hand, published for followers.        | [Manual](manual.md)       |
+| `node`      | Node.js runtime versions from nodejs.org.                     | [Node.js](node.md)        |
 
 A directive with no `provider` and a `from` key is a **follower** - it reads a value resolved elsewhere instead of contacting an upstream. See [Following values](following.md).

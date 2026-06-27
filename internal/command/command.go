@@ -25,6 +25,7 @@ import (
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/helm"
 	"github.com/gechr/clover/internal/provider/manual"
+	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/tag"
 )
 
@@ -64,6 +65,7 @@ func Run() int {
 		hashicorp.New(),
 		helm.New(),
 		manual.New(),
+		node.New(),
 	)
 
 	var root cli

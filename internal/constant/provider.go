@@ -5,13 +5,15 @@ package constant
 const (
 	// ProviderAuto asks clover to infer the real provider from context (e.g. a
 	// GitHub Actions uses: pin in a workflow file resolves to github).
-	ProviderAuto      = "auto"
+	ProviderAuto = "auto"
+	// ProviderManual is a human-owned root: it publishes the value already on
+	// the target line under an id for followers, contacting no upstream.
+	ProviderManual = "manual"
+
 	ProviderDocker    = "docker"
 	ProviderFollow    = "follow"
 	ProviderGithub    = "github"
 	ProviderHashicorp = "hashicorp"
 	ProviderHelm      = "helm"
-	// ProviderManual is a human-owned root: it publishes the value already on
-	// the target line under an id for followers, contacting no upstream.
-	ProviderManual = "manual"
+	ProviderNode      = "node"
 )

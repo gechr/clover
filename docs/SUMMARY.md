@@ -14,6 +14,7 @@
   - [Helm](helm.md)
   - [HashiCorp](hashicorp.md)
   - [Manual](manual.md)
+  - [Node.js](node.md)
   - [Auto-detection](auto.md)
 
 - [Selecting versions]()

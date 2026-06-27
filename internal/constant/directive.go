@@ -41,6 +41,7 @@ const (
 	DirectiveBuild      = "build"      // hashicorp build-metadata flavor, e.g. ent.hsm.fips1403 (hashicorp)
 	DirectiveChart      = "chart"      // helm chart name (helm)
 	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
+	DirectiveLTS        = "lts"        // restrict to LTS release lines (node)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
 	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)
 	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
