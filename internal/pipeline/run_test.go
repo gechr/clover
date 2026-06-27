@@ -95,6 +95,12 @@ func (f fakeProvider) Discover(
 	return f.candidates, f.err
 }
 
+// recencyProvider is a fakeProvider that lists newest-first, so its truncation
+// drives the gated per-marker --deep hint rather than the run-wide blanket sink.
+type recencyProvider struct{ fakeProvider }
+
+func (recencyProvider) RecencyOrdered() {}
+
 func TestRunDeepReachesDiscover(t *testing.T) {
 	var got bool
 	provider.Register(fakeProvider{
@@ -369,10 +375,40 @@ func TestRunTruncationSinkReceivesNotices(t *testing.T) {
 	})
 
 	var noted []provider.Truncation
-	_, err := pipeline.Run(context.Background(), []string{dir},
+	files, err := pipeline.Run(context.Background(), []string{dir},
 		pipeline.WithTruncationSink(func(t provider.Truncation) { noted = append(noted, t) }))
 	require.NoError(t, err)
 	require.Equal(t, []provider.Truncation{{Resource: "trunc", URL: "https://trunc"}}, noted)
+	require.False(t, files[0].Results[0].Truncated,
+		"a lexically-ordered provider feeds the blanket sink, not the per-marker flag")
+}
+
+// TestRunRecencyTruncationGatesNoCandidate verifies a recency-ordered provider's
+// truncation is recorded per-marker (for the gated --deep hint) and kept out of
+// the run-wide blanket sink.
+func TestRunRecencyTruncationGatesNoCandidate(t *testing.T) {
+	provider.Register(recencyProvider{fakeProvider{
+		name:       "recent",
+		truncate:   true,
+		candidates: []model.Candidate{candidate(t, "3.0.0")}, // a major bump
+	}})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=recent repository=x/y constraint=minor\nversion: 1.2.0\n",
+	})
+
+	var noted []provider.Truncation
+	files, err := pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithTruncationSink(func(t provider.Truncation) { noted = append(noted, t) }))
+	require.NoError(t, err)
+
+	r := files[0].Results[0]
+	require.ErrorIs(t, r.Err, pipeline.ErrNoCandidate,
+		"the minor ceiling rejects the only candidate, a major bump")
+	require.True(t, r.Truncated,
+		"a recency-ordered truncated lookup records truncation per-marker")
+	require.Empty(t, noted,
+		"a recency-ordered source does not feed the blanket truncation sink")
 }
 
 func TestRunResolvesDigestPin(t *testing.T) {

@@ -185,29 +185,51 @@ func TestDiscoverShallowReadsOnePage(t *testing.T) {
 	require.Len(t, candidates, 20)
 }
 
-// TestDiscoverShallowReportsNoTruncation locks the decision that a recency-ordered
-// source emits no blanket --deep hint: even when the first page is full (more
-// releases exist), the newest is always on it, so a shallow lookup must not feed
-// the truncation sink. The --deep signal for a constraint pinned to an older
-// stream comes instead from a no-candidate failure.
-func TestDiscoverShallowReportsNoTruncation(t *testing.T) {
+// TestDiscoverReportsTruncation covers the truncation signal that gates the
+// --deep hint. A full shallow page leaves more releases unread, so it reports
+// truncation; a short page holds the whole archive, so it does not. Because the
+// provider is recency-ordered, this signal drives only the gated no-candidate
+// hint, never the blanket "missed newer versions" warning.
+func TestDiscoverReportsTruncation(t *testing.T) {
 	t.Parallel()
 
-	p := hashicorp.New(hashicorp.WithTransport(
-		roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return jsonResponse(req, fullPage(0)), nil
-		}),
-	))
+	discover := func(t *testing.T, body string) []provider.Truncation {
+		t.Helper()
+		p := hashicorp.New(hashicorp.WithTransport(
+			roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return jsonResponse(req, body), nil
+			}),
+		))
+		var notes []provider.Truncation
+		ctx := provider.WithTruncationSink(t.Context(), func(tr provider.Truncation) {
+			notes = append(notes, tr)
+		})
+		_, err := p.Discover(ctx, resourceFor(t, p, directive.KV{Key: "product", Value: "vault"}))
+		require.NoError(t, err)
+		return notes
+	}
 
-	var truncations int
-	ctx := provider.WithTruncationSink(t.Context(), func(provider.Truncation) {
-		truncations++
+	t.Run("full shallow page reports truncation", func(t *testing.T) {
+		t.Parallel()
+		notes := discover(t, fullPage(0))
+		require.Len(t, notes, 1)
+		require.Equal(t, "releases.hashicorp.com/vault", notes[0].Resource)
+		require.Equal(t, "https://releases.hashicorp.com/vault", notes[0].URL)
 	})
 
-	res := resourceFor(t, p, directive.KV{Key: "product", Value: "vault"})
-	_, err := p.Discover(ctx, res)
-	require.NoError(t, err)
-	require.Zero(t, truncations)
+	t.Run("short page reports nothing", func(t *testing.T) {
+		t.Parallel()
+		require.Empty(t, discover(t, shortPage()))
+	})
+}
+
+// TestRecencyOrderer locks that the provider declares itself newest-first, the
+// signal that routes its truncation to the gated --deep hint.
+func TestRecencyOrderer(t *testing.T) {
+	t.Parallel()
+
+	_, ok := any(hashicorp.New()).(provider.RecencyOrderer)
+	require.True(t, ok)
 }
 
 func TestDiscoverError(t *testing.T) {

@@ -5,5 +5,6 @@ var (
 	AuthSummary        = authSummary
 	DeepHints          = deepHints
 	DefaultConstraint  = defaultConstraint
+	NoCandidateDeep    = noCandidateDeep
 	ValidateConstraint = validateConstraint
 )

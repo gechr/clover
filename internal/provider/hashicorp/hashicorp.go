@@ -54,6 +54,11 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderHashicorp }
 
+// RecencyOrdered marks the releases listing as newest-first, so a shallow lookup
+// always holds the latest release; --deep is hinted only when a constrained
+// marker finds no candidate while more pages remained.
+func (p *Provider) RecencyOrdered() {}
+
 // Keys reports the directive keys hashicorp accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

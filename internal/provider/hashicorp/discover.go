@@ -17,7 +17,7 @@ import (
 
 const (
 	// host is the web origin for a product's release pages, also the Describe
-	// label and Linker URL root.
+	// label, Linker URL, and truncation-hint root.
 	host = "releases.hashicorp.com"
 	// apiBaseURL is the public releases metadata API, listing a product's
 	// releases newest-first.
@@ -55,9 +55,15 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		return nil, fmt.Errorf("hashicorp: invalid resource %T", r)
 	}
 
-	releases, err := p.fetch(ctx, res.product)
+	releases, truncated, err := p.fetch(ctx, res.product)
 	if err != nil {
 		return nil, err
+	}
+	// Report a truncated shallow lookup so a constrained marker that finds no
+	// candidate can be hinted toward --deep. The listing is newest-first, so this
+	// never drives the blanket "missed newer versions" warning (see RecencyOrdered).
+	if truncated {
+		provider.NoteTruncated(ctx, p.Describe(res), "https://"+host+"/"+res.product)
 	}
 
 	candidates := make([]model.Candidate, 0, len(releases))
@@ -86,10 +92,11 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	return candidates, nil
 }
 
-// fetch walks the newest-first list endpoint, returning the releases gathered. A
-// shallow lookup reads one page; a deep lookup follows the timestamp cursor up to
-// maxPages, stopping early on a short page that signals the end of the archive.
-func (p *Provider) fetch(ctx context.Context, product string) ([]release, error) {
+// fetch walks the newest-first list endpoint, returning the releases gathered and
+// whether more remained unread. A shallow lookup reads one page; a deep lookup
+// follows the timestamp cursor up to maxPages, stopping early on a short page that
+// signals the end of the archive.
+func (p *Provider) fetch(ctx context.Context, product string) ([]release, bool, error) {
 	var all []release
 	after := ""
 	for range maxPages {
@@ -100,22 +107,25 @@ func (p *Provider) fetch(ctx context.Context, product string) ([]release, error)
 
 		releases, err := p.page(ctx, listURL, product)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		all = append(all, releases...)
 
-		// Shallow reads only the newest page; a short page ends the archive.
-		if !provider.Deep(ctx) || len(releases) < pageLimit {
-			break
+		// A short page ends the archive; a full one leaves more unread.
+		full := len(releases) == pageLimit
+		// Shallow reads only the newest page, truncated when it was full.
+		if !provider.Deep(ctx) || !full {
+			return all, !provider.Deep(ctx) && full, nil
 		}
 		// Page older releases using the last item's creation timestamp as cursor.
 		last := releases[len(releases)-1]
 		if last.TimestampCreated == "" {
-			break
+			return all, false, nil
 		}
 		after = last.TimestampCreated
 	}
-	return all, nil
+	// A deep lookup that exhausted the page cap still has older releases unread.
+	return all, true, nil
 }
 
 // page fetches and decodes one page of the list endpoint.

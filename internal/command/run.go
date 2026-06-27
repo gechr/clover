@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -110,7 +111,7 @@ func (c *cmdRun) Run(configs *config.Resolver) error {
 	}
 
 	reportAuth(ctx, summary)
-	reportDeep(truncated)
+	reportDeep(summary, truncated)
 	report.Run(clog.Default, summary, c.DryRun, detail)
 	return runErr(summary)
 }
@@ -135,26 +136,50 @@ func runErr(summary mode.Summary) error {
 	return failuresError(summary.Errored())
 }
 
-// reportDeep hints, after a run, that a deeper lookup might help: it warns about
-// each lexically-ordered resource whose shallow listing was truncated, so the
-// newest version may sit on a later page. Every provider reports truncation (the
-// OCI registries and GitHub alike), so this single per-resource warning is the
-// only --deep hint; a no-candidate failure explains itself in its own error.
-func reportDeep(truncated []provider.Truncation) {
+// reportDeep hints, after a run, that a deeper lookup might help, in two forms
+// for the two kinds of source. A lexically-ordered source (an OCI registry)
+// reports truncation through the run-wide sink: its newest tag may sit on an
+// unread page even when one resolved, so every truncated resource is warned. A
+// recency-ordered source (newest-first) holds the latest on its first page, so it
+// is warned only when a constrained marker resolved to no candidate while more
+// pages remained - the one case where --deep can rescue it.
+func reportDeep(summary mode.Summary, truncated []provider.Truncation) {
 	for _, t := range deepHints(truncated) {
 		clog.Warn().
 			Link(field.Resource, t.URL, t.Resource).
 			Str(field.Hint, "pass --deep").
 			Msg("Shallow lookup may have missed newer versions")
 	}
+	for _, r := range noCandidateDeep(summary) {
+		clog.Warn().
+			Line(field.Location, r.Marker.File, r.Marker.Target+1).
+			Str(field.Hint, "pass --deep to fetch all pages").
+			Msg("No matching version found in first page of results")
+	}
 }
 
-// deepHints is the pure decision behind reportDeep: the unique truncated
+// deepHints is the pure decision behind the blanket warning: the unique truncated
 // resources to warn about. Only shallow lookups feed the truncation sink - a
 // deep lookup pages to exhaustion - so every collected truncation warrants a
 // hint, even when other roots in the same run went deep.
 func deepHints(truncated []provider.Truncation) []provider.Truncation {
 	return xslices.Unique(truncated)
+}
+
+// noCandidateDeep returns the results where --deep can rescue a recency-ordered
+// lookup: a no-candidate failure whose shallow page was truncated. Result.Truncated
+// is set only for recency-ordered providers, so this never duplicates the blanket
+// warning above.
+func noCandidateDeep(summary mode.Summary) []pipeline.Result {
+	var out []pipeline.Result
+	for _, o := range summary.Outcomes {
+		for _, r := range o.Results {
+			if r.Truncated && errors.Is(r.Err, pipeline.ErrNoCandidate) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out
 }
 
 // confirmDeep reports whether to go ahead with a deep lookup. --yes and a

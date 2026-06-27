@@ -37,6 +37,19 @@ type Provider interface {
 	Discover(ctx context.Context, r Resource) ([]model.Candidate, error)
 }
 
+// RecencyOrderer is an optional capability marking a provider whose Discover
+// lists candidates newest-first, so a shallow lookup always holds the latest
+// version. clover then suppresses the blanket truncation hint - the newest is
+// never missed - and instead suggests --deep only when a constrained marker
+// resolves to no candidate while more pages remained. A lexically ordered source
+// (an OCI tags list) does not implement it, keeping the blanket hint that a newer
+// version may sit on an unread page.
+type RecencyOrderer interface {
+	// RecencyOrdered marks the provider's listing as newest-first; the method body
+	// is empty, its presence is the signal.
+	RecencyOrdered()
+}
+
 // Anchorer is an optional capability for a provider whose resolved value is the
 // value already on the target line, not one discovered upstream. clover skips
 // discovery and selection for an anchored provider, publishing the located value

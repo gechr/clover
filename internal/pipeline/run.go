@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -57,6 +58,12 @@ type Result struct {
 	Reason   string // why the marker was skipped
 	Err      error  // why resolution failed
 	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
+
+	// Truncated reports that a shallow lookup against a recency-ordered provider
+	// stopped with more pages available. Paired with an ErrNoCandidate failure it
+	// drives the gated --deep hint; it stays false for a lexically ordered
+	// provider, whose truncation feeds the run-wide blanket hint instead.
+	Truncated bool
 
 	// ResolvedURL is the upstream web page for the resolved candidate (e.g. a
 	// GitHub release/tag page), when the provider supplies one. The report
@@ -647,10 +654,19 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return p.anchor(i, m, line, located)
 	}
 
+	// A recency-ordered provider lists newest-first, so a truncated shallow lookup
+	// only matters when selection finds nothing. Capture truncation per-marker for
+	// the gated --deep hint instead of letting it feed the run-wide blanket hint.
+	var truncated atomic.Bool
+	if _, ok := prov.(provider.RecencyOrderer); ok {
+		ctx = provider.WithTruncationSink(ctx, func(provider.Truncation) { truncated.Store(true) })
+	}
+
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
 		return err
 	}
+	p.results[i].Truncated = truncated.Load()
 
 	opts, err := rule.Compile(m.Directive, located.Semver())
 	if err != nil {
