@@ -54,8 +54,11 @@ func (r *Reporter) Begin(names []string) ([]progress.Task, func()) {
 	}
 
 	group := r.logger.Group(r.ctx)
-	update, finish := group.Add(r.logger.Spinner("Resolving").NonTTYSilent(true)).Manual()
-	update.Fraction("progress", 0, total).Send()
+	update, finish := group.Add(
+		r.logger.Spinner("Checking for updates").
+			NonTTYSilent(true),
+	).Manual()
+	update.Fraction(field.Progress, 0, total).Send()
 
 	shared := &line{update: update, finish: finish, total: total}
 	tasks := make([]progress.Task, total)
@@ -92,7 +95,7 @@ func (l *line) Skip(string) { l.advance() }
 // finishing the line once every marker has reported.
 func (l *line) advance() {
 	n := int(l.done.Add(1))
-	l.update.Fraction("progress", n, l.total).Send()
+	l.update.Fraction(field.Progress, n, l.total).Send()
 	if n >= l.total {
 		l.finish(nil)
 	}

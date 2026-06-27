@@ -15,6 +15,7 @@ const (
 	Key      = "key"
 	Location = "location"
 	Path     = "path"
+	Progress = "progress"
 	Provider = "provider"
 	Reason   = "reason"
 	Required = "required"
