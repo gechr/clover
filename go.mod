@@ -1,6 +1,6 @@
 module github.com/gechr/clover
 
-// clover: provider=github repository=golang/go tag-prefix=go constraint=major
+// clover: provider=github repository=golang/go constraint=major tag-prefix=go
 go 1.26.4
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint

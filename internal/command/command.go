@@ -51,7 +51,7 @@ type cli struct {
 	Run     cmdRun     `help:"Resolve version references and update them in place"         clib:"terse='Update versions'"  cmd:""`
 	Lint    cmdLint    `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
 	Format  cmdFormat  `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
-	Update  cmdUpdate  `help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:""`
+	Update  cmdUpdate  `help:"Update clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:"" aliases:"up"`
 	Version cmdVersion `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
 }
 
