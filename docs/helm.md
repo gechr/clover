@@ -11,7 +11,7 @@ version: 18.2.0
 
 | Key                                   | Description                                                                                                          |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `provider`                            | `helm`.                                                                                                              |
+| `provider`                            | `helm`                                                                                                               |
 | `registry`                            | The chart source. An `https://` (or `http://`) URL is a classic repository; an `oci://` URL is an OCI registry base. |
 | `chart`                               | The chart name (e.g. `nginx`). A bare name - the repository path belongs in `registry`.                              |
 | [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).                                           |

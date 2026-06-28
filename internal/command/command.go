@@ -22,6 +22,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
+	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/helm"
 	"github.com/gechr/clover/internal/provider/manual"
@@ -62,6 +63,7 @@ func Run() int {
 	provider.RegisterAll(
 		docker.New(),
 		github.New(),
+		gitlab.New(),
 		hashicorp.New(),
 		helm.New(),
 		manual.New(),

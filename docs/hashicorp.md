@@ -11,7 +11,7 @@ terraform_version: 1.9.8
 
 | Key                                   | Description                                                                                                 |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `provider`                            | `hashicorp`.                                                                                                |
+| `provider`                            | `hashicorp`                                                                                                 |
 | `product`                             | The product slug to track (e.g. `terraform`, `vault`, `consul`, `nomad`, `packer`, `boundary`, `sentinel`). |
 | `enterprise`                          | Track enterprise-licensed releases, rendering the bare semver. Defaults to `false`.                         |
 | `build`                               | Track a specific enterprise build flavor by its build-metadata suffix, rendering the full version.          |

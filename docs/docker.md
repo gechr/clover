@@ -11,7 +11,7 @@ FROM redis:7.2.0
 
 | Key                                   | Description                                                                                             |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `provider`                            | `docker`.                                                                                               |
+| `provider`                            | `docker`                                                                                                |
 | `repository`                          | The image repository (e.g. `redis`, `library/redis`, `team/app`). May carry an inline host (see below). |
 | `registry`                            | The registry host. Defaults to Docker Hub; set it for other registries (e.g. `registry.example.com`).   |
 | `platform`                            | An `os/arch` (e.g. `linux/amd64`) to pin that platform's digest instead of the multi-arch index digest. |

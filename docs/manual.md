@@ -13,7 +13,7 @@ Use it to anchor a dependency graph at a value no registry can resolve: a versio
 
 | Key                      | Description                                                                                                            |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `provider`               | `manual`.                                                                                                              |
+| `provider`               | `manual`                                                                                                               |
 | `id`                     | Publish the line's value under this name for followers. Required - a manual root that publishes nothing has no effect. |
 | [`find`](annotations.md) | Pin which token on the line is the value, when its shape is ambiguous.                                                 |
 

@@ -11,7 +11,7 @@ node_version: 24.18.0
 
 | Key                                   | Description                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------- |
-| `provider`                            | `node`.                                                                          |
+| `provider`                            | `node`                                                                           |
 | `lts`                                 | Restrict candidates to the long-term-support release lines. Defaults to `false`. |
 | [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).       |
 | [`include` / `exclude`](filtering.md) | Filter the candidate versions.                                                   |

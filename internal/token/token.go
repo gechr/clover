@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	xos "github.com/gechr/x/os"
 	"github.com/zalando/go-keyring"
 )
 
@@ -20,6 +21,9 @@ const service = "clover"
 
 // filePerm is the permission for a fallback token file: owner read/write only.
 const filePerm = 0o600
+
+// dirPerm is the permission for the fallback store directory: owner-only.
+const dirPerm = 0o700
 
 // Store reads and writes tokens by host, keyring-first with a file fallback.
 type Store struct {
@@ -74,10 +78,10 @@ func (s *Store) Set(host, token string) error {
 	if err := keyring.Set(service, host, token); err == nil {
 		return nil
 	}
-	if err := os.MkdirAll(s.dir, 0o700); err != nil {
+	if err := xos.EnsureDir(s.dir, dirPerm); err != nil {
 		return fmt.Errorf("token: create store dir: %w", err)
 	}
-	if err := os.WriteFile(s.path(host), []byte(token), filePerm); err != nil {
+	if err := xos.AtomicWrite(s.path(host), []byte(token), filePerm); err != nil {
 		return fmt.Errorf("token: write token file: %w", err)
 	}
 	return nil

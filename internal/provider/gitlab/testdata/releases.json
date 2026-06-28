@@ -1,0 +1,278 @@
+[
+    {
+        "name": "v1.105.0",
+        "tag_name": "v1.105.0",
+        "description": "## Changelog   \n### \u2728 Features   \n* c8fed254: feat(orbit): rename --format flag to --response-format (Dmitry Gruzd <dgruzd@gitlab.com>)   \n### \ud83d\udc1b Bug Fixes   \n* e9a1266d: fix(orbit): handle new nested status response shape (Dmitry Gruzd <dgruzd@gitlab.com>)   \n* 122f46f4: fix: route deprecation warnings to stderr (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* ba0f56a8: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.40.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)\n\n",
+        "created_at": "2026-06-23T18:36:14.809Z",
+        "released_at": "2026-06-23T18:36:14.809Z",
+        "upcoming_release": false,
+        "author": {
+            "id": 30073959,
+            "username": "project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37",
+            "public_email": null,
+            "name": "****",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://secure.gravatar.com/avatar/1d41ea67239daf48ca5d20ab48eb94aa9bf5c28d93f939a94af7203e9fd3be72?s=80&d=identicon",
+            "web_url": "https://gitlab.com/project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37"
+        },
+        "commit": {
+            "id": "45c9976d3d33deb99f33410f8c4c919971b4c9cf",
+            "short_id": "45c9976d",
+            "created_at": "2026-06-23T12:07:11.000-05:00",
+            "parent_ids": [
+                "876a8143fc7c9fe2f77ea29e2522396d42ed335f",
+                "122f46f49bd40a78d62f98889d62d6253184bc21"
+            ],
+            "title": "Merge branch 'fix-deprecation-warnings-stderr-8371' into 'main'",
+            "message": "Merge branch 'fix-deprecation-warnings-stderr-8371' into 'main'\n\nfix: route deprecation warnings to stderr\n\nCloses #8371\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3453\n\nMerged-by: Kai Armstrong <karmstrong@gitlab.com>\nApproved-by: Oscar Tovar <otovar@gitlab.com>\n",
+            "author_name": "Kai Armstrong",
+            "author_email": "karmstrong@gitlab.com",
+            "authored_date": "2026-06-23T12:07:11.000-05:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-23T12:07:11.000-05:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/45c9976d3d33deb99f33410f8c4c919971b4c9cf"
+        },
+        "commit_path": "/gitlab-org/cli/-/commit/45c9976d3d33deb99f33410f8c4c919971b4c9cf",
+        "tag_path": "/gitlab-org/cli/-/tags/v1.105.0",
+        "assets": {
+            "count": 40,
+            "sources": [
+                {
+                    "format": "zip",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.105.0/cli-v1.105.0.zip"
+                },
+                {
+                    "format": "tar.gz",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.105.0/cli-v1.105.0.tar.gz"
+                },
+                {
+                    "format": "tar.bz2",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.105.0/cli-v1.105.0.tar.bz2"
+                },
+                {
+                    "format": "tar",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.105.0/cli-v1.105.0.tar"
+                }
+            ],
+            "links": [
+                {
+                    "id": 11851765,
+                    "name": "glab_1.105.0_linux_armv6.tar.gz",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_linux_armv6%2Etar%2Egz",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0/downloads/glab_1.105.0_linux_armv6.tar.gz",
+                    "link_type": "other"
+                },
+                {
+                    "id": 11851764,
+                    "name": "glab_1.105.0_windows_386.zip",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_windows_386%2Ezip",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0/downloads/glab_1.105.0_windows_386.zip",
+                    "link_type": "other"
+                }
+            ]
+        },
+        "evidences": [
+            {
+                "sha": "ce0a63534135f2301f03b93a8695cd6e795f014ea14d",
+                "filepath": "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0/evidences/21869832.json",
+                "collected_at": "2026-06-23T18:36:14.985Z"
+            }
+        ],
+        "_links": {
+            "closed_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.105.0&scope=all&state=closed",
+            "closed_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.105.0&scope=all&state=closed",
+            "merged_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.105.0&scope=all&state=merged",
+            "opened_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.105.0&scope=all&state=opened",
+            "opened_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.105.0&scope=all&state=opened",
+            "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0"
+        }
+    },
+    {
+        "name": "v1.104.0",
+        "tag_name": "v1.104.0",
+        "description": "## Changelog   \n### \u2728 Features   \n* 5380ef66: feat(duo): warn when running duo cli under snap confinement (Kai Armstrong <karmstrong@gitlab.com>)   \n* 4ee1edf5: feat(packages): add upload command (Oscar Tovar <otovar@gitlab.com>)   \n* 383d5994: feat: generate GitLab Docs navigation block for glab (Brendan Lynch <blynch@gitlab.com>)   \n### \ud83d\udcdd Documentation   \n* 6440f987: docs(skills): improve glab threaded-reply guidance (Thomas Schmidt <tschmidt@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* 2ba749a0: chore(deps): update module charm.land/glamour/v2 to v2.0.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 5f958dff: chore(deps): update module charm.land/lipgloss/v2 to v2.0.4 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 4e20a953: chore(deps): update module github.com/coder/websocket to v1.8.15 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 2f358bfa: chore(deps): update module golang.org/x/crypto to v0.53.0 (Jay McCure <jmccure@gitlab.com>)   \n* d9be4c7a: chore(deps): update module k8s.io/client-go to v0.36.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n### \ud83d\udd27 Maintenance   \n* dd6eb3c8: chore: update labels in templates (Kai Armstrong <karmstrong@gitlab.com>)   \n* 41afe2f6: refactor: uppercase initialisms in test key generators (Jay McCure <jmccure@gitlab.com>)\n\n",
+        "created_at": "2026-06-23T13:30:16.405Z",
+        "released_at": "2026-06-23T13:30:16.405Z",
+        "upcoming_release": false,
+        "author": {
+            "id": 30073959,
+            "username": "project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37",
+            "public_email": null,
+            "name": "****",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://secure.gravatar.com/avatar/1d41ea67239daf48ca5d20ab48eb94aa9bf5c28d93f939a94af7203e9fd3be72?s=80&d=identicon",
+            "web_url": "https://gitlab.com/project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37"
+        },
+        "commit": {
+            "id": "adc74f82d7c80b74e6fd363610a20a5414b5f561",
+            "short_id": "adc74f82",
+            "created_at": "2026-06-22T23:03:27.000-04:00",
+            "parent_ids": [
+                "f139026900beb39cbdfd45bf038201ed2e5eaf41",
+                "41afe2f69ecdedfef18304b49cd168435ba3e142"
+            ],
+            "title": "Merge branch 'jmc-crypto-key-gen-initialisms' into 'main'",
+            "message": "Merge branch 'jmc-crypto-key-gen-initialisms' into 'main'\n\nrefactor: uppercase initialisms in test key generators\n\nCloses #8373\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3454\n\nMerged-by: Oscar Tovar <otovar@gitlab.com>\nApproved-by: Oscar Tovar <otovar@gitlab.com>\nCo-authored-by: Jay McCure <jmccure@gitlab.com>",
+            "author_name": "Oscar Tovar",
+            "author_email": "otovar@gitlab.com",
+            "authored_date": "2026-06-22T23:03:27.000-04:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-22T23:03:27.000-04:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/adc74f82d7c80b74e6fd363610a20a5414b5f561"
+        },
+        "commit_path": "/gitlab-org/cli/-/commit/adc74f82d7c80b74e6fd363610a20a5414b5f561",
+        "tag_path": "/gitlab-org/cli/-/tags/v1.104.0",
+        "assets": {
+            "count": 40,
+            "sources": [
+                {
+                    "format": "zip",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.104.0/cli-v1.104.0.zip"
+                },
+                {
+                    "format": "tar.gz",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.104.0/cli-v1.104.0.tar.gz"
+                },
+                {
+                    "format": "tar.bz2",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.104.0/cli-v1.104.0.tar.bz2"
+                },
+                {
+                    "format": "tar",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.104.0/cli-v1.104.0.tar"
+                }
+            ],
+            "links": [
+                {
+                    "id": 11848540,
+                    "name": "glab_1.104.0_Windows_arm64_installer.exe",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E104%2E0/glab_1%2E104%2E0_Windows_arm64_installer%2Eexe",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.104.0/downloads/glab_1.104.0_Windows_arm64_installer.exe",
+                    "link_type": "other"
+                },
+                {
+                    "id": 11848539,
+                    "name": "glab_1.104.0_Windows_x86_64_installer.exe",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E104%2E0/glab_1%2E104%2E0_Windows_x86_64_installer%2Eexe",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.104.0/downloads/glab_1.104.0_Windows_x86_64_installer.exe",
+                    "link_type": "other"
+                }
+            ]
+        },
+        "evidences": [
+            {
+                "sha": "ff59abb50fbd0f50221d15f1b1f4833294511f7cc4ed",
+                "filepath": "https://gitlab.com/gitlab-org/cli/-/releases/v1.104.0/evidences/21862763.json",
+                "collected_at": "2026-06-23T13:30:16.730Z"
+            }
+        ],
+        "_links": {
+            "closed_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.104.0&scope=all&state=closed",
+            "closed_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.104.0&scope=all&state=closed",
+            "merged_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.104.0&scope=all&state=merged",
+            "opened_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.104.0&scope=all&state=opened",
+            "opened_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.104.0&scope=all&state=opened",
+            "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.104.0"
+        }
+    },
+    {
+        "name": "v1.103.0",
+        "tag_name": "v1.103.0",
+        "description": "## Changelog   \n### \u2728 Features   \n* b39a801c: feat(container-registry): add container registry repository and tag commands (Jeroen Monteban <jeroen.monteban@mgb.ch>)   \n* ea9fd25a: feat(packages): add packages command group with list (Oscar Tovar <otovar@gitlab.com>)   \n* 1dd20b11: feat(stack): make switch interactive (Ahmed Abdelbaset <a7med3bdulbaset@gmail.com>)   \n* 7b9703ab: feat(stacked-diffs): add --no-verify to 'stack amend' command (Kev Kloss <kkloss@gitlab.com>)   \n* 6e4e3284: feat(stacked-diffs): add --no-verify to 'stack save' command (Kev Kloss <kkloss@gitlab.com>)   \n* 481f63fb: feat: Handle `glab mr checkout` failure when there are non fast-forwarding conflicts (Gabriel Mazzetto <gabriel@gitlab.com>)   \n* 84fd9f33: feat: compile arm64 windows bianry (Andrei Zubov <azubov@gitlab.com>)   \n### \ud83d\udc1b Bug Fixes   \n* 91eb7aad: fix(ci): set release token inline so project GITLAB_TOKEN can't shadow it (Jay McCure <jmccure@gitlab.com>)   \n* 10561d78: fix(mcp): add content to structuredContent (Florian Imdahl <git@ffflorian.de>)   \n* bcf700bd: fix(orbit): install dependency-free Linux build to fix glibc version errors (Dmitry Gruzd <dgruzd@gitlab.com>)   \n* 0a119c02: fix(stacks): share stacks across worktrees (Ahmed Abdelbaset <a7med3bdulbaset@gmail.com>)   \n* e3236d94: fix(update): give post-upgrade and skill nudges breathing room (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udcdd Documentation   \n* 913e5d9d: docs(api): add GLAB_DEBUG_HTTP example for debugging requests (Kai Armstrong <karmstrong@gitlab.com>)   \n* 3a983d41: docs(variable): add synopsis and examples to variable commands (Brendan Lynch <blynch@gitlab.com>)   \n* 98e70a25: docs: Remove manual (default false) flag annotations (Brendan Lynch <blynch@gitlab.com>)   \n* 6c71e24c: docs: add troubleshooting guide for invalid_client OAuth error (Stan Hu <stanhu@gmail.com>)   \n* e73a8cde: docs: move troubleshooting guide to the generated CLI docs page (Brendan Lynch <blynch@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* 7779ffec: chore(deps): bump go to v1.26.4 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 39cda83f: chore(deps): update dependency @commitlint/cli to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* f434057f: chore(deps): update dependency @commitlint/lint to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* c583440d: chore(deps): update module charm.land/bubbletea/v2 to v2.0.7 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* a1898d01: chore(deps): update module github.com/docker/cli to v29.5.1+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* f1b74aae: chore(deps): update module github.com/docker/cli to v29.5.2+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 6131acf7: chore(deps): update module github.com/docker/cli to v29.5.3+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 9b83a7ff: chore(deps): update module github.com/docker/docker-credential-helpers to v0.9.8 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 0767cd08: chore(deps): update module github.com/mattn/go-colorable to v0.1.15 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 765b526d: chore(deps): update module github.com/mattn/go-runewidth to v0.0.24 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 756377a6: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 55a4f6b3: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 34a8e5b0: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.3 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* e500b3f4: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.39.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* bda16f22: chore(deps): update module golang.org/x/sync to v0.21.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* a27fa5a4: chore(deps): update module golang.org/x/term to v0.44.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 79575672: chore(deps): update module golang.org/x/text to v0.38.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n### \ud83d\udd27 Maintenance   \n* 4c0cc23d: chore(ci): automate weekly release via pipeline schedule (Jay McCure <jmccure@gitlab.com>)   \n* d0d9bc3e: chore: Refactor mr_checkout removing global var and moving dependencies to struct (Gabriel Mazzetto <gabriel@gitlab.com>)   \n* 47eeadad: chore: Update MR review instructions YAML (Brendan Lynch <blynch@gitlab.com>)   \n* b5ac12f9: chore: add support for modern linux-x64 duo cli binary (Andrei Zubov <azubov@gitlab.com>)   \n* 7d26ca46: ci: update code-intelligence job to fix job failures (Oscar Tovar <otovar@gitlab.com>)   \n* 45b9fcc3: ci: wire ci/cd inputs to release variables (Oscar Tovar <otovar@gitlab.com>)   \n### \ud83d\udd00 Others   \n* 080c4e2c: test: add archived field to label list JSON expectation (Tomas Vik <tvik@gitlab.com>)\n\n",
+        "created_at": "2026-06-17T01:11:46.962Z",
+        "released_at": "2026-06-17T01:11:46.962Z",
+        "upcoming_release": false,
+        "author": {
+            "id": 30073959,
+            "username": "project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37",
+            "public_email": null,
+            "name": "****",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://secure.gravatar.com/avatar/1d41ea67239daf48ca5d20ab48eb94aa9bf5c28d93f939a94af7203e9fd3be72?s=80&d=identicon",
+            "web_url": "https://gitlab.com/project_34675721_bot_cf356abbcb2bac6a8b323408b8bf5a37"
+        },
+        "commit": {
+            "id": "c724bea5fca299c989b0b27b2b24cd1cbe7136af",
+            "short_id": "c724bea5",
+            "created_at": "2026-06-16T18:49:44.000-05:00",
+            "parent_ids": [
+                "500227646ef75d963e4be700c87994355c2348a2",
+                "91eb7aad34ba4f91a8abc1ffb470b6b98df0c0e6"
+            ],
+            "title": "Merge branch 'fix-release-token-shadowing' into 'main'",
+            "message": "Merge branch 'fix-release-token-shadowing' into 'main'\n\nfix(ci): set release token inline so project GITLAB_TOKEN can't shadow it\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3430\n\nMerged-by: Kai Armstrong <karmstrong@gitlab.com>\nApproved-by: Kai Armstrong <karmstrong@gitlab.com>\nCo-authored-by: Jay McCure <jmccure@gitlab.com>",
+            "author_name": "Kai Armstrong",
+            "author_email": "karmstrong@gitlab.com",
+            "authored_date": "2026-06-16T18:49:44.000-05:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-16T18:49:44.000-05:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/c724bea5fca299c989b0b27b2b24cd1cbe7136af"
+        },
+        "commit_path": "/gitlab-org/cli/-/commit/c724bea5fca299c989b0b27b2b24cd1cbe7136af",
+        "tag_path": "/gitlab-org/cli/-/tags/v1.103.0",
+        "assets": {
+            "count": 40,
+            "sources": [
+                {
+                    "format": "zip",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.103.0/cli-v1.103.0.zip"
+                },
+                {
+                    "format": "tar.gz",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.103.0/cli-v1.103.0.tar.gz"
+                },
+                {
+                    "format": "tar.bz2",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.103.0/cli-v1.103.0.tar.bz2"
+                },
+                {
+                    "format": "tar",
+                    "url": "https://gitlab.com/gitlab-org/cli/-/archive/v1.103.0/cli-v1.103.0.tar"
+                }
+            ],
+            "links": [
+                {
+                    "id": 11794848,
+                    "name": "glab_1.103.0_linux_386.apk",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E103%2E0/glab_1%2E103%2E0_linux_386%2Eapk",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.103.0/downloads/glab_1.103.0_linux_386.apk",
+                    "link_type": "other"
+                },
+                {
+                    "id": 11794847,
+                    "name": "glab_1.103.0_linux_amd64.apk",
+                    "url": "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E103%2E0/glab_1%2E103%2E0_linux_amd64%2Eapk",
+                    "direct_asset_url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.103.0/downloads/glab_1.103.0_linux_amd64.apk",
+                    "link_type": "other"
+                }
+            ]
+        },
+        "evidences": [
+            {
+                "sha": "d7a85d7c30b2ddd99c28b8d7cbc24d1f7b6013be3eed",
+                "filepath": "https://gitlab.com/gitlab-org/cli/-/releases/v1.103.0/evidences/21684408.json",
+                "collected_at": "2026-06-17T01:11:47.261Z"
+            }
+        ],
+        "_links": {
+            "closed_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.103.0&scope=all&state=closed",
+            "closed_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.103.0&scope=all&state=closed",
+            "merged_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.103.0&scope=all&state=merged",
+            "opened_issues_url": "https://gitlab.com/gitlab-org/cli/-/issues?release_tag=v1.103.0&scope=all&state=opened",
+            "opened_merge_requests_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests?release_tag=v1.103.0&scope=all&state=opened",
+            "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.103.0"
+        }
+    }
+]

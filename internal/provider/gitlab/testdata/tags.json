@@ -1,0 +1,126 @@
+[
+    {
+        "name": "v1.105.0",
+        "message": "",
+        "target": "45c9976d3d33deb99f33410f8c4c919971b4c9cf",
+        "commit": {
+            "id": "45c9976d3d33deb99f33410f8c4c919971b4c9cf",
+            "short_id": "45c9976d",
+            "created_at": "2026-06-23T12:07:11.000-05:00",
+            "parent_ids": [
+                "876a8143fc7c9fe2f77ea29e2522396d42ed335f",
+                "122f46f49bd40a78d62f98889d62d6253184bc21"
+            ],
+            "title": "Merge branch 'fix-deprecation-warnings-stderr-8371' into 'main'",
+            "message": "Merge branch 'fix-deprecation-warnings-stderr-8371' into 'main'\n\nfix: route deprecation warnings to stderr\n\nCloses #8371\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3453\n\nMerged-by: Kai Armstrong <karmstrong@gitlab.com>\nApproved-by: Oscar Tovar <otovar@gitlab.com>\n",
+            "author_name": "Kai Armstrong",
+            "author_email": "karmstrong@gitlab.com",
+            "authored_date": "2026-06-23T12:07:11.000-05:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-23T12:07:11.000-05:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/45c9976d3d33deb99f33410f8c4c919971b4c9cf"
+        },
+        "release": {
+            "tag_name": "v1.105.0",
+            "description": "## Changelog   \n### \u2728 Features   \n* c8fed254: feat(orbit): rename --format flag to --response-format (Dmitry Gruzd <dgruzd@gitlab.com>)   \n### \ud83d\udc1b Bug Fixes   \n* e9a1266d: fix(orbit): handle new nested status response shape (Dmitry Gruzd <dgruzd@gitlab.com>)   \n* 122f46f4: fix: route deprecation warnings to stderr (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* ba0f56a8: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.40.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)\n\n"
+        },
+        "protected": true,
+        "created_at": null
+    },
+    {
+        "name": "v1.104.0",
+        "message": "Release v1.104.0",
+        "target": "f8a1cae9034ab380441c23bf0d94356b2735a133",
+        "commit": {
+            "id": "adc74f82d7c80b74e6fd363610a20a5414b5f561",
+            "short_id": "adc74f82",
+            "created_at": "2026-06-22T23:03:27.000-04:00",
+            "parent_ids": [
+                "f139026900beb39cbdfd45bf038201ed2e5eaf41",
+                "41afe2f69ecdedfef18304b49cd168435ba3e142"
+            ],
+            "title": "Merge branch 'jmc-crypto-key-gen-initialisms' into 'main'",
+            "message": "Merge branch 'jmc-crypto-key-gen-initialisms' into 'main'\n\nrefactor: uppercase initialisms in test key generators\n\nCloses #8373\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3454\n\nMerged-by: Oscar Tovar <otovar@gitlab.com>\nApproved-by: Oscar Tovar <otovar@gitlab.com>\nCo-authored-by: Jay McCure <jmccure@gitlab.com>",
+            "author_name": "Oscar Tovar",
+            "author_email": "otovar@gitlab.com",
+            "authored_date": "2026-06-22T23:03:27.000-04:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-22T23:03:27.000-04:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/adc74f82d7c80b74e6fd363610a20a5414b5f561"
+        },
+        "release": {
+            "tag_name": "v1.104.0",
+            "description": "## Changelog   \n### \u2728 Features   \n* 5380ef66: feat(duo): warn when running duo cli under snap confinement (Kai Armstrong <karmstrong@gitlab.com>)   \n* 4ee1edf5: feat(packages): add upload command (Oscar Tovar <otovar@gitlab.com>)   \n* 383d5994: feat: generate GitLab Docs navigation block for glab (Brendan Lynch <blynch@gitlab.com>)   \n### \ud83d\udcdd Documentation   \n* 6440f987: docs(skills): improve glab threaded-reply guidance (Thomas Schmidt <tschmidt@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* 2ba749a0: chore(deps): update module charm.land/glamour/v2 to v2.0.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 5f958dff: chore(deps): update module charm.land/lipgloss/v2 to v2.0.4 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 4e20a953: chore(deps): update module github.com/coder/websocket to v1.8.15 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 2f358bfa: chore(deps): update module golang.org/x/crypto to v0.53.0 (Jay McCure <jmccure@gitlab.com>)   \n* d9be4c7a: chore(deps): update module k8s.io/client-go to v0.36.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n### \ud83d\udd27 Maintenance   \n* dd6eb3c8: chore: update labels in templates (Kai Armstrong <karmstrong@gitlab.com>)   \n* 41afe2f6: refactor: uppercase initialisms in test key generators (Jay McCure <jmccure@gitlab.com>)\n\n"
+        },
+        "protected": true,
+        "created_at": "2026-06-23T12:08:11.000Z"
+    },
+    {
+        "name": "v1.103.0",
+        "message": "Release v1.103.0",
+        "target": "7bcc1cd9717c3b6dcd37e9cdc01a5537b2a904de",
+        "commit": {
+            "id": "c724bea5fca299c989b0b27b2b24cd1cbe7136af",
+            "short_id": "c724bea5",
+            "created_at": "2026-06-16T18:49:44.000-05:00",
+            "parent_ids": [
+                "500227646ef75d963e4be700c87994355c2348a2",
+                "91eb7aad34ba4f91a8abc1ffb470b6b98df0c0e6"
+            ],
+            "title": "Merge branch 'fix-release-token-shadowing' into 'main'",
+            "message": "Merge branch 'fix-release-token-shadowing' into 'main'\n\nfix(ci): set release token inline so project GITLAB_TOKEN can't shadow it\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3430\n\nMerged-by: Kai Armstrong <karmstrong@gitlab.com>\nApproved-by: Kai Armstrong <karmstrong@gitlab.com>\nCo-authored-by: Jay McCure <jmccure@gitlab.com>",
+            "author_name": "Kai Armstrong",
+            "author_email": "karmstrong@gitlab.com",
+            "authored_date": "2026-06-16T18:49:44.000-05:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-16T18:49:44.000-05:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/c724bea5fca299c989b0b27b2b24cd1cbe7136af"
+        },
+        "release": {
+            "tag_name": "v1.103.0",
+            "description": "## Changelog   \n### \u2728 Features   \n* b39a801c: feat(container-registry): add container registry repository and tag commands (Jeroen Monteban <jeroen.monteban@mgb.ch>)   \n* ea9fd25a: feat(packages): add packages command group with list (Oscar Tovar <otovar@gitlab.com>)   \n* 1dd20b11: feat(stack): make switch interactive (Ahmed Abdelbaset <a7med3bdulbaset@gmail.com>)   \n* 7b9703ab: feat(stacked-diffs): add --no-verify to 'stack amend' command (Kev Kloss <kkloss@gitlab.com>)   \n* 6e4e3284: feat(stacked-diffs): add --no-verify to 'stack save' command (Kev Kloss <kkloss@gitlab.com>)   \n* 481f63fb: feat: Handle `glab mr checkout` failure when there are non fast-forwarding conflicts (Gabriel Mazzetto <gabriel@gitlab.com>)   \n* 84fd9f33: feat: compile arm64 windows bianry (Andrei Zubov <azubov@gitlab.com>)   \n### \ud83d\udc1b Bug Fixes   \n* 91eb7aad: fix(ci): set release token inline so project GITLAB_TOKEN can't shadow it (Jay McCure <jmccure@gitlab.com>)   \n* 10561d78: fix(mcp): add content to structuredContent (Florian Imdahl <git@ffflorian.de>)   \n* bcf700bd: fix(orbit): install dependency-free Linux build to fix glibc version errors (Dmitry Gruzd <dgruzd@gitlab.com>)   \n* 0a119c02: fix(stacks): share stacks across worktrees (Ahmed Abdelbaset <a7med3bdulbaset@gmail.com>)   \n* e3236d94: fix(update): give post-upgrade and skill nudges breathing room (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udcdd Documentation   \n* 913e5d9d: docs(api): add GLAB_DEBUG_HTTP example for debugging requests (Kai Armstrong <karmstrong@gitlab.com>)   \n* 3a983d41: docs(variable): add synopsis and examples to variable commands (Brendan Lynch <blynch@gitlab.com>)   \n* 98e70a25: docs: Remove manual (default false) flag annotations (Brendan Lynch <blynch@gitlab.com>)   \n* 6c71e24c: docs: add troubleshooting guide for invalid_client OAuth error (Stan Hu <stanhu@gmail.com>)   \n* e73a8cde: docs: move troubleshooting guide to the generated CLI docs page (Brendan Lynch <blynch@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* 7779ffec: chore(deps): bump go to v1.26.4 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 39cda83f: chore(deps): update dependency @commitlint/cli to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* f434057f: chore(deps): update dependency @commitlint/lint to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* c583440d: chore(deps): update module charm.land/bubbletea/v2 to v2.0.7 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* a1898d01: chore(deps): update module github.com/docker/cli to v29.5.1+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* f1b74aae: chore(deps): update module github.com/docker/cli to v29.5.2+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 6131acf7: chore(deps): update module github.com/docker/cli to v29.5.3+incompatible (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 9b83a7ff: chore(deps): update module github.com/docker/docker-credential-helpers to v0.9.8 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 0767cd08: chore(deps): update module github.com/mattn/go-colorable to v0.1.15 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 765b526d: chore(deps): update module github.com/mattn/go-runewidth to v0.0.24 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 756377a6: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.1 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 55a4f6b3: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 34a8e5b0: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.36.3 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* e500b3f4: chore(deps): update module gitlab.com/gitlab-org/api/client-go/v2 to v2.39.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* bda16f22: chore(deps): update module golang.org/x/sync to v0.21.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* a27fa5a4: chore(deps): update module golang.org/x/term to v0.44.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 79575672: chore(deps): update module golang.org/x/text to v0.38.0 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n### \ud83d\udd27 Maintenance   \n* 4c0cc23d: chore(ci): automate weekly release via pipeline schedule (Jay McCure <jmccure@gitlab.com>)   \n* d0d9bc3e: chore: Refactor mr_checkout removing global var and moving dependencies to struct (Gabriel Mazzetto <gabriel@gitlab.com>)   \n* 47eeadad: chore: Update MR review instructions YAML (Brendan Lynch <blynch@gitlab.com>)   \n* b5ac12f9: chore: add support for modern linux-x64 duo cli binary (Andrei Zubov <azubov@gitlab.com>)   \n* 7d26ca46: ci: update code-intelligence job to fix job failures (Oscar Tovar <otovar@gitlab.com>)   \n* 45b9fcc3: ci: wire ci/cd inputs to release variables (Oscar Tovar <otovar@gitlab.com>)   \n### \ud83d\udd00 Others   \n* 080c4e2c: test: add archived field to label list JSON expectation (Tomas Vik <tvik@gitlab.com>)\n\n"
+        },
+        "protected": true,
+        "created_at": "2026-06-16T23:50:19.000Z"
+    },
+    {
+        "name": "v1.102.0",
+        "message": "",
+        "target": "b5a548b340b302bbe0b8828b103a9ef0433d3201",
+        "commit": {
+            "id": "b5a548b340b302bbe0b8828b103a9ef0433d3201",
+            "short_id": "b5a548b3",
+            "created_at": "2026-06-05T15:00:27.000-04:00",
+            "parent_ids": [
+                "4d31bf29f54be6a2bad1a80d99417e4779917a51",
+                "98a00775bc7cca726f1fb2dc25a33a3efd452672"
+            ],
+            "title": "Merge branch 'fix/binarymgr-semver-sort' into 'main'",
+            "message": "Merge branch 'fix/binarymgr-semver-sort' into 'main'\n\nfix(binarymgr): sort packages by semver client-side\n\nCloses gitlab-org/editor-extensions/gitlab-lsp#2486\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/3384\n\nMerged-by: Oscar Tovar <otovar@gitlab.com>\nApproved-by: Oscar Tovar <otovar@gitlab.com>\nReviewed-by: GitLab Duo <gitlab-duo@gitlab.com>\nCo-authored-by: Kai Armstrong <karmstrong@gitlab.com>",
+            "author_name": "Oscar Tovar",
+            "author_email": "otovar@gitlab.com",
+            "authored_date": "2026-06-05T15:00:27.000-04:00",
+            "committer_name": "GitLab",
+            "committer_email": "noreply@gitlab.com",
+            "committed_date": "2026-06-05T15:00:27.000-04:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/b5a548b340b302bbe0b8828b103a9ef0433d3201"
+        },
+        "release": {
+            "tag_name": "v1.102.0",
+            "description": "## Changelog   \n### \u2728 Features   \n* 044e5b03: feat(api): forward DUO_WORKFLOW_WORKFLOW_ID as X-Gitlab-Duo-Workflow-Id header (Eduardo Bonet <ebonet@gitlab.com>)   \n* 12cfcf44: feat(api): forward GITLAB_DUO_SESSION_ID as X-Gitlab-Duo-Session-Id header (Eduardo Bonet <ebonet@gitlab.com>)   \n* d64700ce: feat(repo): add prune command to delete merged local branches (Kai Armstrong <karmstrong@gitlab.com>)   \n* e1cd4cf0: feat(skills): notify when installed skills have updates (Kai Armstrong <karmstrong@gitlab.com>)   \n* fadd3939: feat(whatsnew): add command and post-upgrade banner (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udc1b Bug Fixes   \n* d914d050: fix(api): URL-encode magic placeholder substitutions (Kai Armstrong <karmstrong@gitlab.com>)   \n* 98a00775: fix(binarymgr): sort packages by semver client-side (Kai Armstrong <karmstrong@gitlab.com>)   \n### \ud83d\udcdd Documentation   \n* 65169664: docs(duo): expand MR review instructions from 3 to 17 blocks (Kai Armstrong <karmstrong@gitlab.com>)   \n* 38602dd2: docs(iteration): add synopsis and examples to iteration commands (Brendan Lynch <blynch@gitlab.com>)   \n* 2f6cb6d5: docs(mr): add synopsis and examples to mr commands (Brendan Lynch <blynch@gitlab.com>)   \n* 40d9474f: docs(opentofu): add synopsis and examples to opentofu commands (Brendan Lynch <blynch@gitlab.com>)   \n* a9fe77fd: docs(release): add synopsis and examples to release commands (Brendan Lynch <blynch@gitlab.com>)   \n* ecd623cb: docs(repo): add synopsis and fix usage notation in repo commands (Brendan Lynch <blynch@gitlab.com>)   \n* d788de5e: docs(snippet): add synopsis and examples to snippet commands (Brendan Lynch <blynch@gitlab.com>)   \n* 49f80867: docs(todo): add synopsis and examples to todo commands (Brendan Lynch <blynch@gitlab.com>)   \n* 42fb614b: docs: Format quoted command references as code in env vars table (Ben Bodenmiller <bbodenmiller@gmail.com>)   \n* c9507bbf: docs: add synopsis and examples to issue and incident commands (Brendan Lynch <blynch@gitlab.com>)   \n* eb4fec3f: docs: add synopsis and examples to misc standalone commands (Brendan Lynch <blynch@gitlab.com>)   \n* 5f87ec4c: docs: document GLAB_NO_PROMPT and mark NO_PROMPT deprecated (Ben Bodenmiller <bbodenmiller@gmail.com>)   \n* f4b2593b: docs: fix flag punctuation and example formatting (quick wins) (Brendan Lynch <blynch@gitlab.com>)   \n* d9a6681e: docs: update AGENTS.md with comprehensive agent instructions (Brendan Lynch <blynch@gitlab.com>)   \n* 2e64fa29: docs: update README environment variables (Brendan Lynch <blynch@gitlab.com>)   \n* 6734e7ab: docs: update env vars table to use GLAB_ prefixed names (Kate Grechishkina <khrechyshkina@gitlab.com>)   \n### \ud83d\udce6 Dependencies   \n* d8ca77c7: chore(deps): update dependency @commitlint/config-conventional to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n* 21f186ce: chore(deps): update dependency @commitlint/read to ^21.0.2 (GitLab Renovate Bot <gitlab-bot@gitlab.com>)   \n### \ud83d\udd27 Maintenance   \n* d4a4afeb: chore(lint): enable 19 new linters and address violations (Kai Armstrong <karmstrong@gitlab.com>)   \n* 19c91cc9: refactor(config): canonical schema with `config set` validation (Kai Armstrong <karmstrong@gitlab.com>)   \n* 98cbeebf: refactor(config): do not use StubConfig in tests (Timo Furrer <tfurrer@gitlab.com>)   \n* 1e5735ef: refactor(config): follow ups (Timo Furrer <tfurrer@gitlab.com>)   \n* bced871c: refactor(config): give each Config its own persistence directory (Timo Furrer <tfurrer@gitlab.com>)   \n* a95fae2a: refactor(config): remove global config stubbers (Timo Furrer <tfurrer@gitlab.com>)   \n* 769e47ec: refactor(glrepo): inject config instead of reaching for the global (Timo Furrer <tfurrer@gitlab.com>)\n\n"
+        },
+        "protected": true,
+        "created_at": null
+    }
+]

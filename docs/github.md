@@ -11,7 +11,7 @@ FROM redis:7.2.0
 
 | Key                                          | Description                                                                |
 | -------------------------------------------- | -------------------------------------------------------------------------- |
-| `provider`                                   | `github`.                                                                  |
+| `provider`                                   | `github`                                                                   |
 | `repository`                                 | The `owner/name` of the repository to track.                               |
 | `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`).       |
 | [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range). |

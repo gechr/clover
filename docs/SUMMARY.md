@@ -12,6 +12,7 @@
 
 - [Providers](providers.md)
   - [GitHub](github.md)
+  - [GitLab](gitlab.md)
   - [Docker](docker.md)
   - [Helm](helm.md)
   - [HashiCorp](hashicorp.md)

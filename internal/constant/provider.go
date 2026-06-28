@@ -13,6 +13,7 @@ const (
 	ProviderDocker    = "docker"
 	ProviderFollow    = "follow"
 	ProviderGithub    = "github"
+	ProviderGitlab    = "gitlab"
 	ProviderHashicorp = "hashicorp"
 	ProviderHelm      = "helm"
 	ProviderNode      = "node"
