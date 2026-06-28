@@ -3,7 +3,7 @@
 Most of Clover's behavior lives in the annotations themselves, so configuration is deliberately small. Clover reads from two layers that share the same keys:
 
 - A **user** config under your XDG config directory at `clover/config.yaml` - typically `~/.config/clover/config.yaml`, or `$XDG_CONFIG_HOME/clover/config.yaml` when that variable is set. Use it for personal defaults that should apply everywhere.
-- A **project** `.clover.yaml` (or `.clover.yml`) at a repository's root, for settings that travel with the project.
+- A **project** `.clover.yaml` at a repository's root, for settings that travel with the project.
 
 The project config overlays the user one field by field: a key set in the project file wins, and anything it leaves unset falls back to the user value. Both files are optional, and both validate against the same schema.
 
