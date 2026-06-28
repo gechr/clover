@@ -27,6 +27,30 @@ func TestResource(t *testing.T) {
 			wantDescribe: "github.com/owner/name (tags)",
 		},
 		{
+			name: "enterprise host override",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/name"},
+				{Key: "host", Value: "ghe.example.com"},
+			},
+			wantDescribe: "ghe.example.com/owner/name (tags)",
+		},
+		{
+			name: "host normalizes a full URL",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/name"},
+				{Key: "host", Value: "https://GHE.example.com"},
+			},
+			wantDescribe: "ghe.example.com/owner/name (tags)",
+		},
+		{
+			name: "invalid host with a path",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/name"},
+				{Key: "host", Value: "ghe.example.com/foo"},
+			},
+			wantErr: true,
+		},
+		{
 			name: "explicit releases",
 			pairs: []directive.KV{
 				{Key: "repository", Value: "owner/name"},
@@ -94,6 +118,8 @@ func TestKeys(t *testing.T) {
 	keys := github.New().Keys()
 	require.Equal(t, "repository", keys[0].Name)
 	require.True(t, keys[0].Required)
-	require.Equal(t, "source", keys[1].Name)
+	require.Equal(t, "host", keys[1].Name)
 	require.False(t, keys[1].Required)
+	require.Equal(t, "source", keys[2].Name)
+	require.False(t, keys[2].Required)
 }

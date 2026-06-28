@@ -15,7 +15,7 @@ func (p *Provider) URL(r provider.Resource, c model.Candidate) string {
 	if !ok || c.Ref == "" {
 		return ""
 	}
-	link, err := url.JoinPath("https://"+host, res.owner, res.name, "releases", "tag", c.Ref)
+	link, err := url.JoinPath("https://"+res.host, res.owner, res.name, "releases", "tag", c.Ref)
 	if err != nil {
 		return ""
 	}

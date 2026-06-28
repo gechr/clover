@@ -28,15 +28,20 @@ func tagsBody(n int) string {
 	return b.String()
 }
 
-// pagedTags answers page 1 with a full page and page 2 with a short one,
-// recording the page numbers requested.
+// pagedTags answers the first page with a full page advertising a next via the
+// Link header, and the second with a short one, recording the page numbers
+// requested. The first request carries no page param, so it records as page 1.
 func pagedTags(pages *[]string) roundTripFunc {
 	full, short := tagsBody(100), tagsBody(5)
+	next := "https://api.github.com/repos/owner/name/tags?per_page=100&page=2"
 	return func(req *http.Request) (*http.Response, error) {
 		page := req.URL.Query().Get("page")
+		if page == "" {
+			page = "1"
+		}
 		*pages = append(*pages, page)
 		if page == "1" {
-			return jsonResponse(req, full), nil
+			return linkResponse(req, full, next), nil
 		}
 		return jsonResponse(req, short), nil
 	}
@@ -129,6 +134,14 @@ func jsonResponse(req *http.Request, body string) *http.Response {
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Request:    req,
 	}
+}
+
+// linkResponse builds a 200 JSON response advertising a next page via the Link
+// header, mimicking GitHub's RFC 8288 pagination.
+func linkResponse(req *http.Request, body, next string) *http.Response {
+	resp := jsonResponse(req, body)
+	resp.Header.Set("Link", "<"+next+`>; rel="next"`)
+	return resp
 }
 
 func TestDiscoverTags(t *testing.T) {
@@ -291,6 +304,113 @@ func TestDiscoverTagsGraphQLWhenAuthenticated(t *testing.T) {
 	require.Equal(t, "bbb", candidates[1].Commit, "an annotated tag is peeled to its commit")
 }
 
+// emptyRefs is a GraphQL refs payload with no tags, for tests that only need to
+// observe the request (not the candidates).
+const emptyRefs = `{"repository":{"refs":` +
+	`{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":""}}}}`
+
+func TestDiscoverAPIBaseRouting(t *testing.T) {
+	t.Parallel()
+
+	// github.com is served at api.github.com; a GitHub Enterprise Server host
+	// serves its API under https://<host>/api/v3, mirroring go-gh's host mapping.
+	tests := []struct {
+		name, host, wantURL string
+	}{
+		{
+			name:    "github.com uses api.github.com",
+			wantURL: "https://api.github.com/repos/owner/name/tags?per_page=100",
+		},
+		{
+			name:    "enterprise host uses /api/v3 on the host",
+			host:    "ghe.example.com",
+			wantURL: "https://ghe.example.com/api/v3/repos/owner/name/tags?per_page=100",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotURL string
+			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				gotURL = req.URL.String()
+				return jsonResponse(req, `[]`), nil
+			})
+			p := github.New(github.WithTransport(transport))
+			pairs := []directive.KV{{Key: "repository", Value: "owner/name"}}
+			if tt.host != "" {
+				pairs = append(pairs, directive.KV{Key: "host", Value: tt.host})
+			}
+			res, err := p.Resource(directiveOf(pairs...))
+			require.NoError(t, err)
+
+			_, err = p.Discover(t.Context(), res)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantURL, gotURL)
+		})
+	}
+}
+
+// TestPATBoundToHost covers the exfiltration guard: the host-independent PAT is
+// sent to the default host but withheld from a marker that names a different
+// host, so a marker-controlled host= cannot redirect the token to an attacker.
+func TestPATBoundToHost(t *testing.T) {
+	t.Parallel()
+
+	var auth string
+	capture := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		auth = req.Header.Get("Authorization")
+		if strings.Contains(req.URL.Path, "graphql") {
+			return graphqlResponse(req, emptyRefs), nil
+		}
+		return jsonResponse(req, `[]`), nil
+	})
+
+	// Default host: authenticated, so the GraphQL client attaches the token.
+	def := github.New(github.WithToken("secret"), github.WithTransport(capture))
+	res, err := def.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+	_, err = def.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Equal(t, "token secret", auth, "PAT is sent to the default host")
+
+	// Foreign host: the PAT is withheld, so discovery falls to the anonymous REST
+	// path with no Authorization header.
+	auth = ""
+	foreign := github.New(github.WithToken("secret"), github.WithTransport(capture))
+	res, err = foreign.Resource(directiveOf(
+		directive.KV{Key: "repository", Value: "owner/name"},
+		directive.KV{Key: "host", Value: "ghe.example.com"},
+	))
+	require.NoError(t, err)
+	_, err = foreign.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Empty(t, auth, "PAT must not be sent to a non-default host")
+}
+
+// TestDeepStopsAtForeignOrigin covers the pagination guard: a deep lookup does
+// not follow a Link next URL to a different origin, so the credential cannot leak
+// off the starting host.
+func TestDeepStopsAtForeignOrigin(t *testing.T) {
+	t.Parallel()
+
+	var hosts []string
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		hosts = append(hosts, req.URL.Host)
+		return linkResponse(req, `[{"name":"v1.0.0","commit":{"sha":"a"}}]`,
+			"https://attacker.example/api/v3/repos/owner/name/tags?page=2"), nil
+	})
+	p := github.New(github.WithTransport(transport))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+
+	got, err := p.Discover(provider.WithDeep(t.Context(), true), res)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{"api.github.com"}, hosts,
+		"must not follow a next link to a foreign origin")
+}
+
 // unparsableTagsBody builds a full page of tags none of which parse as a
 // version, mimicking a legacy tag namespace that sorts ahead of real releases.
 func unparsableTagsBody(n int) string {
@@ -313,12 +433,16 @@ func TestDiscoverTagsRESTFallsBackToDeep(t *testing.T) {
 	// no parsable version (e.g. golang/go's legacy weekly.* tags), so discovery
 	// escalates to a deep lookup to reach the real versions on a later page.
 	unparsable, parsable := unparsableTagsBody(100), `[{"name":"1.26.4","commit":{"sha":"s"}}]`
+	next := "https://api.github.com/repos/owner/name/tags?per_page=100&page=2"
 	var pages []string
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		page := req.URL.Query().Get("page")
+		if page == "" {
+			page = "1"
+		}
 		pages = append(pages, page)
 		if page == "1" {
-			return jsonResponse(req, unparsable), nil
+			return linkResponse(req, unparsable, next), nil
 		}
 		return jsonResponse(req, parsable), nil
 	})

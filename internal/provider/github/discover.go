@@ -3,9 +3,9 @@ package github
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
@@ -125,7 +125,7 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 	}
 	candidates := candidatesFromTags(tags)
 
-	if !p.authenticated() && !provider.Deep(ctx) && len(tags) == perPage &&
+	if !p.authenticated(res.host) && !provider.Deep(ctx) && len(tags) == perPage &&
 		!anyParsable(candidates) {
 		tags, err = p.listTags(provider.WithDeep(ctx, true), res)
 		if err != nil {
@@ -158,15 +158,11 @@ func anyParsable(candidates []model.Candidate) bool {
 }
 
 func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.Candidate, error) {
-	releases, err := listAll[release](ctx, p.client(), "releases", func(page int) string {
-		return fmt.Sprintf(
-			"repos/%s/%s/releases?per_page=%d&page=%d",
-			res.owner,
-			res.name,
-			perPage,
-			page,
-		)
-	})
+	start := apiURL(
+		res.host,
+		fmt.Sprintf("repos/%s/%s/releases?per_page=%d", res.owner, res.name, perPage),
+	)
+	releases, err := listAll[release](ctx, p.client(), "releases", start, p.credential(res.host))
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +200,7 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 // the REST tags endpoint, since GraphQL rejects unauthenticated requests.
 // Shallow reads the first page; a deep lookup pages to exhaustion.
 func (p *Provider) listTags(ctx context.Context, res resource) ([]tag, error) {
-	if p.authenticated() {
+	if p.authenticated(res.host) {
 		return p.listTagsGraphQL(ctx, res)
 	}
 	return p.listTagsREST(ctx, res)
@@ -214,22 +210,18 @@ func (p *Provider) listTags(ctx context.Context, res resource) ([]tag, error) {
 // order is git's raw ref order - not necessarily newest-first; discoverTags
 // guards that with its deep fallback.
 func (p *Provider) listTagsREST(ctx context.Context, res resource) ([]tag, error) {
-	return listAll[tag](ctx, p.client(), "tags", func(page int) string {
-		return fmt.Sprintf(
-			"repos/%s/%s/tags?per_page=%d&page=%d",
-			res.owner,
-			res.name,
-			perPage,
-			page,
-		)
-	})
+	start := apiURL(
+		res.host,
+		fmt.Sprintf("repos/%s/%s/tags?per_page=%d", res.owner, res.name, perPage),
+	)
+	return listAll[tag](ctx, p.client(), "tags", start, p.credential(res.host))
 }
 
 // listTagsGraphQL reads tags through the GraphQL refs connection, ordered
 // newest-first by target commit date. Shallow returns the first page; a deep
 // lookup follows the cursor to exhaustion.
 func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, error) {
-	gql, err := p.gqlClient()
+	gql, err := p.gqlClient(res.host)
 	if err != nil {
 		return nil, fmt.Errorf("github: build client: %w", err)
 	}
@@ -257,28 +249,35 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 	}
 }
 
-// listAll fetches the first page of pathFor(page), or every page when ctx
-// requests a deep lookup, stopping at the first short page (the last one). The
-// releases endpoint is newest-first, so the shallow first page holds the latest
-// release; tags are listed through listTags (GraphQL-ordered or REST + fallback)
-// rather than here. Deep lookup trades requests for completeness across a
-// repository's whole history.
+// listAll fetches the first page at start, or every page when ctx requests a
+// deep lookup, following GitHub's Link header rather than guessing from the item
+// count. The releases endpoint is newest-first, so the shallow first page holds
+// the latest release; tags are listed through listTags (GraphQL-ordered or REST
+// + fallback) rather than here. Deep lookup trades requests for completeness
+// across a repository's whole history.
 func listAll[T any](
 	ctx context.Context,
 	rest *restClient,
-	what string,
-	pathFor func(page int) string,
+	what, start, token string,
 ) ([]T, error) {
 	var all []T
-	for page := 1; ; page++ {
+	for url := start; ; {
 		var batch []T
-		if err := rest.DoWithContext(ctx, http.MethodGet, pathFor(page), nil, &batch); err != nil {
+		header, err := rest.DoWithContext(ctx, url, token, &batch)
+		if err != nil {
 			return nil, fmt.Errorf("github: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
-		if len(batch) < perPage || !provider.Deep(ctx) {
-			return all, nil // short page = last; shallow = stop after page one
+		next := forge.NextLink(header)
+		// Never follow a next page to a different origin: the credential must not
+		// leak off the host the lookup started on.
+		if next != "" && !forge.SameOrigin(start, next) {
+			next = ""
 		}
+		if next == "" || !provider.Deep(ctx) {
+			return all, nil
+		}
+		url = next
 	}
 }
 
@@ -291,13 +290,12 @@ func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) 
 	if !ok {
 		return "", fmt.Errorf("github: invalid resource %T", r)
 	}
-	rest := p.client()
 
 	var commit struct {
 		SHA string `json:"sha"`
 	}
-	path := fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, tag)
-	if err := rest.DoWithContext(ctx, http.MethodGet, path, nil, &commit); err != nil {
+	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, tag))
+	if _, err := p.client().DoWithContext(ctx, url, p.credential(res.host), &commit); err != nil {
 		return "", fmt.Errorf("github: resolve commit for %s: %w", tag, err)
 	}
 	return commit.SHA, nil
