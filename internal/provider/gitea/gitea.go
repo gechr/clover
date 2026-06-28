@@ -295,13 +295,7 @@ func (p *Provider) hostLock(host string) *sync.Mutex {
 // patHost is the single host a PAT may be sent to: CLOVER_GITEA_HOST, defaulting
 // to codeberg.org. A test transport pins it to the default, ignoring ambient env.
 func (p *Provider) patHost() string {
-	if p.transport != nil {
-		return defaultHost
-	}
-	if h, ok := forge.NormalizeHost(cmp.Or(os.Getenv(hostEnv), defaultHost)); ok {
-		return h
-	}
-	return defaultHost
+	return forge.PATHost(hostEnv, defaultHost, p.transport != nil)
 }
 
 // staticCredential resolves a host-independent PAT, first non-empty wins: an
