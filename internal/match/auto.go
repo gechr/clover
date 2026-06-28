@@ -133,16 +133,62 @@ func isRegistryHost(segment string) bool {
 // # pin` -> `nginx:1.27`); an unquoted scalar ends at an inline ` #` comment.
 // Without this the quote or comment rides along into the reference and the
 // repository is misread (`"actions/checkout` instead of `actions/checkout`).
+//
+// This stays a line-level reader, not a YAML parser: it honors each quote
+// style's escape rule so the closing quote is found correctly, but does not
+// interpret the richer escapes (\n, \uXXXX, block scalars) that never appear in a
+// version reference. An exotic value it cannot read becomes a reference the
+// verify gate rejects, so the line is skipped rather than misread.
 func yamlScalar(s string) string {
 	s = strings.TrimSpace(s)
-	if len(s) > 0 && (s[0] == '"' || s[0] == '\'') {
-		if end := strings.IndexByte(s[1:], s[0]); end >= 0 {
-			return s[1 : 1+end] // the text between the quotes
-		}
-		return s[1:] // unterminated quote: take the rest
+	switch {
+	case strings.HasPrefix(s, `"`):
+		return doubleQuoted(s[1:])
+	case strings.HasPrefix(s, `'`):
+		return singleQuoted(s[1:])
 	}
 	if i := strings.Index(s, " #"); i >= 0 {
 		s = s[:i] // an inline comment on an unquoted scalar
 	}
 	return strings.TrimSpace(s)
+}
+
+// doubleQuoted returns the value of a YAML double-quoted scalar from the text
+// after its opening quote: it ends at the first unescaped ", unescaping \" and \\
+// (the only escapes a version reference can carry). An unterminated quote yields
+// the rest of the line.
+func doubleQuoted(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && (s[i+1] == '"' || s[i+1] == '\\') {
+			b.WriteByte(s[i+1])
+			i++
+			continue
+		}
+		if s[i] == '"' {
+			break // the closing quote
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// singleQuoted returns the value of a YAML single-quoted scalar from the text
+// after its opening quote: it ends at the first single quote that is not doubled,
+// since YAML escapes a literal quote by doubling it. An unterminated quote yields
+// the rest of the line.
+func singleQuoted(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\'' {
+			if i+1 < len(s) && s[i+1] == '\'' {
+				b.WriteByte('\'')
+				i++
+				continue
+			}
+			break // the closing quote
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
