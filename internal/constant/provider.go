@@ -16,5 +16,6 @@ const (
 	ProviderGitlab    = "gitlab"
 	ProviderHashicorp = "hashicorp"
 	ProviderHelm      = "helm"
+	ProviderHTTP      = "http"
 	ProviderNode      = "node"
 )

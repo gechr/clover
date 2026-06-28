@@ -31,6 +31,15 @@ const (
 	DirectiveSha256URL    = "sha256-url"    // checksum-file URL (templated with <version>) for value=sha256
 )
 
+// HTTP provider keys: the endpoint to fetch and how to extract version
+// candidate(s) from the response. Exactly one extraction key is set.
+const (
+	DirectiveURL       = "url"        // endpoint the http provider GETs (http)
+	DirectiveJQ        = "jq"         // jq program over a JSON response body (http)
+	DirectiveExtract   = "extract"    // glob-with-<version> or /regex/ over a text response body (http)
+	DirectiveUserAgent = "user-agent" // User-Agent header for the request (http); defaults to clover
+)
+
 // TrackInfer is the track= value that infers the floating ref from the target
 // line (the literal tag or branch already written there) rather than naming it.
 const TrackInfer = "*"

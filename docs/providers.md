@@ -10,6 +10,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `gitlab`    | Tags and releases of a GitLab.com project.                    | [GitLab](gitlab.md)       |
 | `hashicorp` | Release versions of a HashiCorp tool (Terraform, Vault, ...). | [HashiCorp](hashicorp.md) |
 | `helm`      | Chart versions from a classic or OCI repository.              | [Helm](helm.md)           |
+| `http`      | Versions extracted from an arbitrary HTTP endpoint.           | [HTTP](http.md)           |
 | `manual`    | A value you maintain by hand, published for followers.        | [Manual](manual.md)       |
 | `node`      | Node.js runtime versions from nodejs.org.                     | [Node.js](node.md)        |
 

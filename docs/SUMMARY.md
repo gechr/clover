@@ -18,6 +18,7 @@
   - [HashiCorp](hashicorp.md)
   - [Manual](manual.md)
   - [Node.js](node.md)
+  - [HTTP](http.md)
   - [Auto-detection](auto.md)
 
 - [Selecting versions]()
