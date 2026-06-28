@@ -6,7 +6,6 @@ linters:
     - err113 # noisy
     - errchkjson # noisy
     - exhaustruct # noisy
-    - forbidigo # unnecessary
     - funcorder # noisy
     - funlen # noisy
     - gochecknoglobals # provider registry and lipgloss styles are globals
@@ -80,6 +79,15 @@ linters:
         - ^reflect.StructField$
         - ^golang.org/x/tools/go/analysis.Analyzer$
         - ^gopkg.in/yaml.v3.Node$
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^sort\.Strings$
+          msg: sort strings naturally with `gechr/x/slices.SortNatural`
+        - pattern: ^sort\.StringSlice$
+          msg: sort strings naturally with `gechr/x/slices.SortNatural`
+        - pattern: ^slices\.Sort$
+          msg: use `gechr/x/slices.SortNatural` for strings, or `slices.SortFunc` for other element types
     funlen:
       lines: -1
       statements: 80

@@ -1,6 +1,6 @@
 package version
 
-import "github.com/maruel/natural"
+import xstrings "github.com/gechr/x/strings"
 
 // Compare orders a and b, returning -1, 0, or +1. The numeric segments and the
 // semver rule that a release outranks any prerelease are honored as usual, but
@@ -48,11 +48,7 @@ func comparePrerelease(a, b string) int {
 		return 1
 	case b == "":
 		return -1
-	case natural.Less(a, b):
-		return -1
-	case natural.Less(b, a):
-		return 1
 	default:
-		return 0
+		return xstrings.CompareNatural(a, b)
 	}
 }

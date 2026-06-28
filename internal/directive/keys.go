@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
+	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -113,6 +114,6 @@ func closest(unknown string, providerKeys []string) string {
 		candidates = append(candidates, k)
 	}
 	candidates = append(candidates, providerKeys...)
-	slices.Sort(candidates)
+	xslices.SortNatural(candidates)
 	return xstrings.Closest(unknown, candidates)
 }

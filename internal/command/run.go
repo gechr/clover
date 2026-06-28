@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
@@ -229,6 +228,6 @@ func usedProviders(summary mode.Summary) []string {
 			names = append(names, name)
 		}
 	}
-	slices.Sort(names)
+	xslices.SortNatural(names)
 	return names
 }

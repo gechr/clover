@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
 	xfilepath "github.com/gechr/x/filepath"
+	xstrings "github.com/gechr/x/strings"
 )
 
 const (
@@ -101,7 +101,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	if walkErr != nil {
 		return nil, 0, walkErr
 	}
-	slices.SortFunc(files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
+	slices.SortFunc(files, func(a, b File) int { return xstrings.CompareNatural(a.Path, b.Path) })
 	return files, int(scanned.Load()), nil
 }
 
