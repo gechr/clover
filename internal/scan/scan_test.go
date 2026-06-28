@@ -1,8 +1,10 @@
 package scan_test
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -62,6 +64,47 @@ func TestScanFindsDirectives(t *testing.T) {
 	require.NotContains(t, got, "config", ".git is skipped")
 	require.NotContains(t, got, "bin.dat", "binary files are skipped")
 	require.NotContains(t, got, "README.md", "files without directives are dropped")
+}
+
+func TestScanRequireDirectiveOffReturnsAllText(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"Dockerfile":       "FROM nginx:1.27\n",
+		"README.md":        "no directives here\n",
+		"annotated.yaml":   "# clover: provider=auto\nimage: redis:7.2\n",
+		".git/config":      "should be pruned\n",
+		"vendored/bin.dat": "\x00\x01binary\x00",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{root}, scan.WithRequireDirective(false))
+	require.NoError(t, err)
+
+	got := byPath(files)
+	require.Equal(t,
+		[]string{"Dockerfile", "README.md", "annotated.yaml"},
+		slices.Sorted(maps.Keys(got)),
+		"every text file is returned; the binary and .git stay excluded")
+	require.Empty(t, got["Dockerfile"].Found, "no directive found, but the lines are available")
+	require.Equal(t, "FROM nginx:1.27", got["Dockerfile"].Lines[0])
+	require.Len(t, got["annotated.yaml"].Found, 1, "an existing directive is still parsed")
+}
+
+func TestScanRequireDirectiveOffStillHonorsIgnoreFile(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"skip.yaml": "# clover:ignore-file\nFROM nginx:1.27\n",
+		"keep.yaml": "FROM redis:7.2\n",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{root}, scan.WithRequireDirective(false))
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]string{"keep.yaml"},
+		slices.Sorted(maps.Keys(byPath(files))),
+		"clover:ignore-file opts the whole file out")
 }
 
 func TestScanReportsParseErrors(t *testing.T) {

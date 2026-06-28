@@ -114,7 +114,7 @@ func Render(d Directive) string {
 	var b strings.Builder
 	b.WriteString(constant.DirectiveKeyword)
 	for _, kv := range d.Pairs {
-		b.WriteByte(' ')
+		b.WriteRune(constant.DirectiveSeparator)
 		b.WriteString(kv.Key)
 		b.WriteRune(constant.DirectiveEqual)
 		b.WriteString(renderValue(kv.Value))

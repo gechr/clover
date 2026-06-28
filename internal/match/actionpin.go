@@ -21,18 +21,24 @@ const shaLen = 40
 //
 // the commit SHA (from Candidate.Commit) and the trailing version comment (from
 // Candidate.Version, restyled). The version comment is the current-version
-// anchor - a SHA cannot anchor a semver constraint - so a pin without one is an
-// error. Render relies on the provider storing the peeled target commit, not an
-// annotated-tag object SHA.
+// anchor - a SHA cannot anchor a semver constraint - so when it is present it
+// fixes the version and its style. A pin with no comment is still a valid target:
+// it has no current version to anchor a relative constraint, so run resolves it
+// per the directive (latest unless a range constrains it) and Render appends a
+// fresh comment, documenting the version the SHA now points at. Render relies on
+// the provider storing the peeled target commit, not an annotated-tag object SHA.
 type ActionPin struct{}
 
 // NewActionPin returns the action-pin rewriter (stateless value, like Smart).
 func NewActionPin() ActionPin { return ActionPin{} }
 
-// Locate parses the action reference, requiring a full 40-hex SHA after @ and a
-// version-shaped token in the trailing comment. It errors specifically for each
-// way a line can fail to be a secure pin (no reference, not SHA-pinned, short
-// SHA, no version comment), so lint can explain the problem.
+// Locate parses the action reference, requiring a full 40-hex SHA after @. A
+// version-shaped token in the trailing comment, when present, anchors the current
+// version and its style. A pin with no comment at all is located with no current
+// version, so run resolves it fresh and Render appends the comment. It errors for
+// each way the line fails to be a SHA pin (no reference, not SHA-pinned, short
+// SHA), and when a comment is present but carries no version - clover will not
+// guess whether a human note like "# pinned" was meant to be a version.
 func (ActionPin) Locate(line string) (Location, error) {
 	commit, end, err := commitSpan(line)
 	if err != nil {
@@ -41,9 +47,19 @@ func (ActionPin) Locate(line string) (Location, error) {
 
 	hash := strings.IndexByte(line[end:], '#')
 	if hash < 0 {
-		return nil, errors.New(
-			"action pin needs a # version comment as the current-version anchor",
-		)
+		// An undocumented pin: a valid target whose version run will resolve and
+		// Render will append. No comment means no current-version anchor. Only an
+		// optional closing quote and whitespace may follow the SHA - stray text
+		// (uses: …@<sha> extra) is malformed, so fail rather than append a comment
+		// after the garbage.
+		after := strings.TrimSpace(line[end:])
+		if strings.TrimSpace(strings.TrimLeft(after, `"'`)) != "" {
+			return nil, errors.New("action pin has unexpected text after the commit SHA")
+		}
+		return actionPinLocated{
+			commit: commit,
+			pinned: line[commit.Start:commit.End],
+		}, nil
 	}
 	commentStart := end + hash + 1
 
@@ -57,10 +73,11 @@ func (ActionPin) Locate(line string) (Location, error) {
 
 	semver, _ := version.Parse(token.Core)
 	return actionPinLocated{
-		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		token:    token,
-		commit:   commit,
-		pinned:   line[commit.Start:commit.End],
+		anchored:   anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		token:      token,
+		commit:     commit,
+		pinned:     line[commit.Start:commit.End],
+		hasComment: true,
 	}, nil
 }
 
@@ -91,13 +108,15 @@ func commitSpan(line string) (Span, int, error) {
 }
 
 // actionPinLocated is a secure action pin: the commit SHA span plus the trailing
-// version-comment token, both rewritten from one candidate.
+// version-comment token, both rewritten from one candidate. hasComment is false
+// for an undocumented pin, whose comment Render synthesises rather than replaces.
 type actionPinLocated struct {
 	anchored
 
-	token  Token
-	commit Span
-	pinned string // the commit SHA currently pinned, for verification
+	token      Token
+	commit     Span
+	pinned     string // the commit SHA currently pinned, for verification
+	hasComment bool
 }
 
 // Pinned reports the commit SHA currently on the line.
@@ -105,21 +124,30 @@ func (l actionPinLocated) Pinned() string { return l.pinned }
 
 // Rendered reports the version-comment text Render will write for candidate -
 // the restyled current version, so the report shows what lands on the line
-// (e.g. v7.0.0) rather than the upstream tag's bare core (e.g. 7).
+// (e.g. v7.0.0) rather than the upstream tag's bare core (e.g. 7). An undocumented
+// pin has no style to preserve, so it gets the default v-prefixed form.
 func (l actionPinLocated) Rendered(candidate model.Candidate) string {
+	if !l.hasComment {
+		return defaultVersionStyle(candidate.Version)
+	}
 	return restyle(l.token, candidate.Version)
 }
 
-// Render replaces the commit SHA with the candidate's commit and the version
-// comment with the restyled candidate version, both in one pass. It errors
-// rather than half-update when the candidate lacks a usable commit or the
-// located spans no longer fit the line.
+// Render rewrites the commit SHA with the candidate's commit and, in one pass,
+// either replaces the existing version comment with the restyled candidate
+// version or - for an undocumented pin - appends a fresh one. It errors rather
+// than half-update when the candidate lacks a usable commit or the located spans
+// no longer fit the line.
 func (l actionPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
 	if !xstrings.IsGitCommit(candidate.Commit) {
 		return "", false, fmt.Errorf(
 			"candidate has no full commit SHA to pin, got %q",
 			candidate.Commit,
 		)
+	}
+
+	if !l.hasComment {
+		return l.appendComment(line, candidate)
 	}
 
 	commit, comment := l.commit, l.token.Span
@@ -132,4 +160,27 @@ func (l actionPinLocated) Render(line string, candidate model.Candidate) (string
 		line[commit.End:comment.Start] + version +
 		line[comment.End:]
 	return newLine, newLine != line, nil
+}
+
+// appendComment rewrites the SHA and adds a "# vX.Y.Z" version comment to a pin
+// that had none, documenting the version run resolved. Trailing whitespace is
+// trimmed first so the comment sits one space after the reference.
+func (l actionPinLocated) appendComment(
+	line string,
+	candidate model.Candidate,
+) (string, bool, error) {
+	commit := l.commit
+	if commit.Start < 0 || commit.End > len(line) {
+		return "", false, errors.New("located commit span no longer fits the line")
+	}
+	updated := line[:commit.Start] + candidate.Commit + line[commit.End:]
+	newLine := strings.TrimRight(updated, " \t") + " # " + defaultVersionStyle(candidate.Version)
+	return newLine, newLine != line, nil
+}
+
+// defaultVersionStyle styles a version for a freshly added action-pin comment.
+// GitHub action tags are conventionally v-prefixed, so a pin documented for the
+// first time leads with v at whatever precision the resolved tag carries.
+func defaultVersionStyle(v string) string {
+	return "v" + strings.TrimPrefix(v, "v")
 }

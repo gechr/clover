@@ -123,16 +123,13 @@ type route struct {
 // not user configuration (yet).
 var routes = []route{
 	{
-		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z.
-		// The secure-pin *shape* - not the file path - selects the action-pin
-		// rewriter, so a pin in a composite action.yml or a reusable-workflow
-		// caller is updated in lockstep (SHA + version comment) wherever it
-		// lives, never half-updated to a comment that disagrees with its commit.
-		// A tag-pinned uses: (@v4, no SHA) carries no paired value, so it fails
-		// this guard and falls through to smart, which bumps the ref alone. The
-		// whitespace each side of uses: anchors it to a real list key (- uses: x),
-		// never a substring like reuses: or a bare uses: with no value.
+		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z,
+		// updated SHA + version comment in lockstep. Scoped to YAML, the only place a
+		// real uses: lives, so annotate never fires on an example in Markdown prose.
+		// A tag-pinned uses: (@v4, no SHA) falls through to smart; the whitespace
+		// around uses: anchors it to a list key, not a substring like reuses:.
 		when: conditions{
+			path:      "**/*.{yml,yaml}",
 			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
 			provider:  constant.ProviderGithub,
 		},

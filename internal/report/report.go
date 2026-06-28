@@ -140,6 +140,56 @@ func Format(logger *clog.Logger, summary mode.FormatSummary, dry bool) {
 	summarize(logger, dry).Symbol("🏁").Int(field.Changed, summary.Changed()).Msg("Format complete")
 }
 
+// Annotate renders the annotations clover added (or, in preview, would add),
+// then a closing summary. A written line reads "Annotated"/"Reannotated" (🌱/♻️);
+// in preview - the default, without --write - nothing is written, so each reads
+// "Would add"/"Would update" and both it and the summary log at the Dry level.
+func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
+	dry := !write
+	for _, file := range summary.Files {
+		for _, change := range file.Changes {
+			event := summarize(logger, dry).Line(field.Location, file.Path, change.At+1)
+			if write {
+				event = event.Symbol(annotateSymbol(change.Existing))
+			}
+			event.Msg(annotateMessage(change.Existing, write))
+		}
+		if file.WriteErr != nil {
+			logger.Error().Path(field.Path, file.Path).Err(file.WriteErr).Msg("Write failed")
+		}
+	}
+
+	summarize(logger, dry).
+		Symbol("🏁").
+		Int(field.Added, summary.Added()).
+		Int(field.Updated, summary.Updated()).
+		Msg("Annotate complete")
+}
+
+// annotateSymbol picks the glyph for a written annotation: a sprout for a fresh
+// one, recycle for an existing one rewritten under --force.
+func annotateSymbol(existing bool) string {
+	if existing {
+		return "♻️"
+	}
+	return "🌱"
+}
+
+// annotateMessage picks the line message for an annotation by whether it rewrites
+// an existing directive and whether it was written.
+func annotateMessage(existing, write bool) string {
+	switch {
+	case existing && write:
+		return "Reannotated"
+	case existing:
+		return "Would reannotate"
+	case write:
+		return "Annotated"
+	default:
+		return "Would annotate"
+	}
+}
+
 // GitHub writes each actionable result as a GitHub Actions annotation, so a run
 // or lint surfaces inline on a pull request: a failure or pin-verification
 // mismatch as ::error, a skip or available update as ::warning. file:line locate

@@ -3,6 +3,7 @@
 package field
 
 const (
+	Added    = "added"
 	Changed  = "changed"
 	Comments = "comments"
 	Elapsed  = "elapsed"
@@ -24,5 +25,6 @@ const (
 	Skipped  = "skipped"
 	Tags     = "tags"
 	To       = "to"
+	Updated  = "updated"
 	Version  = "version"
 )

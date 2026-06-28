@@ -23,6 +23,19 @@ image: redis:7.2.0
 required_version = "1.7.0"
 ```
 
+### Formats without comments
+
+A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit: `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line. If the tool also accepts JSONC (JSON with comments), rename the file to `.jsonc` and add a `//` directive.
+
+[Biome](https://biomejs.dev), for example, reads `biome.jsonc` natively, so its `$schema` URL can track Biome's releases:
+
+```jsonc
+// clover: provider=github repository=biomejs/biome tag-prefix=@biomejs/biome@ constraint=minor
+"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json"
+```
+
+No [`find`](find-replace.md) is needed - the version is the only version-shaped token on the line, so Clover locates it automatically. The [`tag-prefix`](filtering.md#tag-prefix) scopes selection to Biome's monorepo-scoped `@biomejs/biome@` tags.
+
 ## Keys
 
 Every annotation is a flat list of space-separated `key=value` pairs. The available keys fall into a few groups:

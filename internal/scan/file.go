@@ -34,15 +34,23 @@ type LineError struct {
 // file's content, split on newlines and retained so the apply phase can rewrite
 // in place.
 type File struct {
-	Path   string
-	Lines  []string
-	Found  []Located
-	Errors []LineError
+	Path  string
+	Lines []string
+	Found []Located
+	// Ignored holds the line indices a clover:ignore control suppresses (the
+	// next-line target, or the lines inside an ignore-start/ignore-end block).
+	// It lets annotate honour the same opt-out the directive scan does; it is nil
+	// when the file has no such control.
+	Ignored map[int]bool
+	Errors  []LineError
 }
 
 // scanFile reads path and extracts its directives. ok is false when the file is
-// missing, too large, binary, or carries no directive at all.
-func scanFile(path string, size, maxSize int64) (File, bool) {
+// missing, too large, or binary; when requireDirective is set it is also false
+// for a file carrying no directive at all. With requireDirective off the file is
+// returned even when it has no directive (Found is empty), which is what annotate
+// needs to inspect every line of an as-yet-unannotated file.
+func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bool) {
 	if size < 0 {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -65,7 +73,7 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 		return File{}, false
 	}
 
-	prefilter, reason := maybeTextWithDirective(path)
+	prefilter, reason := maybeTextWithDirective(path, requireDirective)
 	if !prefilter {
 		skipFile(path, reason).Msg("Skipping file")
 		return File{}, false
@@ -89,10 +97,23 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 	var (
 		found      []Located
 		problems   []LineError
+		ignored    map[int]bool
 		inBlock    bool
 		ignoreLine = -1 // line index suppressed by a preceding clover:ignore
 	)
+	markIgnored := func(i int) {
+		if ignored == nil {
+			ignored = make(map[int]bool)
+		}
+		ignored[i] = true
+	}
 	for i, line := range lines {
+		// A line inside an ignore block, or the target of a clover:ignore, is
+		// suppressed even when it carries no keyword - recorded here, before the
+		// keyword prefilter, so annotate skips it just as the directive scan does.
+		if inBlock || i == ignoreLine {
+			markIgnored(i)
+		}
 		if !strings.Contains(line, constant.DirectiveKeyword) {
 			continue // cheap prefilter: most lines have no keyword
 		}
@@ -129,7 +150,7 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 		}
 	}
 
-	if len(found) == 0 && len(problems) == 0 {
+	if requireDirective && len(found) == 0 && len(problems) == 0 {
 		skipFile(path, "no directive").Msg("Skipping file")
 		return File{}, false
 	}
@@ -138,12 +159,15 @@ func scanFile(path string, size, maxSize int64) (File, bool) {
 		Int(field.Comments, len(found)).
 		Int(field.Errors, len(problems)).
 		Msg("Found Clover comments")
-	return File{Path: path, Lines: lines, Found: found, Errors: problems}, true
+	return File{Path: path, Lines: lines, Found: found, Ignored: ignored, Errors: problems}, true
 }
 
 // maybeTextWithDirective rejects obvious misses before allocating a whole-file
-// buffer: files with no clover keyword, and binary files with a NUL byte.
-func maybeTextWithDirective(path string) (bool, string) {
+// buffer: binary files with a NUL byte always, and - when requireDirective is
+// set - files with no clover keyword. With requireDirective off the keyword gate
+// is dropped, so every non-binary file passes for annotate to inspect, while the
+// binary scan still rules out files clover must never read or write.
+func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
 	file, err := os.Open(path)
 	if err != nil {
 		return false, "open failed"
@@ -160,13 +184,13 @@ func maybeTextWithDirective(path string) (bool, string) {
 			if bytes.IndexByte(chunk, 0) >= 0 {
 				return false, "binary"
 			}
-			if !foundKeyword {
+			if requireDirective && !foundKeyword {
 				foundKeyword = containsKeyword(tail, chunk)
 				tail = carry(chunk)
 			}
 		}
 		if err == io.EOF {
-			if !foundKeyword {
+			if requireDirective && !foundKeyword {
 				return false, "no clover keyword"
 			}
 			return true, ""

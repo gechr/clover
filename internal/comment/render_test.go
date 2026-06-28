@@ -84,6 +84,73 @@ func TestRenderNoComment(t *testing.T) {
 	require.Equal(t, "just code", got)
 }
 
+func TestComment(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		indent string
+		body   string
+		want   string
+	}{
+		{
+			name: "hash line marker",
+			path: "Dockerfile",
+			body: "clover: provider=auto",
+			want: "# clover: provider=auto",
+		},
+		{
+			name: "slash line marker",
+			path: "main.go",
+			body: "clover: provider=auto",
+			want: "// clover: provider=auto",
+		},
+		{
+			name:   "preserves indentation",
+			path:   "ci.yaml",
+			indent: "    ",
+			body:   "clover: provider=auto",
+			want:   "    # clover: provider=auto",
+		},
+		{
+			name: "block-only format wraps in block pair",
+			path: "index.html",
+			body: "clover: provider=auto",
+			want: "<!-- clover: provider=auto -->",
+		},
+		{
+			name:   "block-only format keeps indentation",
+			path:   "styles.css",
+			indent: "  ",
+			body:   "clover: provider=auto",
+			want:   "  /* clover: provider=auto */",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := comment.For(tc.path).Comment(tc.indent, tc.body)
+			require.True(t, ok)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestCommentRoundTripsBody confirms a synthesised comment reads back through
+// Body as the body it was built from - so an annotation clover writes is one it
+// can later find.
+func TestCommentRoundTripsBody(t *testing.T) {
+	for _, path := range []string{"Dockerfile", "main.go", "index.html", "styles.css"} {
+		t.Run(path, func(t *testing.T) {
+			syntax := comment.For(path)
+			line, ok := syntax.Comment("  ", "clover: provider=auto")
+			require.True(t, ok)
+			body, ok := syntax.Body(line)
+			require.True(t, ok)
+			require.Equal(t, "clover: provider=auto", trim(body))
+		})
+	}
+}
+
 // TestRenderRoundTripsBody confirms Render and Body are inverses: the body read
 // back from a rendered line equals the body that was written.
 func TestRenderRoundTripsBody(t *testing.T) {

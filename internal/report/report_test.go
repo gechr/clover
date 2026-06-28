@@ -65,6 +65,43 @@ func TestRunReportsWrittenValue(t *testing.T) {
 	)
 }
 
+func TestAnnotatePreview(t *testing.T) {
+	s := mode.AnnotateSummary{Files: []mode.AnnotateFile{{
+		Path: "Dockerfile",
+		Changes: []mode.AnnotateChange{
+			{At: 0},
+			{At: 4, Existing: true},
+		},
+	}}}
+
+	var buf bytes.Buffer
+	report.Annotate(clog.NewWriter(&buf), s, false)
+
+	require.Equal(t,
+		"DRY 🚧 Would annotate location=Dockerfile:1\n"+
+			"DRY 🚧 Would reannotate location=Dockerfile:5\n"+
+			"DRY 🏁 Annotate complete added=1 updated=1\n",
+		buf.String(),
+	)
+}
+
+func TestAnnotateWrites(t *testing.T) {
+	s := mode.AnnotateSummary{Files: []mode.AnnotateFile{{
+		Path:    "Dockerfile",
+		Written: true,
+		Changes: []mode.AnnotateChange{{At: 0}},
+	}}}
+
+	var buf bytes.Buffer
+	report.Annotate(clog.NewWriter(&buf), s, true)
+
+	require.Equal(t,
+		"INF 🌱 Annotated location=Dockerfile:1\n"+
+			"INF 🏁 Annotate complete added=1 updated=0\n",
+		buf.String(),
+	)
+}
+
 func TestGitHub(t *testing.T) {
 	updated := result("x/app.txt", 1) // target 1 -> line 2
 	updated.Current, updated.Resolved, updated.Changed = "1.2.0", "1.3.0", true

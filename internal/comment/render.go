@@ -1,6 +1,15 @@
 package comment
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/gechr/clover/internal/constant"
+)
+
+// sep is the single space between a comment marker and its body (and around a
+// block's close), sourced from the one directive separator so a synthesised or
+// rewritten comment spaces exactly like a rendered directive.
+const sep = string(constant.DirectiveSeparator)
 
 // match is the comment delimiter found on a line: where it starts, the length of
 // its opening marker, and its closing delimiter (empty for a line comment).
@@ -23,14 +32,32 @@ func (s Syntax) Render(line, body string) (string, bool) {
 		return line, false
 	}
 
-	rendered := line[:m.start+m.openLen] + " " + body
+	rendered := line[:m.start+m.openLen] + sep + body
 	if m.close == "" {
 		return rendered, true // line comment: the directive runs to end of line
 	}
 	if !m.hasClose {
 		return rendered, true // block opened here but closed on a later line
 	}
-	return rendered + " " + m.close + m.afterClose(line), true
+	return rendered + sep + m.close + m.afterClose(line), true
+}
+
+// Comment builds a fresh comment line carrying body, prefixed by indent, for a
+// file that does not yet have a comment on the line. It uses the syntax's first
+// line marker, falling back to its first block pair for block-only formats (HTML,
+// CSS). ok is false when the syntax exposes no delimiter at all. Spacing matches
+// [Syntax.Render]: a single space after the opening marker (and before a block's
+// close), so a synthesised comment is byte-identical to a rendered one.
+func (s Syntax) Comment(indent, body string) (string, bool) {
+	switch {
+	case len(s.Line) > 0:
+		return indent + s.Line[0] + sep + body, true
+	case len(s.Blocks) > 0:
+		b := s.Blocks[0]
+		return indent + b.Open + sep + body + sep + b.Close, true
+	default:
+		return "", false
+	}
 }
 
 // afterClose returns the text following the block's closing delimiter, preserved

@@ -29,33 +29,16 @@ const (
 const defaultMaxSize = 5 << 20 // 5 MiB
 
 // vcsDirs are always skipped during the walk.
-var vcsDirs = map[string]bool{".git": true, ".jj": true, ".hg": true, ".svn": true}
-
-type config struct {
-	workers int
-	maxSize int64
-	ignore  func(path string, isDir bool) bool
+var vcsDirs = map[string]bool{
+	".git": true,
+	".jj":  true,
+	".hg":  true,
+	".svn": true,
 }
 
 type scanJob struct {
 	path string
 	size int64
-}
-
-// Option configures [Scan].
-type Option func(*config)
-
-// WithWorkers sets the number of files scanned concurrently (default: NumCPU).
-func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
-
-// WithMaxSize sets the largest file scan will read.
-func WithMaxSize(n int64) Option { return func(c *config) { c.maxSize = n } }
-
-// WithIgnore supplies the predicate that skips ignored files and directories -
-// the seam a gitignore matcher plugs into. It is consulted in addition to the
-// always-skipped VCS directories.
-func WithIgnore(fn func(path string, isDir bool) bool) Option {
-	return func(c *config) { c.ignore = fn }
 }
 
 // Scan walks roots and returns the files carrying a clover: directive, sorted by
@@ -64,9 +47,10 @@ func WithIgnore(fn func(path string, isDir bool) bool) Option {
 // concurrently.
 func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, error) {
 	cfg := config{
-		workers: runtime.NumCPU(),
-		maxSize: defaultMaxSize,
-		ignore:  func(string, bool) bool { return false },
+		workers:          runtime.NumCPU(),
+		maxSize:          defaultMaxSize,
+		ignore:           IgnoreFunc(func(string, bool) bool { return false }),
+		requireDirective: true,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -104,7 +88,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 			for job := range jobs {
 				scanned.Add(1)
 				clog.Debug().Path(field.Path, job.path).Msg("Scanning file")
-				if file, ok := scanFile(job.path, job.size, cfg.maxSize); ok {
+				if file, ok := scanFile(job.path, job.size, cfg.maxSize, cfg.requireDirective); ok {
 					mu.Lock()
 					files = append(files, file)
 					mu.Unlock()

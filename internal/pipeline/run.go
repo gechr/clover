@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -33,7 +32,6 @@ import (
 	"github.com/gechr/clover/internal/registry"
 	"github.com/gechr/clover/internal/rule"
 	"github.com/gechr/clover/internal/scan"
-	"github.com/gechr/clover/internal/tag"
 	"github.com/gechr/clover/internal/vcs"
 	"github.com/gechr/clover/internal/version"
 )
@@ -98,118 +96,6 @@ func (f FileResult) Rewritten() []string {
 	return lines
 }
 
-type settings struct {
-	configs        *config.Resolver
-	current        string
-	deep           *bool
-	downgrade      *bool
-	filter         tag.Filter
-	force          *bool
-	ignoreFiles    []string
-	noIgnore       bool
-	maxSize        int64
-	now            time.Time
-	prerelease     *bool
-	reporter       progress.Reporter
-	truncationSink func(provider.Truncation)
-	verify         *bool
-	workers        int
-}
-
-// Option configures [Run].
-type Option func(*settings)
-
-// WithReporter sets the progress reporter that observes markers as they resolve.
-// The default discards everything; the CLI supplies a live display.
-func WithReporter(r progress.Reporter) Option {
-	return func(s *settings) { s.reporter = r }
-}
-
-// WithConfig sets the per-root config resolver. Each scanned file's repository
-// root supplies its own paths.exclude, required-version gate, and selection
-// toggle defaults (verify/prerelease/downgrade/deep); a CLI override still wins
-// over every root. Without it the scan applies no project config.
-func WithConfig(r *config.Resolver) Option {
-	return func(s *settings) { s.configs = r }
-}
-
-// WithVersion sets the running clover version the per-root required-version gate
-// checks each repository against. Unset (or an unparseable dev build), the gate
-// is inert.
-func WithVersion(current string) Option {
-	return func(s *settings) { s.current = current }
-}
-
-// WithTagFilter restricts the run to markers the filter matches. The zero filter
-// matches every marker; a non-empty one drops markers whose tags do not satisfy
-// it, including untagged markers.
-func WithTagFilter(filter tag.Filter) Option {
-	return func(s *settings) { s.filter = filter }
-}
-
-// WithDowngrade overrides the per-directive downgrade rule for every
-// marker: a non-nil allow forces downgrades on or off run-wide, while nil leaves
-// each directive's own setting in force.
-func WithDowngrade(allow *bool) Option {
-	return func(s *settings) { s.downgrade = allow }
-}
-
-// WithPrerelease overrides the per-directive prerelease rule for every marker: a
-// non-nil allow forces prereleases on or off run-wide, while nil leaves each
-// directive's own setting in force.
-func WithPrerelease(allow *bool) Option {
-	return func(s *settings) { s.prerelease = allow }
-}
-
-// WithDeep overrides the per-root run.deep default for every marker: a deep
-// lookup follows pagination to exhaustion instead of reading only the first
-// (newest) page - more accurate, at the cost of more requests that may be slow or
-// hit rate limits. A non-nil value forces it on or off run-wide; nil leaves each
-// root's run.deep (and a verify-implied deep) in force. The default is shallow.
-func WithDeep(deep *bool) Option { return func(s *settings) { s.deep = deep } }
-
-// WithForce overrides the per-root run.force default for every marker. When in
-// force, a followed digest (sha256 or commit) is re-pinned even if the version
-// it follows is unchanged, so a re-published artifact's new digest is adopted.
-// nil leaves each root's run.force in force; the default holds an unchanged
-// version's digest, so a pin never moves on its own.
-func WithForce(force *bool) Option { return func(s *settings) { s.force = force } }
-
-// WithTruncationSink sets a callback invoked with a truncated resource (its
-// label and upstream page) when a shallow lookup stopped with more results
-// available, so the caller can suggest a deep lookup. It may be called
-// concurrently.
-func WithTruncationSink(sink func(provider.Truncation)) Option {
-	return func(s *settings) { s.truncationSink = sink }
-}
-
-// WithVerify overrides the per-directive verify rule for every marker: a non-nil
-// value forces the deep tag-on-branch check on or off run-wide, while nil leaves
-// each directive's own verify/verify-branch setting in force.
-func WithVerify(on *bool) Option { return func(s *settings) { s.verify = on } }
-
-// WithWorkers sets how many markers resolve concurrently (default: NumCPU).
-func WithWorkers(n int) Option { return func(s *settings) { s.workers = n } }
-
-// WithMaxSize sets the largest file the scan will read.
-func WithMaxSize(n int64) Option { return func(s *settings) { s.maxSize = n } }
-
-// WithNow injects the reference time cooldown measures against, keeping a run
-// deterministic. Unset, the current time is used.
-func WithNow(t time.Time) Option { return func(s *settings) { s.now = t } }
-
-// WithIgnoreFiles sets the ignore-file names honoured during the walk (default:
-// .gitignore).
-func WithIgnoreFiles(names ...string) Option {
-	return func(s *settings) { s.ignoreFiles = names }
-}
-
-// WithNoIgnore disables ignore-file pruning (.gitignore) so otherwise-ignored
-// files are scanned. VCS directories stay excluded.
-func WithNoIgnore(on bool) Option {
-	return func(s *settings) { s.noIgnore = on }
-}
-
 // Run scans roots for directives, resolves every marker it finds against its
 // provider (or the marker it follows), and renders the resolved version onto
 // each target line. It is the read-and-resolve keystone: it performs the file
@@ -258,25 +144,6 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, err
 	return files, err
 }
 
-// newSettings applies opts over the defaults, clamping the worker count and
-// defaulting the clock so cooldown has a reference time.
-func newSettings(opts ...Option) settings {
-	set := settings{workers: runtime.NumCPU(), reporter: progress.Nop{}}
-	for _, opt := range opts {
-		opt(&set)
-	}
-	if set.workers < 1 {
-		set.workers = 1
-	}
-	if set.now.IsZero() {
-		set.now = time.Now()
-	}
-	if set.reporter == nil {
-		set.reporter = progress.Nop{}
-	}
-	return set
-}
-
 // scanRoots walks roots, pruning ignored paths, then applies each repository's
 // required-version gate, and returns the VCS resolver (for marker namespacing)
 // alongside the surviving files found.
@@ -298,6 +165,7 @@ func scanRoots(
 	scanOpts := []scan.Option{
 		scan.WithWorkers(set.workers),
 		scan.WithIgnore(ignoreFunc(matcher, set.configs)),
+		scan.WithRequireDirective(set.requireDirective),
 	}
 	if set.maxSize > 0 {
 		scanOpts = append(scanOpts, scan.WithMaxSize(set.maxSize))
@@ -321,7 +189,7 @@ func scanRoots(
 // ignoreFunc combines the ignore-file matcher with each repository's configured
 // paths.exclude globs (resolved per root through configs): a path is skipped
 // when either rejects it. A nil resolver applies no excludes.
-func ignoreFunc(matcher *ignore.Matcher, configs *config.Resolver) func(string, bool) bool {
+func ignoreFunc(matcher *ignore.Matcher, configs *config.Resolver) scan.IgnoreFunc {
 	return func(path string, isDir bool) bool {
 		if excludedByConfig(configs, path, isDir) {
 			return true

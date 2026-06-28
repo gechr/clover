@@ -66,6 +66,26 @@ clover format [options] [<path>…]
 
 `--check` is the CI gate; `--dry-run` previews the same rewrites but exits zero.
 
+## `annotate`
+
+Add `clover: provider=auto` directives to lines Clover can already track but that carry none - GitHub Actions `uses:` pins and container image references. It is the inverse of [auto-detection](auto.md): rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each. Because a line is annotated only when Clover recognizes it, the directive is guaranteed to resolve.
+
+```text
+clover annotate [options] [<path>…]
+```
+
+| Option            | Description                                                                       |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `-w, --write`     | Apply the proposed annotations (default: preview only)                            |
+| `--force`         | Rewrite an existing annotation into its canonical minimal form                    |
+| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded |
+| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                 |
+| `--no-config`     | Do not load any `.clover.yaml` config                                             |
+
+Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. Every annotation it writes is one Clover verified offline first, so a line it cannot actually resolve (a malformed reference, a commented-out example) is left alone.
+
+Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce - `provider=auto`, or an explicit provider the line infers - is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` inference supplies while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
+
 ## `login`
 
 Authenticate with a provider (for higher rate limits or private sources). GitHub and GitLab use an OAuth device flow; Gitea uses a browser-based loopback flow.

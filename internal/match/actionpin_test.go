@@ -31,6 +31,41 @@ func TestActionPinRoundTrip(t *testing.T) {
 	require.Equal(t, "  - uses: actions/checkout@"+newSHA+" # v4.2.0", got)
 }
 
+// TestActionPinUndocumented covers a SHA pin with no version comment: Locate
+// succeeds with no current-version anchor, and Render appends a fresh v-prefixed
+// comment for the version run resolved rather than erroring.
+func TestActionPinUndocumented(t *testing.T) {
+	t.Parallel()
+
+	line := "  - uses: actions/checkout@" + oldSHA
+
+	located, err := match.NewActionPin().Locate(line)
+	require.NoError(t, err)
+	require.Empty(t, located.Current(), "an undocumented pin has no current version")
+	require.Nil(t, located.Semver())
+
+	got, changed, err := located.Render(line, model.Candidate{Version: "4.2.0", Commit: newSHA})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "  - uses: actions/checkout@"+newSHA+" # v4.2.0", got)
+}
+
+// TestActionPinUndocumentedQuoted covers a quoted, comment-less pin: the closing
+// quote after the SHA is allowed (not treated as stray text), and Render appends
+// the comment after it.
+func TestActionPinUndocumentedQuoted(t *testing.T) {
+	t.Parallel()
+
+	line := `  - uses: "owner/repo/path@` + oldSHA + `"`
+
+	located, err := match.NewActionPin().Locate(line)
+	require.NoError(t, err)
+
+	got, _, err := located.Render(line, model.Candidate{Version: "1.1.0", Commit: newSHA})
+	require.NoError(t, err)
+	require.Equal(t, `  - uses: "owner/repo/path@`+newSHA+`" # v1.1.0`, got)
+}
+
 func TestActionPinSubdirAndQuotes(t *testing.T) {
 	t.Parallel()
 
@@ -64,13 +99,13 @@ func TestActionPinLocateErrors(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"no uses":        "FROM nginx:1.27",
-		"local action":   "  - uses: ./.github/actions/build",
-		"docker action":  "  - uses: docker://alpine:3.18",
-		"tag pinned":     "  - uses: actions/checkout@v4",
-		"short sha":      "  - uses: actions/checkout@abc123 # v4",
-		"no comment":     "  - uses: actions/checkout@" + oldSHA,
-		"comment no ver": "  - uses: actions/checkout@" + oldSHA + " # pinned",
+		"no uses":          "FROM nginx:1.27",
+		"local action":     "  - uses: ./.github/actions/build",
+		"docker action":    "  - uses: docker://alpine:3.18",
+		"tag pinned":       "  - uses: actions/checkout@v4",
+		"short sha":        "  - uses: actions/checkout@abc123 # v4",
+		"comment no ver":   "  - uses: actions/checkout@" + oldSHA + " # pinned",
+		"trailing garbage": "  - uses: actions/checkout@" + oldSHA + " extra",
 	}
 
 	for name, line := range tests {

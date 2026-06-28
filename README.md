@@ -39,6 +39,8 @@ clover run         # resolve references and update them in place
 clover run -n      # dry-run: resolve and preview, write nothing
 clover lint        # check every directive resolves, offline, no writes
 clover format      # canonicalize directive comments
+clover annotate    # preview provider=auto directives for recognized lines
+clover annotate -w # write those annotations
 ```
 
 Lines without a `clover:` comment are never touched.

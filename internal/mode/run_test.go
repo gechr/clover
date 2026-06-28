@@ -67,6 +67,41 @@ func TestRunWritesChanges(t *testing.T) {
 	require.Equal(t, "# clover: provider=run repository=x/y\nversion: 1.5.0\n", string(got))
 }
 
+// TestRunAddsActionPinComment confirms run documents an undocumented SHA pin: a
+// uses: line with a commit but no # version comment resolves per the directive
+// (latest, here 4.2.0) and gains both the updated SHA and a fresh comment.
+func TestRunAddsActionPinComment(t *testing.T) {
+	const (
+		oldSHA = "1234567890abcdef1234567890abcdef12345678"
+		newSHA = "abcdef1234567890abcdef1234567890abcdef12"
+	)
+	latest := candidate(t, "4.2.0")
+	latest.Commit = newSHA
+	provider.Register(fakeProvider{name: "github", candidates: []model.Candidate{latest}})
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ci.yaml")
+	require.NoError(t, os.WriteFile(
+		path,
+		[]byte(
+			"# clover: provider=github repository=actions/checkout\n- uses: actions/checkout@"+oldSHA+"\n",
+		),
+		0o644,
+	))
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Changed())
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"# clover: provider=github repository=actions/checkout\n- uses: actions/checkout@"+newSHA+" # v4.2.0\n",
+		string(got),
+	)
+}
+
 func TestRunDryRunWritesNothing(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "dry", candidates: []model.Candidate{candidate(t, "1.5.0")}},

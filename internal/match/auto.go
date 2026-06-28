@@ -54,7 +54,7 @@ func actionRepository(line string) string {
 	if !ok {
 		return ""
 	}
-	ref := strings.TrimSpace(after)
+	ref := yamlScalar(after) // a quoted "owner/repo@sha" or a trailing # comment
 	if at := strings.IndexByte(ref, '@'); at >= 0 {
 		ref = ref[:at]
 	}
@@ -103,7 +103,7 @@ func imageToken(line string) string {
 		return fromImage(rest)
 	}
 	if _, after, ok := strings.Cut(line, "image:"); ok {
-		return unquote(strings.TrimSpace(after))
+		return yamlScalar(after)
 	}
 	return ""
 }
@@ -127,12 +127,22 @@ func isRegistryHost(segment string) bool {
 	return segment == "localhost" || strings.ContainsAny(segment, ".:")
 }
 
-// unquote strips a single pair of surrounding single or double quotes.
-func unquote(s string) string {
-	for _, q := range []string{`"`, "'"} {
-		if len(s) >= 2 && strings.HasPrefix(s, q) && strings.HasSuffix(s, q) {
-			return s[1 : len(s)-1]
+// yamlScalar extracts the value of a YAML mapping scalar - an image: or uses:
+// value - stripping surrounding quotes and any inline comment. A quoted scalar
+// ends at its closing quote, so a trailing `# comment` is dropped (`"nginx:1.27"
+// # pin` -> `nginx:1.27`); an unquoted scalar ends at an inline ` #` comment.
+// Without this the quote or comment rides along into the reference and the
+// repository is misread (`"actions/checkout` instead of `actions/checkout`).
+func yamlScalar(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > 0 && (s[0] == '"' || s[0] == '\'') {
+		if end := strings.IndexByte(s[1:], s[0]); end >= 0 {
+			return s[1 : 1+end] // the text between the quotes
 		}
+		return s[1:] // unterminated quote: take the rest
 	}
-	return s
+	if i := strings.Index(s, " #"); i >= 0 {
+		s = s[:i] // an inline comment on an unquoted scalar
+	}
+	return strings.TrimSpace(s)
 }

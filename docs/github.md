@@ -51,7 +51,7 @@ The host is a per-marker value, so one config can track repositories across GitH
 Anonymous requests work but are rate-limited, and private repositories need a token. Authenticate once with the device flow:
 
 ```bash
-clover login                                                 # GitHub.com
+clover login
 clover login github --host ghe.example.com --client-id <id>
 ```
 
@@ -69,6 +69,8 @@ A pin whose comment is a **version tag** tracks releases. Clover resolves the ne
 # clover: provider=github repository=actions/checkout constraint=major
 - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
 ```
+
+A pin with **no comment at all** is documented on the next `run`. With no comment to anchor a relative `constraint`, Clover resolves the newest version (or one a range allows), rewrites the SHA, and appends the comment - so `- uses: actions/checkout@<sha>` becomes `- uses: actions/checkout@<sha> # v4.2.0`. A bare pin becomes a self-documenting one.
 
 A pin whose comment is a **branch name** tracks that branch's HEAD instead of selecting a version: the comment stays put while the SHA is re-resolved each run. See [Tracking](tracking.md) and [Verification](verification.md):
 

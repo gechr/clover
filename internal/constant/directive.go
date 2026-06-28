@@ -9,6 +9,11 @@ const DirectiveEqual = '='
 // after it on the line is the directive the user wrote.
 const DirectiveKeyword = "clover:"
 
+// DirectiveSeparator separates a rendered directive's key=value pairs from one
+// another and from the comment marker. It mirrors [DirectiveEqual]: a rune, used
+// via string(DirectiveSeparator) where a string is needed.
+const DirectiveSeparator = ' '
+
 // Directive targeting and control keys: who resolves the marker and how it
 // relates to others.
 const (

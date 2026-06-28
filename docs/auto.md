@@ -18,3 +18,7 @@ Auto-detection covers the obvious cases. Set `provider` explicitly when:
 - you want the annotation to document intent regardless of the line's contents.
 
 Inference only fills in what you leave out - any key you set yourself always wins.
+
+## Generating annotations
+
+To add `provider=auto` directives across an existing codebase rather than write them by hand, run [`clover annotate`](commands.md#annotate). It scans for the same lines auto-detection recognizes and inserts a directive above each, so onboarding a repository is a single command.
