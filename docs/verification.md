@@ -16,4 +16,4 @@ When a line carries a secure pin - a Docker digest or a GitHub commit - Clover c
 
 `verify-branch` is what lets Clover confirm that the commit a tag points at actually belongs to the branch you expect - useful when a tag is cut from a release branch rather than the default one.
 
-Verification pairs naturally with [`track`](tracking.md): tracking keeps the pin fresh, and `verify` confirms each freshly-resolved pin before it is written.
+Verification pairs naturally with [`track`](tracking.md): tracking keeps the pin fresh, and `verify` reports whether each freshly-resolved pin is reachable from an allowed branch. A verification mismatch is reported as an error in the output, but it does not by itself block an otherwise resolved `clover run`.

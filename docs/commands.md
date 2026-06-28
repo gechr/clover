@@ -26,10 +26,12 @@ clover run [options] [<path>…]
 | ----------------------- | --------------------------------------------------------------------------------------- |
 | `-t, --tag <tag>`       | Only process directives matching these tags.                                            |
 | `-n, --dry-run`         | Resolve and render but write nothing.                                                   |
-| `--deep`                | Follow pagination to fetch every version - more accurate, but slower and more requests. |
+| `--[no-]deep`           | Follow pagination to fetch every version - more accurate, but slower and more requests. |
 | `-y, --yes`             | Proceed without confirming a deep lookup.                                               |
 | `--[no-]downgrade`      | Allow selecting versions older than the current one.                                    |
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions.                                  |
+| `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged.                 |
+| `--[no-]verify`         | Verify secure pins against upstream tags; implies `--deep`.                             |
 | `-o, --output <output>` | Output detail: `text` (default) or `wide`.                                              |
 | `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded.      |
 | `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file.                                      |
