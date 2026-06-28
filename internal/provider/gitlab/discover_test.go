@@ -80,6 +80,27 @@ func TestDiscoverTagsRequest(t *testing.T) {
 	require.Equal(t, "desc", seen[0].URL.Query().Get("sort"))
 }
 
+// TestDiscoverRoutesSelfManagedHost covers a self-managed host: the request
+// targets https://<host>/api/v4 rather than gitlab.com, on the same /api/v4
+// surface.
+func TestDiscoverRoutesSelfManagedHost(t *testing.T) {
+	t.Parallel()
+
+	var seen []*http.Request
+	p := newProvider(`[]`, &seen)
+	_, err := p.Discover(t.Context(), resourceFor(t, p,
+		directive.KV{Key: "repository", Value: "group/project"},
+		directive.KV{Key: "host", Value: "gitlab.example.com"},
+	))
+	require.NoError(t, err)
+	require.Len(t, seen, 1)
+	require.Equal(t, "gitlab.example.com", seen[0].URL.Host)
+	require.Equal(t,
+		"/api/v4/projects/group%2Fproject/repository/tags",
+		seen[0].URL.EscapedPath(),
+	)
+}
+
 // TestDiscoverTagsCandidate covers a tag's projection: the commit SHA and the
 // tag's own creation date (not the commit date) ride along on the candidate.
 func TestDiscoverTagsCandidate(t *testing.T) {

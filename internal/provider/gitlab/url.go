@@ -10,9 +10,9 @@ import (
 // webURL is the project's web root, e.g. https://gitlab.com/group/project. It
 // roots both the Linker page and the truncation hint.
 func webURL(res resource) string {
-	link, err := url.JoinPath("https://"+host, res.repository)
+	link, err := url.JoinPath("https://"+res.host, res.repository)
 	if err != nil {
-		return "https://" + host
+		return "https://" + res.host
 	}
 	return link
 }

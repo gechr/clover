@@ -105,6 +105,35 @@ func TestExpiredTokenFallsBackToAnonymous(t *testing.T) {
 	require.Equal(t, 2, attempts) // credentialed 401, then anonymous retry
 }
 
+// TestPATBoundToHost covers the exfiltration guard: the host-independent PAT is
+// sent to the default host but withheld from a marker that names a different
+// host, so a marker-controlled host= cannot redirect the token to an attacker.
+func TestPATBoundToHost(t *testing.T) {
+	t.Parallel()
+
+	var auth string
+	capture := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		auth = req.Header.Get("Authorization")
+		return jsonResponse(req, "[]"), nil
+	})
+
+	def := gitlab.New(gitlab.WithToken("secret"), gitlab.WithTransport(capture))
+	_, err := def.Discover(t.Context(), resourceFor(t, def,
+		directive.KV{Key: "repository", Value: "group/project"},
+	))
+	require.NoError(t, err)
+	require.Equal(t, "Bearer secret", auth, "PAT is sent to the default host")
+
+	auth = ""
+	foreign := gitlab.New(gitlab.WithToken("secret"), gitlab.WithTransport(capture))
+	_, err = foreign.Discover(t.Context(), resourceFor(t, foreign,
+		directive.KV{Key: "repository", Value: "group/project"},
+		directive.KV{Key: "host", Value: "gitlab.example.com"},
+	))
+	require.NoError(t, err)
+	require.Empty(t, auth, "PAT must not be sent to a non-default host")
+}
+
 func TestAuthHint(t *testing.T) {
 	t.Parallel()
 	require.Equal(t,

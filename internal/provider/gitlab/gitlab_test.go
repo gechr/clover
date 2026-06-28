@@ -21,11 +21,13 @@ func TestNameAndKeys(t *testing.T) {
 	require.Equal(t, "gitlab", p.Name())
 
 	keys := p.Keys()
-	require.Len(t, keys, 2)
+	require.Len(t, keys, 3)
 	require.Equal(t, "repository", keys[0].Name)
 	require.True(t, keys[0].Required)
-	require.Equal(t, "source", keys[1].Name)
+	require.Equal(t, "host", keys[1].Name)
 	require.False(t, keys[1].Required)
+	require.Equal(t, "source", keys[2].Name)
+	require.False(t, keys[2].Required)
 }
 
 func TestResource(t *testing.T) {
@@ -54,6 +56,30 @@ func TestResource(t *testing.T) {
 			name:         "nested groups are allowed",
 			pairs:        []directive.KV{{Key: "repository", Value: "group/subgroup/project"}},
 			wantDescribe: "gitlab.com/group/subgroup/project (tags)",
+		},
+		{
+			name: "self-managed host override",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "group/project"},
+				{Key: "host", Value: "gitlab.example.com"},
+			},
+			wantDescribe: "gitlab.example.com/group/project (tags)",
+		},
+		{
+			name: "host normalizes a full URL",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "group/project"},
+				{Key: "host", Value: "https://GitLab.example.com/"},
+			},
+			wantDescribe: "gitlab.example.com/group/project (tags)",
+		},
+		{
+			name: "invalid host with a path",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "group/project"},
+				{Key: "host", Value: "gitlab.example.com/foo"},
+			},
+			wantErr: true,
 		},
 		{name: "missing project", pairs: nil, wantErr: true},
 		{

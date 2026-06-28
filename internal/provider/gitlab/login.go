@@ -64,7 +64,7 @@ func Login(ctx context.Context, prompt func(Code)) error {
 	if err != nil {
 		return err
 	}
-	if err := store.Set(host, accessToken.Token); err != nil {
+	if err := store.Set(defaultHost, accessToken.Token); err != nil {
 		return fmt.Errorf("gitlab: store token: %w", err)
 	}
 	return nil

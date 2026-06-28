@@ -3,7 +3,6 @@ package gitlab
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/gechr/clover/internal/model"
@@ -70,14 +69,17 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 // the latest version - not the most recently updated tag, which a backport to an
 // old release line would otherwise float to the top.
 func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Candidate, error) {
-	tags, truncated, err := listAll[tag](ctx, p.rest, "tags", func(page int) string {
-		return fmt.Sprintf(
-			"projects/%s/repository/tags?order_by=version&sort=desc&per_page=%d&page=%d",
-			res.projectID(),
-			perPage,
-			page,
-		)
-	})
+	tags, truncated, err := listAll[tag](
+		ctx, p.rest, "tags", res.host, p.credential(res.host),
+		func(page int) string {
+			return fmt.Sprintf(
+				"projects/%s/repository/tags?order_by=version&sort=desc&per_page=%d&page=%d",
+				res.projectID(),
+				perPage,
+				page,
+			)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -95,14 +97,17 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 // discoverReleases lists a project's releases as candidates. The endpoint is
 // newest-first by release date.
 func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.Candidate, error) {
-	releases, truncated, err := listAll[release](ctx, p.rest, "releases", func(page int) string {
-		return fmt.Sprintf(
-			"projects/%s/releases?per_page=%d&page=%d",
-			res.projectID(),
-			perPage,
-			page,
-		)
-	})
+	releases, truncated, err := listAll[release](
+		ctx, p.rest, "releases", res.host, p.credential(res.host),
+		func(page int) string {
+			return fmt.Sprintf(
+				"projects/%s/releases?per_page=%d&page=%d",
+				res.projectID(),
+				perPage,
+				page,
+			)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -138,13 +143,13 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 func listAll[T any](
 	ctx context.Context,
 	rest *restClient,
-	what string,
+	what, host, token string,
 	pathFor func(page int) string,
 ) ([]T, bool, error) {
 	var all []T
 	for page := 1; ; page++ {
 		var batch []T
-		header, err := rest.DoWithContext(ctx, http.MethodGet, pathFor(page), nil, &batch)
+		header, err := rest.DoWithContext(ctx, apiURL(host, pathFor(page)), token, &batch)
 		if err != nil {
 			return nil, false, fmt.Errorf("gitlab: list %s: %w", what, err)
 		}
