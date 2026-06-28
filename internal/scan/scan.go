@@ -88,7 +88,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 			for job := range jobs {
 				scanned.Add(1)
 				clog.Debug().Path(field.Path, job.path).Msg("Scanning file")
-				if file, ok := scanFile(job.path, job.size, cfg.maxSize, cfg.requireDirective); ok {
+				if file, ok := scanPath(job, cfg); ok {
 					mu.Lock()
 					files = append(files, file)
 					mu.Unlock()

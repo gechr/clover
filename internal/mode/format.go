@@ -124,6 +124,9 @@ func formatFile(file scan.File, prune bool) FormatFile {
 	syntax := comment.For(file.Path)
 	formatted := FormatFile{Path: file.Path}
 	for _, located := range file.Found {
+		if located.Sidecar {
+			continue // a sidecar directive has no inline text in this file to canonicalise
+		}
 		d := located.Directive
 		name, _ := d.Get(constant.DirectiveProvider)
 		var pruned []string

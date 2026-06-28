@@ -73,6 +73,9 @@ func checkKeys(m Marker) error {
 			providerKeys = append(providerKeys, k.Name)
 		}
 	}
+	if m.Sidecar {
+		return m.Directive.CheckKeysSidecar(providerKeys)
+	}
 	return m.Directive.CheckKeys(providerKeys)
 }
 

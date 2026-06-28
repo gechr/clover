@@ -38,6 +38,7 @@ type Marker struct {
 	Value     string   // value kind a follower projects
 	Select    string   // old/new snapshot a follower reads
 	Tags      []string // labels for --tags filtering, in source order
+	Sidecar   bool     // the directive came from a YAML sidecar
 }
 
 // IsFollower reports whether the marker reuses another marker's result rather
@@ -61,7 +62,12 @@ func Markers(file scan.File, resolver *vcs.Resolver) []Marker {
 // the target line.
 func bind(file scan.File, root string, found scan.Located) Marker {
 	d := found.Directive
+	// An inline directive rewrites the line below its comment; a sidecar entry's
+	// Line is already the resolved target line it rewrites.
 	target := found.Line + 1
+	if found.Sidecar {
+		target = found.Line
+	}
 
 	provider := value(d, constant.DirectiveProvider)
 	switch provider {
@@ -82,6 +88,7 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		Value:     value(d, constant.DirectiveValue),
 		Select:    value(d, constant.DirectiveSelect),
 		Tags:      d.CSV(constant.DirectiveTags),
+		Sidecar:   found.Sidecar,
 	}
 }
 

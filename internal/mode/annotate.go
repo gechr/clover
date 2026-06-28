@@ -122,6 +122,10 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	governed := map[int]bool{}
 	existing := map[int]scan.Located{}
 	for _, loc := range file.Found {
+		if loc.Sidecar {
+			governed[loc.Line] = true // the sidecar already rewrites this line; never re-annotate it
+			continue
+		}
 		governed[loc.Line] = true
 		governed[loc.Line+1] = true
 		existing[loc.Line+1] = loc

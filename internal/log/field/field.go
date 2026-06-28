@@ -14,6 +14,7 @@ const (
 	From     = "from"
 	Hint     = "hint"
 	Key      = "key"
+	Line     = "line"
 	Location = "location"
 	Path     = "path"
 	Progress = "progress"

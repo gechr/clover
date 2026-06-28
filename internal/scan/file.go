@@ -17,10 +17,14 @@ const prefilterChunkSize = 32 << 10
 
 var directiveKeywordBytes = []byte(constant.DirectiveKeyword)
 
-// Located is a directive found on a line of a file.
+// Located is a directive found on a line of a file. An inline directive's Line
+// is its comment line (it rewrites the line below); a sidecar directive's Line
+// is the target line itself, already resolved by its locator, so Sidecar marks
+// which binding the pipeline applies.
 type Located struct {
-	Line      int // index into File.Lines of the directive's comment line
+	Line      int // index into File.Lines of the directive's comment line, or the target line for a sidecar
 	Directive directive.Directive
+	Sidecar   bool // the directive came from a YAML sidecar; Line is the resolved target
 }
 
 // LineError is a malformed directive: the keyword was present but parsing
