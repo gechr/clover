@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/pattern"
 	xstrings "github.com/gechr/x/strings"
 )
@@ -107,7 +108,11 @@ func choose(entries []entry, pat string) (string, error) {
 		if len(entries) == 1 {
 			return entries[0].hash, nil
 		}
-		return "", fmt.Errorf("checksum: %d entries, set %q to choose one", len(entries), "pattern")
+		return "", fmt.Errorf(
+			"checksum: %d entries, set %q to choose one",
+			len(entries),
+			constant.DirectivePattern,
+		)
 	}
 
 	p, err := pattern.Compile(pat)
