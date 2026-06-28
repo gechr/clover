@@ -1,6 +1,6 @@
 # GitHub
 
-The GitHub provider tracks the releases and tags of a repository.
+The GitHub provider tracks the releases and tags of a repository on GitHub.com or a [GitHub Enterprise Server](#github-enterprise-server) instance, selected with the `host` key.
 
 ```dockerfile
 # clover: provider=github repository=redis/redis constraint=minor
@@ -13,6 +13,7 @@ FROM redis:7.2.0
 | -------------------------------------------- | ------------------------------------------------------------------------- |
 | `provider`                                   | `github`                                                                  |
 | `repository`                                 | The `owner/name` of the repository to track                               |
+| `host`                                       | The host; defaults to `github.com`                                        |
 | `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`)       |
 | [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
 | [`include`](filtering.md)                    | Keep only matching tags                                                   |
@@ -34,13 +35,29 @@ version: v1.4.0
 
 Pair it with a [`value=sha256`](checksums.md) follower to source that asset's checksum alongside the version. `asset` selects which release; [`pattern`](checksums.md) selects which of its assets to hash.
 
+## GitHub Enterprise Server
+
+By default the provider targets GitHub.com. Point `host` at a GitHub Enterprise Server instance to track a repository there, and Clover routes through that instance's API (`/api/v3` and `/api/graphql`) instead of `api.github.com`:
+
+```yaml
+# clover: provider=github host=ghe.example.com repository=org/tool constraint=minor
+version: v1.4.0
+```
+
+The host is a per-marker value, so one config can track repositories across GitHub.com and several enterprise instances at once.
+
 ## Authentication
 
 Anonymous requests work but are rate-limited, and private repositories need a token. Authenticate once with the device flow:
 
 ```bash
-clover login
+clover login                                                 # GitHub.com
+clover login github --host ghe.example.com --client-id <id>
 ```
+
+GitHub.com uses Clover's embedded OAuth app; a GitHub Enterprise Server instance runs its own, so `--host` needs a matching `--client-id` (register an OAuth app on the instance with the device flow enabled). The minted token is stored in your system keychain under that host.
+
+Alternatively, set `CLOVER_GITHUB_TOKEN` to a [personal access token](https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with read access; Clover also honors a `gh`-compatible token (`GH_TOKEN`/`GITHUB_TOKEN`, or `GH_ENTERPRISE_TOKEN`/`GITHUB_ENTERPRISE_TOKEN` for an enterprise host). For safety `CLOVER_GITHUB_TOKEN` is sent only to one host - `github.com` by default, or the host named by `CLOVER_GITHUB_HOST` - so a marker that names a different `host` never receives it. To use it against an enterprise instance, set `CLOVER_GITHUB_HOST=ghe.example.com`.
 
 ## Pinning an Action to a commit
 

@@ -7,8 +7,8 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `auto`      | Inferred from the target line's contents                     | [Auto-detection](auto.md) |
 | `docker`    | Image tags and digests from a container registry             | [Docker](docker.md)       |
 | `gitea`     | Tags and releases of a Gitea/Forgejo repository (Codeberg)   | [Gitea](gitea.md)         |
-| `github`    | Releases, tags, and branch commits of a repository           | [GitHub](github.md)       |
-| `gitlab`    | Tags and releases of a GitLab.com project                    | [GitLab](gitlab.md)       |
+| `github`    | Releases, tags, and branch commits of a GitHub repository    | [GitHub](github.md)       |
+| `gitlab`    | Tags and releases of a GitLab project                        | [GitLab](gitlab.md)       |
 | `hashicorp` | Release versions of a HashiCorp tool (Terraform, Vault, ...) | [HashiCorp](hashicorp.md) |
 | `helm`      | Chart versions from a classic or OCI repository              | [Helm](helm.md)           |
 | `http`      | Versions extracted from an arbitrary HTTP endpoint           | [HTTP](http.md)           |
