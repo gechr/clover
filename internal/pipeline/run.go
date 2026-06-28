@@ -43,8 +43,8 @@ var ErrNoCandidate = errors.New("no candidate satisfies the rule")
 
 // Result is the outcome of resolving one marker: the version it found in the
 // file, the value it resolved to, and the rewritten target line. Exactly one of
-// a clean resolution, Skipped, or Err holds. A skipped or errored marker leaves
-// Resolved empty and NewLine equal to the original line.
+// a clean resolution, Skipped, Disabled, or Err holds. A skipped, disabled, or
+// errored marker leaves Resolved empty and NewLine equal to the original line.
 type Result struct {
 	Marker   Marker
 	Current  string // the version token currently on the target line
@@ -53,7 +53,8 @@ type Result struct {
 	NewLine  string // the target line after rendering, == original when unchanged
 	Changed  bool   // whether rendering altered the target line
 	Skipped  bool   // the marker's dependency failed, was missing, or cycled
-	Reason   string // why the marker was skipped
+	Disabled bool   // the directive set skip=...; the marker is intentionally inert (never a lint failure)
+	Reason   string // why the marker was skipped, or the skip= reason it was disabled with
 	Err      error  // why resolution failed
 	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
 
@@ -318,6 +319,7 @@ type plan struct {
 	downgrade      *bool
 	checksumClient *http.Client
 	deep           *bool
+	disabled       []Result
 	force          *bool
 	lines          map[string][]string
 	markers        []Marker
@@ -338,13 +340,36 @@ type plan struct {
 // not collide.
 func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 	lines := make(map[string][]string, len(files))
-	var markers []Marker
-	var parseErrors []Result
+	var (
+		markers     []Marker
+		parseErrors []Result
+		disabled    []Result
+	)
 	for _, f := range files {
 		lines[f.Path] = f.Lines
 		parseErrors = append(parseErrors, parseErrorResults(f)...)
 		for _, m := range Markers(f, resolver) {
-			if set.filter.Match(m.Tags) {
+			if !set.filter.Match(m.Tags) {
+				continue
+			}
+			off, reason, err := skipState(m.Directive)
+			switch {
+			case err != nil:
+				parseErrors = append(
+					parseErrors,
+					Result{Marker: m, NewLine: targetLine(lines, m), Err: err},
+				)
+			case off:
+				disabled = append(
+					disabled,
+					Result{
+						Marker:   m,
+						NewLine:  targetLine(lines, m),
+						Disabled: true,
+						Reason:   reason,
+					},
+				)
+			default:
 				markers = append(markers, m)
 			}
 		}
@@ -360,6 +385,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		downgrade:      set.downgrade,
 		checksumClient: httpcache.New(),
 		deep:           set.deep,
+		disabled:       disabled,
 		force:          set.force,
 		lines:          lines,
 		markers:        markers,
@@ -372,6 +398,29 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		truncationSink: set.truncationSink,
 		verify:         set.verify,
 		workers:        set.workers,
+	}
+}
+
+// skipState interprets a directive's skip key: skip=false (or absent) leaves the
+// marker enabled; skip=true disables it with no reason; any other non-empty value
+// disables it and is the reason reported. An empty skip value is malformed -
+// directives never carry an empty value.
+func skipState(d directive.Directive) (bool, string, error) {
+	v, ok := d.Get(constant.DirectiveSkip)
+	switch {
+	case !ok, v == constant.BoolFalse:
+		return false, "", nil
+	case v == constant.BoolTrue:
+		return true, "", nil
+	case v == "":
+		return false, "", fmt.Errorf(
+			"%q needs %s, %s, or a reason",
+			constant.DirectiveSkip,
+			constant.BoolTrue,
+			constant.BoolFalse,
+		)
+	default:
+		return true, v, nil
 	}
 }
 
@@ -1214,6 +1263,9 @@ func renderedValue(located match.Location, candidate model.Candidate) string {
 func (p *plan) group(files []scan.File) []FileResult {
 	byPath := make(map[string][]Result, len(files))
 	for _, r := range p.parseErrors {
+		byPath[r.Marker.File] = append(byPath[r.Marker.File], r)
+	}
+	for _, r := range p.disabled {
 		byPath[r.Marker.File] = append(byPath[r.Marker.File], r)
 	}
 	for _, r := range p.results {

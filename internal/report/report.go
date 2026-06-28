@@ -28,9 +28,16 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 				Msg("Update check failed")
 		case r.Skipped:
 			logger.Warn().
+				Symbol("📛").
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
+		case r.Disabled:
+			logger.Info().
+				Symbol("💤").
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.Reason, r.Reason).
+				Msg("Disabled")
 		case r.Changed:
 			msg := "Update applied"
 			if dryRun {
@@ -70,6 +77,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		Symbol("🏁").
 		Int(field.Changed, summary.Changed()).
 		Int(field.Skipped, summary.Skipped()).
+		Int(field.Disabled, summary.Disabled()).
 		Int(field.Failed, summary.Errored()).
 		Duration(field.Elapsed, summary.Elapsed).
 		Msg("Run complete")
@@ -94,9 +102,16 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 			logger.Error().Line(field.Location, r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
 		case r.Skipped:
 			logger.Warn().
+				Symbol("📛").
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
+		case r.Disabled:
+			logger.Info().
+				Symbol("💤").
+				Line(field.Location, r.Marker.File, line(r)).
+				Str(field.Reason, r.Reason).
+				Msg("Disabled")
 		case detail == output.Wide:
 			logger.Info().Symbol("✅").Line(field.Location, r.Marker.File, line(r)).Msg("Valid")
 		}
@@ -106,6 +121,7 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 		Symbol("🏁").
 		Int(field.Errored, summary.Errored()).
 		Int(field.Skipped, summary.Skipped()).
+		Int(field.Disabled, summary.Disabled()).
 		Msg("Lint complete")
 }
 

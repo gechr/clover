@@ -6,6 +6,7 @@ const (
 	Added    = "added"
 	Changed  = "changed"
 	Comments = "comments"
+	Disabled = "disabled"
 	Elapsed  = "elapsed"
 	Errored  = "errored"
 	Errors   = "errors"
