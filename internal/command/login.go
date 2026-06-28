@@ -18,18 +18,19 @@ import (
 	"github.com/gechr/x/terminal"
 )
 
-// deviceLogins maps a provider name to its OAuth device flow. Each provider keeps
-// its own typed Code, so the dispatch adapts it to promptDeviceCode's plain
-// arguments here rather than forcing a shared type across the providers. docker
-// is absent: it authenticates through its own keychain, not a clover device flow.
-var deviceLogins = map[string]func(context.Context) error{
-	constant.ProviderGithub: func(ctx context.Context) error {
-		return github.Login(ctx, func(c github.Code) {
+// deviceLogins maps a provider name to its OAuth device flow against a host. Each
+// provider keeps its own typed Code, so the dispatch adapts it to
+// promptDeviceCode's plain arguments here rather than forcing a shared type
+// across the providers. docker is absent: it authenticates through its own
+// keychain, not a clover device flow.
+var deviceLogins = map[string]func(ctx context.Context, host, clientID string) error{
+	constant.ProviderGithub: func(ctx context.Context, host, clientID string) error {
+		return github.Login(ctx, host, clientID, func(c github.Code) {
 			promptDeviceCode(c.UserCode, c.VerificationURL)
 		})
 	},
-	constant.ProviderGitlab: func(ctx context.Context) error {
-		return gitlab.Login(ctx, func(c gitlab.Code) {
+	constant.ProviderGitlab: func(ctx context.Context, host, clientID string) error {
+		return gitlab.Login(ctx, host, clientID, func(c gitlab.Code) {
 			promptDeviceCode(c.UserCode, c.VerificationURL)
 		})
 	},
@@ -38,30 +39,27 @@ var deviceLogins = map[string]func(context.Context) error{
 // cmdLogin authenticates clover with a provider, storing the minted token so
 // later runs read it from the credential chain. github and gitlab use an OAuth
 // device flow; gitea uses an authorization-code loopback flow (it has no device
-// grant) and accepts a host and an optional client-id override.
+// grant). All three accept a `--host` for an enterprise/self-managed instance and
+// an optional `--client-id` (required there, since the public host's embedded app
+// is not registered on a private instance).
 type cmdLogin struct {
 	Provider string "help:\"Provider to authenticate with\" arg:\"\" optional:\"\" clib:\"terse='Provider'\" default:\"github\" enum:\"github,gitlab,gitea\""
-	Host     string "help:\"Forge host for gitea (default: codeberg.org)\" clib:\"terse='Forge host'\" placeholder:\"<host>\""
-	ClientID string "help:\"OAuth client-id override for gitea\"           clib:\"terse='Client ID'\"  placeholder:\"<id>\""
+	Host     string "help:\"Forge host for an enterprise/self-managed instance (default: the provider's public host)\" clib:\"terse='Forge host'\" placeholder:\"<host>\""
+	ClientID string "help:\"OAuth client-id, required for an enterprise/self-managed --host\"                          clib:\"terse='Client ID'\"  placeholder:\"<id>\""
 }
 
 // Help returns the detailed blurb shown in `clover login --help`.
 func (c *cmdLogin) Help() string {
 	return "Authenticates Clover with a provider and stores the minted token in your system keychain, so later runs read it from the credential chain instead of falling back to rate-limited anonymous access.\n\n" +
-		"GitHub and GitLab use an OAuth device flow (you authorize a one-time code in the browser).\n\n" +
-		"Gitea uses a browser-based loopback flow against the host given by `--host`, with an optional `--client-id`; other providers authenticate through their own credential sources."
+		"GitHub and GitLab use an OAuth device flow (you authorize a one-time code in the browser); Gitea uses a browser-based loopback flow.\n\n" +
+		"Pass `--host` to authenticate against a GitHub Enterprise Server, self-managed GitLab, or self-hosted Gitea instance. Such an instance runs its own OAuth app, so `--host` requires a matching `--client-id` (the public hosts use Clover's embedded app)."
 }
 
 // Run drives the chosen provider's interactive login, then reports success.
 // gitea is the loopback authorization-code flow; the others are device flows.
+// Each provider validates and defaults --host/--client-id itself.
 func (c *cmdLogin) Run() error {
 	ctx := context.Background()
-
-	// --host and --client-id are gitea-only; github and gitlab are single-host
-	// (github.com, gitlab.com). Reject them elsewhere rather than ignore them.
-	if c.Provider != constant.ProviderGitea && (c.Host != "" || c.ClientID != "") {
-		return fmt.Errorf("login: `--host` and `--client-id` apply only to `gitea`")
-	}
 
 	switch c.Provider {
 	case constant.ProviderGitea:
@@ -73,7 +71,7 @@ func (c *cmdLogin) Run() error {
 		if !ok {
 			return fmt.Errorf("login: provider %q has no interactive login", c.Provider)
 		}
-		if err := login(ctx); err != nil {
+		if err := login(ctx, c.Host, c.ClientID); err != nil {
 			return err
 		}
 	}
