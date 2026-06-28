@@ -152,6 +152,6 @@ func TestRunManualRequiresID(t *testing.T) {
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
-	require.EqualError(t, files[0].Results[0].Err, "manual: id is required")
+	require.EqualError(t, files[0].Results[0].Err, `manual: "id" is required`)
 	require.False(t, files[0].Results[0].Changed)
 }

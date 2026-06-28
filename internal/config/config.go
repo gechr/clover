@@ -42,6 +42,10 @@ var projectFileNames = []string{".clover.yaml", ".clover.yml"}
 // XDG config dir's clover subdirectory.
 var userFileNames = []string{"config.yaml", "config.yml"}
 
+// keyRequiredVersion is the config key name, used in error messages so they
+// quote the key the user wrote rather than a paraphrase.
+const keyRequiredVersion = "required-version"
+
 // Config is a parsed .clover.yaml. Pointer fields are tri-state: nil means the
 // key was absent (so a lower-precedence layer or built-in default applies),
 // distinct from an explicit false/zero that overrides it.
@@ -196,7 +200,7 @@ func warnUnknownKey(source, key string) {
 func validateValues(cfg *Config) error {
 	if rv := cfg.requiredVersion(); rv != "" {
 		if _, err := version.NewConstraint(rv, sentinelVersion); err != nil {
-			return fmt.Errorf("invalid required-version %q: %w", rv, err)
+			return fmt.Errorf("invalid %q constraint %q: %w", keyRequiredVersion, rv, err)
 		}
 	}
 	return nil
@@ -353,10 +357,15 @@ func (c *Config) CheckVersion(current string) error {
 	}
 	constraint, err := version.NewConstraint(rv, parsed)
 	if err != nil {
-		return fmt.Errorf("invalid required-version %q: %w", rv, err)
+		return fmt.Errorf("invalid %q constraint %q: %w", "required-version", rv, err)
 	}
 	if !constraint.Allowed(parsed) {
-		return fmt.Errorf("clover %s does not satisfy required-version %q", current, rv)
+		return fmt.Errorf(
+			"clover %s does not satisfy the %q constraint %q",
+			current,
+			keyRequiredVersion,
+			rv,
+		)
 	}
 	return nil
 }

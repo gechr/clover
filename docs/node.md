@@ -9,13 +9,14 @@ node_version: 24.18.0
 
 ## Keys
 
-| Key                                   | Description                                                                      |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| `provider`                            | `node`                                                                           |
-| `lts`                                 | Restrict candidates to the long-term-support release lines. Defaults to `false`. |
-| [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).       |
-| [`include` / `exclude`](filtering.md) | Filter the candidate versions.                                                   |
-| [`cooldown`](cooldown.md)             | Require a minimum age before a version is eligible.                              |
+| Key                            | Description                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `provider`                     | `node`                                                                           |
+| `lts`                          | Restrict candidates to the long-term-support release lines. Defaults to `false`. |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)        |
+| [`include`](filtering.md)      | Keep only matching versions                                                      |
+| [`exclude`](filtering.md)      | Drop matching versions                                                           |
+| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                               |
 
 The release index is public, so the Node.js provider needs no authentication. It is selected explicitly with `provider=node` - a bare version line carries no signal to [infer](auto.md) it from.
 

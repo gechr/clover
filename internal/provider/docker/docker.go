@@ -92,7 +92,7 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	repo, ok := d.Get(keyRepository)
 	if !ok {
-		return nil, fmt.Errorf("docker: %s is required", keyRepository)
+		return nil, fmt.Errorf("docker: %q is required", keyRepository)
 	}
 	registry, _ := d.Get(keyRegistry)
 	platform, _ := d.Get(keyPlatform)

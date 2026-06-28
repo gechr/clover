@@ -32,7 +32,7 @@ func TestResourceRequiresID(t *testing.T) {
 	p := manual.New()
 
 	_, err := p.Resource(directiveOf())
-	require.EqualError(t, err, "manual: id is required")
+	require.EqualError(t, err, `manual: "id" is required`)
 
 	res, err := p.Resource(directiveOf(directive.KV{Key: constant.DirectiveID, Value: "nginx"}))
 	require.NoError(t, err)

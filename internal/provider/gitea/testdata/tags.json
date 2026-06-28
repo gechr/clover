@@ -1,0 +1,50 @@
+[
+    {
+        "name": "v17.0.0-dev",
+        "message": "chore: 16.0.0 is now stable - development tag [skip ci]",
+        "id": "d0dec3d857868e8e7187f92c29699fa3091c95ce",
+        "commit": {
+            "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/d0dec3d857868e8e7187f92c29699fa3091c95ce",
+            "sha": "d0dec3d857868e8e7187f92c29699fa3091c95ce",
+            "created": "2026-06-25T06:24:21+02:00"
+        },
+        "zipball_url": "https://codeberg.org/forgejo/forgejo/archive/v17.0.0-dev.zip",
+        "tarball_url": "https://codeberg.org/forgejo/forgejo/archive/v17.0.0-dev.tar.gz",
+        "archive_download_count": {
+            "zip": 0,
+            "tar_gz": 0
+        }
+    },
+    {
+        "name": "v15.0.3",
+        "message": "[v15.0/forgejo]: 2026-06-10 security patches (#13002)\n\n- fix: prevent stored XSS in user display name on Actions page\n- fix: LFS locks must belong to the intended repo, port from Gitea\n- fix: prevent unauthorized access to draft releases via API\n- fix: prevent writes to OpenID visibility which may affect other users\n- fix: prevent viewing private PRs that are linked to public issues on public projects\n\nCo-authored-by: Lunny Xiao <xiaolunwen@gmail.com>\nReviewed-on: https://codeberg.org/forgejo/forgejo/pulls/13002\nReviewed-by: Beowulf <beowulf@beocode.eu>",
+        "id": "f6d4219f10a29dd6d59dfb5d8e44b7ff7aed4274",
+        "commit": {
+            "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/f6d4219f10a29dd6d59dfb5d8e44b7ff7aed4274",
+            "sha": "f6d4219f10a29dd6d59dfb5d8e44b7ff7aed4274",
+            "created": "2026-06-10T06:03:26+02:00"
+        },
+        "zipball_url": "https://codeberg.org/forgejo/forgejo/archive/v15.0.3.zip",
+        "tarball_url": "https://codeberg.org/forgejo/forgejo/archive/v15.0.3.tar.gz",
+        "archive_download_count": {
+            "zip": 149,
+            "tar_gz": 197
+        }
+    },
+    {
+        "name": "v11.0.15",
+        "message": "[v11.0/forgejo]: 2026-06-10 security patches (#13003)\n\n- fix: LFS locks must belong to the intended repo, port from Gitea\n- fix: prevent unauthorized access to draft releases via API\n- fix: prevent writes to OpenID visibility which may affect other users\n- fix: prevent viewing private PRs that are linked to public issues on public projects\n\nCo-authored-by: Lunny Xiao <xiaolunwen@gmail.com>\nReviewed-on: https://codeberg.org/forgejo/forgejo/pulls/13003\nReviewed-by: Beowulf <beowulf@beocode.eu>",
+        "id": "a32151caf6b539640578f203a6feb51bb5603160",
+        "commit": {
+            "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/a32151caf6b539640578f203a6feb51bb5603160",
+            "sha": "a32151caf6b539640578f203a6feb51bb5603160",
+            "created": "2026-06-10T06:02:41+02:00"
+        },
+        "zipball_url": "https://codeberg.org/forgejo/forgejo/archive/v11.0.15.zip",
+        "tarball_url": "https://codeberg.org/forgejo/forgejo/archive/v11.0.15.tar.gz",
+        "archive_download_count": {
+            "zip": 9,
+            "tar_gz": 37
+        }
+    }
+]

@@ -14,11 +14,11 @@ The first annotation resolves `redis` and publishes it as `id=redis`. The second
 
 ## Keys
 
-| Key      | Description                                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------------- |
-| `id`     | Publish this annotation's resolved value under a name.                                                  |
-| `from`   | Follow the value published under the given `id`.                                                        |
-| `select` | Which value to take from the source: `new` (the resolved value, default) or `old` (its previous value). |
-| `value`  | What the follower projects - e.g. the [`version`, `commit`, or `sha256`](checksums.md).                 |
+| Key      | Description                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| `id`     | Publish this annotation's resolved value under a name                                                  |
+| `from`   | Follow the value published under the given `id`                                                        |
+| `select` | Which value to take from the source: `new` (the resolved value, default) or `old` (its previous value) |
+| `value`  | What the follower projects - e.g. the [`version`, `commit`, or `sha256`](checksums.md)                 |
 
 A follower may itself carry an `id`, so values chain across lines, files, and even repositories. Clover resolves producers before the followers that depend on them.

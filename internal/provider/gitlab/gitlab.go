@@ -138,24 +138,24 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	repo, ok := d.Get(keyRepository)
 	if !ok {
-		return nil, fmt.Errorf("gitlab: %s is required", keyRepository)
+		return nil, fmt.Errorf("gitlab: %q is required", keyRepository)
 	}
 	if !strings.Contains(repo, "/") {
 		return nil, fmt.Errorf(
-			"gitlab: %s must be a namespace/project path, got %q",
+			"gitlab: %q must be a namespace/project path, got %q",
 			keyRepository,
 			repo,
 		)
 	}
 	if slices.Contains(strings.Split(repo, "/"), "") {
-		return nil, fmt.Errorf("gitlab: %s has an empty path segment: %q", keyRepository, repo)
+		return nil, fmt.Errorf("gitlab: %q has an empty path segment: %q", keyRepository, repo)
 	}
 
 	source := sourceTags
 	if s, ok := d.Get(keySource); ok {
 		if s != sourceTags && s != sourceReleases {
 			return nil, fmt.Errorf(
-				"gitlab: %s must be %s or %s, got %q",
+				"gitlab: %q must be %s or %s, got %q",
 				keySource,
 				sourceTags,
 				sourceReleases,
@@ -170,7 +170,7 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	// mirroring the github provider.
 	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
 		return nil, fmt.Errorf(
-			"gitlab: %s= requires %s=%s",
+			"gitlab: %q requires %q to be %q",
 			constant.RuleAsset,
 			keySource,
 			sourceReleases,

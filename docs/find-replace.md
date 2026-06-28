@@ -95,7 +95,7 @@ A `replace` requires a `find` (there is nothing to match against otherwise), and
 For example, one source version can be rendered as both a short `major.minor` series and the full version, with literal text the original line doesn't contain:
 
 ```text
-# clover: provider=github repository=acme/toolkit constraint=minor find=<version> replace=<major.minor> (<version>)
+# clover: provider=github repository=acme/toolkit constraint=minor find=<version> replace="<major.minor> (<version>)"
 release = 1.2.3
 ```
 
@@ -108,7 +108,7 @@ release = 1.5 (1.5.0)
 Because a template echoes tokens it didn't resolve, a match-only `<hex>` captured by `find` is carried across into the reformatted line:
 
 ```text
-# clover: provider=github repository=acme/toolkit constraint=minor find=<major.minor.patch>+build.<hex> replace=v<major.minor.patch> (<hex>)
+# clover: provider=github repository=acme/toolkit constraint=minor find=<major.minor.patch>+build.<hex> replace="v<major.minor.patch> (<hex>)"
 ver = 1.2.3+build.deadbeef
 ```
 

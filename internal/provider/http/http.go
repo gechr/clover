@@ -96,7 +96,7 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	raw, ok := d.Get(keyURL)
 	if !ok {
-		return nil, fmt.Errorf("http: %s is required", keyURL)
+		return nil, fmt.Errorf("http: %q is required", keyURL)
 	}
 	if err := validateURL(raw); err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	jqExpr, hasJQ := d.Get(keyJQ)
 	extractExpr, hasExtract := d.Get(keyExtract)
 	if hasJQ == hasExtract {
-		return nil, fmt.Errorf("http: set exactly one of %s= or %s=", keyJQ, keyExtract)
+		return nil, fmt.Errorf("http: set exactly one of %q or %q", keyJQ, keyExtract)
 	}
 
 	userAgent := p.userAgent
@@ -150,16 +150,16 @@ func (p *Provider) Describe(r provider.Resource) string {
 func validateURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("http: invalid %s %q: %w", keyURL, raw, err)
+		return fmt.Errorf("http: invalid %q %q: %w", keyURL, raw, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("http: %s %q must be http or https", keyURL, raw)
+		return fmt.Errorf("http: %q %q must be http or https", keyURL, raw)
 	}
 	if u.Hostname() == "" {
-		return fmt.Errorf("http: %s %q has no host", keyURL, raw)
+		return fmt.Errorf("http: %q %q has no host", keyURL, raw)
 	}
 	if u.User != nil {
-		return fmt.Errorf("http: %s %q must not embed credentials", keyURL, raw)
+		return fmt.Errorf("http: %q %q must not embed credentials", keyURL, raw)
 	}
 	return nil
 }
@@ -171,11 +171,11 @@ func validateURL(raw string) error {
 // /regex/ is unconstrained - its group 1 (or whole match) is the version.
 func compileExtract(expr string) (*pattern.Pattern, error) {
 	if expr == "" {
-		return nil, fmt.Errorf("http: %s must not be empty", keyExtract)
+		return nil, fmt.Errorf("http: %q must not be empty", keyExtract)
 	}
 	pat, err := pattern.Compile(expr)
 	if err != nil {
-		return nil, fmt.Errorf("http: %s: %w", keyExtract, err)
+		return nil, fmt.Errorf("http: %q: %w", keyExtract, err)
 	}
 	if pat.Kind() != pattern.KindGlob {
 		return pat, nil
@@ -193,14 +193,14 @@ func compileExtract(expr string) (*pattern.Pattern, error) {
 			pattern.TokenMajorMinor,
 			pattern.TokenMajorMinorPatch:
 			return nil, fmt.Errorf(
-				"http: %s glob must capture the whole version with <%s>, not the component <%s>",
+				"http: %q glob must capture the whole version with <%s>, not the component <%s>",
 				keyExtract, pattern.TokenVersion, t,
 			)
 		}
 	}
 	if !hasVersion {
 		return nil, fmt.Errorf(
-			"http: %s glob must contain a <%s> token (or use a /regex/)",
+			"http: %q glob must contain a <%s> token (or use a /regex/)",
 			keyExtract, pattern.TokenVersion,
 		)
 	}
@@ -212,11 +212,11 @@ func compileExtract(expr string) (*pattern.Pattern, error) {
 func compileJQ(expr string) (*gojq.Code, error) {
 	query, err := gojq.Parse(expr)
 	if err != nil {
-		return nil, fmt.Errorf("http: %s: %w", keyJQ, err)
+		return nil, fmt.Errorf("http: %q: %w", keyJQ, err)
 	}
 	code, err := gojq.Compile(query)
 	if err != nil {
-		return nil, fmt.Errorf("http: %s: %w", keyJQ, err)
+		return nil, fmt.Errorf("http: %q: %w", keyJQ, err)
 	}
 	return code, nil
 }

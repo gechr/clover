@@ -30,12 +30,16 @@ func newReference(registry, chart string) (reference, error) {
 	chart = strings.TrimSpace(chart)
 	switch {
 	case chart == "":
-		return reference{}, fmt.Errorf("helm: %s is required", keyChart)
+		return reference{}, fmt.Errorf("helm: %q is required", keyChart)
 	case strings.ContainsAny(chart, " \t"):
-		return reference{}, fmt.Errorf("helm: %s %q must not contain whitespace", keyChart, chart)
+		return reference{}, fmt.Errorf(
+			"helm: %q must not contain whitespace, got %q",
+			keyChart,
+			chart,
+		)
 	case strings.Contains(chart, "/"):
 		return reference{}, fmt.Errorf(
-			"helm: put the repository path in %s, not %s (got %q)",
+			"helm: put the repository path in %q, not %q (got %q)",
 			keyRegistry, keyChart, chart,
 		)
 	}
@@ -44,7 +48,7 @@ func newReference(registry, chart string) (reference, error) {
 	scheme, rest, ok := strings.Cut(registry, "://")
 	if !ok {
 		return reference{}, fmt.Errorf(
-			"helm: %s %q must start with https://, http:// or oci://", keyRegistry, registry,
+			"helm: %q must start with https://, http:// or oci://, got %q", keyRegistry, registry,
 		)
 	}
 

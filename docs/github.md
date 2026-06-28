@@ -9,18 +9,19 @@ FROM redis:7.2.0
 
 ## Keys
 
-| Key                                          | Description                                                                |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
-| `provider`                                   | `github`                                                                   |
-| `repository`                                 | The `owner/name` of the repository to track.                               |
-| `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`).       |
-| [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range). |
-| [`include` / `exclude`](filtering.md)        | Filter the candidate tags.                                                 |
-| `asset`                                      | Keep only releases publishing an asset whose filename matches (see below). |
-| [`prerelease`](prereleases.md)               | Allow or exclude prerelease versions.                                      |
-| [`cooldown`](cooldown.md)                    | Require a minimum age before a release is eligible.                        |
-| [`track`](tracking.md)                       | Track a branch HEAD instead of selecting a version.                        |
-| [`verify`, `verify-branch`](verification.md) | Deep-verify a secure pin against upstream.                                 |
+| Key                                          | Description                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| `provider`                                   | `github`                                                                  |
+| `repository`                                 | The `owner/name` of the repository to track                               |
+| `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`)       |
+| [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
+| [`include`](filtering.md)                    | Keep only matching tags                                                   |
+| [`exclude`](filtering.md)                    | Drop matching tags                                                        |
+| `asset`                                      | Keep only releases publishing an asset whose filename matches (see below) |
+| [`prerelease`](prereleases.md)               | Allow or exclude prerelease versions                                      |
+| [`cooldown`](cooldown.md)                    | Require a minimum age before a release is eligible                        |
+| [`track`](tracking.md)                       | Track a branch HEAD instead of selecting a version                        |
+| [`verify`, `verify-branch`](verification.md) | Deep-verify a secure pin against upstream                                 |
 
 ## Selecting by asset
 

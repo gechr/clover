@@ -16,11 +16,11 @@ On each run Clover re-resolves the digest (Docker) or commit (GitHub) and rewrit
 
 ## Naming the ref
 
-| Value           | Meaning                                             |
-| --------------- | --------------------------------------------------- |
-| `track=*`       | Infer the floating ref already written on the line. |
-| `track=nonroot` | Track a named tag explicitly.                       |
-| `track=main`    | Track a named branch explicitly.                    |
+| Value           | Meaning                                            |
+| --------------- | -------------------------------------------------- |
+| `track=*`       | Infer the floating ref already written on the line |
+| `track=nonroot` | Track a named tag explicitly                       |
+| `track=main`    | Track a named branch explicitly                    |
 
 ## Interaction with other keys
 

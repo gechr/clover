@@ -65,16 +65,16 @@ func newReference(registry, repository, platform string) (reference, error) {
 	repository = strings.Trim(repository, "/")
 	switch {
 	case repository == "":
-		return reference{}, fmt.Errorf("docker: %s is required", keyRepository)
+		return reference{}, fmt.Errorf("docker: %q is required", keyRepository)
 	case strings.ContainsAny(repository, " \t"):
 		return reference{}, fmt.Errorf(
-			"docker: %s %q must not contain whitespace",
+			"docker: %q must not contain whitespace, got %q",
 			keyRepository,
 			repository,
 		)
 	case strings.Contains(repository, "://"):
 		return reference{}, fmt.Errorf(
-			"docker: put the registry host in %s, not %s (got %q)",
+			"docker: put the registry host in %q, not %q (got %q)",
 			keyRegistry, keyRepository, repository,
 		)
 	}
@@ -112,7 +112,7 @@ func validatePlatform(platform string) error {
 	}
 	os, arch, ok := strings.Cut(platform, "/")
 	if !ok || os == "" || arch == "" || strings.ContainsAny(platform, " \t") {
-		return fmt.Errorf("docker: %s %q must be os/arch", keyPlatform, platform)
+		return fmt.Errorf("docker: %q must be os/arch, got %q", keyPlatform, platform)
 	}
 	return nil
 }

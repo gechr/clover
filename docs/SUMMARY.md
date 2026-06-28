@@ -13,6 +13,7 @@
 - [Providers](providers.md)
   - [Auto-detection](auto.md)
   - [Docker](docker.md)
+  - [Gitea](gitea.md)
   - [GitHub](github.md)
   - [GitLab](gitlab.md)
   - [HashiCorp](hashicorp.md)

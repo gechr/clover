@@ -82,11 +82,11 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	registry, ok := d.Get(keyRegistry)
 	if !ok {
-		return nil, fmt.Errorf("helm: %s is required", keyRegistry)
+		return nil, fmt.Errorf("helm: %q is required", keyRegistry)
 	}
 	chart, ok := d.Get(keyChart)
 	if !ok {
-		return nil, fmt.Errorf("helm: %s is required", keyChart)
+		return nil, fmt.Errorf("helm: %q is required", keyChart)
 	}
 	return newReference(registry, chart)
 }

@@ -4,10 +4,10 @@ By default Clover ignores prerelease versions (`1.5.0-rc1`, `2.0.0-beta`, and si
 
 ## Allowing prereleases
 
-Opt in per annotation with `prerelease`:
+Opt in per annotation with `prerelease=true`:
 
 ```dockerfile
-# clover: provider=github repository=redis/redis prerelease constraint=minor
+# clover: provider=github repository=redis/redis prerelease=true constraint=minor
 FROM redis:7.2.0
 ```
 

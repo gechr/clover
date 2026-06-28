@@ -69,7 +69,7 @@ func Compile(d directive.Directive, current *version.Version) ([]version.Option,
 		return nil, err
 	}
 	if behind < 0 {
-		return nil, fmt.Errorf("%s must be >= 0, got %d", constant.RuleBehind, behind)
+		return nil, fmt.Errorf("%q must be >= 0, got %d", constant.RuleBehind, behind)
 	}
 	if behind > 0 {
 		opts = append(opts, version.WithBehind(behind))

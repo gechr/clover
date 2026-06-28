@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -96,7 +95,10 @@ func checksums(ctx context.Context, client *http.Client, req Request) (string, e
 	}
 	url := siblingChecksumURL(req.Assets, asset.Name)
 	if url == "" {
-		return "", errors.New("checksum: no sha256-url and no checksums file among the assets")
+		return "", fmt.Errorf(
+			"checksum: no %q and no checksums file among the assets",
+			constant.DirectiveSha256URL,
+		)
 	}
 	data, err := fetchBody(ctx, client, url, maxSize)
 	if err != nil {
@@ -131,7 +133,11 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 		return "", fmt.Errorf("checksum: hash %s: %w", asset.Name, err)
 	}
 	if n > maxDownload {
-		return "", fmt.Errorf("checksum: asset %q is too large to hash; set sha256-url", asset.Name)
+		return "", fmt.Errorf(
+			"checksum: asset %q is too large to hash; set %q",
+			asset.Name,
+			constant.DirectiveSha256URL,
+		)
 	}
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
@@ -161,7 +167,10 @@ func verify(ctx context.Context, client *http.Client, req Request) (string, erro
 // signature siblings so a pattern does not also match a .sha256 next to its asset.
 func matchAsset(req Request) (model.Asset, error) {
 	if req.Pattern == "" {
-		return model.Asset{}, errors.New("checksum: pattern= is required to pick an asset")
+		return model.Asset{}, fmt.Errorf(
+			"checksum: %q is required to pick an asset",
+			constant.DirectivePattern,
+		)
 	}
 	p, err := pattern.Compile(req.Pattern)
 	if err != nil {

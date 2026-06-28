@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/gechr/clover/internal/constant"
@@ -108,19 +107,19 @@ var trackConflicts = []string{
 func trackPreconditions(m Marker) error {
 	if m.IsFollower() {
 		return fmt.Errorf(
-			"%s= needs an explicit %s=",
+			"%q needs an explicit %q",
 			constant.DirectiveTrack, constant.DirectiveProvider,
 		)
 	}
 	if ref, _ := m.Directive.Get(constant.DirectiveTrack); ref == "" {
 		return fmt.Errorf(
-			"%s= needs a ref name or %s to infer it",
+			"%q needs a ref name or %s to infer it",
 			constant.DirectiveTrack, constant.TrackInfer,
 		)
 	}
 	for _, key := range trackConflicts {
 		if m.Directive.Has(key) {
-			return fmt.Errorf("%s= cannot be used with %s=", constant.DirectiveTrack, key)
+			return fmt.Errorf("%q cannot be used with %q", constant.DirectiveTrack, key)
 		}
 	}
 	return nil
@@ -190,7 +189,10 @@ func (p *plan) checkProducer(m Marker) error {
 // supported value, and has a target line to rewrite.
 func (p *plan) checkFollower(m Marker) error {
 	if m.From == "" {
-		return errors.New("a follower needs from= naming the producer to follow")
+		return fmt.Errorf(
+			"a follower needs %q naming the producer to follow",
+			constant.DirectiveFrom,
+		)
 	}
 	switch m.Value {
 	case "", constant.ValueVersion, constant.ValueCommit:
@@ -216,15 +218,18 @@ func checkSha256(m Marker) error {
 	case "", constant.Sha256Auto, constant.Sha256Digest,
 		constant.Sha256Checksums, constant.Sha256Download, constant.Sha256Verify:
 	default:
-		return fmt.Errorf("unknown %s=%q", constant.DirectiveSha256Source, v)
+		return fmt.Errorf("unknown %q value %q", constant.DirectiveSha256Source, v)
 	}
 
 	_, hasURL := m.Directive.Get(constant.DirectiveSha256URL)
 	_, hasPattern := m.Directive.Get(constant.DirectivePattern)
 	if !hasURL && !hasPattern {
 		return fmt.Errorf(
-			"value=%s needs %s= (to select an asset) or %s=",
-			constant.ValueSha256, constant.DirectivePattern, constant.DirectiveSha256URL,
+			"%q %s needs %q (to select an asset) or %q",
+			constant.DirectiveValue,
+			constant.ValueSha256,
+			constant.DirectivePattern,
+			constant.DirectiveSha256URL,
 		)
 	}
 	return nil

@@ -171,17 +171,17 @@ func TestResource(t *testing.T) {
 		{
 			name:    "repository is required",
 			pairs:   []directive.KV{{Key: "registry", Value: "ghcr.io"}},
-			wantErr: "docker: repository is required",
+			wantErr: `docker: "repository" is required`,
 		},
 		{
 			name:    "whitespace is rejected",
 			pairs:   []directive.KV{{Key: "repository", Value: "ng inx"}},
-			wantErr: `docker: repository "ng inx" must not contain whitespace`,
+			wantErr: `docker: "repository" must not contain whitespace, got "ng inx"`,
 		},
 		{
 			name:    "a host in the repository is rejected",
 			pairs:   []directive.KV{{Key: "repository", Value: "ghcr.io://owner/img"}},
-			wantErr: `docker: put the registry host in registry, not repository (got "ghcr.io://owner/img")`,
+			wantErr: `docker: put the registry host in "registry", not "repository" (got "ghcr.io://owner/img")`,
 		},
 		{
 			name: "a valid platform is accepted",
@@ -197,7 +197,7 @@ func TestResource(t *testing.T) {
 				{Key: "repository", Value: "nginx"},
 				{Key: "platform", Value: "amd64"},
 			},
-			wantErr: `docker: platform "amd64" must be os/arch`,
+			wantErr: `docker: "platform" must be os/arch, got "amd64"`,
 		},
 	}
 

@@ -136,7 +136,7 @@ func TestRunTrackRejectsSelectionKeys(t *testing.T) {
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.EqualError(t, files[0].Results[0].Err,
-		"track= cannot be used with constraint=")
+		`"track" cannot be used with "constraint"`)
 }
 
 func TestRunTrackNeedsExplicitProvider(t *testing.T) {
@@ -148,5 +148,5 @@ func TestRunTrackNeedsExplicitProvider(t *testing.T) {
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.EqualError(t, files[0].Results[0].Err,
-		"track= needs an explicit provider=")
+		`"track" needs an explicit "provider"`)
 }

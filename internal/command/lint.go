@@ -16,9 +16,9 @@ import (
 // cmdLint checks every directive resolves, offline and without writing. It is
 // the CI gate: a non-zero exit means at least one directive will not resolve.
 type cmdLint struct {
-	Paths    []string     `name:"path" help:"Files or directories to scan"                                             arg:"" optional:"" clib:"terse='Paths to scan'"  predictor:"path"`
-	Tags     []string     `name:"tag"  help:"Only check directives matching these tags"                                                   clib:"terse='Filter by tags'"                  short:"t" aliases:"tags" placeholder:"<tag>"`
-	NoIgnore bool         `            help:"Scan files that .gitignore would exclude (VCS directories stay excluded)"                    clib:"terse='No ignore'"`
+	Paths    []string     `name:"path" help:"Files or directories to scan"              arg:"" optional:"" clib:"terse='Paths to scan'"  predictor:"path"`
+	Tags     []string     `name:"tag"  help:"Only check directives matching these tags"                    clib:"terse='Filter by tags'"                  short:"t" aliases:"tags" placeholder:"<tag>"`
+	NoIgnore bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore'\""
 	Output   *output.Mode "            help:\"Output detail\"                                                clib:\"terse='Output detail'\"                   short:\"o\"                                                   enum:\"text,wide,github\""
 }
 

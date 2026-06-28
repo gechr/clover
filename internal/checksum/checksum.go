@@ -107,7 +107,7 @@ func choose(entries []entry, pat string) (string, error) {
 		if len(entries) == 1 {
 			return entries[0].hash, nil
 		}
-		return "", fmt.Errorf("checksum: %d entries, set pattern= to choose one", len(entries))
+		return "", fmt.Errorf("checksum: %d entries, set %q to choose one", len(entries), "pattern")
 	}
 
 	p, err := pattern.Compile(pat)

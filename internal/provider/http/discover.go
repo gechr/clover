@@ -80,7 +80,7 @@ func (p *Provider) fetch(ctx context.Context, rawURL, userAgent string) ([]byte,
 func jqVersions(code *gojq.Code, body []byte) ([]string, error) {
 	var input any
 	if err := json.Unmarshal(body, &input); err != nil {
-		return nil, fmt.Errorf("http: %s: parse JSON response: %w", keyJQ, err)
+		return nil, fmt.Errorf("http: %q: parse JSON response: %w", keyJQ, err)
 	}
 
 	var out []string
@@ -91,7 +91,7 @@ func jqVersions(code *gojq.Code, body []byte) ([]string, error) {
 			break
 		}
 		if err, ok := v.(error); ok {
-			return nil, fmt.Errorf("http: %s: %w", keyJQ, err)
+			return nil, fmt.Errorf("http: %q: %w", keyJQ, err)
 		}
 		out = append(out, jqStrings(v)...)
 	}

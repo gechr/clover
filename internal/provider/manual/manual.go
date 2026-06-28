@@ -36,7 +36,7 @@ func (p *Provider) Keys() []provider.Key { return nil }
 // id is required; nothing else is needed from an upstream.
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	if id, ok := d.Get(constant.DirectiveID); !ok || id == "" {
-		return nil, fmt.Errorf("manual: %s is required", constant.DirectiveID)
+		return nil, fmt.Errorf("manual: %q is required", constant.DirectiveID)
 	}
 	return resource{}, nil
 }

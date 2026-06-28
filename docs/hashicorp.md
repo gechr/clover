@@ -9,16 +9,17 @@ terraform_version: 1.9.8
 
 ## Keys
 
-| Key                                   | Description                                                                                                 |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `provider`                            | `hashicorp`                                                                                                 |
-| `product`                             | The product slug to track (e.g. `terraform`, `vault`, `consul`, `nomad`, `packer`, `boundary`, `sentinel`). |
-| `enterprise`                          | Track enterprise-licensed releases, rendering the bare semver. Defaults to `false`.                         |
-| `build`                               | Track a specific enterprise build flavor by its build-metadata suffix, rendering the full version.          |
-| [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).                                  |
-| [`include` / `exclude`](filtering.md) | Filter the candidate versions.                                                                              |
-| [`prerelease`](prereleases.md)        | Allow or exclude prerelease versions (alphas, betas, and release candidates).                               |
-| [`cooldown`](cooldown.md)             | Require a minimum age before a version is eligible.                                                         |
+| Key                            | Description                                                                                                |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `provider`                     | `hashicorp`                                                                                                |
+| `product`                      | The product slug to track (e.g. `terraform`, `vault`, `consul`, `nomad`, `packer`, `boundary`, `sentinel`) |
+| `enterprise`                   | Track enterprise-licensed releases, rendering the bare semver. Defaults to `false`.                        |
+| `build`                        | Track a specific enterprise build flavor by its build-metadata suffix, rendering the full version          |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                                  |
+| [`include`](filtering.md)      | Keep only matching versions                                                                                |
+| [`exclude`](filtering.md)      | Drop matching versions                                                                                     |
+| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions (alphas, betas, and release candidates)                               |
+| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                                                         |
 
 The releases service is public, so the HashiCorp provider needs no authentication. It is selected explicitly with `provider=hashicorp` - a bare version line carries no signal to [infer](auto.md) it from.
 

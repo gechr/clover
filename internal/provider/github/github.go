@@ -119,18 +119,18 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	repo, ok := d.Get(keyRepository)
 	if !ok {
-		return nil, fmt.Errorf("github: %s is required", keyRepository)
+		return nil, fmt.Errorf("github: %q is required", keyRepository)
 	}
 	owner, name, ok := strings.Cut(repo, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
-		return nil, fmt.Errorf("github: %s must be owner/name, got %q", keyRepository, repo)
+		return nil, fmt.Errorf("github: %q must be owner/name, got %q", keyRepository, repo)
 	}
 
 	source := sourceTags
 	if s, ok := d.Get(keySource); ok {
 		if s != sourceTags && s != sourceReleases {
 			return nil, fmt.Errorf(
-				"github: %s must be %s or %s, got %q",
+				"github: %q must be %s or %s, got %q",
 				keySource,
 				sourceTags,
 				sourceReleases,
@@ -143,7 +143,7 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	// asset= filters on release asset filenames, which only releases publish.
 	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
 		return nil, fmt.Errorf(
-			"github: %s= requires %s=%s",
+			"github: %q requires %q to be %q",
 			constant.RuleAsset,
 			keySource,
 			sourceReleases,

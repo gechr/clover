@@ -14,16 +14,17 @@ gh_version: 2.62.0
 
 ## Keys
 
-| Key                                   | Description                                                                                  |
-| ------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `provider`                            | `http`.                                                                                      |
-| `url`                                 | The endpoint to fetch. Must be `http` or `https`. Required.                                  |
-| `jq`                                  | A jq program over a JSON response body. Each string it yields is a candidate.                |
-| `extract`                             | A glob with `<version>` or a `/regex/` over a text response body. Each match is a candidate. |
-| `user-agent`                          | The `User-Agent` header to send. Defaults to `Clover v<version>`.                            |
-| [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).                   |
-| [`include` / `exclude`](filtering.md) | Filter the candidate versions.                                                               |
-| [`cooldown`](cooldown.md)             | Require a minimum age before a version is eligible.                                          |
+| Key                            | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `provider`                     | `http`                                                                                       |
+| `url`                          | The endpoint to fetch. Must be `http` or `https`. Required.                                  |
+| `jq`                           | A jq program over a JSON response body. Each string it yields is a candidate.                |
+| `extract`                      | A glob with `<version>` or a `/regex/` over a text response body. Each match is a candidate. |
+| `user-agent`                   | The `User-Agent` header to send. Defaults to `Clover v<version>`.                            |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                    |
+| [`include`](filtering.md)      | Keep only matching versions                                                                  |
+| [`exclude`](filtering.md)      | Drop matching versions                                                                       |
+| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                                           |
 
 Set exactly one of `jq` or `extract`. The expression is compiled when the directive is validated, so [`clover lint`](commands.md) reports a malformed `jq` program or `extract` pattern offline, before any request is made.
 

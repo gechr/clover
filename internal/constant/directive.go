@@ -50,6 +50,7 @@ const (
 	DirectiveBuild      = "build"      // hashicorp build-metadata flavor, e.g. ent.hsm.fips1403 (hashicorp)
 	DirectiveChart      = "chart"      // helm chart name (helm)
 	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
+	DirectiveHost       = "host"       // forge host for a self-managed instance (gitea); defaults to codeberg.org
 	DirectiveLTS        = "lts"        // restrict to LTS release lines (node)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
 	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)

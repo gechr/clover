@@ -15,7 +15,7 @@ Use it to anchor a dependency graph at a value no registry can resolve: a versio
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | `provider`               | `manual`                                                                                                               |
 | `id`                     | Publish the line's value under this name for followers. Required - a manual root that publishes nothing has no effect. |
-| [`find`](annotations.md) | Pin which token on the line is the value, when its shape is ambiguous.                                                 |
+| [`find`](annotations.md) | Pin which token on the line is the value, when its shape is ambiguous                                                  |
 
 A manual marker takes none of the selection keys (`constraint`, `include`/`exclude`, `track`, `behind`, `prerelease`): there is no candidate set to choose from, only the value already written.
 

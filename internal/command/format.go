@@ -17,11 +17,11 @@ import (
 // change and exits non-zero without writing - the formatting CI gate; --dry-run
 // previews the same rewrites but exits zero.
 type cmdFormat struct {
-	Paths    []string `name:"path" help:"Files or directories to scan"                                             arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
-	Check    bool     `            help:"Report directives that need formatting and exit non-zero (do not write)"                     clib:"terse='Check only'"`
-	DryRun   bool     `            help:"Report what would be reformatted without writing"                                            clib:"terse='Dry run'"                             short:"n" aliases:"dry"`
-	NoIgnore bool     `            help:"Scan files that .gitignore would exclude (VCS directories stay excluded)"                    clib:"terse='No ignore'"`
-	Prune    *bool    `            help:"Remove unknown keys instead of erroring on them"                                             clib:"terse='Prune unknown keys'"                                          negatable:""`
+	Paths    []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
+	Check    bool     `            help:"Report directives that need formatting and exit non-zero (do not write)"                    clib:"terse='Check only'"`
+	DryRun   bool     `            help:"Report what would be reformatted without writing"                                           clib:"terse='Dry run'"                             short:"n" aliases:"dry"`
+	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore'\""
+	Prune    *bool    `            help:"Remove unknown keys instead of erroring on them"                                            clib:"terse='Prune unknown keys'"                                          negatable:""`
 }
 
 // Help returns the detailed blurb shown in `clover format --help`.

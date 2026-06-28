@@ -100,7 +100,7 @@ func (d Directive) Int(key string) (int, error) {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return 0, fmt.Errorf("%s must be an integer, got %q", key, v)
+		return 0, fmt.Errorf("%q must be an integer, got %q", key, v)
 	}
 	return n, nil
 }
@@ -116,7 +116,7 @@ func (d Directive) Duration(key string) (time.Duration, error) {
 	}
 	dur, err := human.ParseDuration(v)
 	if err != nil {
-		return 0, fmt.Errorf("%s must be a duration like 2w3d, got %q", key, v)
+		return 0, fmt.Errorf("%q must be a duration like 2w3d, got %q", key, v)
 	}
 	return dur, nil
 }

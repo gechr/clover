@@ -618,7 +618,7 @@ func lookupProvider(name string) (provider.Provider, error) {
 	}
 	if name == constant.ProviderAuto {
 		return nil, fmt.Errorf(
-			"could not infer a provider for the target line; set %s= explicitly",
+			"could not infer a provider for the target line; set %q explicitly",
 			constant.DirectiveProvider,
 		)
 	}
@@ -1004,7 +1004,12 @@ func (p *plan) allowedBranches(
 	// include/exclude use, so the spelling is consistent across directives.
 	pat, err := pattern.Compile(raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s %q: %w", constant.DirectiveVerifyBranch, raw, err)
+		return nil, fmt.Errorf(
+			"invalid %q pattern %q: %w",
+			constant.DirectiveVerifyBranch,
+			raw,
+			err,
+		)
 	}
 	branches, err := checker.Branches(ctx, resource)
 	if err != nil {
@@ -1017,7 +1022,11 @@ func (p *plan) allowedBranches(
 		}
 	}
 	if len(matched) == 0 {
-		return nil, fmt.Errorf("no branch matches %s=%s", constant.DirectiveVerifyBranch, raw)
+		return nil, fmt.Errorf(
+			"no branch matches the %q pattern %q",
+			constant.DirectiveVerifyBranch,
+			raw,
+		)
 	}
 	return matched, nil
 }
@@ -1274,7 +1283,11 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 		case constant.ProviderGithub:
 			return match.NewActionTrack(), nil
 		default:
-			return nil, fmt.Errorf("track= is not supported for provider %q", m.Provider)
+			return nil, fmt.Errorf(
+				"%q is not supported for provider %q",
+				constant.DirectiveTrack,
+				m.Provider,
+			)
 		}
 	}
 
@@ -1283,7 +1296,7 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 	if !hasFind {
 		if hasReplace {
 			return nil, fmt.Errorf(
-				"%s= needs %s=",
+				"%q needs %q",
 				constant.DirectiveReplace,
 				constant.DirectiveFind,
 			)

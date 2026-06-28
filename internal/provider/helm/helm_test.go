@@ -99,12 +99,12 @@ func TestResource(t *testing.T) {
 		{
 			name:    "registry is required",
 			pairs:   []directive.KV{{Key: "chart", Value: "nginx"}},
-			wantErr: "helm: registry is required",
+			wantErr: `helm: "registry" is required`,
 		},
 		{
 			name:    "chart is required",
 			pairs:   []directive.KV{{Key: "registry", Value: "https://charts.example.com"}},
-			wantErr: "helm: chart is required",
+			wantErr: `helm: "chart" is required`,
 		},
 		{
 			name: "chart with a slash is rejected",
@@ -112,7 +112,7 @@ func TestResource(t *testing.T) {
 				{Key: "registry", Value: "https://charts.example.com"},
 				{Key: "chart", Value: "team/nginx"},
 			},
-			wantErr: `helm: put the repository path in registry, not chart (got "team/nginx")`,
+			wantErr: `helm: put the repository path in "registry", not "chart" (got "team/nginx")`,
 		},
 		{
 			name: "registry without a scheme is rejected",
@@ -120,7 +120,7 @@ func TestResource(t *testing.T) {
 				{Key: "registry", Value: "charts.example.com"},
 				{Key: "chart", Value: "nginx"},
 			},
-			wantErr: `helm: registry "charts.example.com" must start with https://, http:// or oci://`,
+			wantErr: `helm: "registry" must start with https://, http:// or oci://, got "charts.example.com"`,
 		},
 		{
 			name: "unsupported scheme is rejected",

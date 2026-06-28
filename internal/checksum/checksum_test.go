@@ -83,7 +83,7 @@ func TestFetchErrors(t *testing.T) {
 	require.EqualError(
 		t,
 		err,
-		"checksum: 2 entries, set pattern= to choose one",
+		`checksum: 2 entries, set "pattern" to choose one`,
 		"ambiguous without a pattern",
 	)
 

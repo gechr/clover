@@ -9,15 +9,16 @@ version: 18.2.0
 
 ## Keys
 
-| Key                                   | Description                                                                                                          |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `provider`                            | `helm`                                                                                                               |
-| `registry`                            | The chart source. An `https://` (or `http://`) URL is a classic repository; an `oci://` URL is an OCI registry base. |
-| `chart`                               | The chart name (e.g. `nginx`). A bare name - the repository path belongs in `registry`.                              |
-| [`constraint`](constraints.md)        | How far the version may move (`major`/`minor`/`patch`, or a semver range).                                           |
-| [`include` / `exclude`](filtering.md) | Filter the candidate versions.                                                                                       |
-| [`prerelease`](prereleases.md)        | Allow or exclude prerelease versions.                                                                                |
-| [`cooldown`](cooldown.md)             | Require a minimum age before a version is eligible (classic repositories only - see below).                          |
+| Key                            | Description                                                                                                          |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `provider`                     | `helm`                                                                                                               |
+| `registry`                     | The chart source. An `https://` (or `http://`) URL is a classic repository; an `oci://` URL is an OCI registry base. |
+| `chart`                        | The chart name (e.g. `nginx`). A bare name - the repository path belongs in `registry`.                              |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                                            |
+| [`include`](filtering.md)      | Keep only matching versions                                                                                          |
+| [`exclude`](filtering.md)      | Drop matching versions                                                                                               |
+| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                                                                 |
+| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible (classic repositories only - see below)                           |
 
 ## Classic vs OCI
 

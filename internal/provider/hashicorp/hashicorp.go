@@ -72,7 +72,7 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	product, ok := d.Get(keyProduct)
 	if !ok {
-		return nil, fmt.Errorf("hashicorp: %s is required", keyProduct)
+		return nil, fmt.Errorf("hashicorp: %q is required", keyProduct)
 	}
 	enterprise, err := d.Bool(keyEnterprise)
 	if err != nil {
