@@ -88,3 +88,27 @@ func TestNextLink(t *testing.T) {
 	h.Set("Link", `<https://x/p9>; rel="last"`)
 	require.Empty(t, forge.NextLink(h))
 }
+
+func TestPATHost(t *testing.T) {
+	const (
+		env = "CLOVER_GITHUB_HOST"
+		def = "github.com"
+	)
+
+	t.Run("pinned ignores env and returns the default", func(t *testing.T) {
+		t.Setenv(env, "ghe.example.com")
+		require.Equal(t, def, forge.PATHost(env, def, true))
+	})
+	t.Run("default when env unset", func(t *testing.T) {
+		t.Setenv(env, "")
+		require.Equal(t, def, forge.PATHost(env, def, false))
+	})
+	t.Run("env override is normalized", func(t *testing.T) {
+		t.Setenv(env, "https://GHE.example.com/")
+		require.Equal(t, "ghe.example.com", forge.PATHost(env, def, false))
+	})
+	t.Run("invalid env falls back to the default", func(t *testing.T) {
+		t.Setenv(env, "ghe.example.com/path")
+		require.Equal(t, def, forge.PATHost(env, def, false))
+	})
+}
