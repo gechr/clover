@@ -357,7 +357,7 @@ func (c *Config) CheckVersion(current string) error {
 	}
 	constraint, err := version.NewConstraint(rv, parsed)
 	if err != nil {
-		return fmt.Errorf("invalid %q constraint %q: %w", "required-version", rv, err)
+		return fmt.Errorf("invalid %q constraint %q: %w", keyRequiredVersion, rv, err)
 	}
 	if !constraint.Allowed(parsed) {
 		return fmt.Errorf(
