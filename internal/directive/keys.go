@@ -65,6 +65,14 @@ func (d Directive) CheckKeys(providerKeys []string) error {
 	}
 }
 
+// CheckKeysSidecar validates a sidecar entry's keys, permitting jq in addition
+// to the common vocabulary and providerKeys. jq is a locator key that only a
+// sidecar may carry (an inline directive still rejects it via [Directive.CheckKeys]),
+// so the two paths diverge only by that one key.
+func (d Directive) CheckKeysSidecar(providerKeys []string) error {
+	return d.CheckKeys(append(slices.Clone(providerKeys), constant.DirectiveJQ))
+}
+
 // PruneUnknownKeys returns the directive with every key outside the common
 // vocabulary and providerKeys removed, plus the removed keys in written order.
 // The directive is returned unchanged (and removed is nil) when all keys are
