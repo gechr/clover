@@ -14,7 +14,7 @@ require (
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.5.6
 	github.com/gechr/clog v0.11.9
-	github.com/gechr/x v0.1.12
+	github.com/gechr/x v0.1.13
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
@@ -111,7 +111,7 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clive v0.1.7
+	github.com/gechr/clive v0.1.8
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect

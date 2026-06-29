@@ -7,15 +7,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/provider/docker"
-	"github.com/gechr/clover/internal/provider/gitea"
-	"github.com/gechr/clover/internal/provider/github"
-	"github.com/gechr/clover/internal/provider/gitlab"
-	"github.com/gechr/clover/internal/provider/hashicorp"
-	"github.com/gechr/clover/internal/provider/helm"
-	"github.com/gechr/clover/internal/provider/http"
-	"github.com/gechr/clover/internal/provider/manual"
-	"github.com/gechr/clover/internal/provider/node"
+	"github.com/gechr/clover/internal/provider/all"
 	"github.com/gechr/clover/internal/sidecar"
 	xslices "github.com/gechr/x/slices"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -24,17 +16,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	provider.RegisterAll(
-		docker.New(),
-		gitea.New(),
-		github.New(),
-		gitlab.New(),
-		hashicorp.New(),
-		helm.New(),
-		http.New(),
-		manual.New(),
-		node.New(),
-	)
+	provider.RegisterAll(all.New()...)
 	m.Run()
 }
 

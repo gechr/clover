@@ -20,15 +20,8 @@ import (
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/logger"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/provider/docker"
-	"github.com/gechr/clover/internal/provider/gitea"
-	"github.com/gechr/clover/internal/provider/github"
-	"github.com/gechr/clover/internal/provider/gitlab"
-	"github.com/gechr/clover/internal/provider/hashicorp"
-	"github.com/gechr/clover/internal/provider/helm"
+	"github.com/gechr/clover/internal/provider/all"
 	"github.com/gechr/clover/internal/provider/http"
-	"github.com/gechr/clover/internal/provider/manual"
-	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/tag"
 )
 
@@ -63,17 +56,7 @@ type cli struct {
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
-	provider.RegisterAll(
-		docker.New(),
-		gitea.New(),
-		github.New(),
-		gitlab.New(),
-		hashicorp.New(),
-		helm.New(),
-		http.New(http.WithVersion(clive.Current())),
-		manual.New(),
-		node.New(),
-	)
+	provider.RegisterAll(all.New(http.WithVersion(clive.Current()))...)
 
 	var root cli
 
