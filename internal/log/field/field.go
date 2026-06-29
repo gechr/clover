@@ -24,6 +24,7 @@ const (
 	Required = "required"
 	Resource = "resource"
 	Scanned  = "scanned"
+	Sidecar  = "sidecar"
 	Skipped  = "skipped"
 	Tags     = "tags"
 	To       = "to"

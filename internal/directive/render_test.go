@@ -109,7 +109,7 @@ func TestRenderParseRoundTrip(t *testing.T) {
 	}
 }
 
-func TestCanonicaliseTags(t *testing.T) {
+func TestCanonicalizeTags(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -128,16 +128,16 @@ func TestCanonicaliseTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			d := directive.Directive{Pairs: []directive.KV{{Key: "tags", Value: tc.in}}}
-			got := directive.CanonicaliseTags(d)
+			got := directive.CanonicalizeTags(d)
 			require.Equal(t, tc.want, got.Pairs[0].Value)
 		})
 	}
 }
 
-// TestCanonicaliseTagsLeavesOtherKeys confirms only the tags value is rewritten.
-func TestCanonicaliseTagsLeavesOtherKeys(t *testing.T) {
+// TestCanonicalizeTagsLeavesOtherKeys confirms only the tags value is rewritten.
+func TestCanonicalizeTagsLeavesOtherKeys(t *testing.T) {
 	t.Parallel()
 
 	d := directive.Directive{Pairs: []directive.KV{{Key: "repository", Value: "Owner/Name"}}}
-	require.Equal(t, "Owner/Name", directive.CanonicaliseTags(d).Pairs[0].Value)
+	require.Equal(t, "Owner/Name", directive.CanonicalizeTags(d).Pairs[0].Value)
 }

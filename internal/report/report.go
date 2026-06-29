@@ -170,6 +170,19 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 			}
 			event.Msg(annotateMessage(change.Existing, write))
 		}
+		// A comment-less target's annotations land in a sidecar, located at the
+		// target line they govern and tagged with the sidecar file they live in.
+		if file.Sidecar != nil {
+			for _, entry := range file.Sidecar.Entries {
+				event := summarize(logger, dry).
+					Line(field.Location, file.Path, entry.Target+1).
+					Path(field.Sidecar, file.Sidecar.Path)
+				if write {
+					event = event.Symbol(annotateSymbol(entry.Existing))
+				}
+				event.Msg(annotateMessage(entry.Existing, write))
+			}
+		}
 		if file.WriteErr != nil {
 			logger.Error().Path(field.Path, file.Path).Err(file.WriteErr).Msg("Write failed")
 		}

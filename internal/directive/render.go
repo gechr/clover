@@ -9,10 +9,10 @@ import (
 	xstrings "github.com/gechr/x/strings"
 )
 
-// CanonicaliseTags returns d with its tags value lowercased and de-duplicated,
+// CanonicalizeTags returns d with its tags value lowercased and de-duplicated,
 // preserving order. Tag matching is case-insensitive, so this is the canonical
 // form format settles a tags value into; an absent tags key is unchanged.
-func CanonicaliseTags(d Directive) Directive {
+func CanonicalizeTags(d Directive) Directive {
 	pairs := make([]KV, len(d.Pairs))
 	copy(pairs, d.Pairs)
 	for i := range pairs {

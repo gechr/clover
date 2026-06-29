@@ -71,7 +71,7 @@ func TestYAMLRoundTrip(t *testing.T) {
 	got, err := directive.ParseYAML(node)
 	require.NoError(t, err)
 
-	want := directive.CanonicaliseTags(directive.Reorder(d, providerKeys))
+	want := directive.CanonicalizeTags(directive.Reorder(d, providerKeys))
 	require.Equal(t, want.Pairs, got.Pairs)
 	// The repeatable key survived the sequence collapse and re-expansion.
 	require.Equal(t, []string{"a", "b"}, got.All("include"))

@@ -3,6 +3,8 @@ package mode
 import (
 	"cmp"
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/gechr/clover/internal/comment"
 	"github.com/gechr/clover/internal/config"
@@ -11,6 +13,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/clover/internal/sidecar"
 )
 
 // FormatChange is a directive comment line format would rewrite: its 0-based
@@ -31,11 +34,15 @@ type FormatError struct {
 }
 
 // FormatFile is the format outcome for one file: the comment lines it would
-// canonicalise, any rejected for an unknown key, and whether they were written.
+// canonicalize, any rejected for an unknown key, and whether they were written.
+// For a sidecar, Sidecar is set and Content carries the whole re-emitted
+// document (the file is rewritten as a unit, not line by line).
 type FormatFile struct {
 	Path     string
 	Changes  []FormatChange
 	Errors   []FormatError
+	Sidecar  bool
+	Content  string
 	Written  bool
 	WriteErr error
 }
@@ -68,8 +75,8 @@ func (s FormatSummary) Errored() int {
 // key - the signal a format --check gate, and an unknown-key rejection, exit on.
 func (s FormatSummary) OK() bool { return s.Changed() == 0 && s.Errored() == 0 }
 
-// Format canonicalises every directive comment under roots - reordering keys
-// into their canonical sequence and normalising quoting - without resolving or
+// Format canonicalizes every directive comment under roots - reordering keys
+// into their canonical sequence and normalizing quoting - without resolving or
 // touching the version. It only ever rewrites the comment, never the target
 // line, and is idempotent. With dry set it reports what would change and writes
 // nothing, the read-only path shared by --check and --dry-run; otherwise it
@@ -100,9 +107,17 @@ func Format(
 	}
 
 	out := make([]FormatFile, 0, len(files))
+	seenSidecar := map[string]bool{}
 	for _, file := range files {
 		if scan.IsSidecar(file.Path) {
 			continue // a sidecar's diagnostics File has no inline directives to format
+		}
+		// A healthy sidecar is folded into its target's File, so it never appears as
+		// a File of its own; re-emit it in a sidecar pass keyed off the target that
+		// carries its entries, before formatting the target's (absent) inline ones.
+		if path, ok := sidecarFor(file); ok && !seenSidecar[path] {
+			seenSidecar[path] = true
+			out = append(out, formatSidecar(path, prune, dry))
 		}
 		formatted := formatFile(file, prune)
 		if len(formatted.Changes) > 0 && !dry {
@@ -118,7 +133,65 @@ func Format(
 	return FormatSummary{Files: out}, nil
 }
 
-// formatFile canonicalises each directive in file and collects the lines that
+// sidecarFor returns the sidecar path governing file's target, when file carries
+// sidecar-sourced entries. The healthy sidecar's bytes are not in the scan (its
+// entries were folded into this target File), so the path is recovered by probing
+// the target's candidate sidecar names.
+func sidecarFor(file scan.File) (string, bool) {
+	hasEntry := false
+	for _, loc := range file.Found {
+		if loc.Sidecar {
+			hasEntry = true
+			break
+		}
+	}
+	if !hasEntry {
+		return "", false
+	}
+	for _, name := range sidecar.Names(file.Path) {
+		if info, err := os.Stat(name); err == nil && info.Mode().IsRegular() {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// formatSidecar re-emits one sidecar in canonical form. A read failure or an
+// unknown-key rejection is recorded as an error (format exits non-zero on it,
+// exactly as for an inline directive); a structurally broken sidecar yields no
+// change, since lint owns those diagnostics. The whole document is rewritten as a
+// unit when it changes and dry is off.
+func formatSidecar(path string, prune, dry bool) FormatFile {
+	out := FormatFile{Path: path, Sidecar: true}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		out.Errors = append(
+			out.Errors,
+			FormatError{Err: fmt.Errorf("read sidecar %q: %w", path, err)},
+		)
+		return out
+	}
+	res, err := sidecar.Canonicalize(data, providerKeys, prune)
+	if err != nil {
+		out.Errors = append(out.Errors, FormatError{Err: err})
+		return out
+	}
+	if !res.Changed {
+		return out
+	}
+	out.Content = string(res.Content)
+	out.Changes = append(out.Changes, FormatChange{New: out.Content, Pruned: res.Pruned})
+	if !dry {
+		if err := writeNew(path, res.Content); err != nil {
+			out.WriteErr = err
+		} else {
+			out.Written = true
+		}
+	}
+	return out
+}
+
+// formatFile canonicalizes each directive in file and collects the lines that
 // would change. A directive carrying an unknown key is rejected (recorded as an
 // error and left untouched) so a stale or mistyped key cannot ride along as
 // inert configuration; with prune set the unknown keys are stripped instead and
@@ -128,7 +201,7 @@ func formatFile(file scan.File, prune bool) FormatFile {
 	formatted := FormatFile{Path: file.Path}
 	for _, located := range file.Found {
 		if located.Sidecar {
-			continue // a sidecar directive has no inline text in this file to canonicalise
+			continue // a sidecar directive has no inline text in this file to canonicalize
 		}
 		d := located.Directive
 		name, _ := d.Get(constant.DirectiveProvider)
@@ -160,7 +233,7 @@ func formatFile(file scan.File, prune bool) FormatFile {
 func canonicalLine(line string, syntax comment.Syntax, d directive.Directive) (string, bool) {
 	name, _ := d.Get(constant.DirectiveProvider)
 	reordered := directive.Reorder(d, providerKeys(name))
-	reordered = directive.CanonicaliseTags(reordered)
+	reordered = directive.CanonicalizeTags(reordered)
 	body := directive.Render(reordered)
 
 	rendered, ok := syntax.Render(line, body)

@@ -66,7 +66,7 @@ func ParseYAML(node *yaml.Node) (Directive, error) {
 // canonicalizing tags identically. Consecutive repeated keys collapse into a
 // single key with a sequence value. Scalar quoting is left to the YAML encoder.
 func RenderYAML(d Directive, providerKeys []string) *yaml.Node {
-	d = CanonicaliseTags(Reorder(d, providerKeys))
+	d = CanonicalizeTags(Reorder(d, providerKeys))
 
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	for i := 0; i < len(d.Pairs); {
@@ -104,4 +104,13 @@ func scalarNode(value string) *yaml.Node {
 	node := new(yaml.Node)
 	node.SetString(value)
 	return node
+}
+
+// RenderYAMLList serializes entry mapping nodes (each from [RenderYAML]) as a
+// YAML sequence document - the sidecar file's top-level shape. It is the codec's
+// document writer, shared by annotate's generation and format's re-emit so both
+// lay down byte-identical canonical output for the same entries.
+func RenderYAMLList(entries []*yaml.Node) ([]byte, error) {
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Content: entries}
+	return yaml.Marshal(seq)
 }
