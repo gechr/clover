@@ -101,6 +101,9 @@ func Format(
 
 	out := make([]FormatFile, 0, len(files))
 	for _, file := range files {
+		if scan.IsSidecar(file.Path) {
+			continue // a sidecar's diagnostics File has no inline directives to format
+		}
 		formatted := formatFile(file, prune)
 		if len(formatted.Changes) > 0 && !dry {
 			lines := applyChanges(file.Lines, formatted.Changes)

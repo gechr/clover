@@ -94,6 +94,9 @@ func Annotate(
 
 	out := make([]AnnotateFile, 0, len(files))
 	for _, file := range files {
+		if scan.IsSidecar(file.Path) {
+			continue // never propose inline directives inside a sidecar file
+		}
 		annotated := annotateFile(file, force)
 		if len(annotated.Changes) > 0 && write {
 			lines := applyAnnotations(file.Lines, annotated.Changes)

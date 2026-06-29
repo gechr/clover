@@ -28,10 +28,18 @@ type Located struct {
 }
 
 // LineError is a malformed directive: the keyword was present but parsing
-// failed. The pipeline surfaces it as an errored marker result.
+// failed. The pipeline surfaces it as an errored marker result. Sidecar marks a
+// structural sidecar problem (a dangling target, an unresolvable locator,
+// double-governance) so lint fails on it while run downgrades it to a
+// skip-with-warning - a broken sidecar should not sink an otherwise-good run.
+// Skip marks a soft skip rather than a hard error - a sidecar entry suppressed
+// by a clover:ignore on its target line - surfaced as a skipped result (its Err
+// carries the reason), so the opt-out is visible without reading as a failure.
 type LineError struct {
-	Line int
-	Err  error
+	Line    int
+	Err     error
+	Sidecar bool
+	Skip    bool
 }
 
 // File is a scanned file that carries at least one directive. Lines is the
@@ -93,9 +101,7 @@ func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bo
 		return File{}, false // binary
 	}
 
-	// Split losslessly so line numbers and content survive for the rewrite;
-	// CRLF is normalised to LF.
-	lines := strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
+	lines := splitLines(content)
 	syntax := comment.For(path)
 
 	var (
@@ -207,6 +213,12 @@ func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
 
 func skipFile(path, reason string) *clog.Event {
 	return clog.Debug().Path(field.Path, path).Str(field.Reason, reason)
+}
+
+// splitLines splits content losslessly so line numbers and content survive for
+// the rewrite, normalising CRLF to LF.
+func splitLines(content []byte) []string {
+	return strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
 }
 
 // containsKeyword reports whether chunk contains the directive keyword, either

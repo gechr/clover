@@ -93,7 +93,10 @@ func TestScanSidecarRespectsExclude(t *testing.T) {
 	require.Empty(t, files, "an excluded target is not processed through its sidecar")
 }
 
-func TestScanDanglingSidecarIgnored(t *testing.T) {
+// A dangling sidecar (no target sibling) surfaces as a diagnostics File keyed on
+// the sidecar path - a lint error that names the missing target - rather than
+// silently fabricating a target.
+func TestScanDanglingSidecar(t *testing.T) {
 	t.Parallel()
 
 	root := tree(t, map[string]string{
@@ -102,7 +105,51 @@ func TestScanDanglingSidecarIgnored(t *testing.T) {
 
 	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
-	require.Empty(t, files, "a sidecar with no target sibling fabricates nothing")
+	require.Len(t, files, 1)
+	require.Equal(t, "orphan.json.clover.yaml", filepath.Base(files[0].Path))
+	require.Len(t, files[0].Errors, 1)
+	require.True(t, files[0].Errors[0].Sidecar)
+	require.EqualError(t, files[0].Errors[0].Err, `references missing target "orphan.json"`)
+}
+
+// Scanning a single-file root (clover run tsconfig.json) still discovers its
+// sidecar, even though the walk of that one file never visits the sibling.
+func TestScanSidecarFromFileRoot(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"tsconfig.json": tsconfig,
+		"tsconfig.json.clover.yaml": "- provider: github\n" +
+			"  repository: biomejs/biome\n" +
+			"  find: schemas/<version>/schema.json\n",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{filepath.Join(root, "tsconfig.json")})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Len(t, files[0].Found, 1)
+	require.True(t, files[0].Found[0].Sidecar)
+}
+
+// Naming both the target and its sidecar on the command line scans the target
+// once: the expanded sidecar root is re-merged, not walked twice.
+func TestScanSidecarTargetAndSidecarRoots(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"tsconfig.json": tsconfig,
+		"tsconfig.json.clover.yaml": "- provider: github\n" +
+			"  repository: biomejs/biome\n" +
+			"  find: schemas/<version>/schema.json\n",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{
+		filepath.Join(root, "tsconfig.json"),
+		filepath.Join(root, "tsconfig.json.clover.yaml"),
+	})
+	require.NoError(t, err)
+	require.Len(t, files, 1, "the target is scanned once despite both roots")
+	require.Len(t, files[0].Found, 1)
 }
 
 func TestScanSidecarFindAmbiguous(t *testing.T) {
@@ -117,11 +164,14 @@ func TestScanSidecarFindAmbiguous(t *testing.T) {
 
 	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
-	require.Len(t, files, 1)
-	require.Empty(t, files[0].Found)
-	require.Len(t, files[0].Errors, 1)
-	require.EqualError(t, files[0].Errors[0].Err,
-		"sidecar entry at line 1: find matched 2 lines; make it more specific")
+
+	got := byPath(files)
+	require.Empty(t, got["versions.json"].Found, "no entry governs a target line")
+	diag := got["versions.json.clover.yaml"]
+	require.Len(t, diag.Errors, 1)
+	require.True(t, diag.Errors[0].Sidecar)
+	require.EqualError(t, diag.Errors[0].Err,
+		"entry at line 1: find matched 2 lines; make it more specific")
 }
 
 func TestScanSidecarMissingLocator(t *testing.T) {
@@ -134,15 +184,17 @@ func TestScanSidecarMissingLocator(t *testing.T) {
 
 	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
-	require.Len(t, files, 1)
-	require.Empty(t, files[0].Found)
-	require.Len(t, files[0].Errors, 1)
-	require.EqualError(t, files[0].Errors[0].Err,
-		`sidecar entry at line 1: needs a "find" or "jq" locator`)
+
+	got := byPath(files)
+	require.Empty(t, got["tsconfig.json"].Found)
+	diag := got["tsconfig.json.clover.yaml"]
+	require.Len(t, diag.Errors, 1)
+	require.EqualError(t, diag.Errors[0].Err,
+		`entry at line 1: needs a "find" or "jq" locator`)
 }
 
-// A sidecar entry resolving onto a line a clover:ignore control suppresses is
-// dropped (the local opt-out wins), not applied.
+// A sidecar entry resolving onto a clover:ignore-suppressed line is not applied
+// (the local opt-out wins) but surfaces as a visible skip, not a hard error.
 func TestScanSidecarRespectsIgnore(t *testing.T) {
 	t.Parallel()
 
@@ -156,9 +208,14 @@ func TestScanSidecarRespectsIgnore(t *testing.T) {
 
 	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
-	require.Len(t, files, 1)
-	require.Empty(t, files[0].Found, "the ignored line is not governed by the sidecar")
-	require.Empty(t, files[0].Errors, "an ignore opt-out is a skip, not an error")
+
+	got := byPath(files)
+	require.Empty(t, got["tsconfig.jsonc"].Found, "the ignored line is not governed by the sidecar")
+	diag := got["tsconfig.jsonc.clover.yaml"]
+	require.Len(t, diag.Errors, 1)
+	require.True(t, diag.Errors[0].Skip, "an ignore opt-out is a skip, not a hard error")
+	require.EqualError(t, diag.Errors[0].Err,
+		"entry at line 1: target line 3 is suppressed by clover:ignore")
 }
 
 // A sidecar entry resolving onto a line an inline directive already governs is
@@ -175,12 +232,15 @@ func TestScanSidecarDoubleGovernance(t *testing.T) {
 
 	files, _, err := scan.Scan(t.Context(), []string{root})
 	require.NoError(t, err)
-	require.Len(t, files, 1)
-	require.Len(t, files[0].Found, 1, "only the inline directive governs the line")
-	require.False(t, files[0].Found[0].Sidecar)
-	require.Len(t, files[0].Errors, 1)
-	require.EqualError(t, files[0].Errors[0].Err,
-		"sidecar entry at line 1: targets line 2, already governed by another directive")
+
+	got := byPath(files)
+	target := got["deps.yaml"]
+	require.Len(t, target.Found, 1, "only the inline directive governs the line")
+	require.False(t, target.Found[0].Sidecar)
+	diag := got["deps.yaml.clover.yaml"]
+	require.Len(t, diag.Errors, 1)
+	require.EqualError(t, diag.Errors[0].Err,
+		"entry at line 1: targets line 2, already governed by another directive")
 }
 
 // A target that carries its own inline directive is merged with its sidecar's

@@ -63,6 +63,11 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	// so a file reachable from two roots is walked once. Symlinks are skipped in
 	// the walk, so a lexical merge suffices - no two surviving roots can alias.
 	roots = xfilepath.Merge(roots)
+	// A scan rooted directly at a target (clover run package.json) must still
+	// discover its sidecar: a single-file root's walk never visits the sibling, so
+	// add the sidecar as its own root. Re-merge so naming both the target and its
+	// sidecar does not walk the sidecar twice. Directory roots already see siblings.
+	roots = xfilepath.Merge(append(roots, sidecarRootsFor(roots)...))
 	warnMissingRoots(roots)
 
 	jobs := make(chan scanJob)
@@ -88,9 +93,9 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 			for job := range jobs {
 				scanned.Add(1)
 				clog.Debug().Path(field.Path, job.path).Msg("Scanning file")
-				if file, ok := scanPath(job, cfg); ok {
+				if found := scanPath(job, cfg); len(found) > 0 {
 					mu.Lock()
-					files = append(files, file)
+					files = append(files, found...)
 					mu.Unlock()
 				}
 			}

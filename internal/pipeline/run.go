@@ -427,11 +427,16 @@ func skipState(d directive.Directive) (bool, string, error) {
 func parseErrorResults(f scan.File) []Result {
 	results := make([]Result, 0, len(f.Errors))
 	for _, e := range f.Errors {
-		marker := Marker{File: f.Path, Line: e.Line, Target: e.Line}
-		results = append(
-			results,
-			Result{Marker: marker, NewLine: lineAt(f.Lines, e.Line), Err: e.Err},
-		)
+		r := Result{
+			Marker:  Marker{File: f.Path, Line: e.Line, Target: e.Line, Sidecar: e.Sidecar},
+			NewLine: lineAt(f.Lines, e.Line),
+		}
+		if e.Skip {
+			r.Skipped, r.Reason = true, e.Err.Error()
+		} else {
+			r.Err = e.Err
+		}
+		results = append(results, r)
 	}
 	return results
 }
