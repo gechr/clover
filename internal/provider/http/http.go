@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/httpcache"
+	"github.com/gechr/clover/internal/jq"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/itchyny/gojq"
@@ -207,14 +208,10 @@ func compileExtract(expr string) (*pattern.Pattern, error) {
 	return pat, nil
 }
 
-// compileJQ parses and compiles a jq program, so a bad expression is reported at
-// validation time.
+// compileJQ compiles a jq program through the shared helper, so a bad expression
+// is reported at validation time in the http provider's terms.
 func compileJQ(expr string) (*gojq.Code, error) {
-	query, err := gojq.Parse(expr)
-	if err != nil {
-		return nil, fmt.Errorf("http: %q: %w", keyJQ, err)
-	}
-	code, err := gojq.Compile(query)
+	code, err := jq.Compile(expr)
 	if err != nil {
 		return nil, fmt.Errorf("http: %q: %w", keyJQ, err)
 	}

@@ -146,10 +146,10 @@ func TestLocateFindEmpty(t *testing.T) {
 	require.EqualError(t, err, `"find" pattern is empty`)
 }
 
-func TestLocateJQNotYetSupported(t *testing.T) {
+func TestLocateJQEmpty(t *testing.T) {
 	t.Parallel()
 
-	d := directive.Directive{Pairs: []directive.KV{{Key: "jq", Value: ".version"}}}
-	_, err := sidecar.Locate(nil, d)
-	require.EqualError(t, err, `"jq" locator is not yet supported`)
+	d := directive.Directive{Pairs: []directive.KV{{Key: "jq", Value: ""}}}
+	_, err := sidecar.Locate([]string{"{}"}, d)
+	require.EqualError(t, err, `"jq" expression is empty`)
 }

@@ -87,14 +87,19 @@ func Entries(data []byte) ([]Entry, error) {
 }
 
 // Locate resolves a sidecar entry's target line within lines via its locator. An
-// entry must carry exactly one of find or jq; neither is a hard error. find scans
-// for the single line whose content matches a glob or /regex/. jq is not yet
-// supported (see Plan 3); an entry carrying it errors cleanly until then.
+// entry must carry find or jq (neither present is a hard error). jq resolves the
+// line by JSON path - robust against a duplicated version string or reordered
+// keys - and a composing find then refines the region within that line at rewrite
+// time; find alone scans for the single line whose content matches a glob or
+// /regex/.
 func Locate(lines []string, d directive.Directive) (int, error) {
+	jqExpr, hasJQ := d.Get(constant.DirectiveJQ)
 	find, hasFind := d.Get(constant.DirectiveFind)
 	switch {
-	case d.Has(constant.DirectiveJQ):
-		return 0, fmt.Errorf("%q locator is not yet supported", constant.DirectiveJQ)
+	case hasJQ:
+		// jq selects the line; a composing find refines the region within it at
+		// rewrite time, since the rewriter reads the resolved line's directive.
+		return locateJQ(lines, jqExpr)
 	case hasFind:
 		return locateFind(lines, find)
 	default:
@@ -104,6 +109,16 @@ func Locate(lines []string, d directive.Directive) (int, error) {
 			constant.DirectiveJQ,
 		)
 	}
+}
+
+// locateJQ resolves a jq locator to a line. The lossless LF-normalized lines are
+// rejoined into the byte source the path walk descends, so offsets map back to
+// line indices consistently with scan's split.
+func locateJQ(lines []string, expr string) (int, error) {
+	if expr == "" {
+		return 0, fmt.Errorf("%q expression is empty", constant.DirectiveJQ)
+	}
+	return resolveJQLine([]byte(strings.Join(lines, "\n")), expr)
 }
 
 // locateFind returns the single line index whose content matches find, treating
