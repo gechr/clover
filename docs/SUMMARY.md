@@ -4,6 +4,8 @@
 
 - [Annotations](annotations.md)
 
+- [Sidecars](sidecar.md)
+
 - [Find & replace](find-replace.md)
 
 - [Ignoring files & lines](ignore.md)

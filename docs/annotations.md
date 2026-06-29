@@ -25,16 +25,22 @@ required_version = "1.7.0"
 
 ### Formats without comments
 
-A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit: `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line. If the tool also accepts JSONC (JSON with comments), rename the file to `.jsonc` and add a `//` directive.
+A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit: `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line. For these, Clover reads the directives from a [**sidecar**](sidecar.md) - a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.
 
-[Biome](https://biomejs.dev), for example, reads `biome.jsonc` natively, so its `$schema` URL can track Biome's releases:
+[Biome](https://biomejs.dev), for example, ships a `biome.json` whose `$schema` URL can track Biome's releases. A `biome.json.clover.yaml` sidecar locates the line with [`jq`](sidecar.md#locators) and tracks it:
 
-```jsonc
-// clover: provider=github repository=biomejs/biome tag-prefix=@biomejs/biome@ constraint=minor
-"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json"
+```yaml
+# biome.json.clover.yaml
+- provider: github
+  repository: biomejs/biome
+  tag-prefix: "@biomejs/biome@"
+  constraint: minor
+  jq: '.["$schema"]'
 ```
 
-No [`find`](find-replace.md) is needed - the version is the only version-shaped token on the line, so Clover locates it automatically. The [`tag-prefix`](filtering.md#tag-prefix) scopes selection to Biome's monorepo-scoped `@biomejs/biome@` tags.
+The [`jq`](sidecar.md#locators) locator names the line by JSON path; the version is the only version-shaped token on it, so no [`find`](find-replace.md) is needed. The [`tag-prefix`](filtering.md#tag-prefix) scopes selection to Biome's monorepo `@biomejs/biome@` tags. See [Sidecars](sidecar.md) for the naming rule, both locators, and the editor schema.
+
+If the tool also accepts JSONC (JSON with comments), an inline `//` directive in a `.jsonc` file is an alternative - but the sidecar leaves the JSON untouched and works even where renaming to `.jsonc` is not an option.
 
 ## Keys
 

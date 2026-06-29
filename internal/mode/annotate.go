@@ -379,7 +379,7 @@ func applyAnnotations(lines []string, changes []AnnotateChange) []string {
 }
 
 // leadingWhitespace returns the run of spaces and tabs that indents line, so a
-// synthesised comment aligns with the line it annotates.
+// synthesized comment aligns with the line it annotates.
 func leadingWhitespace(line string) string {
 	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 }

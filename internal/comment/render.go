@@ -7,7 +7,7 @@ import (
 )
 
 // sep is the single space between a comment marker and its body (and around a
-// block's close), sourced from the one directive separator so a synthesised or
+// block's close), sourced from the one directive separator so a synthesized or
 // rewritten comment spaces exactly like a rendered directive.
 const sep = string(constant.DirectiveSeparator)
 
@@ -47,7 +47,7 @@ func (s Syntax) Render(line, body string) (string, bool) {
 // line marker, falling back to its first block pair for block-only formats (HTML,
 // CSS). ok is false when the syntax exposes no delimiter at all. Spacing matches
 // [Syntax.Render]: a single space after the opening marker (and before a block's
-// close), so a synthesised comment is byte-identical to a rendered one.
+// close), so a synthesized comment is byte-identical to a rendered one.
 func (s Syntax) Comment(indent, body string) (string, bool) {
 	switch {
 	case len(s.Line) > 0:

@@ -2,7 +2,7 @@
 
 Clover is conservative by default. It changes as little as possible, moves versions only in the safe direction, and never touches a line you did not annotate. Selection defaults below can be relaxed when you ask for it - per annotation, per run, or in [`.clover.yaml`](configuration.md) - but left alone, Clover takes the cautious path.
 
-- **Only annotated targets change.** `clover run` rewrites the target line beside a `clover:` comment and nothing else; `clover format` rewrites directive comments only. A file with no annotations is read, never written. See [Annotations](annotations.md).
+- **Only annotated targets change.** `clover run` rewrites the target line beside a `clover:` comment and nothing else; `clover format` rewrites directive comments only. A file with no annotations is read, never written. A file with no comment syntax (strict JSON) is tracked by a [sidecar](sidecar.md) instead. See [Annotations](annotations.md).
 
 - **Never downgrades.** Clover only moves a version forward. A line already ahead of the newest eligible release stays put unless you pass `downgrade` (or `--downgrade`). See [Constraints](constraints.md).
 

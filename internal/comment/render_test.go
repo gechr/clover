@@ -135,7 +135,7 @@ func TestComment(t *testing.T) {
 	}
 }
 
-// TestCommentRoundTripsBody confirms a synthesised comment reads back through
+// TestCommentRoundTripsBody confirms a synthesized comment reads back through
 // Body as the body it was built from - so an annotation clover writes is one it
 // can later find.
 func TestCommentRoundTripsBody(t *testing.T) {

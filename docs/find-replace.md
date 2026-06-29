@@ -125,3 +125,4 @@ ver = v1.5.0 (deadbeef)
 - `find`/`replace` can't be combined with [`track`](tracking.md) - tracking owns its own floating-ref locator.
 - A glob has no path separators, so `*` spans every character including `/`.
 - If `find` doesn't match the target line, the update will fail rather than trying to guess.
+- In a [sidecar](sidecar.md), `find` doubles as the locator that selects the target line, since a sidecar entry has no comment to sit beside.

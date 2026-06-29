@@ -48,6 +48,19 @@ var commonKeys = map[string]bool{
 	constant.RuleDowngrade:         true,
 }
 
+// CommonKeys returns the provider-agnostic directive vocabulary in sorted order -
+// every key valid on any marker regardless of provider. It exposes the same set
+// [CheckKeys] validates against, so a caller (the sidecar schema's drift guard)
+// can enumerate the vocabulary without reaching into the unexported map.
+func CommonKeys() []string {
+	keys := make([]string, 0, len(commonKeys))
+	for key := range commonKeys {
+		keys = append(keys, key)
+	}
+	xslices.SortNatural(keys)
+	return keys
+}
+
 // CheckKeys returns an error naming the first key outside the common vocabulary
 // and providerKeys (the resolved provider's own keys), with the closest known
 // key suggested when one is near. It returns nil when every key is known. Both
