@@ -36,6 +36,8 @@ func Init() {
 	formats.DurationGradientMax = gradientMax
 	clog.SetFieldFormats(formats)
 
+	clog.SetNumberFormat(clog.NumberGrouped)
+
 	styles := clog.DefaultStyles()
 	styles.Keys[field.From] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
 	styles.Keys[field.To] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))   // green
