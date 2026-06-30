@@ -33,6 +33,10 @@ const syntheticInferencePath = "clover-sidecar.yaml"
 // generated docker entry anchors its find on `<repository>:<version>`.
 const versionPlaceholder = "<version>"
 
+func sidecarModeline() string {
+	return "# yaml-language-server: $schema=" + sidecar.SchemaURL() + "\n\n"
+}
+
 // strictJSON reports whether path is a strict-JSON file - one that cannot host an
 // inline comment, so a directive for it must live in a sidecar. The comment-
 // hosting JSON dialects (.jsonc, .json5) are excluded: they take inline comments
@@ -662,6 +666,8 @@ func appendSidecar(
 			prefix += "\n"
 		}
 		content = prefix + content
+	} else {
+		content = sidecarModeline() + content
 	}
 	return &AnnotateSidecar{Path: path, Content: content, Entries: entryChanges(fresh)}, ""
 }

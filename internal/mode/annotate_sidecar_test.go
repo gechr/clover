@@ -8,8 +8,13 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/sidecar"
 	"github.com/stretchr/testify/require"
 )
+
+func generatedSidecar(entries string) string {
+	return "# yaml-language-server: $schema=" + sidecar.SchemaURL() + "\n\n" + entries
+}
 
 // TestAnnotateGeneratesSidecarForJSON is the headline case: a strict-JSON target
 // with a trackable image line cannot host an inline comment, so annotate proposes
@@ -32,8 +37,11 @@ func TestAnnotateGeneratesSidecarForJSON(t *testing.T) {
 	// and a repository-anchored find (so a later edit of the line fails loud).
 	summary := annotate(t, root, true, false)
 	require.Equal(t, 1, summary.Added())
-	require.Equal(t,
-		"- provider: docker\n  repository: nginx\n  jq: .[\"image\"]\n  find: nginx:<version>\n",
+	require.Equal(
+		t,
+		generatedSidecar(
+			"- provider: docker\n  repository: nginx\n  jq: .[\"image\"]\n  find: nginx:<version>\n",
+		),
 		readFile(t, sidecarPath),
 		"explicit provider, then provider keys, then the locator zone (jq, find)",
 	)
@@ -57,7 +65,9 @@ func TestAnnotateSidecarOneEntryPerLine(t *testing.T) {
 		"only the first leaf on the shared line earns an entry")
 	require.Equal(
 		t,
-		"- provider: docker\n  repository: nginx\n  jq: .[\"a\"][\"image\"]\n  find: nginx:<version>\n",
+		generatedSidecar(
+			"- provider: docker\n  repository: nginx\n  jq: .[\"a\"][\"image\"]\n  find: nginx:<version>\n",
+		),
 		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
 	)
 
@@ -101,7 +111,9 @@ func TestAnnotateSidecarCarriesRegistry(t *testing.T) {
 	require.Equal(t, 1, annotate(t, root, true, false).Added())
 	require.Equal(
 		t,
-		"- provider: docker\n  repository: owner/api\n  registry: ghcr.io\n  jq: .[\"image\"]\n  find: ghcr.io/owner/api:<version>\n",
+		generatedSidecar(
+			"- provider: docker\n  repository: owner/api\n  registry: ghcr.io\n  jq: .[\"image\"]\n  find: ghcr.io/owner/api:<version>\n",
+		),
 		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
 	)
 }
@@ -119,7 +131,9 @@ func TestAnnotateSidecarRegistryPort(t *testing.T) {
 	require.Equal(t, 1, annotate(t, root, true, false).Added())
 	require.Equal(
 		t,
-		"- provider: docker\n  repository: team/api\n  registry: localhost:5000\n  jq: .[\"image\"]\n  find: localhost:5000/team/api:<version>\n",
+		generatedSidecar(
+			"- provider: docker\n  repository: team/api\n  registry: localhost:5000\n  jq: .[\"image\"]\n  find: localhost:5000/team/api:<version>\n",
+		),
 		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
 	)
 }
@@ -140,7 +154,9 @@ func TestAnnotateSidecarGeneratesPinnedReference(t *testing.T) {
 	require.Equal(t, 1, summary.Added())
 	require.Equal(
 		t,
-		"- provider: docker\n  repository: nginx\n  jq: .[\"image\"]\n  find: nginx:<version>\n",
+		generatedSidecar(
+			"- provider: docker\n  repository: nginx\n  jq: .[\"image\"]\n  find: nginx:<version>\n",
+		),
 		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
 	)
 }
