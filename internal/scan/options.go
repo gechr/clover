@@ -5,11 +5,17 @@ package scan
 // plugs into via [WithIgnore].
 type IgnoreFunc func(path string, isDir bool) bool
 
+// ProgressFunc reports the running count of files examined so far. It is called
+// once per file from the scan worker pool, so an implementation must be
+// goroutine-safe; it is the seam a live progress display plugs into.
+type ProgressFunc func(scanned int)
+
 // config is the resolved set of [Scan] options.
 type config struct {
 	workers          int
 	maxSize          int64
 	ignore           IgnoreFunc
+	progress         ProgressFunc
 	requireDirective bool
 }
 
@@ -21,6 +27,13 @@ func WithWorkers(n int) Option { return func(c *config) { c.workers = n } }
 
 // WithMaxSize sets the largest file scan will read.
 func WithMaxSize(n int64) Option { return func(c *config) { c.maxSize = n } }
+
+// WithProgress supplies a callback invoked once per file as the walk proceeds,
+// carrying the running count of files examined. It is the seam the CLI's live
+// scan-progress line plugs into; the callback must be goroutine-safe.
+func WithProgress(fn ProgressFunc) Option {
+	return func(c *config) { c.progress = fn }
+}
 
 // WithIgnore supplies the predicate that skips ignored files and directories -
 // the seam a gitignore matcher plugs into. It is consulted in addition to the

@@ -10,6 +10,10 @@ import (
 	"github.com/gechr/clover/internal/tag"
 )
 
+// defaultScanLabel is the transient scan-progress message when a command sets
+// none of its own.
+const defaultScanLabel = "Scanning files"
+
 type settings struct {
 	configs          *config.Resolver
 	current          string
@@ -24,6 +28,7 @@ type settings struct {
 	prerelease       *bool
 	reporter         progress.Reporter
 	requireDirective bool
+	scanLabel        string
 	truncationSink   func(provider.Truncation)
 	verify           *bool
 	workers          int
@@ -100,6 +105,13 @@ func WithRequireDirective(on bool) Option {
 	return func(s *settings) { s.requireDirective = on }
 }
 
+// WithScanLabel sets the message shown on the transient scan-progress line - the
+// live "Scanning ..." spinner that precedes resolution. Each command supplies its
+// own phrasing; the default is generic.
+func WithScanLabel(label string) Option {
+	return func(s *settings) { s.scanLabel = label }
+}
+
 // WithTagFilter restricts the run to markers the filter matches. The zero filter
 // matches every marker; a non-empty one drops markers whose tags do not satisfy
 // it, including untagged markers.
@@ -133,7 +145,12 @@ func WithWorkers(n int) Option { return func(s *settings) { s.workers = n } }
 // newSettings applies opts over the defaults, clamping the worker count and
 // defaulting the clock so cooldown has a reference time.
 func newSettings(opts ...Option) settings {
-	set := settings{workers: runtime.NumCPU(), reporter: progress.Nop{}, requireDirective: true}
+	set := settings{
+		workers:          runtime.NumCPU(),
+		reporter:         progress.Nop{},
+		requireDirective: true,
+		scanLabel:        defaultScanLabel,
+	}
 	for _, opt := range opts {
 		opt(&set)
 	}

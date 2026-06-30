@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
@@ -44,8 +45,10 @@ func (c *cmdFormat) Run(configs *config.Resolver) error {
 		dry,
 		c.Prune,
 		configs,
-		pipeline.WithVersion(clive.Current()),
 		pipeline.WithNoIgnore(c.NoIgnore),
+		pipeline.WithReporter(console.New(ctx, clog.Default)),
+		pipeline.WithScanLabel(scanLabelComments),
+		pipeline.WithVersion(clive.Current()),
 	)
 	if err != nil {
 		return err

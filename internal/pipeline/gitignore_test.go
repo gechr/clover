@@ -22,7 +22,7 @@ func TestScanHonorsGitignoreByDefault(t *testing.T) {
 		})
 	t.Chdir(dir)
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -42,7 +42,7 @@ func TestScanNoIgnoreScansGitignored(t *testing.T) {
 		})
 	t.Chdir(dir)
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -67,7 +67,7 @@ func TestScanNoIgnoreStillExcludesVCS(t *testing.T) {
 	})
 	t.Chdir(dir)
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),

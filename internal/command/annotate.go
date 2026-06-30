@@ -7,6 +7,8 @@ import (
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/console"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
@@ -37,25 +39,55 @@ func (c *cmdAnnotate) Run(configs *config.Resolver) error {
 	launch()
 	ctx := context.Background()
 
+	reporter := console.New(ctx, clog.Default)
 	summary, err := mode.Annotate(
 		ctx,
 		roots(c.Paths),
 		c.Write,
 		c.Force,
 		configs,
-		pipeline.WithVersion(clive.Current()),
+		reporter,
 		pipeline.WithNoIgnore(c.NoIgnore),
+		pipeline.WithReporter(reporter),
+		pipeline.WithScanLabel(scanLabelCandidates),
+		pipeline.WithVersion(clive.Current()),
 	)
 	if err != nil {
 		return err
 	}
 
+	annotateDiscovered(summary)
 	report.Annotate(clog.Default, summary, c.Write)
 
 	if failed := writeFailures(summary); failed > 0 {
 		return fmt.Errorf("%s could not be written", human.Pluralize(failed, "file", "files"))
 	}
 	return nil
+}
+
+// annotateDiscovered logs the scan result that supplants the transient scan
+// line: the candidate lines annotate found, or a notice when it found none.
+func annotateDiscovered(summary mode.AnnotateSummary) {
+	candidates := summary.Total()
+	if candidates == 0 {
+		clog.Warn().
+			Symbol("🫠").
+			Int(field.Scanned, summary.Scanned).
+			Msg("No Clover annotation candidates found")
+		return
+	}
+	var files int
+	for _, f := range summary.Files {
+		if len(f.Changes) > 0 || (f.Sidecar != nil && len(f.Sidecar.Entries) > 0) {
+			files++
+		}
+	}
+	clog.Info().
+		Symbol("💬").
+		Int(field.Scanned, summary.Scanned).
+		Int(field.Files, files).
+		Int(field.Candidates, candidates).
+		Msg("Found Clover annotation candidates")
 }
 
 // writeFailures counts the files whose annotations could not be written.

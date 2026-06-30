@@ -7,6 +7,12 @@ package progress
 
 // Reporter renders the progress of a batch of work whose size is known up front.
 type Reporter interface {
+	// Track starts a transient progress line labelled label, reporting the running
+	// count through the named field. A total of zero shows an open counter, for
+	// work whose size is unknown up front (a directory walk); a positive total
+	// shows a fraction (N/total) with the same gradient the resolve line uses.
+	// Stop ends the line, and the next log line supplants it.
+	Track(label, field string, total int) Tracker
 	// Discovered reports the scan totals - how many files were scanned, how many
 	// carried directives, and how many directives in all - before resolution
 	// begins.
@@ -16,6 +22,15 @@ type Reporter interface {
 	// every task has reached a terminal state (Done, Fail, or Skip), which blocks
 	// until rendering has drained.
 	Begin(names []string) (tasks []Task, wait func())
+}
+
+// Tracker is a handle to a transient progress line. Set reports the running
+// count as the work proceeds, from any goroutine; Stop ends the line.
+type Tracker interface {
+	// Set records the running count so far.
+	Set(n int)
+	// Stop ends the progress line; the next log line takes its place.
+	Stop()
 }
 
 // Task is a handle to one unit of work. Any number of Update calls may precede a
@@ -35,6 +50,9 @@ type Task interface {
 // attached (off the engine's hot path, in tests, or for library use).
 type Nop struct{}
 
+// Track returns an inert tracker.
+func (Nop) Track(string, string, int) Tracker { return nopTracker{} }
+
 // Discovered reports nothing.
 func (Nop) Discovered(int, int, int) {}
 
@@ -46,6 +64,11 @@ func (Nop) Begin(names []string) ([]Task, func()) {
 	}
 	return tasks, func() {}
 }
+
+type nopTracker struct{}
+
+func (nopTracker) Set(int) {}
+func (nopTracker) Stop()   {}
 
 type nopTask struct{}
 

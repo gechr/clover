@@ -93,7 +93,7 @@ func Format(
 	// itself so format applies each root's paths.exclude and required-version gate,
 	// not just the fmt.prune Primary reads below.
 	opts = append(opts, pipeline.WithConfig(configs))
-	files, err := pipeline.Scan(ctx, roots, opts...)
+	files, _, err := pipeline.Scan(ctx, roots, opts...)
 	if err != nil {
 		return FormatSummary{}, err
 	}

@@ -11,8 +11,10 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
@@ -81,7 +83,8 @@ type SidecarEntryChange struct {
 
 // AnnotateSummary is the annotate outcome over all roots, in file order.
 type AnnotateSummary struct {
-	Files []AnnotateFile
+	Files   []AnnotateFile
+	Scanned int // total files examined during the walk
 }
 
 // Added reports how many fresh annotations annotate would insert.
@@ -132,19 +135,28 @@ func Annotate(
 	write bool,
 	force bool,
 	configs *config.Resolver,
+	reporter progress.Reporter,
 	opts ...pipeline.Option,
 ) (AnnotateSummary, error) {
 	opts = append(opts,
 		pipeline.WithConfig(configs),
 		pipeline.WithRequireDirective(false),
 	)
-	files, err := pipeline.Scan(ctx, roots, opts...)
+	files, scanned, err := pipeline.Scan(ctx, roots, opts...)
 	if err != nil {
 		return AnnotateSummary{}, err
 	}
 
+	// Inferring and verifying each file's trackable lines is the slow half on a
+	// large tree; a transient line keeps it from looking hung. Its size is known,
+	// so it shows a fraction; it is erased on return, so the discovery log
+	// supplants it.
+	verify := reporter.Track("Verifying annotate candidates", field.Progress, len(files))
+	defer verify.Stop()
+
 	out := make([]AnnotateFile, 0, len(files))
-	for _, file := range files {
+	for i, file := range files {
+		verify.Set(i + 1)
 		if scan.IsSidecar(file.Path) {
 			continue // never propose inline directives inside a sidecar file
 		}
@@ -173,7 +185,7 @@ func Annotate(
 		}
 		out = append(out, annotated)
 	}
-	return AnnotateSummary{Files: out}, nil
+	return AnnotateSummary{Files: out, Scanned: scanned}, nil
 }
 
 // annotateFile walks a file's lines and collects the annotations to add (and,

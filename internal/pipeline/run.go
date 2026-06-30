@@ -137,12 +137,13 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 }
 
 // Scan walks roots offline - honouring ignore files, never resolving - and
-// returns the files that carry a directive. It is the front half Run and
-// Validate build on, exposed for format mode, which rewrites directive comments
-// without ever binding markers or touching the network.
-func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, error) {
-	_, files, _, err := scanRoots(ctx, roots, newSettings(opts...))
-	return files, err
+// returns the files that carry a directive, alongside the total number of files
+// examined. It is the front half Run and Validate build on, exposed for format
+// and annotate, which rewrite directive comments without ever binding markers or
+// touching the network.
+func Scan(ctx context.Context, roots []string, opts ...Option) ([]scan.File, int, error) {
+	_, files, scanned, err := scanRoots(ctx, roots, newSettings(opts...))
+	return files, scanned, err
 }
 
 // scanRoots walks roots, pruning ignored paths, then applies each repository's
@@ -163,9 +164,17 @@ func scanRoots(
 	}
 	matcher := ignore.New(resolver, ignoreOpts...)
 
+	// A transient progress line reports files examined as the walk proceeds; the
+	// walk's size is unknown up front, so it shows an open scanned= counter. It is
+	// erased when scanning ends, so the caller's next log (the discovery counts)
+	// supplants it.
+	tracker := set.reporter.Track(set.scanLabel, field.Scanned, 0)
+	defer tracker.Stop()
+
 	scanOpts := []scan.Option{
 		scan.WithWorkers(set.workers),
 		scan.WithIgnore(ignoreFunc(matcher, set.configs)),
+		scan.WithProgress(tracker.Set),
 		scan.WithRequireDirective(set.requireDirective),
 	}
 	if set.maxSize > 0 {

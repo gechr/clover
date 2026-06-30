@@ -229,7 +229,7 @@ func TestScanSkipsConfiguredExcludes(t *testing.T) {
 		})
 	t.Chdir(dir)
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -251,7 +251,7 @@ func TestScanExcludeDoubleStarMatchesNestedDirs(t *testing.T) {
 		})
 	t.Chdir(dir)
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{"."},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -285,7 +285,7 @@ func TestScanGatesUnsatisfiedRequiredVersion(t *testing.T) {
 	repoAt(t, filepath.Join(parent, "blocked"),
 		"required-version: \">=9.0.0\"\n", map[string]string{"app.yaml": gateDirective})
 
-	files, err := pipeline.Scan(
+	files, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{parent},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -302,7 +302,7 @@ func TestScanRejectsMalformedConfig(t *testing.T) {
 		"required-version: \"not a constraint!!\"\n",
 		map[string]string{"app.yaml": gateDirective})
 
-	_, err := pipeline.Scan(
+	_, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{dir},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),
@@ -318,7 +318,7 @@ func TestScanRejectsMalformedConfigWithoutDirectives(t *testing.T) {
 	dir := t.TempDir()
 	repoAt(t, dir, "required-version: \"not a constraint!!\"\n", nil)
 
-	_, err := pipeline.Scan(
+	_, _, err := pipeline.Scan(
 		context.Background(),
 		[]string{dir},
 		pipeline.WithConfig(config.NewResolver(nil, "", false)),

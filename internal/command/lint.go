@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/pipeline"
@@ -39,9 +40,11 @@ func (c *cmdLint) Run(configs *config.Resolver) error {
 
 	summary, err := mode.Lint(ctx, roots(c.Paths),
 		pipeline.WithConfig(configs),
-		pipeline.WithVersion(clive.Current()),
-		pipeline.WithTagFilter(filter),
 		pipeline.WithNoIgnore(c.NoIgnore),
+		pipeline.WithReporter(console.New(ctx, clog.Default)),
+		pipeline.WithScanLabel(scanLabelComments),
+		pipeline.WithTagFilter(filter),
+		pipeline.WithVersion(clive.Current()),
 	)
 	if err != nil {
 		return err

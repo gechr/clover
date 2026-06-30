@@ -80,21 +80,22 @@ func (c *cmdRun) Run(configs *config.Resolver) error {
 	// the CLI overrides and the running version (for the per-root required-version
 	// gate) pass through here.
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
-		pipeline.WithReporter(reporter),
 		pipeline.WithConfig(configs),
-		pipeline.WithVersion(clive.Current()),
-		pipeline.WithTagFilter(filter),
 		pipeline.WithDeep(c.Deep),
+		pipeline.WithDowngrade(c.Downgrade),
+		pipeline.WithForce(c.Force),
+		pipeline.WithNoIgnore(c.NoIgnore),
+		pipeline.WithPrerelease(c.Prerelease),
+		pipeline.WithReporter(reporter),
+		pipeline.WithScanLabel(scanLabelComments),
+		pipeline.WithTagFilter(filter),
 		pipeline.WithTruncationSink(func(t provider.Truncation) {
 			mu.Lock()
 			defer mu.Unlock()
 			truncated = append(truncated, t)
 		}),
-		pipeline.WithDowngrade(c.Downgrade),
-		pipeline.WithPrerelease(c.Prerelease),
-		pipeline.WithForce(c.Force),
 		pipeline.WithVerify(c.Verify),
-		pipeline.WithNoIgnore(c.NoIgnore),
+		pipeline.WithVersion(clive.Current()),
 	)
 	if err != nil {
 		return err

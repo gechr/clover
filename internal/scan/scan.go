@@ -91,7 +91,10 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	for range cfg.workers {
 		wg.Go(func() {
 			for job := range jobs {
-				scanned.Add(1)
+				n := scanned.Add(1)
+				if cfg.progress != nil {
+					cfg.progress(int(n))
+				}
 				clog.Debug().Path(field.Path, job.path).Msg("Scanning file")
 				if found := scanPath(job, cfg); len(found) > 0 {
 					mu.Lock()

@@ -31,6 +31,12 @@ const (
 
 	exitSuccess = 0
 	exitFailure = 1
+
+	// scanLabelComments labels the scan-progress line for commands that walk for
+	// existing directives (run, lint, format); scanLabelCandidates for annotate,
+	// which walks for lines it could newly annotate.
+	scanLabelComments   = "Scanning for Clover comments"
+	scanLabelCandidates = "Scanning for Clover candidates"
 )
 
 // cli is the top-level command tree. The embedded CompletionFlags add the hidden

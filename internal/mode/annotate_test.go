@@ -11,6 +11,7 @@ import (
 
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/mode"
+	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
@@ -56,9 +57,58 @@ func annotate(t *testing.T, root string, write, force bool) mode.AnnotateSummary
 		write,
 		force,
 		config.NewResolver(nil, "", false),
+		progress.Nop{},
 	)
 	require.NoError(t, err)
 	return summary
+}
+
+// trackReporter is a progress.Reporter that records the verification tracker's
+// configuration and final count, so a test can assert annotate drives it.
+type trackReporter struct {
+	label   string
+	field   string
+	total   int
+	last    int
+	stopped bool
+}
+
+func (r *trackReporter) Track(label, field string, total int) progress.Tracker {
+	r.label, r.field, r.total = label, field, total
+	return r
+}
+func (r *trackReporter) Set(n int)              { r.last = n }
+func (r *trackReporter) Stop()                  { r.stopped = true }
+func (*trackReporter) Discovered(int, int, int) {}
+func (*trackReporter) Begin([]string) ([]progress.Task, func()) {
+	return nil, func() {}
+}
+
+// TestAnnotateReportsVerifyProgress confirms annotate drives a fraction tracker
+// over the files it verifies, advancing it to the file count and stopping it.
+func TestAnnotateReportsVerifyProgress(t *testing.T) {
+	root := annotateTree(t, map[string]string{
+		"Dockerfile":   "FROM nginx:1.27\n",
+		"compose.yaml": "services:\n  web:\n    image: ghcr.io/owner/api:1.2.0\n",
+	})
+
+	reporter := &trackReporter{}
+	summary, err := mode.Annotate(
+		context.Background(),
+		[]string{root},
+		false,
+		false,
+		config.NewResolver(nil, "", false),
+		reporter,
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, summary.Files)
+
+	require.Equal(t, "Verifying annotate candidates", reporter.label)
+	require.Equal(t, "progress", reporter.field)
+	require.Positive(t, reporter.total, "the verify line shows a fraction over the file count")
+	require.Equal(t, reporter.total, reporter.last, "every file advances the tracker")
+	require.True(t, reporter.stopped, "the verify tracker must be stopped")
 }
 
 func TestAnnotateInsertsForRecognizedLines(t *testing.T) {
