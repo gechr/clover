@@ -47,6 +47,7 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 		c.Force,
 		configs,
 		reporter,
+		int(workers),
 		pipeline.WithNoIgnore(c.NoIgnore),
 		pipeline.WithReporter(reporter),
 		pipeline.WithScanLabel(scanLabelCandidates),

@@ -33,6 +33,7 @@ func runFormat(t *testing.T, root string, dry bool, prune *bool) mode.FormatSumm
 		dry,
 		prune,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	return summary

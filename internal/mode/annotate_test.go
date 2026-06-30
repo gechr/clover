@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/gechr/clover/internal/config"
@@ -20,6 +21,10 @@ import (
 
 // sha is a 40-hex commit, the shape the action-pin route keys on.
 const sha = "a0dfaeb072753c3d48cd4df5fdacfd035b2281bf"
+
+// testWorkers exercises the per-file concurrency path in the mode tests; results
+// must be identical and correctly ordered regardless of worker count.
+const testWorkers = 8
 
 // TestMain registers the real docker and github providers, which annotate's
 // verify gate validates inferred resources against. Their Resource parsing is
@@ -58,14 +63,18 @@ func annotate(t *testing.T, root string, write, force bool) mode.AnnotateSummary
 		force,
 		config.NewResolver(nil, "", false),
 		progress.Nop{},
+		testWorkers,
 	)
 	require.NoError(t, err)
 	return summary
 }
 
 // trackReporter is a progress.Reporter that records the verification tracker's
-// configuration and final count, so a test can assert annotate drives it.
+// configuration and highest count, so a test can assert annotate drives it. Set
+// is called concurrently from the parallel verify loop, so it is mutex-guarded
+// and keeps the max (the order of concurrent updates is not deterministic).
 type trackReporter struct {
+	mu      sync.Mutex
 	label   string
 	field   string
 	total   int
@@ -74,12 +83,26 @@ type trackReporter struct {
 }
 
 func (r *trackReporter) Track(label, field string, total int) progress.Tracker {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.label, r.field, r.total = label, field, total
 	return r
 }
-func (r *trackReporter) Set(n int)              { r.last = n }
-func (r *trackReporter) Stop()                  { r.stopped = true }
+
+func (r *trackReporter) Set(n int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.last = max(r.last, n)
+}
+
+func (r *trackReporter) Stop() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.stopped = true
+}
+
 func (*trackReporter) Discovered(int, int, int) {}
+
 func (*trackReporter) Begin([]string) ([]progress.Task, func()) {
 	return nil, func() {}
 }
@@ -100,6 +123,7 @@ func TestAnnotateReportsVerifyProgress(t *testing.T) {
 		false,
 		config.NewResolver(nil, "", false),
 		reporter,
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, summary.Files)

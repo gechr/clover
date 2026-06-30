@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gechr/clover/internal/comment"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/pipeline"
@@ -136,6 +138,7 @@ func Annotate(
 	force bool,
 	configs *config.Resolver,
 	reporter progress.Reporter,
+	parallelism int,
 	opts ...pipeline.Option,
 ) (AnnotateSummary, error) {
 	opts = append(opts,
@@ -154,11 +157,20 @@ func Annotate(
 	verify := reporter.Track("Verifying annotate candidates", field.Progress, len(files))
 	defer verify.Stop()
 
-	out := make([]AnnotateFile, 0, len(files))
-	for i, file := range files {
-		verify.Set(i + 1)
+	// Each file is annotated independently - the per-file work only reads immutable
+	// shared state and writes its own file - so files are processed concurrently,
+	// each result kept at its own index to preserve order. A skipped sidecar file
+	// leaves a nil slot, compacted away below.
+	results := make([]*AnnotateFile, len(files))
+	var done atomic.Int64
+	exec.Parallel(parallelism, len(files), func(i int) {
+		// Count each file as it finishes - the closure defers the increment to exit
+		// (not defer-time), so the final tally reaches len(files); registered before
+		// the sidecar early-return so skipped files still count.
+		defer func() { verify.Set(int(done.Add(1))) }()
+		file := files[i]
 		if scan.IsSidecar(file.Path) {
-			continue // never propose inline directives inside a sidecar file
+			return // never propose inline directives inside a sidecar file
 		}
 		// A strict-JSON target cannot host an inline comment, so a recognized line
 		// earns a sidecar entry instead of a comment that would corrupt the JSON.
@@ -171,8 +183,8 @@ func Annotate(
 					annotated.Written = true
 				}
 			}
-			out = append(out, annotated)
-			continue
+			results[i] = &annotated
+			return
 		}
 		annotated := annotateFile(file, force)
 		if len(annotated.Changes) > 0 && write {
@@ -183,7 +195,14 @@ func Annotate(
 				annotated.Written = true
 			}
 		}
-		out = append(out, annotated)
+		results[i] = &annotated
+	})
+
+	out := make([]AnnotateFile, 0, len(files))
+	for _, annotated := range results {
+		if annotated != nil {
+			out = append(out, *annotated)
+		}
 	}
 	return AnnotateSummary{Files: out, Scanned: scanned}, nil
 }

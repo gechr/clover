@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
@@ -87,6 +88,7 @@ func Format(
 	dry bool,
 	cliPrune *bool,
 	configs *config.Resolver,
+	parallelism int,
 	opts ...pipeline.Option,
 ) (FormatSummary, error) {
 	// The resolver is the single source of per-root config: wire it into the scan
@@ -106,31 +108,84 @@ func Format(
 		prune = *p
 	}
 
-	out := make([]FormatFile, 0, len(files))
-	seenSidecar := map[string]bool{}
-	for _, file := range files {
+	// Format each file's inline directives concurrently - the per-file work only
+	// reads immutable shared state and writes its own file - keeping each result at
+	// its own index. A skipped sidecar file leaves a nil slot. The cross-file
+	// sidecar dedup and the line-order assembly stay sequential below, so only the
+	// heavy per-file formatting runs in parallel.
+	formatted := make([]*formatWork, len(files))
+	exec.Parallel(parallelism, len(files), func(i int) {
+		file := files[i]
 		if scan.IsSidecar(file.Path) {
-			continue // a sidecar's diagnostics File has no inline directives to format
+			return // a sidecar's diagnostics File has no inline directives to format
 		}
-		// A healthy sidecar is folded into its target's File, so it never appears as
-		// a File of its own; re-emit it in a sidecar pass keyed off the target that
-		// carries its entries, before formatting the target's (absent) inline ones.
-		if path, ok := sidecarFor(file); ok && !seenSidecar[path] {
-			seenSidecar[path] = true
-			out = append(out, formatSidecar(path, prune, dry))
-		}
-		formatted := formatFile(file, prune)
-		if len(formatted.Changes) > 0 && !dry {
-			lines := applyChanges(file.Lines, formatted.Changes)
+		w := &formatWork{file: formatFile(file, prune)}
+		w.sidecar, w.hasSidecar = sidecarFor(file)
+		if len(w.file.Changes) > 0 && !dry {
+			lines := applyChanges(file.Lines, w.file.Changes)
 			if err := writeFile(file.Path, lines); err != nil {
-				formatted.WriteErr = err
+				w.file.WriteErr = err
 			} else {
-				formatted.Written = true
+				w.file.Written = true
 			}
 		}
-		out = append(out, formatted)
+		formatted[i] = w
+	})
+
+	// A healthy sidecar is folded into its target's File, so it never appears as a
+	// File of its own; format each distinct sidecar once, keyed off the targets
+	// that carry its entries.
+	sidecarResults := formatSidecars(formatted, prune, dry, parallelism)
+
+	out := make([]FormatFile, 0, len(files))
+	seenSidecar := map[string]bool{}
+	for _, w := range formatted {
+		if w == nil {
+			continue
+		}
+		// Re-emit the sidecar before the target's (absent) inline directives, on the
+		// first target that carries it - mirroring the sequential emit order.
+		if w.hasSidecar && !seenSidecar[w.sidecar] {
+			seenSidecar[w.sidecar] = true
+			out = append(out, sidecarResults[w.sidecar])
+		}
+		out = append(out, w.file)
 	}
 	return FormatSummary{Files: out}, nil
+}
+
+// formatWork is one target file's formatted inline result plus the sidecar path
+// (if any) that governs it, gathered in the parallel pass for sequential
+// assembly.
+type formatWork struct {
+	file       FormatFile
+	sidecar    string
+	hasSidecar bool
+}
+
+// formatSidecars formats each distinct governing sidecar once, in parallel, and
+// returns the results keyed by path. Sidecars are deduped in first-seen order so
+// each is formatted (and written) exactly once.
+func formatSidecars(work []*formatWork, prune, dry bool, parallelism int) map[string]FormatFile {
+	var paths []string
+	seen := map[string]bool{}
+	for _, w := range work {
+		if w != nil && w.hasSidecar && !seen[w.sidecar] {
+			seen[w.sidecar] = true
+			paths = append(paths, w.sidecar)
+		}
+	}
+
+	results := make([]FormatFile, len(paths))
+	exec.Parallel(parallelism, len(paths), func(j int) {
+		results[j] = formatSidecar(paths[j], prune, dry)
+	})
+
+	byPath := make(map[string]FormatFile, len(paths))
+	for j, path := range paths {
+		byPath[path] = results[j]
+	}
+	return byPath
 }
 
 // sidecarFor returns the sidecar path governing file's target, when file carries

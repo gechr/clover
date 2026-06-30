@@ -16,9 +16,12 @@ import (
 // carries the marker's own intrinsic problem, and only genuine graph faults add
 // a skip on top.
 func (p *plan) validate(ctx context.Context) {
-	for i := range p.markers {
+	// Each marker's offline check writes only its own result slot and reads
+	// immutable shared state (the provider registry, its marker, its file lines),
+	// so the checks run concurrently, bounded by the worker count.
+	exec.Parallel(p.workers, len(p.markers), func(i int) {
 		p.results[i].Err = p.check(i)
-	}
+	})
 
 	tasks := make([]exec.Task, len(p.markers))
 	for i, m := range p.markers {

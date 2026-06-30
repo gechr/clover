@@ -76,6 +76,7 @@ func TestFormatHonorsPerRootExclude(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.True(t, summary.OK(), "the excluded file yields no changes")
@@ -98,6 +99,7 @@ func TestFormatSkipsUnsatisfiedRequiredVersion(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 		pipeline.WithVersion("1.0.0"),
 	)
 	require.NoError(t, err)
@@ -121,6 +123,7 @@ func TestFormatReordersAndWrites(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
@@ -147,6 +150,7 @@ func TestFormatLowercasesAndUniquesTags(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
@@ -170,6 +174,7 @@ func TestFormatLeavesVersionLineUntouched(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 
@@ -189,6 +194,7 @@ func TestFormatCheckWritesNothing(t *testing.T) {
 		true,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
@@ -211,6 +217,7 @@ func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.True(t, summary.OK())
@@ -231,6 +238,7 @@ func TestFormatIsIdempotent(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	first, err := os.ReadFile(path)
@@ -242,6 +250,7 @@ func TestFormatIsIdempotent(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.True(t, summary.OK()) // second pass finds nothing to change
@@ -260,6 +269,7 @@ func TestFormatNormalisesQuoting(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 
@@ -287,6 +297,7 @@ func TestFormatPreservesBlockComment(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 
@@ -306,6 +317,7 @@ func TestFormatPreservesFileMode(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 
@@ -325,6 +337,7 @@ func TestFormatRejectsUnknownKey(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Errored())
@@ -349,6 +362,7 @@ func TestFormatPruneRemovesUnknownKey(t *testing.T) {
 		false,
 		new(true),
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 0, summary.Errored(), "prune removes the key rather than erroring")
@@ -374,6 +388,7 @@ func TestFormatFollowerReordersCommonKeys(t *testing.T) {
 		false,
 		nil,
 		config.NewResolver(nil, "", false),
+		testWorkers,
 	)
 	require.NoError(t, err)
 

@@ -45,6 +45,7 @@ func (c *cmdFormat) Run(configs *config.Resolver, workers parallelism) error {
 		dry,
 		c.Prune,
 		configs,
+		int(workers),
 		pipeline.WithNoIgnore(c.NoIgnore),
 		pipeline.WithReporter(console.New(ctx, clog.Default)),
 		pipeline.WithScanLabel(scanLabelComments),
