@@ -85,6 +85,8 @@ clover annotate [options] [<path>…]
 
 Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. `--check` previews the same annotations but exits non-zero when any would be added or rewritten. Every annotation it writes is one Clover verified offline first, so a line it cannot actually resolve (a malformed reference, a commented-out example) is left alone.
 
+Pass global `--verbose` with `annotate` to show recognized candidates Clover deliberately skipped, including the reason they failed validation or were opted out.
+
 Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce - `provider=auto`, or an explicit provider the line infers - is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` inference supplies while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
 
 ## `login`

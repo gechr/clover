@@ -338,6 +338,30 @@ func TestAnnotateSkipsUnlocatableLines(t *testing.T) {
 		readFile(t, filepath.Join(root, "ok/Dockerfile")))
 }
 
+// TestAnnotateRecordsSkippedCandidates keeps the quiet-by-default diagnostics
+// useful: a line that matched an annotate route but failed a safety gate records
+// the reason for verbose reporting.
+func TestAnnotateRecordsSkippedCandidates(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"Dockerfile":   "FROM nginx\n",
+		"compose.yaml": "services:\n  app:\n    image: \"bad repo:1.2\"\n",
+	})
+
+	summary := annotate(t, root, false, false)
+	require.True(t, summary.OK(), "skipped candidates are diagnostics, not work")
+
+	reasons := map[string]string{}
+	for _, file := range summary.Files {
+		if len(file.Skips) > 0 {
+			reasons[filepath.Base(file.Path)] = file.Skips[0].Reason
+		}
+	}
+	require.Contains(t, reasons["Dockerfile"], "image has no tag")
+	require.Contains(t, reasons["compose.yaml"], "must not contain whitespace")
+}
+
 // TestAnnotateSkipsProseExamples guards the file-level route scope: a uses: pin
 // inside a Markdown code fence is documentation, not a real workflow line, so
 // annotate must leave it alone. The action-pin route is scoped to YAML; without

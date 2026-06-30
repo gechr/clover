@@ -183,6 +183,15 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 				event.Msg(annotateMessage(entry.Existing, write))
 			}
 		}
+		for _, skip := range file.Skips {
+			event := logger.Debug().
+				Line(field.Location, file.Path, skip.Line+1).
+				Str(field.Reason, skip.Reason)
+			if skip.Sidecar != "" {
+				event = event.Path(field.Sidecar, skip.Sidecar)
+			}
+			event.Msg("Skipped annotation candidate")
+		}
 		if file.WriteErr != nil {
 			logger.Error().Path(field.Path, file.Path).Err(file.WriteErr).Msg("Write failed")
 		}

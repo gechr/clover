@@ -132,7 +132,11 @@ func TestAnnotateSidecarSkipsPinnedReferences(t *testing.T) {
 		"k8s.json": "{\n  \"image\": \"nginx:1.27@sha256:abc\"\n}\n",
 	})
 
-	require.True(t, annotate(t, root, true, false).OK(), "a pinned reference is not annotated")
+	summary := annotate(t, root, true, false)
+	require.True(t, summary.OK(), "a pinned reference is not annotated")
+	require.Len(t, summary.Files, 1)
+	require.Len(t, summary.Files[0].Skips, 1)
+	require.Contains(t, summary.Files[0].Skips[0].Reason, "pinned JSON references")
 	require.NoFileExists(t, filepath.Join(root, "k8s.json.clover.yaml"))
 }
 

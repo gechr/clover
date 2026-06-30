@@ -52,6 +52,15 @@ type AnnotateChange struct {
 	Existing bool
 }
 
+// AnnotateSkip records a recognized annotation candidate that annotate left
+// alone, with the reason it failed an opt-out or offline safety gate. Skips are
+// diagnostics only; they never affect Added/Updated counts.
+type AnnotateSkip struct {
+	Line    int // 0-based target line; -1 when the reason belongs to the file
+	Reason  string
+	Sidecar string
+}
+
 // AnnotateFile is the annotate outcome for one file: the comment lines it would
 // add or rewrite (for a commentable file), or the sidecar it would generate (for
 // a comment-less strict-JSON target), and whether they were written. The two are
@@ -60,6 +69,7 @@ type AnnotateFile struct {
 	Path     string
 	Changes  []AnnotateChange
 	Sidecar  *AnnotateSidecar
+	Skips    []AnnotateSkip
 	Written  bool
 	WriteErr error
 }
@@ -175,7 +185,8 @@ func Annotate(
 		// A strict-JSON target cannot host an inline comment, so a recognized line
 		// earns a sidecar entry instead of a comment that would corrupt the JSON.
 		if strictJSON(file.Path) {
-			annotated := AnnotateFile{Path: file.Path, Sidecar: annotateSidecar(file, force)}
+			annotated := AnnotateFile{Path: file.Path}
+			annotated.Sidecar, annotated.Skips = annotateSidecar(file, force)
 			if annotated.Sidecar != nil && write {
 				if err := writeSidecar(annotated.Sidecar); err != nil {
 					annotated.WriteErr = err
@@ -232,12 +243,18 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 
 	for i, line := range file.Lines {
 		if file.Ignored[i] {
+			if recognized(file.Path, line) {
+				annotated.Skips = append(annotated.Skips, skip(i, "ignored"))
+			}
 			continue // a clover:ignore control opts this line out
 		}
 		// A commented-out example (# - uses: …, # image: …) is documentation, not a
 		// live field, so it is never a target - inference reads raw line text and
 		// would otherwise match inside the comment.
 		if isComment(syntax, line) {
+			if recognized(file.Path, line) {
+				annotated.Skips = append(annotated.Skips, skip(i, "commented out"))
+			}
 			continue
 		}
 		inf, ok := match.Infer(file.Path, line)
@@ -245,13 +262,17 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		// docker image path); an empty one means the line matched a route shape but
 		// carries no usable reference, so a provider=auto there could not resolve.
 		if !ok || inf.Repository == "" {
+			if ok {
+				annotated.Skips = append(annotated.Skips, skip(i, "reference has no repository"))
+			}
 			continue
 		}
 		// Verify before annotating: a recognized shape may still not actually resolve
 		// (a malformed image ref, FROM with no tag, a uses: pin with no version
 		// comment). Gate on the same offline checks lint runs so annotate never emits
 		// a directive lint would reject.
-		if !resolvable(file.Path, inf, line) {
+		if reason := unresolvedReason(file.Path, inf, line); reason != "" {
+			annotated.Skips = append(annotated.Skips, skip(i, reason))
 			continue
 		}
 
@@ -274,27 +295,42 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		}
 		if change, ok := insert(syntax, i, line); ok {
 			annotated.Changes = append(annotated.Changes, change)
+		} else {
+			annotated.Skips = append(annotated.Skips, skip(i, "comment syntax unavailable"))
 		}
 	}
 	return annotated
 }
 
-// resolvable reports whether the directive annotate would write for this line
-// passes the offline checks lint runs: the inferred provider exists, builds a
-// valid resource, and its rewriter locates a trackable version. It is the
-// verify-before-write gate - a line clover recognizes by shape but cannot
-// actually resolve is never annotated, so annotate never emits a directive lint
-// would reject.
-func resolvable(path string, inf match.Inference, line string) bool {
+// recognized reports whether line names a source annotate could infer. It is used
+// for opt-out diagnostics, so it stops before the heavier offline resolution gate.
+func recognized(path, line string) bool {
+	inf, ok := match.Infer(path, line)
+	return ok && inf.Repository != ""
+}
+
+// skip builds a target-line diagnostic.
+func skip(line int, reason string) AnnotateSkip {
+	return AnnotateSkip{Line: line, Reason: reason}
+}
+
+// unresolvedReason reports why the directive annotate would write for this line
+// fails the offline checks lint runs: the inferred provider must exist, build a
+// valid resource, and locate a trackable version. An empty reason means the
+// candidate is safe to annotate.
+func unresolvedReason(path string, inf match.Inference, line string) string {
 	prov, ok := provider.Get(inf.Provider)
 	if !ok {
-		return false
+		return "unknown provider"
 	}
 	if _, err := prov.Resource(inferredDirective(inf)); err != nil {
-		return false
+		return err.Error()
 	}
-	_, err := match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}).Locate(line)
-	return err == nil
+	if _, err := match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}).
+		Locate(line); err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // inferredDirective builds the directive the pipeline binds for a provider=auto
@@ -431,11 +467,11 @@ type sidecarEntry struct {
 // untouched; with force it re-derives the source keys of every reproducible entry
 // too, repairing one that has drifted - preserving every other entry, locator, and
 // comment. It returns nil when there is nothing to add or rewrite.
-func annotateSidecar(file scan.File, force bool) *AnnotateSidecar {
+func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip) {
 	source := []byte(strings.Join(file.Lines, "\n"))
 	leaves, err := sidecar.Leaves(source)
 	if err != nil {
-		return nil // not valid JSON: there is no locatable structure to track
+		return nil, []AnnotateSkip{{Line: -1, Reason: err.Error()}}
 	}
 
 	governed := map[int]bool{}
@@ -446,24 +482,45 @@ func annotateSidecar(file scan.File, force bool) *AnnotateSidecar {
 	}
 
 	var fresh []sidecarEntry
+	var skips []AnnotateSkip
 	for _, leaf := range leaves {
-		if leaf.Line >= len(file.Lines) || file.Ignored[leaf.Line] || governed[leaf.Line] {
+		if leaf.Line >= len(file.Lines) {
 			continue
 		}
-		if d, ok := recognizeLeaf(file.Lines[leaf.Line], leaf); ok {
+		if file.Ignored[leaf.Line] {
+			if recognizedLeaf(leaf) {
+				skips = append(skips, skip(leaf.Line, "ignored"))
+			}
+			continue
+		}
+		if governed[leaf.Line] {
+			continue
+		}
+		d, reason, ok := recognizeLeaf(file.Lines[leaf.Line], leaf)
+		if ok {
 			fresh = append(fresh, sidecarEntry{directive: d, target: leaf.Line})
 			governed[leaf.Line] = true // a line earns one entry; a second leaf on it would double-govern at lint
+		} else if reason != "" {
+			skips = append(skips, skip(leaf.Line, reason))
 		}
 	}
 
 	path, data, found := loadSidecar(file.Path)
 	if force && found {
-		return forceSidecar(file, leaves, fresh, path, data)
+		sidecar, reason := forceSidecar(file, leaves, fresh, path, data)
+		if reason != "" {
+			skips = append(skips, AnnotateSkip{Line: -1, Reason: reason, Sidecar: path})
+		}
+		return sidecar, skips
 	}
 	if len(fresh) == 0 {
-		return nil // idempotent: every recognized line already has an entry
+		return nil, skips // idempotent: every recognized line already has an entry
 	}
-	return appendSidecar(fresh, path, data, found)
+	sidecar, reason := appendSidecar(fresh, path, data, found)
+	if reason != "" {
+		skips = append(skips, AnnotateSkip{Line: -1, Reason: reason, Sidecar: path})
+	}
+	return sidecar, skips
 }
 
 // recognizeLeaf builds the explicit directive a JSON leaf earns, or reports ok
@@ -471,16 +528,23 @@ func annotateSidecar(file scan.File, force bool) *AnnotateSidecar {
 // leaf (see [inferLeaf]), pairs the jq locator with a repository-anchored find,
 // then validates exactly what run will do - the provider's resource builds and the
 // find locates a version on the line - so a generated entry is one lint accepts.
-func recognizeLeaf(line string, leaf sidecar.Leaf) (directive.Directive, bool) {
-	inf, ok := inferLeaf(leaf)
+func recognizeLeaf(line string, leaf sidecar.Leaf) (directive.Directive, string, bool) {
+	inf, reason, ok := inferLeaf(leaf)
 	if !ok {
-		return directive.Directive{}, false
+		return directive.Directive{}, reason, false
 	}
 	d := explicitDirective(inf, leaf.JQ)
-	if !sidecarResolvable(inf, d, line) {
-		return directive.Directive{}, false
+	if reason := sidecarUnresolvedReason(inf, d, line); reason != "" {
+		return directive.Directive{}, reason, false
 	}
-	return d, true
+	return d, "", true
+}
+
+// recognizedLeaf reports whether a JSON leaf looks like an annotate candidate
+// before checking whether its line is opted out.
+func recognizedLeaf(leaf sidecar.Leaf) bool {
+	_, reason, ok := inferLeaf(leaf)
+	return ok || reason != ""
 }
 
 // inferLeaf resolves the provider and parameters a JSON leaf names by feeding
@@ -488,15 +552,23 @@ func recognizeLeaf(line string, leaf sidecar.Leaf) (directive.Directive, bool) {
 // image:/uses: auto-routes read). A pinned reference (one carrying an @digest or
 // @sha) is rejected: its secure pin needs a pin-aware rewriter, which is not yet
 // available on a JSON string value, so annotating it would leave the pin stale.
-func inferLeaf(leaf sidecar.Leaf) (match.Inference, bool) {
+func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
+	syntheticLine := " " + leaf.Key + ": " + leaf.Value
 	if strings.Contains(leaf.Value, "@") {
-		return match.Inference{}, false
+		inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
+		if ok && inf.Repository != "" {
+			return match.Inference{}, "pinned JSON references are not supported", false
+		}
+		return match.Inference{}, "", false
 	}
-	inf, ok := match.Infer(syntheticInferencePath, " "+leaf.Key+": "+leaf.Value)
-	if !ok || inf.Repository == "" {
-		return match.Inference{}, false
+	inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
+	if !ok {
+		return match.Inference{}, "", false
 	}
-	return inf, true
+	if inf.Repository == "" {
+		return match.Inference{}, "reference has no repository", false
+	}
+	return inf, "", true
 }
 
 // explicitDirective builds the sidecar entry for an inferred reference: the
@@ -531,31 +603,32 @@ func imageFind(inf match.Inference) string {
 	return prefix + ":" + versionPlaceholder
 }
 
-// sidecarResolvable reports whether a generated entry will actually resolve,
-// running the same offline checks lint and run perform: the provider builds its
-// resource, and the entry's rewriter locates a version on the line. It mirrors
-// run's rewriter choice - a find drives the find/replace rewriter (the path a
-// generated docker entry takes), otherwise the route-based dispatch - so a line a
-// registry port would make ambiguous for the smart locator still validates via
-// its find anchor.
-func sidecarResolvable(inf match.Inference, d directive.Directive, line string) bool {
+// sidecarUnresolvedReason reports why a generated entry would not actually
+// resolve, running the same offline checks lint and run perform. An empty reason
+// means the entry is safe to emit.
+func sidecarUnresolvedReason(inf match.Inference, d directive.Directive, line string) string {
 	prov, ok := provider.Get(inf.Provider)
 	if !ok {
-		return false
+		return "unknown provider"
 	}
 	if _, err := prov.Resource(d); err != nil {
-		return false
+		return err.Error()
 	}
 	if find, has := d.Get(constant.DirectiveFind); has {
 		rewriter, err := match.NewFindReplace(find, "")
 		if err != nil {
-			return false
+			return err.Error()
 		}
-		_, err = rewriter.Locate(line)
-		return err == nil
+		if _, err = rewriter.Locate(line); err != nil {
+			return err.Error()
+		}
+		return ""
 	}
-	_, err := match.For(match.Context{Line: line, Provider: inf.Provider}).Locate(line)
-	return err == nil
+	if _, err := match.For(match.Context{Line: line, Provider: inf.Provider}).
+		Locate(line); err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // appendSidecar lays the fresh entries after an existing sidecar's bytes (or
@@ -564,18 +637,23 @@ func sidecarResolvable(inf match.Inference, d directive.Directive, line string) 
 // already there. A structurally broken existing sidecar (one that is not a YAML
 // list) is left untouched, since appending to it would compound the corruption;
 // lint owns that diagnostic.
-func appendSidecar(fresh []sidecarEntry, path string, data []byte, found bool) *AnnotateSidecar {
+func appendSidecar(
+	fresh []sidecarEntry,
+	path string,
+	data []byte,
+	found bool,
+) (*AnnotateSidecar, string) {
 	if len(fresh) == 0 {
-		return nil
+		return nil, ""
 	}
 	if found {
 		if _, err := sidecar.Entries(data); err != nil {
-			return nil // not a valid list: leave the broken sidecar for lint to surface
+			return nil, err.Error() // not a valid list: leave the broken sidecar for lint to surface
 		}
 	}
 	chunk, err := renderEntries(fresh)
 	if err != nil {
-		return nil
+		return nil, err.Error()
 	}
 	content := string(chunk)
 	if found {
@@ -585,7 +663,7 @@ func appendSidecar(fresh []sidecarEntry, path string, data []byte, found bool) *
 		}
 		content = prefix + content
 	}
-	return &AnnotateSidecar{Path: path, Content: content, Entries: entryChanges(fresh)}
+	return &AnnotateSidecar{Path: path, Content: content, Entries: entryChanges(fresh)}, ""
 }
 
 // forceSidecar repairs drift by round-tripping the existing sidecar's parsed tree:
@@ -602,9 +680,9 @@ func forceSidecar(
 	fresh []sidecarEntry,
 	path string,
 	data []byte,
-) *AnnotateSidecar {
+) (*AnnotateSidecar, string) {
 	if _, err := sidecar.Entries(data); err != nil {
-		return nil // not a valid list: leave the broken sidecar for lint, never clobber it under force
+		return nil, err.Error() // not a valid list: leave the broken sidecar for lint, never clobber it under force
 	}
 	byLine := make(map[int]sidecar.Leaf, len(leaves))
 	for _, leaf := range leaves {
@@ -617,7 +695,7 @@ func forceSidecar(
 		if !ok {
 			return directive.Directive{}, false
 		}
-		inf, ok := inferLeaf(leaf)
+		inf, _, ok := inferLeaf(leaf)
 		if !ok || !sourceDrifted(existing, inf) {
 			return directive.Directive{}, false
 		}
@@ -631,7 +709,10 @@ func forceSidecar(
 	}
 	content, err := sidecar.Refresh(data, file.Lines, providerKeys, refresh, directives)
 	if err != nil || (len(updated) == 0 && len(fresh) == 0) {
-		return nil
+		if err != nil {
+			return nil, err.Error()
+		}
+		return nil, ""
 	}
 
 	changes := make([]SidecarEntryChange, 0, len(updated)+len(fresh))
@@ -641,7 +722,7 @@ func forceSidecar(
 	for _, e := range fresh {
 		changes = append(changes, SidecarEntryChange{Target: e.target, Existing: false})
 	}
-	return &AnnotateSidecar{Path: path, Content: string(content), Entries: changes}
+	return &AnnotateSidecar{Path: path, Content: string(content), Entries: changes}, ""
 }
 
 // sourceDrifted reports whether an existing entry's source keys disagree with what
