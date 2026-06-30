@@ -35,7 +35,7 @@ func (c *cmdAnnotate) Help() string {
 // Run previews (or, with --write, applies) the annotations under the paths. It
 // exits non-zero only on a real failure - a file that could not be written - so
 // a preview, which always writes nothing, is informational and exits zero.
-func (c *cmdAnnotate) Run(configs *config.Resolver) error {
+func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	ctx := context.Background()
 
@@ -51,6 +51,7 @@ func (c *cmdAnnotate) Run(configs *config.Resolver) error {
 		pipeline.WithReporter(reporter),
 		pipeline.WithScanLabel(scanLabelCandidates),
 		pipeline.WithVersion(clive.Current()),
+		pipeline.WithWorkers(int(workers)),
 	)
 	if err != nil {
 		return err

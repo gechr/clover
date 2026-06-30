@@ -29,7 +29,7 @@ func (c *cmdLint) Help() string {
 }
 
 // Run validates the markers under the given paths and fails when any did not.
-func (c *cmdLint) Run(configs *config.Resolver) error {
+func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	ctx := context.Background()
 
@@ -45,6 +45,7 @@ func (c *cmdLint) Run(configs *config.Resolver) error {
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithTagFilter(filter),
 		pipeline.WithVersion(clive.Current()),
+		pipeline.WithWorkers(int(workers)),
 	)
 	if err != nil {
 		return err

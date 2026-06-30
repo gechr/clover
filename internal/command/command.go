@@ -45,9 +45,10 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config   string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file'\""
-	NoConfig bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config'\""
-	Verbose  bool   `help:"Enable debug logs" clib:"terse='Debug logs'"`
+	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file'\""
+	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config'\""
+	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs'"`
+	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism'" short:"P" default:"10" placeholder:"<n>"`
 
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
 	Login    cmdLogin    `help:"Authenticate Clover with a provider"                         clib:"terse='Authenticate'"     cmd:""`
@@ -58,6 +59,11 @@ type cli struct {
 	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:"" aliases:"up"`
 	Version  cmdVersion  `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
 }
+
+// parallelism is the bound per-file worker count from the global -P flag, a named
+// type so kong injects it into a command's Run by type without colliding with a
+// bare int.
+type parallelism int
 
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
@@ -113,6 +119,7 @@ func Run() int {
 		return exitFailure
 	}
 	kctx.Bind(resolver)
+	kctx.Bind(parallelism(root.Parallelism))
 
 	flush := startNotify(kctx.Command())
 	runErr := kctx.Run()

@@ -52,7 +52,7 @@ func (c *cmdRun) Help() string {
 }
 
 // Run resolves the markers under the given paths and reports a summary.
-func (c *cmdRun) Run(configs *config.Resolver) error {
+func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	start := time.Now()
 	ctx := context.Background()
@@ -96,6 +96,7 @@ func (c *cmdRun) Run(configs *config.Resolver) error {
 		}),
 		pipeline.WithVerify(c.Verify),
 		pipeline.WithVersion(clive.Current()),
+		pipeline.WithWorkers(int(workers)),
 	)
 	if err != nil {
 		return err

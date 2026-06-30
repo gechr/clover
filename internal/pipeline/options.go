@@ -139,7 +139,8 @@ func WithVersion(current string) Option {
 	return func(s *settings) { s.current = current }
 }
 
-// WithWorkers sets how many markers resolve concurrently (default: NumCPU).
+// WithWorkers sets how many files the scan walk and markers resolve concurrently
+// (library default: NumCPU; the CLI passes its -P flag, default 10).
 func WithWorkers(n int) Option { return func(s *settings) { s.workers = n } }
 
 // newSettings applies opts over the defaults, clamping the worker count and

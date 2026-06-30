@@ -34,7 +34,7 @@ func (c *cmdFormat) Help() string {
 // Run canonicalises (or, with --check/--dry-run, previews) the directives under
 // the paths. Both --check and --dry-run suppress writing; only --check escalates
 // pending changes to a non-zero exit.
-func (c *cmdFormat) Run(configs *config.Resolver) error {
+func (c *cmdFormat) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	ctx := context.Background()
 
@@ -49,6 +49,7 @@ func (c *cmdFormat) Run(configs *config.Resolver) error {
 		pipeline.WithReporter(console.New(ctx, clog.Default)),
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithVersion(clive.Current()),
+		pipeline.WithWorkers(int(workers)),
 	)
 	if err != nil {
 		return err
