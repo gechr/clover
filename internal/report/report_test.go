@@ -111,15 +111,18 @@ func TestGitHub(t *testing.T) {
 	skipped.Skipped, skipped.Reason = true, "dep failed"
 	pinned := result("ci.yml", 2)
 	pinned.Verify = errors.New("commit abc is not on an allowed branch")
+	moved := result("d.txt", 5)
+	moved.Current, moved.Moved = "aaa", "bbb"
 
 	var buf bytes.Buffer
-	report.GitHub(&buf, summary(updated, failed, skipped, pinned), true)
+	report.GitHub(&buf, summary(updated, failed, skipped, pinned, moved), true)
 
 	require.Equal(t,
 		"::warning file=x/app.txt,line=2::update available: 1.2.0 → 1.3.0\n"+
 			"::error file=y/b.txt,line=1::boom\n"+
 			"::warning file=c.txt,line=5::skipped: dep failed\n"+
-			"::error file=ci.yml,line=3::pin does not match upstream: commit abc is not on an allowed branch\n",
+			"::error file=ci.yml,line=3::pin does not match upstream: commit abc is not on an allowed branch\n"+
+			"::warning file=d.txt,line=6::pinned upstream tag has moved: aaa → bbb\n",
 		buf.String(),
 	)
 }
@@ -148,6 +151,27 @@ func TestRunReportsPinVerification(t *testing.T) {
 	require.Equal(t,
 		"ERR 🔓 Pin does not match upstream location=ci.yml:1 "+
 			"error=\"pinned aaa but 1.0.0 upstream is bbb\"\n"+
+			"INF 🏁 Run complete elapsed=1.5s\n",
+		buf.String(),
+	)
+}
+
+// TestRunReportsMovedTag confirms a held pin whose upstream tag moved is warned
+// alongside its outcome, with the held and moved-to commits abbreviated.
+func TestRunReportsMovedTag(t *testing.T) {
+	const (
+		oldSHA = "0123456789abcdef0123456789abcdef01234567"
+		newSHA = "fedcba9876543210fedcba9876543210fedcba98"
+	)
+	held := result("ci.yml", 0)
+	held.Current, held.Moved = oldSHA, newSHA
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(held), false, output.Text)
+
+	require.Equal(t,
+		"WRN 🔀 Pinned upstream tag has moved (pass `--force` to re-pin if safe) "+
+			"location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
 			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)

@@ -719,6 +719,8 @@ func TestRunHoldsCommitWhenVersionUnchanged(t *testing.T) {
 		require.Equal(t, "image: pin-"+pinned, files[1].Results[0].NewLine,
 			"an unchanged version holds the committed pin")
 		require.False(t, files[1].Results[0].Changed)
+		require.Equal(t, moved, files[1].Results[0].Moved,
+			"a moved tag under a held pin is surfaced for warning")
 	})
 
 	t.Run("force", func(t *testing.T) {
@@ -731,7 +733,32 @@ func TestRunHoldsCommitWhenVersionUnchanged(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "image: pin-"+moved, files[1].Results[0].NewLine,
 			"--force re-pins the moved commit")
+		require.Empty(t, files[1].Results[0].Moved,
+			"a re-pinned commit reports no held move")
 	})
+}
+
+// A floating producer (track=) is expected to move, so a held follower of it
+// reports no move - the warning is reserved for an unexpectedly force-moved pin.
+func TestRunHeldFloatingCommitDoesNotWarn(t *testing.T) {
+	const moved = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	pinned := strings.Repeat("a", 40)
+	provider.Register(fakeProvider{
+		name:      "floatcommit",
+		tagCommit: map[string]string{"main": moved},
+	})
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=floatcommit repository=x/y id=app track=main\nlead: main\n",
+		"b.txt": "# clover: from=app value=commit find=pin-<commit>\n" +
+			"image: pin-" + pinned + "\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, "image: pin-"+pinned, files[1].Results[0].NewLine,
+		"a floating producer still holds the committed pin")
+	require.Empty(t, files[1].Results[0].Moved,
+		"a tracked ref's expected move is not warned")
 }
 
 func TestRunResolvesSha256FromAssetDigest(t *testing.T) {

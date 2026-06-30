@@ -57,6 +57,7 @@ type Result struct {
 	Reason   string // why the marker was skipped, or the disabled= reason it was disabled with
 	Err      error  // why resolution failed
 	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
+	Moved    string // the upstream commit a held pin's tag moved to; empty when unmoved
 
 	// Truncated reports that a shallow lookup against a recency-ordered provider
 	// stopped with more pages available. Paired with an ErrNoCandidate failure it
@@ -1100,10 +1101,42 @@ func (p *plan) holdFollower(i int, m Marker, line string, located match.Location
 	p.results[i].Written = current
 	p.results[i].NewLine = line
 	p.results[i].Changed = false
+	p.results[i].Moved = p.movedCommit(m, current)
 	clog.Debug().
 		Str(field.Version, current).
-		Msg("Held digest - version unchanged; pass --force to re-pin")
+		Msg("Held digest - version unchanged, pass `--force` to re-pin")
 	return nil
+}
+
+// movedCommit reports the upstream commit a held commit pin's tag moved to, or
+// "" when it is unchanged. A force-moved tag is unexpected for a pinned semver
+// version (the supply-chain signal worth warning on), but expected for a
+// floating producer (track=), which is exempted. The producer already peeled the
+// tag to its commit during discovery, so the comparison costs no extra fetch.
+func (p *plan) movedCommit(m Marker, current string) string {
+	if m.Value != constant.ValueCommit {
+		return ""
+	}
+	if p.producerFloating(m.From) {
+		return ""
+	}
+	entry, ok := p.registry.Get(m.From)
+	if !ok || entry.New.Commit == "" || entry.New.Commit == current {
+		return ""
+	}
+	return entry.New.Commit
+}
+
+// producerFloating reports whether the producer named by from tracks a floating
+// ref (track=). Such a producer's target moves by design, so a held follower of
+// it must not warn when the commit changes - the move is expected.
+func (p *plan) producerFloating(from string) bool {
+	for _, m := range p.markers {
+		if m.ID == from {
+			return m.Directive.Has(constant.DirectiveTrack)
+		}
+	}
+	return false
 }
 
 // unpinnedDigest reports whether s is an empty or all-zero digest - the

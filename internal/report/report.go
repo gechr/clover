@@ -65,6 +65,17 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 				Err(r.Verify).
 				Msg("Pin does not match upstream")
 		}
+
+		// A held pin whose upstream tag moved is advisory: the pin stays put, but
+		// the unexpected move (a force-pushed tag) is surfaced so it is not silent.
+		if r.Moved != "" {
+			logger.Warn().
+				Symbol("🔀").
+				Line(field.Location, r.Marker.File, line(r)).
+				Link(field.From, r.CurrentURL, value(r.Current, detail)).
+				Link(field.To, r.ResolvedURL, value(r.Moved, detail)).
+				Msg("Pinned upstream tag has moved (pass `--force` to re-pin if safe)")
+		}
 	})
 
 	// Nothing to summarise when no markers were found: the "No Clover comments
@@ -259,6 +270,10 @@ func GitHub(w io.Writer, summary mode.Summary, dryRun bool) {
 		if r.Verify != nil {
 			fmt.Fprintln(w, github.Error(r.Marker.File, line(r),
 				"pin does not match upstream: "+r.Verify.Error()))
+		}
+		if r.Moved != "" {
+			fmt.Fprintln(w, github.Warning(r.Marker.File, line(r),
+				"pinned upstream tag has moved: "+r.Current+" → "+r.Moved))
 		}
 	})
 }
