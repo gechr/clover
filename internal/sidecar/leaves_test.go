@@ -11,8 +11,8 @@ import (
 
 // TestLeavesEnumeratesStringScalars confirms Leaves returns every string leaf
 // with a verified jq locator and its line, descending nested objects and arrays,
-// in line order. Non-string scalars and array-indexed leaves carry no object key
-// and are excluded.
+// in line order. Non-string scalars are excluded; array-indexed leaves survive
+// with an empty object key.
 func TestLeavesEnumeratesStringScalars(t *testing.T) {
 	t.Parallel()
 
@@ -23,6 +23,9 @@ func TestLeavesEnumeratesStringScalars(t *testing.T) {
       { "image": "ghcr.io/owner/api:1.2.0" }
     ]
   },
+  "images": [
+    "redis:7.2"
+  ],
   "$schema": "https://example.test/schemas/1.5.3/schema.json",
   "replicas": 3
 }`)
@@ -38,9 +41,15 @@ func TestLeavesEnumeratesStringScalars(t *testing.T) {
 			JQ:    `.["spec"]["containers"][1]["image"]`,
 		},
 		{
+			Key:   "",
+			Value: "redis:7.2",
+			Line:  8,
+			JQ:    `.["images"][0]`,
+		},
+		{
 			Key:   "$schema",
 			Value: "https://example.test/schemas/1.5.3/schema.json",
-			Line:  7,
+			Line:  10,
 			JQ:    `.["$schema"]`,
 		},
 	}, leaves, "a numeric replicas leaf is excluded; each jq locator round-trips to its own line")

@@ -78,6 +78,28 @@ func TestAnnotateSidecarOneEntryPerLine(t *testing.T) {
 	require.True(t, summary.OK(), "the generated sidecar lints clean")
 }
 
+// TestAnnotateSidecarGeneratesForImageArray confirms strict JSON arrays that
+// carry image references get jq-indexed sidecar entries even though array
+// elements have no object key for the usual image: inference path.
+func TestAnnotateSidecarGeneratesForImageArray(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"k8s.json": "{\n  \"images\": [\n    \"nginx:1.27\",\n    \"redis:7.2\"\n  ]\n}\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 2, summary.Added())
+	require.Equal(
+		t,
+		generatedSidecar(
+			"- provider: docker\n  repository: nginx\n  jq: .[\"images\"][0]\n  find: nginx:<version>\n"+
+				"- provider: docker\n  repository: redis\n  jq: .[\"images\"][1]\n  find: redis:<version>\n",
+		),
+		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
+	)
+}
+
 // TestAnnotateSidecarForceLeavesBrokenSidecar is the S2 regression: --force must
 // not clobber a structurally broken (non-list) sidecar - its hand-written content
 // would be lost. Like the non-force path, force leaves it byte-identical for lint.
@@ -198,12 +220,14 @@ func TestAnnotateSidecarSkipsUnlocatableLines(t *testing.T) {
 	t.Parallel()
 
 	root := annotateTree(t, map[string]string{
-		"plain.json": "{\n  \"version\": \"1.2.3\"\n}\n",      // no provider route matches a version: key
-		"bad.json":   "{\n  \"image\": \"bad repo:1.2\"\n}\n", // an invalid repository never resolves
+		"plain.json":    "{\n  \"version\": \"1.2.3\"\n}\n",      // no provider route matches a version: key
+		"versions.json": "{\n  \"versions\": [\"1.2.3\"]\n}\n",   // array values need image shape
+		"bad.json":      "{\n  \"image\": \"bad repo:1.2\"\n}\n", // an invalid repository never resolves
 	})
 
 	require.True(t, annotate(t, root, true, false).OK(), "neither file earns an entry")
 	require.NoFileExists(t, filepath.Join(root, "plain.json.clover.yaml"))
+	require.NoFileExists(t, filepath.Join(root, "versions.json.clover.yaml"))
 	require.NoFileExists(t, filepath.Join(root, "bad.json.clover.yaml"))
 }
 

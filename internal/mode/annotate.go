@@ -552,10 +552,14 @@ func recognizedLeaf(leaf sidecar.Leaf) bool {
 }
 
 // inferLeaf resolves the provider and parameters a JSON leaf names by feeding
-// [match.Infer] a synthesized `<key>: <value>` YAML line (the form the
-// image:/uses: auto-routes read).
+// [match.Infer] a synthesized YAML line (the form the image:/uses: auto-routes
+// read). Object leaves use their real key; array leaves have no key, so only a
+// tag- or digest-shaped value is tried as an image reference.
 func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
-	syntheticLine := " " + leaf.Key + ": " + leaf.Value
+	syntheticLine, ok := inferenceLine(leaf)
+	if !ok {
+		return match.Inference{}, "", false
+	}
 	inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
 	if !ok {
 		return match.Inference{}, "", false
@@ -564,6 +568,17 @@ func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
 		return match.Inference{}, "reference has no repository", false
 	}
 	return inf, "", true
+}
+
+func inferenceLine(leaf sidecar.Leaf) (string, bool) {
+	if leaf.Key != "" {
+		return " " + leaf.Key + ": " + leaf.Value, true
+	}
+	if !strings.Contains(leaf.Value, ":") &&
+		!strings.Contains(leaf.Value, constant.DockerDigestMarker) {
+		return "", false
+	}
+	return " image: " + leaf.Value, true
 }
 
 // explicitDirective builds the sidecar entry for an inferred reference: the

@@ -10,11 +10,11 @@ import (
 )
 
 // Leaf is a string-valued scalar in a JSON document, the unit annotate proposes
-// a sidecar entry from: the object key that holds it (the last path segment),
-// its value, the 0-based line it sits on, and a jq expression that resolves
-// uniquely to that line. Only leaves whose locator round-trips - jq resolves
-// back to the leaf's own line, and nowhere else - are returned, so a generated
-// locator is robust by construction.
+// a sidecar entry from: the object key that holds it (the last path segment,
+// empty for array elements), its value, the 0-based line it sits on, and a jq
+// expression that resolves uniquely to that line. Only leaves whose locator
+// round-trips - jq resolves back to the leaf's own line, and nowhere else - are
+// returned, so a generated locator is robust by construction.
 type Leaf struct {
 	Key   string
 	Value string
@@ -26,10 +26,9 @@ type Leaf struct {
 // with a verified jq locator, in line order. It is the recognition half of
 // annotate's sidecar generation: the caller decides which leaves name a
 // trackable reference. Source that does not parse as JSON yields an error, since
-// only a JSON target carries a jq-locatable structure. A leaf held under an
-// array index (no object key) is dropped, as is one whose locator the resolver
-// would point elsewhere - an earlier member of a duplicated key, or a leaf below
-// a shadowed duplicate ancestor.
+// only a JSON target carries a jq-locatable structure. A leaf whose locator the
+// resolver would point elsewhere is dropped - an earlier member of a duplicated
+// key, or a leaf below a shadowed duplicate ancestor.
 //
 // A single position-aware descent records every string scalar's path and byte
 // offset at once, so the cost is linear in the document size rather than the
@@ -53,10 +52,7 @@ func Leaves(source []byte) ([]Leaf, error) {
 	// duplicate, or a leaf under a shadowed duplicate ancestor, fails that check.
 	byExpr := make(map[string]keptLeaf, len(raw))
 	for _, r := range raw {
-		key, ok := lastKey(r.path)
-		if !ok {
-			continue // an array element has no object key to track by
-		}
+		key, _ := lastKey(r.path)
 		if v, ok := stringAt(input, r.path); !ok || v != r.value {
 			continue
 		}
