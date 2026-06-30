@@ -37,7 +37,7 @@ type cmdRun struct {
 	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases'"                                                               negatable:""`
 	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin'"                                                                    negatable:""`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
-	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail'\"                      short:\"o\"                                                                enum:\"text,wide,github\""
+	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text'\"       short:\"o\"                                                                enum:\"text,wide,github\""
 }
 
 // Help returns the detailed blurb shown in `clover run --help`.
