@@ -75,6 +75,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 
 	summarize(logger, dryRun).
 		Symbol("🏁").
+		OmitZero(true).
 		Int(field.Changed, summary.Changed()).
 		Int(field.Skipped, summary.Skipped()).
 		Int(field.Disabled, summary.Disabled()).
@@ -119,6 +120,7 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 
 	logger.Info().
 		Symbol("🏁").
+		OmitZero(true).
 		Int(field.Errored, summary.Errored()).
 		Int(field.Skipped, summary.Skipped()).
 		Int(field.Disabled, summary.Disabled()).
@@ -153,7 +155,13 @@ func Format(logger *clog.Logger, summary mode.FormatSummary, dry bool) {
 		}
 	}
 
-	summarize(logger, dry).Symbol("🏁").Int(field.Changed, summary.Changed()).Msg("Format complete")
+	summarize(
+		logger,
+		dry,
+	).Symbol("🏁").
+		OmitZero(true).
+		Int(field.Changed, summary.Changed()).
+		Msg("Format complete")
 }
 
 // Annotate renders the annotations clover added (or, in preview, would add),
@@ -199,6 +207,7 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 
 	summarize(logger, dry).
 		Symbol("🏁").
+		OmitZero(true).
 		Int(field.Added, summary.Added()).
 		Int(field.Updated, summary.Updated()).
 		Msg("Annotate complete")
