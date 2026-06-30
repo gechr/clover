@@ -1,8 +1,10 @@
 package sidecar_test
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +44,45 @@ func TestLeavesEnumeratesStringScalars(t *testing.T) {
 			JQ:    `.["$schema"]`,
 		},
 	}, leaves, "a numeric replicas leaf is excluded; each jq locator round-trips to its own line")
+}
+
+// TestLeavesSameLineDeterministicOrder confirms two leaves sharing a line are
+// returned in document (byte-offset) order, not the map's nondeterministic
+// iteration order. The compact source puts both image leaves on line 0.
+func TestLeavesSameLineDeterministicOrder(t *testing.T) {
+	t.Parallel()
+
+	src := []byte(`{"a":{"image":"nginx:1.27"},"b":{"image":"redis:6.0"}}`)
+	for range 50 {
+		leaves, err := sidecar.Leaves(src)
+		require.NoError(t, err)
+		require.Equal(t, []sidecar.Leaf{
+			{Key: "image", Value: "nginx:1.27", Line: 0, JQ: `.["a"]["image"]`},
+			{Key: "image", Value: "redis:6.0", Line: 0, JQ: `.["b"]["image"]`},
+		}, leaves, "same-line leaves keep document order on every run")
+	}
+}
+
+// TestLeavesControlCharKeyLocator confirms a key carrying a control character
+// yields a locator escaped the way jq's lexer accepts (\uXXXX), not Go's \xXX, so
+// the generated locator still round-trips through the resolver at apply time. The
+// source embeds the key as a JSON unicode escape (a raw control byte is not
+// legal JSON).
+func TestLeavesControlCharKeyLocator(t *testing.T) {
+	t.Parallel()
+
+	src := []byte("{\"\\u0001\":\"nginx:1.27\"}")
+	leaves, err := sidecar.Leaves(src)
+	require.NoError(t, err)
+	require.Len(t, leaves, 1)
+	require.Equal(t, ".[\"\\u0001\"]", leaves[0].JQ)
+
+	line, err := sidecar.Locate(
+		strings.Split(string(src), "\n"),
+		directive.Directive{Pairs: []directive.KV{{Key: "jq", Value: leaves[0].JQ}}},
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, line)
 }
 
 // TestLeavesRejectsNonJSON confirms a target that is not JSON has no locatable

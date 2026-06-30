@@ -26,61 +26,123 @@ type Leaf struct {
 // annotate's sidecar generation: the caller decides which leaves name a
 // trackable reference. Source that does not parse as JSON yields an error, since
 // only a JSON target carries a jq-locatable structure. A leaf held under an
-// array index (no object key), or one whose derived locator does not round-trip,
-// is dropped rather than guessed at.
+// array index (no object key) is dropped, as is one whose locator the resolver
+// would point elsewhere - an earlier member of a duplicated key, or a leaf below
+// a shadowed duplicate ancestor.
+//
+// A single position-aware descent records every string scalar's path and byte
+// offset at once, so the cost is linear in the document size rather than the
+// per-leaf re-parse-and-re-walk a naive enumeration would pay.
 func Leaves(source []byte) ([]Leaf, error) {
 	var input any
 	if err := json.Unmarshal(source, &input); err != nil {
 		return nil, err
 	}
 
-	var paths [][]any
-	collectStringPaths(input, nil, &paths)
+	var raw []rawLeaf
+	if err := walkLeaves(json.NewDecoder(bytes.NewReader(source)), source, nil, &raw); err != nil {
+		return nil, err
+	}
 
-	leaves := make([]Leaf, 0, len(paths))
-	for _, path := range paths {
-		key, ok := lastKey(path)
+	// Keyed by locator so a duplicated path keeps only the member the resolver
+	// selects: the parsed structure is last-value-wins, so a raw leaf survives
+	// only when input resolves its path back to the same string. An earlier
+	// duplicate, or a leaf under a shadowed duplicate ancestor, fails that check.
+	byExpr := make(map[string]keptLeaf, len(raw))
+	for _, r := range raw {
+		key, ok := lastKey(r.path)
 		if !ok {
 			continue // an array element has no object key to track by
 		}
-		value, ok := stringAt(input, path)
-		if !ok {
+		if v, ok := stringAt(input, r.path); !ok || v != r.value {
 			continue
 		}
-		expr := pathToJQ(path)
-		// Round-trip the derived locator through the same resolver run uses: it
-		// must resolve to exactly one line, and that line must be the leaf's own,
-		// so a serialization quirk can never emit a locator that points elsewhere.
-		line, err := resolveJQLine(source, expr)
-		if err != nil {
-			continue
+		expr := pathToJQ(r.path)
+		byExpr[expr] = keptLeaf{
+			off: r.off,
+			leaf: Leaf{
+				Key:   key,
+				Value: r.value,
+				Line:  bytes.Count(source[:r.off], newline),
+				JQ:    expr,
+			},
 		}
-		off, err := valueOffset(source, path)
-		if err != nil || bytes.Count(source[:off], newline) != line {
-			continue
-		}
-		leaves = append(leaves, Leaf{Key: key, Value: value, Line: line, JQ: expr})
 	}
-	slices.SortFunc(leaves, func(a, b Leaf) int { return a.Line - b.Line })
+
+	// Emit in document (byte-offset) order, so two leaves sharing a line keep a
+	// stable order - their map iteration order is not deterministic, and sorting
+	// by line alone would leave same-line ties to chance.
+	kept := make([]keptLeaf, 0, len(byExpr))
+	for _, k := range byExpr {
+		kept = append(kept, k)
+	}
+	slices.SortFunc(kept, func(a, b keptLeaf) int { return a.off - b.off })
+
+	leaves := make([]Leaf, len(kept))
+	for i, k := range kept {
+		leaves[i] = k.leaf
+	}
 	return leaves, nil
 }
 
-// collectStringPaths walks the decoded JSON, appending the path to every
-// string-valued scalar it reaches. Object keys and array indices are recorded as
-// path segments, mirroring the segments [valueOffset] descends.
-func collectStringPaths(v any, prefix []any, out *[][]any) {
-	switch t := v.(type) {
-	case map[string]any:
-		for key, child := range t {
-			collectStringPaths(child, appendSegment(prefix, key), out)
-		}
-	case []any:
-		for i, child := range t {
-			collectStringPaths(child, appendSegment(prefix, i), out)
-		}
-	case string:
-		*out = append(*out, prefix)
+// rawLeaf is one string scalar as the byte walk found it: the path of object keys
+// and array indices reaching it, its value, and the byte offset its value begins
+// at.
+type rawLeaf struct {
+	path  []any
+	value string
+	off   int
+}
+
+// keptLeaf pairs a surviving leaf with its byte offset, so the result can be put
+// back into document order after the map-keyed deduplication.
+type keptLeaf struct {
+	leaf Leaf
+	off  int
+}
+
+// walkLeaves consumes the single JSON value the decoder is positioned before,
+// recording every string scalar reached with its path and the byte offset of its
+// value. It descends objects and arrays in one pass, so each value is tokenized
+// exactly once.
+func walkLeaves(dec *json.Decoder, source []byte, path []any, out *[]rawLeaf) error {
+	pre := int(dec.InputOffset())
+	tok, err := dec.Token()
+	if err != nil {
+		return err
 	}
+	switch t := tok.(type) {
+	case json.Delim:
+		switch t {
+		case '{':
+			for dec.More() {
+				keyTok, err := dec.Token()
+				if err != nil {
+					return err
+				}
+				key, ok := keyTok.(string)
+				if !ok {
+					return errJQStructure
+				}
+				if err := walkLeaves(dec, source, appendSegment(path, key), out); err != nil {
+					return err
+				}
+			}
+		case '[':
+			for i := 0; dec.More(); i++ {
+				if err := walkLeaves(dec, source, appendSegment(path, i), out); err != nil {
+					return err
+				}
+			}
+		}
+		_, err := dec.Token() // consume the closing } or ]
+		return err
+	case string:
+		// pre sits just past the preceding token; skipToValue advances over the
+		// key's ':' (or an element ','), landing on the value's own first byte.
+		*out = append(*out, rawLeaf{path: path, value: t, off: skipToValue(source, pre)})
+	}
+	return nil
 }
 
 // appendSegment returns a fresh slice with seg appended, never aliasing prefix,
@@ -139,11 +201,23 @@ func pathToJQ(path []any) string {
 		b.WriteByte('[')
 		switch s := seg.(type) {
 		case string:
-			b.WriteString(strconv.Quote(s))
+			b.WriteString(jqString(s))
 		case int:
 			b.WriteString(strconv.Itoa(s))
 		}
 		b.WriteByte(']')
 	}
 	return b.String()
+}
+
+// jqString quotes s as a JSON string literal, the form jq's lexer accepts
+// verbatim. strconv.Quote would emit Go-only escapes (\x, \U) that jq rejects, so
+// a key with a control character would otherwise yield a locator that cannot be
+// parsed back at apply time.
+func jqString(s string) string {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(s) // a string never fails to encode; Encode appends a newline
+	return strings.TrimSuffix(b.String(), "\n")
 }
