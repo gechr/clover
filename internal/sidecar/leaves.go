@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -44,6 +45,8 @@ func Leaves(source []byte) ([]Leaf, error) {
 		return nil, err
 	}
 
+	lines := lineStarts(source)
+
 	// Keyed by locator so a duplicated path keeps only the member the resolver
 	// selects: the parsed structure is last-value-wins, so a raw leaf survives
 	// only when input resolves its path back to the same string. An earlier
@@ -63,7 +66,7 @@ func Leaves(source []byte) ([]Leaf, error) {
 			leaf: Leaf{
 				Key:   key,
 				Value: r.value,
-				Line:  bytes.Count(source[:r.off], newline),
+				Line:  lineIndex(lines, r.off),
 				JQ:    expr,
 			},
 		}
@@ -83,6 +86,22 @@ func Leaves(source []byte) ([]Leaf, error) {
 		leaves[i] = k.leaf
 	}
 	return leaves, nil
+}
+
+// lineStarts returns the byte offset where each line starts, beginning with 0.
+func lineStarts(source []byte) []int {
+	starts := []int{0}
+	for i, b := range source {
+		if b == newline[0] {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
+}
+
+// lineIndex maps a byte offset to its 0-based line number using line starts.
+func lineIndex(starts []int, off int) int {
+	return max(0, sort.Search(len(starts), func(i int) bool { return starts[i] > off })-1)
 }
 
 // rawLeaf is one string scalar as the byte walk found it: the path of object keys
