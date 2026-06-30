@@ -141,7 +141,7 @@ var routes = []route{
 		// precede the tag-only FROM route.
 		when: conditions{
 			path:      "**/{Dockerfile,Containerfile}*",
-			lineMatch: mustPattern("FROM *@sha256:*"),
+			lineMatch: mustPattern("FROM *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
 		rw: NewDockerPin(),
@@ -150,7 +150,7 @@ var routes = []route{
 		// A digest-pinned compose/Kubernetes image: mapping.
 		when: conditions{
 			path:      "**/*.{yml,yaml}",
-			lineMatch: mustPattern("* image: *@sha256:*"),
+			lineMatch: mustPattern("* image: *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
 		rw: NewDockerPin(),

@@ -22,3 +22,7 @@ const (
 
 // DigestSha256 is the algorithm prefix for a sha256 content digest ("sha256:<hex>").
 const DigestSha256 = "sha256:"
+
+// DockerDigestMarker is the separator plus digest prefix for a digest-pinned
+// container image reference ("@sha256:<hex>").
+const DockerDigestMarker = "@" + DigestSha256

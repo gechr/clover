@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
@@ -140,4 +141,36 @@ func TestRunSidecarJQFindComposes(t *testing.T) {
 		files[0].Lines[2],
 		"the matching version line is untouched",
 	)
+}
+
+// A jq-located Docker image can still use the Docker pin rewriter: the sidecar's
+// find guard proves the line still names the same repository, then DockerPin
+// refreshes the tag and digest together.
+func TestRunSidecarJQDockerPinRewritesDigest(t *testing.T) {
+	oldHex := strings.Repeat("a", 64)
+	newDigest := constant.DigestSha256 + strings.Repeat("b", 64)
+	provider.Register(fakeProvider{
+		name:       "docker",
+		digest:     newDigest,
+		candidates: []model.Candidate{candidate(t, "1.2.0")},
+	})
+
+	const prefix = "{\n  \"image\": \"x/y:1.0.0"
+	const suffix = "\"\n}\n"
+	dir := write(t, map[string]string{
+		"k8s.json": prefix + constant.DockerDigestMarker + oldHex + suffix,
+		"k8s.json.clover.yaml": "- provider: docker\n" +
+			"  repository: x/y\n" +
+			"  jq: '.[\"image\"]'\n" +
+			"  find: x/y:<version>\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.True(t, r.Changed)
+	require.Equal(t, 1, r.Marker.Target)
+	require.Equal(t, `  "image": "x/y:1.2.0@`+newDigest+`"`, r.NewLine)
 }

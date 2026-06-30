@@ -1224,13 +1224,26 @@ func rewriterFor(m Marker, line string) (match.Rewriter, error) {
 
 	find, hasFind := m.Directive.Get(constant.DirectiveFind)
 	replace, hasReplace := m.Directive.Get(constant.DirectiveReplace)
+	if !hasFind && hasReplace {
+		return nil, fmt.Errorf(
+			"%q needs %q",
+			constant.DirectiveReplace,
+			constant.DirectiveFind,
+		)
+	}
+	if m.Sidecar && m.Provider == constant.ProviderDocker &&
+		strings.Contains(line, constant.DockerDigestMarker) {
+		pin := match.NewDockerPin()
+		if hasFind && !hasReplace {
+			return match.NewGuarded(find, pin)
+		}
+		if !hasFind {
+			return pin, nil
+		}
+	}
 	if !hasFind {
-		if hasReplace {
-			return nil, fmt.Errorf(
-				"%q needs %q",
-				constant.DirectiveReplace,
-				constant.DirectiveFind,
-			)
+		if m.Sidecar && m.Provider == constant.ProviderDocker {
+			return match.NewDockerTag(), nil
 		}
 		return match.For(match.Context{
 			Path:     m.File,

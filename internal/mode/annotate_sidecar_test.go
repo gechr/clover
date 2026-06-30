@@ -3,8 +3,10 @@ package mode_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/stretchr/testify/require"
 )
@@ -122,21 +124,42 @@ func TestAnnotateSidecarRegistryPort(t *testing.T) {
 	)
 }
 
-// TestAnnotateSidecarSkipsPinnedReferences confirms a pinned image (an @sha256
-// digest) earns no entry: its secure pin needs a pin-aware rewriter that does not
-// yet work on a JSON string value, so annotating it would leave the digest stale.
-func TestAnnotateSidecarSkipsPinnedReferences(t *testing.T) {
+// TestAnnotateSidecarGeneratesPinnedReference confirms a pinned image earns an
+// entry too: jq selects the JSON line, and the repository-anchored find guards
+// the pin-aware docker rewriter that refreshes tag and digest together.
+func TestAnnotateSidecarGeneratesPinnedReference(t *testing.T) {
 	t.Parallel()
 
+	digestHex := strings.Repeat("a", 64)
 	root := annotateTree(t, map[string]string{
-		"k8s.json": "{\n  \"image\": \"nginx:1.27@sha256:abc\"\n}\n",
+		"k8s.json": "{\n  \"image\": \"nginx:1.27" + constant.DockerDigestMarker +
+			digestHex + "\"\n}\n",
 	})
 
 	summary := annotate(t, root, true, false)
-	require.True(t, summary.OK(), "a pinned reference is not annotated")
+	require.Equal(t, 1, summary.Added())
+	require.Equal(
+		t,
+		"- provider: docker\n  repository: nginx\n  jq: .[\"image\"]\n  find: nginx:<version>\n",
+		readFile(t, filepath.Join(root, "k8s.json.clover.yaml")),
+	)
+}
+
+// TestAnnotateSidecarSkipsMalformedPinnedReferences confirms the pin-aware
+// verify gate rejects a digest-shaped line whose digest is not a full sha256.
+func TestAnnotateSidecarSkipsMalformedPinnedReferences(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"k8s.json": "{\n  \"image\": \"nginx:1.27" + constant.DockerDigestMarker +
+			"abc\"\n}\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.True(t, summary.OK(), "a malformed pin is not annotated")
 	require.Len(t, summary.Files, 1)
 	require.Len(t, summary.Files[0].Skips, 1)
-	require.Contains(t, summary.Files[0].Skips[0].Reason, "pinned JSON references")
+	require.Contains(t, summary.Files[0].Skips[0].Reason, "full sha256 digest")
 	require.NoFileExists(t, filepath.Join(root, "k8s.json.clover.yaml"))
 }
 

@@ -549,18 +549,9 @@ func recognizedLeaf(leaf sidecar.Leaf) bool {
 
 // inferLeaf resolves the provider and parameters a JSON leaf names by feeding
 // [match.Infer] a synthesized `<key>: <value>` YAML line (the form the
-// image:/uses: auto-routes read). A pinned reference (one carrying an @digest or
-// @sha) is rejected: its secure pin needs a pin-aware rewriter, which is not yet
-// available on a JSON string value, so annotating it would leave the pin stale.
+// image:/uses: auto-routes read).
 func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
 	syntheticLine := " " + leaf.Key + ": " + leaf.Value
-	if strings.Contains(leaf.Value, "@") {
-		inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
-		if ok && inf.Repository != "" {
-			return match.Inference{}, "pinned JSON references are not supported", false
-		}
-		return match.Inference{}, "", false
-	}
 	inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
 	if !ok {
 		return match.Inference{}, "", false
@@ -614,21 +605,30 @@ func sidecarUnresolvedReason(inf match.Inference, d directive.Directive, line st
 	if _, err := prov.Resource(d); err != nil {
 		return err.Error()
 	}
-	if find, has := d.Get(constant.DirectiveFind); has {
-		rewriter, err := match.NewFindReplace(find, "")
-		if err != nil {
-			return err.Error()
-		}
-		if _, err = rewriter.Locate(line); err != nil {
-			return err.Error()
-		}
-		return ""
+	rewriter, err := sidecarRewriter(inf, d, line)
+	if err != nil {
+		return err.Error()
 	}
-	if _, err := match.For(match.Context{Line: line, Provider: inf.Provider}).
-		Locate(line); err != nil {
+	if _, err = rewriter.Locate(line); err != nil {
 		return err.Error()
 	}
 	return ""
+}
+
+// sidecarRewriter mirrors the run pipeline's generated-sidecar rewriter choice.
+func sidecarRewriter(
+	inf match.Inference,
+	d directive.Directive,
+	line string,
+) (match.Rewriter, error) {
+	if find, has := d.Get(constant.DirectiveFind); has {
+		if inf.Provider == constant.ProviderDocker &&
+			strings.Contains(line, constant.DockerDigestMarker) {
+			return match.NewGuarded(find, match.NewDockerPin())
+		}
+		return match.NewFindReplace(find, "")
+	}
+	return match.For(match.Context{Line: line, Provider: inf.Provider}), nil
 }
 
 // appendSidecar lays the fresh entries after an existing sidecar's bytes (or
