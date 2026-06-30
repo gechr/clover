@@ -79,7 +79,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	// The selection toggles resolve per repository root inside the pipeline; only
 	// the CLI overrides and the running version (for the per-root required-version
 	// gate) pass through here.
-	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun,
+	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun, int(workers),
 		pipeline.WithConfig(configs),
 		pipeline.WithDeep(c.Deep),
 		pipeline.WithDowngrade(c.Downgrade),

@@ -72,7 +72,7 @@ func TestRunResolvesHelmCharts(t *testing.T) {
 		"appVersion: 1.0.0\n"
 	require.NoError(t, os.WriteFile(path, []byte(before), 0o644))
 
-	_, err := mode.Run(context.Background(), []string{dir}, false)
+	_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 
 	const want = "# clover: provider=helm registry=https://charts.example.com chart=nginx constraint=minor\n" +

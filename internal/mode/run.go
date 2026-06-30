@@ -3,6 +3,7 @@ package mode
 import (
 	"context"
 
+	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/scan"
 )
@@ -16,6 +17,7 @@ func Run(
 	ctx context.Context,
 	roots []string,
 	dryRun bool,
+	parallelism int,
 	opts ...pipeline.Option,
 ) (Summary, error) {
 	files, err := pipeline.Run(ctx, roots, opts...)
@@ -23,8 +25,13 @@ func Run(
 		return Summary{}, err
 	}
 
-	outcomes := make([]Outcome, 0, len(files))
-	for _, file := range files {
+	// Resolution already ran concurrently inside the pipeline; the only work left
+	// is writing each changed file back. Those writes are independent (distinct
+	// paths) and each outcome is kept at its own index, so they run concurrently
+	// while preserving file order - this is the win on a mass update.
+	outcomes := make([]Outcome, len(files))
+	exec.Parallel(parallelism, len(files), func(i int) {
+		file := files[i]
 		if scan.IsSidecar(file.Path) {
 			softenSidecarErrors(file.Results)
 		}
@@ -32,8 +39,8 @@ func Run(
 		if !dryRun && changed(file) {
 			outcome.Written, outcome.WriteErr = apply(file)
 		}
-		outcomes = append(outcomes, outcome)
-	}
+		outcomes[i] = outcome
+	})
 	return Summary{Outcomes: outcomes}, nil
 }
 

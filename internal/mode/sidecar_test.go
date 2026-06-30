@@ -91,7 +91,7 @@ func TestRunBrokenSidecarSkips(t *testing.T) {
 			"  find: nonesuch\n",
 	})
 
-	summary, err := mode.Run(context.Background(), []string{dir}, true /* dry-run */)
+	summary, err := mode.Run(context.Background(), []string{dir}, true /* dry-run */, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 0, summary.Errored(), "a broken sidecar does not fail the run")
 	require.Equal(t, 1, summary.Skipped(), "it surfaces as a skip-with-warning")
@@ -125,7 +125,7 @@ func TestRunResolvedSidecarFailureStaysHard(t *testing.T) {
 			"  find: schemas/<version>/schema.json\n",
 	})
 
-	summary, err := mode.Run(context.Background(), []string{dir}, true /* dry-run */)
+	summary, err := mode.Run(context.Background(), []string{dir}, true /* dry-run */, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Errored(), "an upstream failure is not softened away")
 	require.Equal(t, 0, summary.Skipped())

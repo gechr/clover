@@ -56,7 +56,7 @@ func TestRunWritesChanges(t *testing.T) {
 	)
 	dir := write(t, "# clover: provider=run repository=x/y\nversion: 1.2.0\n")
 
-	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
 	require.True(t, summary.Outcomes[0].Written)
@@ -89,7 +89,7 @@ func TestRunAddsActionPinComment(t *testing.T) {
 		0o644,
 	))
 
-	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed())
 
@@ -109,7 +109,7 @@ func TestRunDryRunWritesNothing(t *testing.T) {
 	original := "# clover: provider=dry repository=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
-	summary, err := mode.Run(context.Background(), []string{dir}, true)
+	summary, err := mode.Run(context.Background(), []string{dir}, true, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Changed()) // change is computed...
 	require.False(t, summary.Outcomes[0].Written)
@@ -132,7 +132,7 @@ func TestRunPreservesFileMode(t *testing.T) {
 	// chmod after writing so umask does not reduce the mode under test.
 	require.NoError(t, os.Chmod(path, 0o777))
 
-	_, err := mode.Run(context.Background(), []string{dir}, false)
+	_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 
 	info, err := os.Stat(path)
@@ -147,7 +147,7 @@ func TestRunLeavesUnchangedFileUntouched(t *testing.T) {
 	original := "# clover: provider=same repository=x/y\nversion: 1.2.0\n"
 	dir := write(t, original)
 
-	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 0, summary.Changed())
 	require.False(t, summary.Outcomes[0].Written)
@@ -161,7 +161,7 @@ func TestRunErroredMarkerNotWritten(t *testing.T) {
 	original := "# clover: provider=ghost repository=x/y\nversion: 1.0.0\n"
 	dir := write(t, original)
 
-	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Errored())
 	require.False(t, summary.Outcomes[0].Written)
@@ -181,7 +181,7 @@ func TestRunWarnsAndSkipsUnknownKey(t *testing.T) {
 			"# clover: provider=ukrun repository=x/y\nother: 1.2.0\n",
 	)
 
-	summary, err := mode.Run(context.Background(), []string{dir}, false)
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Skipped(), "an unknown-key marker is skipped, not errored")
 	require.Equal(t, 0, summary.Errored(), "run tolerates an unknown key")
