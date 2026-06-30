@@ -49,6 +49,22 @@ Settings are grouped by the command they configure, with a `global` block for cr
 
 An unknown key is reported as a warning (with a "did you mean?" hint for a likely typo) and otherwise ignored, so a config written for a newer Clover still loads on an older one. Values are validated against the schema and a malformed one is rejected.
 
+## Environment variables
+
+Clover also reads process-wide settings from `CLOVER_*` environment variables. To make file and line hyperlinks open in an editor, set `CLOVER_HYPERLINK_FORMAT` to one of the supported editor presets:
+
+```bash
+export CLOVER_HYPERLINK_FORMAT=vscode
+```
+
+For fish:
+
+```fish
+set -gx CLOVER_HYPERLINK_FORMAT vscode
+```
+
+Supported presets include `cursor`, `kitty`, `macvim`, `subl`, `textmate`, `vscode`, `vscode-insiders`, and `vscodium`. Individual format variables such as `CLOVER_HYPERLINK_LINE_FORMAT` can override a single hyperlink shape when a preset is not specific enough.
+
 ## Schema
 
 The `# yaml-language-server` comment on the first line wires the file up to its [JSON schema](https://raw.githubusercontent.com/gechr/clover/main/internal/config/schema.json), so editors with the YAML language server give you completion and validation as you type.

@@ -19,6 +19,7 @@ const gradientMax = 20 * time.Second
 // colour and TTY detection. It is the single place CLI logging is set up, so
 // levels and other policy can grow here without touching command code.
 func Init() {
+	clog.SetEnvPrefix("CLOVER")
 	clog.SetOutput(clog.Stderr(clog.ColorAuto))
 
 	// Pick a quote delimiter per value (" then ' then `) so quoted fields avoid
