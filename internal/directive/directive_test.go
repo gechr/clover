@@ -50,9 +50,9 @@ func TestDirectiveAll(t *testing.T) {
 func TestDirectiveHas(t *testing.T) {
 	t.Parallel()
 
-	d := newDirective(directive.KV{Key: "skip", Value: "true"})
+	d := newDirective(directive.KV{Key: "disabled", Value: "true"})
 
-	require.True(t, d.Has("skip"))
+	require.True(t, d.Has("disabled"))
 	require.False(t, d.Has("force"))
 }
 
@@ -66,18 +66,28 @@ func TestDirectiveBool(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{name: "true", kv: directive.KV{Key: "skip", Value: "true"}, key: "skip", want: true},
-		{name: "false", kv: directive.KV{Key: "skip", Value: "false"}, key: "skip", want: false},
+		{
+			name: "true",
+			kv:   directive.KV{Key: "disabled", Value: "true"},
+			key:  "disabled",
+			want: true,
+		},
+		{
+			name: "false",
+			kv:   directive.KV{Key: "disabled", Value: "false"},
+			key:  "disabled",
+			want: false,
+		},
 		{
 			name: "absent is false",
-			kv:   directive.KV{Key: "skip", Value: "true"},
+			kv:   directive.KV{Key: "disabled", Value: "true"},
 			key:  "force",
 			want: false,
 		},
 		{
 			name:    "non-boolean is an error",
-			kv:      directive.KV{Key: "skip", Value: "yes"},
-			key:     "skip",
+			kv:      directive.KV{Key: "disabled", Value: "yes"},
+			key:     "disabled",
 			wantErr: true,
 		},
 	}

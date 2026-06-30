@@ -44,9 +44,9 @@ z: 3
 w: 4
 ```
 
-### `clover:ignore` vs `skip`
+### `clover:ignore` vs `disabled`
 
-The [`skip`](annotations.md#disabling-and-filtering) key disables a single annotation from within the annotation itself. The ignore comments are separate controls, and they reach further - a block, a whole file, or (with `.gitignore`) entire trees - which a per-annotation key cannot.
+The [`disabled`](annotations.md#disabling-and-filtering) key disables a single annotation from within the annotation itself. The ignore comments are separate controls, and they reach further - a block, a whole file, or (with `.gitignore`) entire trees - which a per-annotation key cannot.
 
 ## `.gitignore`
 

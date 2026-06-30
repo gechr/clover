@@ -35,7 +35,7 @@ func TestRender(t *testing.T) {
 		{"regex with space stays bare", "clover: include=/foo bar/", "clover: include=/foo bar/"},
 		{"escaped slash regex", `clover: include=/a\/b/`, `clover: include=/a\/b/`},
 		{"quoted partial-slash re-quoted", `clover: include="/foo"`, `clover: include="/foo"`},
-		{"boolean explicit", "clover: skip=true", "clover: skip=true"},
+		{"boolean explicit", "clover: disabled=true", "clover: disabled=true"},
 		{"repeated keys preserved", "clover: include=a include=b", "clover: include=a include=b"},
 	}
 
@@ -82,7 +82,7 @@ func TestRenderParseRoundTrip(t *testing.T) {
 		"clover: from=app value=commit select=old",
 		`clover: constraint=">=1.2,<2.0"`,
 		`clover: include="/foo"`,
-		"clover: include=/a\\/b/ skip=false",
+		"clover: include=/a\\/b/ disabled=false",
 	}
 
 	for _, body := range bodies {

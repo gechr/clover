@@ -160,7 +160,7 @@
         "type": "string",
         "description": "Checksum-file URL (templated with <version>) for value=sha256."
       },
-      "skip": {
+      "disabled": {
         "type": ["string", "boolean"],
         "description": "Disable this entry: true, false, or a reason string."
       },

@@ -16,9 +16,9 @@ func TestReorder(t *testing.T) {
 	}{
 		{
 			name:         "canonical zones",
-			in:           "clover: skip=false repository=a/b provider=github constraint=patch",
+			in:           "clover: disabled=false repository=a/b provider=github constraint=patch",
 			providerKeys: []string{"repository", "source"},
-			want:         []string{"provider", "repository", "constraint", "skip"},
+			want:         []string{"provider", "repository", "constraint", "disabled"},
 		},
 		{
 			name:         "provider keys in declared order",
@@ -39,10 +39,10 @@ func TestReorder(t *testing.T) {
 			want:         []string{"constraint", "include", "prerelease", "behind"},
 		},
 		{
-			name:         "tags sort before skip in the trailing zone",
-			in:           "clover: skip=false tags=prod provider=github repository=a/b",
+			name:         "tags sort before disabled in the trailing zone",
+			in:           "clover: disabled=false tags=prod provider=github repository=a/b",
 			providerKeys: []string{"repository"},
-			want:         []string{"provider", "repository", "tags", "skip"},
+			want:         []string{"provider", "repository", "tags", "disabled"},
 		},
 		{
 			name:         "unknown keys kept last in original order",
@@ -100,7 +100,7 @@ func TestReorderLocatorZone(t *testing.T) {
 // their values or dropping any.
 func TestReorderPreservesValues(t *testing.T) {
 	d, _, err := directive.Parse(
-		"clover: skip=true provider=github repository=a/b include=x include=y",
+		"clover: disabled=true provider=github repository=a/b include=x include=y",
 	)
 	require.NoError(t, err)
 
@@ -111,7 +111,7 @@ func TestReorderPreservesValues(t *testing.T) {
 
 // TestReorderIdempotent confirms a second reorder changes nothing.
 func TestReorderIdempotent(t *testing.T) {
-	d, _, err := directive.Parse("clover: skip=false repository=a/b provider=github")
+	d, _, err := directive.Parse("clover: disabled=false repository=a/b provider=github")
 	require.NoError(t, err)
 
 	once := directive.Reorder(d, []string{"repository"})

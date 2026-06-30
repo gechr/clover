@@ -68,7 +68,7 @@ func (d Directive) CSV(key string) []string {
 
 // Bool interprets the first value for key as a boolean. An absent key is false
 // with no error; a present key must be exactly true or false, so a typo like
-// skip=yes is rejected rather than silently treated as false.
+// disabled=yes is rejected rather than silently treated as false.
 func (d Directive) Bool(key string) (bool, error) {
 	v, ok := d.Get(key)
 	if !ok {

@@ -41,7 +41,7 @@ var (
 		constant.RuleBehind,
 		constant.RuleDowngrade,
 		constant.DirectiveTags,
-		constant.DirectiveSkip,
+		constant.DirectiveDisabled,
 	}
 )
 

@@ -53,7 +53,7 @@ Every annotation is a flat list of space-separated `key=value` pairs. The availa
 | Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                                                                      |
 | Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                                                                           |
 | Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                                                                         |
-| Matching      | [`find`, `replace`](find-replace.md), `skip`, `tags`                                                                                                                                                                      |
+| Matching      | [`find`, `replace`](find-replace.md), `disabled`, `tags`                                                                                                                                                                  |
 
 You rarely need most of them. Clover infers sensible patterns from the existing content of the target line, so a `provider` and a `repository` are usually enough.
 
@@ -63,7 +63,7 @@ By default Clover finds the version on the target line by inspecting its existin
 
 ## Disabling and filtering
 
-- `skip` - disable an annotation without deleting it.
+- `disabled` - disable an annotation without deleting it.
 - `tags` - attach comma-separated labels so `clover run --tag <tag>` can process a subset.
 
 ```dockerfile

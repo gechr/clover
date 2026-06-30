@@ -29,7 +29,7 @@ func (s Summary) Changed() int { return s.count(func(r pipeline.Result) bool { r
 // Skipped reports the number of markers skipped because a dependency failed.
 func (s Summary) Skipped() int { return s.count(func(r pipeline.Result) bool { return r.Skipped }) }
 
-// Disabled reports the number of markers a skip= directive intentionally
+// Disabled reports the number of markers a disabled= directive intentionally
 // disabled. They are inert by design, so they never count toward lint failure.
 func (s Summary) Disabled() int {
 	return s.count(func(r pipeline.Result) bool { return r.Disabled })

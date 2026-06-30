@@ -53,8 +53,8 @@ func TestParsePairs(t *testing.T) {
 		},
 		{
 			name: "explicit booleans",
-			body: "clover: skip=true force=false",
-			want: []directive.KV{{Key: "skip", Value: "true"}, {Key: "force", Value: "false"}},
+			body: "clover: disabled=true force=false",
+			want: []directive.KV{{Key: "disabled", Value: "true"}, {Key: "force", Value: "false"}},
 		},
 		{
 			name: "double-quoted value with spaces",
@@ -113,8 +113,8 @@ func TestParsePairs(t *testing.T) {
 		},
 		{
 			name: "block comment body trimmed",
-			body: " clover: skip=true ",
-			want: []directive.KV{{Key: "skip", Value: "true"}},
+			body: " clover: disabled=true ",
+			want: []directive.KV{{Key: "disabled", Value: "true"}},
 		},
 	}
 
@@ -140,8 +140,8 @@ func TestParseErrors(t *testing.T) {
 		{name: "unterminated quote", body: `clover: include="oops`},
 		{name: "mismatched quote", body: `clover: x='a"`},
 		{name: "unterminated regex", body: "clover: include=/oops"},
-		{name: "bare key without value", body: "clover: skip"},
-		{name: "bare key among pairs", body: "clover: provider=github skip"},
+		{name: "bare key without value", body: "clover: disabled"},
+		{name: "bare key among pairs", body: "clover: provider=github disabled"},
 		{name: "empty key", body: "clover: =foo"},
 	}
 

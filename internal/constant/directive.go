@@ -17,13 +17,13 @@ const DirectiveSeparator = ' '
 // Directive targeting and control keys: who resolves the marker and how it
 // relates to others.
 const (
+	DirectiveDisabled = "disabled" // disable this marker
 	DirectiveFind     = "find"     // explicit find pattern (glob with <placeholders>, or /regex/)
 	DirectiveFrom     = "from"     // follow the producer with this id
 	DirectiveID       = "id"       // publish this marker's result under this id
-	DirectiveReplace  = "replace"  // explicit replace template, pairs with find
 	DirectiveProvider = "provider" // upstream source; omitted ⇒ follow
+	DirectiveReplace  = "replace"  // explicit replace template, pairs with find
 	DirectiveSelect   = "select"   // follow the old or new value
-	DirectiveSkip     = "skip"     // disable this marker
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
 	DirectiveTrack    = "track"    // track a floating ref (docker tag, github branch); * infers it from the line
 	DirectiveValue    = "value"    // what a follower projects

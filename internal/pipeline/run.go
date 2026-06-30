@@ -53,8 +53,8 @@ type Result struct {
 	NewLine  string // the target line after rendering, == original when unchanged
 	Changed  bool   // whether rendering altered the target line
 	Skipped  bool   // the marker's dependency failed, was missing, or cycled
-	Disabled bool   // the directive set skip=...; the marker is intentionally inert (never a lint failure)
-	Reason   string // why the marker was skipped, or the skip= reason it was disabled with
+	Disabled bool   // the directive set disabled=...; the marker is intentionally inert (never a lint failure)
+	Reason   string // why the marker was skipped, or the disabled= reason it was disabled with
 	Err      error  // why resolution failed
 	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
 
@@ -361,7 +361,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 			if !set.filter.Match(m.Tags) {
 				continue
 			}
-			off, reason, err := skipState(m.Directive)
+			off, reason, err := disabledState(m.Directive)
 			switch {
 			case err != nil:
 				parseErrors = append(
@@ -410,12 +410,12 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 	}
 }
 
-// skipState interprets a directive's skip key: skip=false (or absent) leaves the
-// marker enabled; skip=true disables it with no reason; any other non-empty value
-// disables it and is the reason reported. An empty skip value is malformed -
-// directives never carry an empty value.
-func skipState(d directive.Directive) (bool, string, error) {
-	v, ok := d.Get(constant.DirectiveSkip)
+// disabledState interprets a directive's disabled key: disabled=false (or absent)
+// leaves the marker enabled; disabled=true disables it with no reason; any other
+// non-empty value disables it and is the reason reported. An empty disabled value
+// is malformed - directives never carry an empty value.
+func disabledState(d directive.Directive) (bool, string, error) {
+	v, ok := d.Get(constant.DirectiveDisabled)
 	switch {
 	case !ok, v == constant.BoolFalse:
 		return false, "", nil
@@ -424,7 +424,7 @@ func skipState(d directive.Directive) (bool, string, error) {
 	case v == "":
 		return false, "", fmt.Errorf(
 			"%q needs %s, %s, or a reason",
-			constant.DirectiveSkip,
+			constant.DirectiveDisabled,
 			constant.BoolTrue,
 			constant.BoolFalse,
 		)

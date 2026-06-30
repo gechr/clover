@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// skip=true disables a marker entirely: it is reported as disabled, never
+// disabled=true disables a marker entirely: it is reported as disabled, never
 // resolved or rewritten, and - unlike a dependency Skip - it does not fail lint.
-func TestRunSkipTrueDisables(t *testing.T) {
+func TestRunDisabledTrueDisables(t *testing.T) {
 	provider.Register(fakeProvider{
-		name:       "skipfake",
+		name:       "disabledfake",
 		candidates: []model.Candidate{candidate(t, "2.0.0")},
 	})
 
 	dir := write(t, map[string]string{
-		"a.txt": "# clover: provider=skipfake repository=x/y skip=true\nversion: 1.0.0\n",
+		"a.txt": "# clover: provider=disabledfake repository=x/y disabled=true\nversion: 1.0.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -32,18 +32,18 @@ func TestRunSkipTrueDisables(t *testing.T) {
 	require.False(t, r.Changed)
 	require.False(t, r.Skipped)
 	require.NoError(t, r.Err)
-	require.Empty(t, r.Reason, "a bare skip=true records no reason")
+	require.Empty(t, r.Reason, "a bare disabled=true records no reason")
 }
 
-// skip="reason" disables the marker and records the reason for reporting.
-func TestRunSkipReasonDisablesWithReason(t *testing.T) {
+// disabled="reason" disables the marker and records the reason for reporting.
+func TestRunDisabledReasonDisablesWithReason(t *testing.T) {
 	provider.Register(fakeProvider{
-		name:       "skipreasonfake",
+		name:       "disabledreasonfake",
 		candidates: []model.Candidate{candidate(t, "2.0.0")},
 	})
 
 	dir := write(t, map[string]string{
-		"a.txt": `# clover: provider=skipreasonfake repository=x/y skip="pinned for CVE-2026-123"` +
+		"a.txt": `# clover: provider=disabledreasonfake repository=x/y disabled="pinned for CVE-2026-123"` +
 			"\nversion: 1.0.0\n",
 	})
 
@@ -54,15 +54,15 @@ func TestRunSkipReasonDisablesWithReason(t *testing.T) {
 	require.Equal(t, "pinned for CVE-2026-123", r.Reason)
 }
 
-// skip=false leaves the marker enabled: it resolves and rewrites as normal.
-func TestRunSkipFalseResolves(t *testing.T) {
+// disabled=false leaves the marker enabled: it resolves and rewrites as normal.
+func TestRunDisabledFalseResolves(t *testing.T) {
 	provider.Register(fakeProvider{
-		name:       "skipfalsefake",
+		name:       "disabledfalsefake",
 		candidates: []model.Candidate{candidate(t, "2.0.0")},
 	})
 
 	dir := write(t, map[string]string{
-		"a.txt": "# clover: provider=skipfalsefake repository=x/y skip=false\nversion: 1.0.0\n",
+		"a.txt": "# clover: provider=disabledfalsefake repository=x/y disabled=false\nversion: 1.0.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
@@ -73,20 +73,20 @@ func TestRunSkipFalseResolves(t *testing.T) {
 	require.Equal(t, "version: 2.0.0", r.NewLine)
 }
 
-// An empty skip value is malformed: a directive never carries an empty value.
-func TestRunSkipEmptyErrors(t *testing.T) {
+// An empty disabled value is malformed: a directive never carries an empty value.
+func TestRunDisabledEmptyErrors(t *testing.T) {
 	provider.Register(fakeProvider{
-		name:       "skipemptyfake",
+		name:       "disabledemptyfake",
 		candidates: []model.Candidate{candidate(t, "2.0.0")},
 	})
 
 	dir := write(t, map[string]string{
-		"a.txt": "# clover: provider=skipemptyfake repository=x/y skip=\nversion: 1.0.0\n",
+		"a.txt": "# clover: provider=disabledemptyfake repository=x/y disabled=\nversion: 1.0.0\n",
 	})
 
 	files, err := pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	r := files[0].Results[0]
 	require.False(t, r.Disabled)
-	require.EqualError(t, r.Err, `"skip" needs true, false, or a reason`)
+	require.EqualError(t, r.Err, `"disabled" needs true, false, or a reason`)
 }
