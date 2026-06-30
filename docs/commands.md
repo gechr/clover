@@ -76,13 +76,14 @@ clover annotate [options] [<path>…]
 
 | Option            | Description                                                                       |
 | ----------------- | --------------------------------------------------------------------------------- |
+| `--check`         | Report annotations that would be added and exit non-zero without writing          |
 | `-w, --write`     | Apply the proposed annotations (default: preview only)                            |
 | `--force`         | Rewrite an existing annotation into its canonical minimal form                    |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded |
 | `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                 |
 | `--no-config`     | Do not load any `.clover.yaml` config                                             |
 
-Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. Every annotation it writes is one Clover verified offline first, so a line it cannot actually resolve (a malformed reference, a commented-out example) is left alone.
+Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. `--check` previews the same annotations but exits non-zero when any would be added or rewritten. Every annotation it writes is one Clover verified offline first, so a line it cannot actually resolve (a malformed reference, a commented-out example) is left alone.
 
 Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce - `provider=auto`, or an explicit provider the line infers - is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` inference supplies while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
 

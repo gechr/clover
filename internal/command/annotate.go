@@ -17,33 +17,36 @@ import (
 
 // cmdAnnotate adds clover: directives to lines clover can already track but that
 // carry none. It previews by default - a tool that inserts new lines should not
-// rewrite the tree unasked - and writes only with --write. --force additionally
+// rewrite the tree unasked - and writes only with --write. --check is the CI gate:
+// it previews and exits non-zero when anything would change. --force additionally
 // rewrites an existing annotation into its canonical minimal form.
 type cmdAnnotate struct {
-	Paths    []string `name:"path" help:"Files or directories to scan"                                      arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
-	Write    bool     `            help:"Apply the proposed annotations (default: preview only)"                               clib:"terse='Write changes'"                       short:"w"`
-	Force    bool     `            help:"Rewrite an existing annotation when clover can infer a leaner one"                    clib:"terse='Overwrite existing'"`
+	Paths    []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
+	Check    bool     `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only'"`
+	Write    bool     `            help:"Apply the proposed annotations (default: preview only)"                                     clib:"terse='Write changes'"                       short:"w"`
+	Force    bool     `            help:"Rewrite an existing annotation when clover can infer a leaner one"                          clib:"terse='Overwrite existing'"`
 	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore'\""
 }
 
 // Help returns the detailed blurb shown in `clover annotate --help`.
 func (c *cmdAnnotate) Help() string {
 	return "Scans for lines clover can already track - GitHub Actions `uses:` pins, container image references - and adds a minimal `clover: provider=auto` directive above each one, the inverse of the auto-detection that later resolves it. " +
-		"It previews by default, listing what it would add; pass `--write` to apply. Every annotation is verified offline first, so a line clover cannot actually resolve is left alone. Existing annotations are untouched unless `--force`, which collapses an inferable one back to `provider=auto` (preserving every selection rule) and leaves a deliberately explicit directive alone."
+		"It previews by default, listing what it would add; pass `--write` to apply, or `--check` to fail when anything would be annotated. Every annotation is verified offline first, so a line clover cannot actually resolve is left alone. Existing annotations are untouched unless `--force`, which collapses an inferable one back to `provider=auto` (preserving every selection rule) and leaves a deliberately explicit directive alone."
 }
 
-// Run previews (or, with --write, applies) the annotations under the paths. It
-// exits non-zero only on a real failure - a file that could not be written - so
-// a preview, which always writes nothing, is informational and exits zero.
+// Run previews (or, with --write, applies) the annotations under the paths.
+// --check previews without writing and exits non-zero when annotate found work,
+// making it suitable as a CI gate.
 func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	ctx := context.Background()
+	write := c.Write && !c.Check
 
 	reporter := console.New(ctx, clog.Default)
 	summary, err := mode.Annotate(
 		ctx,
 		roots(c.Paths),
-		c.Write,
+		write,
 		c.Force,
 		configs,
 		reporter,
@@ -59,10 +62,16 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	}
 
 	annotateDiscovered(summary)
-	report.Annotate(clog.Default, summary, c.Write)
+	report.Annotate(clog.Default, summary, write)
 
 	if failed := writeFailures(summary); failed > 0 {
 		return fmt.Errorf("%s could not be written", human.Pluralize(failed, "file", "files"))
+	}
+	if c.Check && summary.Total() > 0 {
+		return fmt.Errorf(
+			"%s found",
+			human.Pluralize(summary.Total(), "annotation candidate", "annotation candidates"),
+		)
 	}
 	return nil
 }
