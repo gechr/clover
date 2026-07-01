@@ -23,12 +23,11 @@ type cmdUpdate struct {
 // (Homebrew) and the periodic check (which reads it for the display name, the
 // `clover update` command, and the GitHub repo behind the tag lookup).
 func updateConfig() brew.Config {
-	return brew.Config{
-		Info:    clive.Info{Module: module},
-		Name:    "Clover",
-		Formula: name,
-		Tap:     updateTap,
-	}
+	return brew.New(
+		clive.Info{Module: module},
+		brew.WithName("Clover"),
+		brew.WithTap(updateTap),
+	)
 }
 
 // Help returns the detailed blurb shown in `clover update --help`.

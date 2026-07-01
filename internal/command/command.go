@@ -14,6 +14,7 @@ import (
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clive"
 	"github.com/gechr/clive/notify"
+	"github.com/gechr/clive/updater"
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/config"
@@ -137,6 +138,10 @@ func Run() int {
 // renders as a clean summary rather than a generic wrapped-error string; any
 // other error (config load, I/O) falls back to the plain "Failed" log.
 func reportExit(err error) {
+	if errors.Is(err, updater.ErrReported) {
+		// The failure line is already on screen (e.g. a self-update timeout).
+		return
+	}
 	if failures, ok := errors.AsType[failuresError](err); ok {
 		clog.Error().Symbol("💥").Int(field.Failed, int(failures)).Msg("Experienced failures")
 		return
