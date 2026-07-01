@@ -59,6 +59,8 @@ type cli struct {
 	Annotate cmdAnnotate `help:"Add provider=auto directives to recognised version lines"    clib:"terse='Add directives'"   cmd:"" aliases:"add"`
 	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:"" aliases:"up"`
 	Version  cmdVersion  `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
+
+	VersionFlag kong.VersionFlag `name:"version" short:"V" help:"Print version information" hidden:""`
 }
 
 // parallelism is the bound per-file worker count from the global -P flag, a named
@@ -83,6 +85,7 @@ func Run() int {
 	parser := kong.Must(&root,
 		kong.Name(name),
 		kong.Description(description),
+		kong.Vars{"version": versionString()},
 		kong.Help(clib.HelpPrinterFunc(
 			help.NewRenderer(
 				theme.Auto(),
@@ -208,6 +211,15 @@ func newGenerator(flags []complete.FlagMeta) *complete.Generator {
 		complete.Spec{LongFlag: "help", Terse: "Print long help"},
 	)
 	return gen
+}
+
+// versionString returns clive's current version, or a friendly placeholder
+// when unknown, matching what `clover version` prints via clive.Print.
+func versionString() string {
+	if v := clive.Current(); v != "" {
+		return v
+	}
+	return "Version information is not available"
 }
 
 // launch logs the startup banner naming Clover's version, so a run records up
