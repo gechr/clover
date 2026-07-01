@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gechr/clover/main/internal/sidecar/schema.json",
+  "title": "clover sidecar",
+  "description": "Schema for a Clover YAML sidecar (<target>.clover.yaml): a list of directive entries that keep a comment-less file (strict JSON) up to date out of band.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "One directive, expressed as native YAML keys. Carry a jq or find locator to name the line it governs.",
+    "additionalProperties": false,
+    "minProperties": 1,
+    "anyOf": [
+      { "required": ["jq"] },
+      { "required": ["find"] }
+    ],
+    "properties": {
+      "provider": {
+        "type": "string",
+        "description": "Upstream source: github, gitlab, gitea, docker, helm, hashicorp, node, http, manual. Omit to follow another entry."
+      },
+      "repository": {
+        "type": "string",
+        "description": "Repository path, e.g. owner/name (github/gitlab/gitea, docker)."
+      },
+      "registry": {
+        "type": "string",
+        "description": "Container registry host (docker); chart repository URL or oci:// base (helm)."
+      },
+      "platform": {
+        "type": "string",
+        "description": "OCI platform os/arch for per-arch digest resolution (docker)."
+      },
+      "host": {
+        "type": "string",
+        "description": "Forge host for a self-managed instance (github/gitlab/gitea)."
+      },
+      "source": {
+        "type": "string",
+        "description": "What to list upstream: tags or releases (github/gitlab/gitea)."
+      },
+      "chart": {
+        "type": "string",
+        "description": "Helm chart name."
+      },
+      "product": {
+        "type": "string",
+        "description": "HashiCorp product name, e.g. terraform."
+      },
+      "build": {
+        "type": "string",
+        "description": "HashiCorp build-metadata flavor, e.g. ent.hsm.fips1403."
+      },
+      "enterprise": {
+        "type": ["string", "boolean"],
+        "description": "Track HashiCorp enterprise-licensed builds."
+      },
+      "lts": {
+        "type": ["string", "boolean"],
+        "description": "Restrict to LTS release lines (node)."
+      },
+      "url": {
+        "type": "string",
+        "description": "Endpoint the http provider GETs."
+      },
+      "extract": {
+        "type": "string",
+        "description": "Glob-with-<version> or /regex/ over a text http response body."
+      },
+      "user-agent": {
+        "type": "string",
+        "description": "User-Agent header for the http request; defaults to clover."
+      },
+      "jq": {
+        "type": "string",
+        "description": "Locator: a path() expression that resolves to the target line (sidecar, JSON only). Also a jq program over an http response body."
+      },
+      "find": {
+        "type": "string",
+        "description": "Locator and rewrite pattern: a glob with <version> (and other <placeholders>), or /regex/."
+      },
+      "replace": {
+        "type": "string",
+        "description": "Replacement template, paired with find."
+      },
+      "constraint": {
+        "type": "string",
+        "description": "Version constraint: a keyword (major, minor, patch) or a range (~>1.2, >=1.0.0)."
+      },
+      "tag-prefix": {
+        "type": "string",
+        "description": "Scope selection to tags carrying this prefix (monorepo components), e.g. @scope/pkg@."
+      },
+      "include": {
+        "type": ["string", "array"],
+        "items": { "type": "string" },
+        "description": "Only versions matching these globs / /regex/."
+      },
+      "exclude": {
+        "type": ["string", "array"],
+        "items": { "type": "string" },
+        "description": "Exclude versions matching these globs / /regex/."
+      },
+      "asset": {
+        "type": "string",
+        "description": "Release-asset filename glob (github)."
+      },
+      "prerelease": {
+        "type": ["string", "boolean"],
+        "description": "Allow selecting prerelease versions."
+      },
+      "cooldown": {
+        "type": "string",
+        "description": "Minimum age before a version is adopted, e.g. 7d, 24h."
+      },
+      "behind": {
+        "type": ["string", "integer"],
+        "description": "Stay this many releases behind the newest."
+      },
+      "downgrade": {
+        "type": ["string", "boolean"],
+        "description": "Allow selecting a version older than the current one."
+      },
+      "track": {
+        "type": "string",
+        "description": "Track a floating ref (docker tag, github branch); * infers it from the line."
+      },
+      "verify": {
+        "type": ["string", "boolean"],
+        "description": "Deep-verify this entry's secure pin against its upstream tag."
+      },
+      "verify-branch": {
+        "type": "string",
+        "description": "Allowed source-branch glob or /regex/ for deep verify; defaults to the repo's default branch."
+      },
+      "id": {
+        "type": "string",
+        "description": "Publish this entry's result under this id for followers to read."
+      },
+      "from": {
+        "type": "string",
+        "description": "Follow the producer entry with this id instead of resolving upstream."
+      },
+      "value": {
+        "type": "string",
+        "description": "What a follower projects: version, commit, or sha256."
+      },
+      "select": {
+        "type": "string",
+        "description": "Follow the old or new value of the producer."
+      },
+      "pattern": {
+        "type": "string",
+        "description": "Asset filename glob for value=sha256."
+      },
+      "sha256-source": {
+        "type": "string",
+        "description": "How to source a value=sha256: auto, digest, checksums, download, or verify."
+      },
+      "sha256-url": {
+        "type": "string",
+        "description": "Checksum-file URL (templated with <version>) for value=sha256."
+      },
+      "disabled": {
+        "type": ["string", "boolean"],
+        "description": "Disable this entry: true, false, or a reason string."
+      },
+      "tags": {
+        "type": ["string", "array"],
+        "items": { "type": "string" },
+        "description": "Labels for clover run --tag filtering."
+      }
+    }
+  }
+}
