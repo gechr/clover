@@ -27,17 +27,17 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"     predictor:"path"`
-	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
-	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore'\""
-	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run'"                            short:"n" aliases:"dry"`
-	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup'"                                                                     negatable:""`
-	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes'"                         short:"y"`
-	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades'"                                                                negatable:""`
-	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases'"                                                               negatable:""`
-	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin'"                                                                    negatable:""`
-	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags'\""
-	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text'\"       short:\"o\"                                                                enum:\"text,wide,github\""
+	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                               predictor:"path"`
+	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',group='Options/Selection'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
+	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection'"                                                                negatable:""`
+	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection'"                                                               negatable:""`
+	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection'"                                                                    negatable:""`
+	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup'"                                                                        negatable:""`
+	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup'\""
+	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                            short:"y"`
+	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                              short:"n" aliases:"dry"`
+	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
+	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
 }
 
 // Help returns the detailed blurb shown in `clover run --help`.

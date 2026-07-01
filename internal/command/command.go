@@ -46,10 +46,10 @@ const (
 type cli struct {
 	clib.CompletionFlags
 
-	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file'\""
-	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config'\""
-	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs'"`
-	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism'" short:"P" default:"10" placeholder:"<n>"`
+	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file',group='Global Options/Configuration'\""
+	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config',group='Global Options/Configuration'\""
+	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Global Options/Execution'"  short:"P" default:"10" placeholder:"<n>"`
+	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Global Options/Diagnostics'"`
 
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
 	Login    cmdLogin    `help:"Authenticate Clover with a provider"                         clib:"terse='Authenticate'"     cmd:""`
@@ -210,7 +210,7 @@ func newGenerator(flags []complete.FlagMeta) *complete.Generator {
 	return gen
 }
 
-// launch logs the startup banner naming clover's version, so a run records up
+// launch logs the startup banner naming Clover's version, so a run records up
 // front what version produced it. The version field is omitted when unknown
 // rather than logged empty.
 func launch() {

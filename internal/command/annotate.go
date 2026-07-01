@@ -15,23 +15,26 @@ import (
 	"github.com/gechr/x/human"
 )
 
-// cmdAnnotate adds clover: directives to lines clover can already track but that
+// cmdAnnotate adds clover: directives to lines Clover can already track but that
 // carry none. It previews by default - a tool that inserts new lines should not
 // rewrite the tree unasked - and writes only with --write. --check is the CI gate:
 // it previews and exits non-zero when anything would change. --force additionally
 // rewrites an existing annotation into its canonical minimal form.
 type cmdAnnotate struct {
-	Paths    []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"      predictor:"path"`
-	Check    bool     `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only'"`
-	Write    bool     `            help:"Apply the proposed annotations (default: preview only)"                                     clib:"terse='Write changes'"                       short:"w"`
-	Force    bool     `            help:"Rewrite an existing annotation when clover can infer a leaner one"                          clib:"terse='Overwrite existing'"`
-	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore'\""
+	Paths    []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"                                predictor:"path"`
+	DryRun   bool     `            help:"Preview the proposed annotations without writing (default)"                                 clib:"terse='Dry run',group='Options/Mode'"                                  short:"n" aliases:"dry" xor:"write"`
+	Write    bool     `            help:"Apply the proposed annotations"                                                             clib:"terse='Write changes',group='Options/Mode'"                            short:"w"               xor:"write"`
+	Check    bool     `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only',group='Options/Mode'"`
+	Force    bool     `            help:"Rewrite an existing annotation when Clover can infer a leaner one"                          clib:"terse='Overwrite existing',group='Options/Selection'"`
+	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 }
 
 // Help returns the detailed blurb shown in `clover annotate --help`.
 func (c *cmdAnnotate) Help() string {
-	return "Scans for lines clover can already track - GitHub Actions `uses:` pins, container image references - and adds a minimal `clover: provider=auto` directive above each one, the inverse of the auto-detection that later resolves it. " +
-		"It previews by default, listing what it would add; pass `--write` to apply, or `--check` to fail when anything would be annotated. Every annotation is verified offline first, so a line clover cannot actually resolve is left alone. Existing annotations are untouched unless `--force`, which collapses an inferable one back to `provider=auto` (preserving every selection rule) and leaves a deliberately explicit directive alone."
+	return "Adds `clover: provider=auto` above lines Clover can already track. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. This is the inverse of the auto-detection that later resolves them. " +
+		"Every annotation is verified offline first. Unresolvable lines are left untouched.\n\n" +
+		"It previews by default, listing what it would add; pass `--dry-run` to request that mode explicitly, `--write` to apply, or `--check` to fail when anything would be annotated.\n\n" +
+		"Existing annotations are untouched unless `--force`, which collapses an inferable one back to `provider=auto` (preserving every selection rule) and leaves a deliberately explicit directive alone."
 }
 
 // Run previews (or, with --write, applies) the annotations under the paths.

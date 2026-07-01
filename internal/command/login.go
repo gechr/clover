@@ -22,7 +22,7 @@ import (
 // provider keeps its own typed Code, so the dispatch adapts it to
 // promptDeviceCode's plain arguments here rather than forcing a shared type
 // across the providers. docker is absent: it authenticates through its own
-// keychain, not a clover device flow.
+// keychain, not a Clover device flow.
 var deviceLogins = map[string]func(ctx context.Context, host, clientID string) error{
 	constant.ProviderGithub: func(ctx context.Context, host, clientID string) error {
 		return github.Login(ctx, host, clientID, func(c github.Code) {
@@ -36,7 +36,7 @@ var deviceLogins = map[string]func(ctx context.Context, host, clientID string) e
 	},
 }
 
-// cmdLogin authenticates clover with a provider, storing the minted token so
+// cmdLogin authenticates Clover with a provider, storing the minted token so
 // later runs read it from the credential chain. github and gitlab use an OAuth
 // device flow; gitea uses an authorization-code loopback flow (it has no device
 // grant). All three accept a `--host` for an enterprise/self-managed instance and
@@ -44,8 +44,8 @@ var deviceLogins = map[string]func(ctx context.Context, host, clientID string) e
 // is not registered on a private instance).
 type cmdLogin struct {
 	Provider string "help:\"Provider to authenticate with\" arg:\"\" optional:\"\" clib:\"terse='Provider'\" default:\"github\" enum:\"github,gitlab,gitea\""
-	Host     string "help:\"Forge host for an enterprise/self-managed instance (default: the provider's public host)\" clib:\"terse='Forge host'\" placeholder:\"<host>\""
-	ClientID string "help:\"OAuth client-id, required for an enterprise/self-managed --host\"                          clib:\"terse='Client ID'\"  placeholder:\"<id>\""
+	Host     string "help:\"Forge host for an enterprise/self-managed instance (default: the provider's public host)\" clib:\"terse='Forge host',group='Options/Target'\" placeholder:\"<host>\""
+	ClientID string "help:\"OAuth client-id, required for an enterprise/self-managed --host\"                          clib:\"terse='Client ID',group='Options/Target'\"  placeholder:\"<id>\""
 }
 
 // Help returns the detailed blurb shown in `clover login --help`.
@@ -81,7 +81,7 @@ func (c *cmdLogin) Run() error {
 }
 
 // promptBrowser opens the authorization URL in the browser (printing it as a
-// fallback) and tells the user clover is waiting for the redirect. It writes to
+// fallback) and tells the user Clover is waiting for the redirect. It writes to
 // stderr so a piped stdout stays clean.
 func promptBrowser(authURL string) {
 	out := os.Stderr
@@ -128,7 +128,7 @@ func promptDeviceCode(userCode, verificationURL string) {
 	fmt.Fprintf(out, "First, copy your one-time code: %s\n\n", bold(userCode))
 
 	if !interactive {
-		fmt.Fprintf(out, "Then, open %s and enter the code to authorize clover\n", verificationURL)
+		fmt.Fprintf(out, "Then, open %s and enter the code to authorize Clover\n", verificationURL)
 		return
 	}
 

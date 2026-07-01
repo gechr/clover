@@ -7,7 +7,7 @@ const module = "github.com/gechr/clover"
 
 // cmdVersion prints clover's version, or detailed build information with -d.
 type cmdVersion struct {
-	Detailed bool `help:"Show detailed build information" clib:"terse='Detailed build info'"`
+	Detailed bool `help:"Show detailed build information" clib:"terse='Detailed build info',group='Options/Output'"`
 }
 
 // Run prints the version information.
