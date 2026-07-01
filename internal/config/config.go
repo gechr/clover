@@ -50,12 +50,13 @@ const keyRequiredVersion = "required-version"
 // key was absent (so a lower-precedence layer or built-in default applies),
 // distinct from an explicit false/zero that overrides it.
 type Config struct {
-	RequiredVersion *string `yaml:"required-version"`
-	Paths           Paths   `yaml:"paths"`
-	Global          Global  `yaml:"global"`
-	Run             Run     `yaml:"run"`
-	Lint            Lint    `yaml:"lint"`
-	Format          Format  `yaml:"fmt"`
+	RequiredVersion *string  `yaml:"required-version"`
+	Paths           Paths    `yaml:"paths"`
+	Global          Global   `yaml:"global"`
+	Run             Run      `yaml:"run"`
+	Lint            Lint     `yaml:"lint"`
+	Format          Format   `yaml:"fmt"`
+	Annotate        Annotate `yaml:"annotate"`
 }
 
 // Paths controls which files clover scans.
@@ -86,6 +87,12 @@ type Lint struct {
 // Format holds defaults for `clover fmt`.
 type Format struct {
 	Prune *bool `yaml:"prune"`
+}
+
+// Annotate holds defaults for `clover annotate`.
+type Annotate struct {
+	Write *bool `yaml:"write"`
+	Check *bool `yaml:"check"`
 }
 
 // Load reads the project config from path, or - when path is empty - the first
@@ -135,6 +142,8 @@ func Merge(user, project *Config) *Config {
 	merged.Run.Output = cmp.Or(project.Run.Output, merged.Run.Output)
 	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
 	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
+	merged.Annotate.Write = cmp.Or(project.Annotate.Write, merged.Annotate.Write)
+	merged.Annotate.Check = cmp.Or(project.Annotate.Check, merged.Annotate.Check)
 	return &merged
 }
 
@@ -202,6 +211,9 @@ func validateValues(cfg *Config) error {
 		if _, err := version.NewConstraint(rv, sentinelVersion); err != nil {
 			return fmt.Errorf("invalid %q constraint %q: %w", keyRequiredVersion, rv, err)
 		}
+	}
+	if enabled(cfg.Annotate.Write) && enabled(cfg.Annotate.Check) {
+		return errors.New("annotate.write and annotate.check are mutually exclusive")
 	}
 	return nil
 }
@@ -302,6 +314,22 @@ func (c *Config) Prune() *bool {
 	return c.Format.Prune
 }
 
+// AnnotateWrite returns the configured annotate.write default (nil = unset).
+func (c *Config) AnnotateWrite() *bool {
+	if c == nil {
+		return nil
+	}
+	return c.Annotate.Write
+}
+
+// AnnotateCheck returns the configured annotate.check default (nil = unset).
+func (c *Config) AnnotateCheck() *bool {
+	if c == nil {
+		return nil
+	}
+	return c.Annotate.Check
+}
+
 // RunOutput resolves the output detail for `clover run`: the CLI value when set,
 // then run.output, then global.output, then the built-in text default.
 func (c *Config) RunOutput(cli *output.Mode) output.Mode {
@@ -334,6 +362,9 @@ func derefOutput(o *output.Mode) output.Mode {
 	}
 	return *o
 }
+
+// enabled reports whether a tri-state bool pointer is set and true.
+func enabled(b *bool) bool { return b != nil && *b }
 
 // run returns the run block, nil-safe so the accessors need not branch.
 func (c *Config) run() Run {

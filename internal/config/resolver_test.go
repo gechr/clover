@@ -123,3 +123,29 @@ func TestResolverPrimaryMultiRootFallsBackToUser(t *testing.T) {
 	// user default rather than either project's.
 	require.Equal(t, new(false), resolver.Primary().Prune())
 }
+
+func TestResolverPrimaryForPathsSingleRootHonorsProject(t *testing.T) {
+	t.Parallel()
+
+	root := repo(t, "annotate:\n  write: true\n")
+	file := filepath.Join(root, "subdir", "Dockerfile")
+	require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o755))
+	require.NoError(t, os.WriteFile(file, []byte("FROM redis:7\n"), 0o644))
+
+	cfg, err := config.NewResolver(nil, "", false).PrimaryForPaths([]string{file})
+	require.NoError(t, err)
+	require.Equal(t, new(true), cfg.AnnotateWrite())
+}
+
+func TestResolverPrimaryForPathsMultiRootFallsBackToUser(t *testing.T) {
+	t.Parallel()
+
+	user := &config.Config{Annotate: config.Annotate{Write: new(false)}}
+	resolver := config.NewResolver(user, "", false)
+	cfg, err := resolver.PrimaryForPaths([]string{
+		repo(t, "annotate:\n  write: true\n"),
+		repo(t, "annotate:\n  write: true\n"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, new(false), cfg.AnnotateWrite())
+}

@@ -55,3 +55,10 @@ lint:
 fmt:
   # Remove unknown directive keys instead of erroring on them.
   prune: false
+
+# Defaults for `clover annotate`.
+annotate:
+  # Apply proposed annotations instead of previewing them.
+  write: false
+  # Report proposed annotations and exit non-zero instead of writing.
+  check: false

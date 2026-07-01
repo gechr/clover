@@ -26,6 +26,9 @@ run:
 
 fmt:
   prune: true
+
+annotate:
+  write: true # apply proposed annotations by default
 ```
 
 ## Options
@@ -44,8 +47,12 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `run.output`       | Output detail for `clover run`; overrides `global.output`                                                                                                       |
 | `lint.output`      | Output detail for `clover lint`; overrides `global.output`                                                                                                      |
 | `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                            |
+| `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                |
+| `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                     |
 
 **Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive; otherwise the config supplies the default a directive can still override.
+
+`annotate.write` and `annotate.check` are mutually exclusive.
 
 An unknown key is reported as a warning (with a "did you mean?" hint for a likely typo) and otherwise ignored, so a config written for a newer Clover still loads on an older one. Values are validated against the schema and a malformed one is rejected.
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -117,6 +118,42 @@ func (r *Resolver) Primary() *Config {
 	return r.user
 }
 
+// PrimaryForPaths resolves the config for per-invocation settings that must be
+// known before a scan starts. With one resolved root, that root's config wins;
+// with multiple roots, the user config is the only unambiguous default.
+func (r *Resolver) PrimaryForPaths(paths []string) (*Config, error) {
+	switch {
+	case r == nil, r.disabled:
+		return nil, nil //nolint:nilnil // no config requested
+	case r.explicit != "":
+		return r.explicitConfig()
+	}
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+
+	type seenConfig struct {
+		cfg *Config
+		err error
+	}
+	seen := make(map[string]seenConfig)
+	for _, path := range paths {
+		dir := configStartDir(path)
+		root := r.Root(dir)
+		cfg, err := r.ForDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		seen[root] = seenConfig{cfg: cfg, err: err}
+	}
+	if len(seen) == 1 {
+		for _, res := range seen {
+			return res.cfg, res.err
+		}
+	}
+	return r.user, nil
+}
+
 // explicitConfig loads and memoizes the --config file, overlaid on the user
 // config. The same file governs every path, so it is keyed independently of any
 // root.
@@ -162,4 +199,14 @@ func loadRoot(user *Config, dir, path string) result {
 		return result{err: err}
 	}
 	return result{cfg: Merge(user, project)}
+}
+
+// configStartDir returns the directory whose repository config should govern a
+// scanned path. Existing files use their parent; directories and not-yet-existing
+// paths use the path itself, matching scan's directory-root behavior.
+func configStartDir(path string) string {
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		return filepath.Dir(path)
+	}
+	return path
 }

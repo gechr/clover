@@ -68,7 +68,7 @@ clover format [options] [<path>…]
 
 ## `annotate`
 
-Add `clover: provider=auto` directives to lines Clover can already track but that carry none - GitHub Actions `uses:` pins and container image references. It is the inverse of [auto-detection](auto.md): rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each. Because a line is annotated only when Clover recognizes it, the directive is guaranteed to resolve.
+Add `clover: provider=auto` directives to lines Clover can already track but that carry none. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. It is the inverse of [auto-detection](auto.md): rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each.
 
 ```text
 clover annotate [options] [<path>…]
@@ -77,13 +77,14 @@ clover annotate [options] [<path>…]
 | Option            | Description                                                                       |
 | ----------------- | --------------------------------------------------------------------------------- |
 | `--check`         | Report annotations that would be added and exit non-zero without writing          |
-| `-w, --write`     | Apply the proposed annotations (default: preview only)                            |
+| `-n, --dry-run`   | Preview the proposed annotations without writing                                  |
+| `-w, --write`     | Apply the proposed annotations                                                    |
 | `--force`         | Rewrite an existing annotation into its canonical minimal form                    |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded |
 | `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                 |
 | `--no-config`     | Do not load any `.clover.yaml` config                                             |
 
-Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. `--check` previews the same annotations but exits non-zero when any would be added or rewritten. Every annotation it writes is one Clover verified offline first, so a line it cannot actually resolve (a malformed reference, a commented-out example) is left alone.
+Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. Set [`annotate.write`](configuration.md) to opt in to writing by default, or [`annotate.check`](configuration.md) to make annotate a default CI gate. `--dry-run`, `--write`, and `--check` override the configured mode for one invocation. Every annotation is verified offline first; unresolved lines are left alone.
 
 Pass global `--verbose` with `annotate` to show recognized candidates Clover deliberately skipped, including the reason they failed validation or were opted out.
 

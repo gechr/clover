@@ -22,9 +22,9 @@ import (
 // rewrites an existing annotation into its canonical minimal form.
 type cmdAnnotate struct {
 	Paths    []string `name:"path" help:"Files or directories to scan"                                            arg:"" optional:"" clib:"terse='Paths to scan'"                                predictor:"path"`
-	DryRun   bool     `            help:"Preview the proposed annotations without writing (default)"                                 clib:"terse='Dry run',group='Options/Mode'"                                  short:"n" aliases:"dry" xor:"write"`
-	Write    bool     `            help:"Apply the proposed annotations"                                                             clib:"terse='Write changes',group='Options/Mode'"                            short:"w"               xor:"write"`
-	Check    bool     `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only',group='Options/Mode'"`
+	DryRun   *bool    `            help:"Preview the proposed annotations without writing (default)"                                 clib:"terse='Dry run',group='Options/Mode'"                                  short:"n" aliases:"dry" xor:"write"`
+	Write    *bool    `            help:"Apply the proposed annotations"                                                             clib:"terse='Write changes',group='Options/Mode'"                            short:"w"               xor:"write"`
+	Check    *bool    `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only',group='Options/Mode'"`
 	Force    bool     `            help:"Rewrite an existing annotation when Clover can infer a leaner one"                          clib:"terse='Overwrite existing',group='Options/Selection'"`
 	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 }
@@ -43,7 +43,11 @@ func (c *cmdAnnotate) Help() string {
 func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	ctx := context.Background()
-	write := c.Write && !c.Check
+	cfg, err := configs.PrimaryForPaths(roots(c.Paths))
+	if err != nil {
+		return err
+	}
+	write, check := c.mode(cfg)
 
 	reporter := console.New(ctx, clog.Default)
 	summary, err := mode.Annotate(
@@ -70,13 +74,32 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	if failed := writeFailures(summary); failed > 0 {
 		return fmt.Errorf("%s could not be written", human.Pluralize(failed, "file", "files"))
 	}
-	if c.Check && summary.Total() > 0 {
+	if check && summary.Total() > 0 {
 		return fmt.Errorf(
 			"%s found",
 			human.Pluralize(summary.Total(), "annotation candidate", "annotation candidates"),
 		)
 	}
 	return nil
+}
+
+// mode resolves annotate's preview/write/check mode. Explicit CLI mode flags
+// win as a group, then annotate.check, then annotate.write, then preview.
+func (c *cmdAnnotate) mode(cfg *config.Config) (bool, bool) {
+	switch {
+	case enabled(c.Check):
+		return false, true
+	case enabled(c.DryRun):
+		return false, false
+	case enabled(c.Write):
+		return true, false
+	case enabled(cfg.AnnotateCheck()):
+		return false, true
+	case enabled(cfg.AnnotateWrite()):
+		return true, false
+	default:
+		return false, false
+	}
 }
 
 // annotateDiscovered logs the scan result that supplants the transient scan

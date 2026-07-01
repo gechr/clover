@@ -287,7 +287,8 @@ func TestLoadCommandSettings(t *testing.T) {
 	body := "global:\n  output: wide\n" +
 		"run:\n  verify: true\n  prerelease: false\n  deep: true\n  output: github\n" +
 		"lint:\n  output: text\n" +
-		"fmt:\n  prune: true\n"
+		"fmt:\n  prune: true\n" +
+		"annotate:\n  write: true\n  check: false\n"
 	dir := writeConfig(t, ".clover.yaml", body)
 
 	cfg, err := config.Load(dir, "")
@@ -298,8 +299,18 @@ func TestLoadCommandSettings(t *testing.T) {
 	require.Nil(t, cfg.Downgrade(), "an absent key stays nil, distinct from false")
 	require.True(t, *cfg.Deep())
 	require.True(t, *cfg.Prune())
+	require.True(t, *cfg.AnnotateWrite())
+	require.False(t, *cfg.AnnotateCheck())
 	require.Equal(t, output.GitHub, cfg.RunOutput(nil), "run.output overrides global.output")
 	require.Equal(t, output.Text, cfg.LintOutput(nil), "lint.output overrides global.output")
+}
+
+func TestLoadRejectsConflictingAnnotateModes(t *testing.T) {
+	t.Parallel()
+
+	dir := writeConfig(t, ".clover.yaml", "annotate:\n  write: true\n  check: true\n")
+	_, err := config.Load(dir, "")
+	require.Error(t, err, "annotate.write and annotate.check cannot both be true")
 }
 
 func TestLoadRejectsInvalidOutput(t *testing.T) {
@@ -362,17 +373,21 @@ func TestMergeCommandSettings(t *testing.T) {
 	t.Parallel()
 
 	user := &config.Config{
-		Global: config.Global{Output: new(output.Wide)},
-		Run:    config.Run{Verify: new(true), Deep: new(true)},
+		Global:   config.Global{Output: new(output.Wide)},
+		Run:      config.Run{Verify: new(true), Deep: new(true)},
+		Annotate: config.Annotate{Write: new(true), Check: new(false)},
 	}
 	project := &config.Config{
-		Run:  config.Run{Verify: new(false)},
-		Lint: config.Lint{Output: new(output.GitHub)},
+		Run:      config.Run{Verify: new(false)},
+		Lint:     config.Lint{Output: new(output.GitHub)},
+		Annotate: config.Annotate{Write: new(false)},
 	}
 
 	got := config.Merge(user, project)
 	require.False(t, *got.Verify(), "project run.verify overrides user")
 	require.True(t, *got.Deep(), "unset project run.deep falls back to user")
+	require.False(t, *got.AnnotateWrite(), "project annotate.write overrides user")
+	require.False(t, *got.AnnotateCheck(), "unset project annotate.check falls back to user")
 	require.Equal(t, output.Wide, got.RunOutput(nil), "user global.output preserved")
 	require.Equal(t, output.GitHub, got.LintOutput(nil), "project lint.output applied")
 }
