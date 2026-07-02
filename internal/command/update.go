@@ -27,6 +27,7 @@ func updateConfig() brew.Config {
 		clive.Info{Module: module},
 		brew.WithName("Clover"),
 		brew.WithTap(updateTap),
+		brew.WithOnConflict(brew.ConflictUninstall),
 	)
 }
 
