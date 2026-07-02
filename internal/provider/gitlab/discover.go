@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
@@ -21,8 +22,8 @@ const perPage = 100
 // lightweight tag, which decodes to the zero time, leaving cooldown inert rather
 // than falsely aged.
 type tag struct {
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
+	Name      string            `json:"name"`
+	CreatedAt dates.ReleaseTime `json:"created_at"`
 	Commit    struct {
 		ID string `json:"id"`
 	} `json:"commit"`
@@ -34,9 +35,9 @@ type tag struct {
 // a GitHub asset they carry no content digest, so a follower cannot source a
 // sha256 without a download.
 type release struct {
-	TagName         string    `json:"tag_name"`
-	ReleasedAt      time.Time `json:"released_at"`
-	UpcomingRelease bool      `json:"upcoming_release"`
+	TagName         string            `json:"tag_name"`
+	ReleasedAt      dates.ReleaseTime `json:"released_at"`
+	UpcomingRelease bool              `json:"upcoming_release"`
 	Commit          struct {
 		ID string `json:"id"`
 	} `json:"commit"`
@@ -89,7 +90,7 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 
 	candidates := make([]model.Candidate, 0, len(tags))
 	for _, t := range tags {
-		candidates = append(candidates, candidate(t.Name, t.Commit.ID, t.CreatedAt, nil))
+		candidates = append(candidates, candidate(t.Name, t.Commit.ID, t.CreatedAt.Time, nil))
 	}
 	return candidates, nil
 }
@@ -128,7 +129,7 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		}
 		candidates = append(
 			candidates,
-			candidate(rel.TagName, rel.Commit.ID, rel.ReleasedAt, assets),
+			candidate(rel.TagName, rel.Commit.ID, rel.ReleasedAt.Time, assets),
 		)
 	}
 	return candidates, nil

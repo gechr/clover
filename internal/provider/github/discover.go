@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
@@ -50,10 +51,10 @@ type tag struct {
 // carries a content digest the API computes, so a follower can source a sha256
 // without a download.
 type release struct {
-	TagName     string    `json:"tag_name"`
-	PublishedAt time.Time `json:"published_at"`
-	Draft       bool      `json:"draft"`
-	Prerelease  bool      `json:"prerelease"`
+	TagName     string            `json:"tag_name"`
+	PublishedAt dates.ReleaseTime `json:"published_at"`
+	Draft       bool              `json:"draft"`
+	Prerelease  bool              `json:"prerelease"`
 	Assets      []struct {
 		Name   string `json:"name"`
 		Digest string `json:"digest"`
@@ -189,7 +190,13 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		}
 		candidates = append(
 			candidates,
-			candidate(rel.TagName, commits[rel.TagName], rel.Prerelease, rel.PublishedAt, assets),
+			candidate(
+				rel.TagName,
+				commits[rel.TagName],
+				rel.Prerelease,
+				rel.PublishedAt.Time,
+				assets,
+			),
 		)
 	}
 	return candidates, nil

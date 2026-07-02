@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
@@ -36,10 +37,10 @@ type tag struct {
 // Assets carry no content digest, so a follower cannot source a sha256 without a
 // download.
 type release struct {
-	TagName     string    `json:"tag_name"`
-	Draft       bool      `json:"draft"`
-	Prerelease  bool      `json:"prerelease"`
-	PublishedAt time.Time `json:"published_at"`
+	TagName     string            `json:"tag_name"`
+	Draft       bool              `json:"draft"`
+	Prerelease  bool              `json:"prerelease"`
+	PublishedAt dates.ReleaseTime `json:"published_at"`
 	Assets      []struct {
 		Name string `json:"name"`
 		URL  string `json:"browser_download_url"`
@@ -118,7 +119,7 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		// name), so Commit is left empty for releases rather than misreporting it.
 		candidates = append(
 			candidates,
-			candidate(rel.TagName, "", rel.Prerelease, rel.PublishedAt, assets),
+			candidate(rel.TagName, "", rel.Prerelease, rel.PublishedAt.Time, assets),
 		)
 	}
 	return candidates, nil

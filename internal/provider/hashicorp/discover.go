@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
@@ -166,7 +166,7 @@ func (p *Provider) page(ctx context.Context, listURL, product string) ([]release
 func candidate(ver string, rel release) model.Candidate {
 	base, _, _ := strings.Cut(ver, "+")
 	semver, _ := version.Parse(base)
-	published, _ := time.Parse(time.RFC3339, rel.TimestampCreated)
+	published, _ := dates.ParseReleaseTime(rel.TimestampCreated)
 	return model.Candidate{
 		Version:     ver,
 		Semver:      semver,

@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 )
@@ -19,8 +19,8 @@ import (
 type hubTags struct {
 	Next    string `json:"next"`
 	Results []struct {
-		Name        string    `json:"name"`
-		LastUpdated time.Time `json:"last_updated"`
+		Name        string            `json:"name"`
+		LastUpdated dates.ReleaseTime `json:"last_updated"`
 	} `json:"results"`
 }
 
@@ -45,7 +45,7 @@ func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Cand
 			return nil, err
 		}
 		for _, t := range page.Results {
-			candidates = append(candidates, candidate(t.Name, t.LastUpdated))
+			candidates = append(candidates, candidate(t.Name, t.LastUpdated.Time))
 		}
 		if !provider.Deep(ctx) {
 			break

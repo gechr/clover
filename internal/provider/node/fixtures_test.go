@@ -46,7 +46,7 @@ func TestFixtureDiscover(t *testing.T) {
 	}, versions(got))
 
 	require.Equal(t, "v26.4.0", got[0].Ref)
-	require.Equal(t, time.Date(2026, 6, 24, 0, 0, 0, 0, time.UTC), got[0].PublishedAt)
+	require.Equal(t, time.Date(2026, 6, 24, 23, 59, 59, 0, time.UTC), got[0].PublishedAt)
 	for _, c := range got {
 		require.NotNil(t, c.Semver, c.Version)
 		require.False(t, c.PublishedAt.IsZero(), c.Version)

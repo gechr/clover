@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
@@ -27,9 +27,9 @@ const (
 // false for a current release or the line's codename string (e.g. "Iron") for an
 // LTS release, so it is decoded raw and interpreted by isLTS.
 type release struct {
-	Version string          `json:"version"`
-	Date    string          `json:"date"`
-	LTS     json.RawMessage `json:"lts"`
+	Version string            `json:"version"`
+	Date    dates.ReleaseTime `json:"date"`
+	LTS     json.RawMessage   `json:"lts"`
 }
 
 // isLTS reports whether the release belongs to an LTS line: the index gives a
@@ -98,11 +98,10 @@ func (p *Provider) fetch(ctx context.Context) ([]release, error) {
 // selection.
 func candidate(rel release) model.Candidate {
 	semver, _ := version.Parse(rel.Version)
-	published, _ := time.Parse(time.DateOnly, rel.Date)
 	return model.Candidate{
 		Version:     rel.Version,
 		Semver:      semver,
-		PublishedAt: published,
+		PublishedAt: rel.Date.Time,
 		Ref:         rel.Version,
 	}
 }

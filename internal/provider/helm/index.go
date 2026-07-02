@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
+	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"gopkg.in/yaml.v3"
 )
@@ -19,10 +19,10 @@ type indexFile struct {
 
 // indexEntry is one published version of a chart in the index.
 type indexEntry struct {
-	Version string    `yaml:"version"`
-	Created time.Time `yaml:"created"`
-	Digest  string    `yaml:"digest"`
-	URLs    []string  `yaml:"urls"`
+	Version string            `yaml:"version"`
+	Created dates.ReleaseTime `yaml:"created"`
+	Digest  string            `yaml:"digest"`
+	URLs    []string          `yaml:"urls"`
 }
 
 // discoverIndex fetches a classic repository's index.yaml and lists the named
@@ -63,7 +63,7 @@ func (p *Provider) discoverIndex(ctx context.Context, ref reference) ([]model.Ca
 // tarball as an asset when the index supplies a digest and URL so a follower can
 // source its checksum without a download.
 func indexCandidate(ref reference, e indexEntry) model.Candidate {
-	c := candidate(e.Version, e.Created)
+	c := candidate(e.Version, e.Created.Time)
 	if e.Digest != "" && len(e.URLs) > 0 {
 		assetURL := resolveURL(ref.baseURL, e.URLs[0])
 		c.Assets = []model.Asset{{

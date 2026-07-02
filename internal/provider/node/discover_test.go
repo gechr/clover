@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
@@ -64,6 +65,22 @@ func TestDiscoverSkipsBlankVersions(t *testing.T) {
 	candidates, err := p.Discover(t.Context(), resourceFor(t, p))
 	require.NoError(t, err)
 	require.Equal(t, []string{"v22.3.0"}, versions(candidates))
+}
+
+func TestDiscoverDateOnlyUsesEndOfUTCDate(t *testing.T) {
+	t.Parallel()
+
+	const body = `[
+		{"version": "v22.3.0", "date": "2026-01-02", "lts": false}
+	]`
+
+	p := newProvider(body)
+	candidates, err := p.Discover(t.Context(), resourceFor(t, p))
+	require.NoError(t, err)
+	require.Equal(t,
+		time.Date(2026, 1, 2, 23, 59, 59, 0, time.UTC),
+		candidates[0].PublishedAt,
+	)
 }
 
 func TestDiscoverError(t *testing.T) {

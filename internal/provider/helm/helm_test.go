@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/provider/helm"
@@ -202,6 +203,34 @@ func TestDiscoverIndex(t *testing.T) {
 		"https://charts.bitnami.com/bitnami/nginx-18.1.0.tgz",
 		candidates[1].Assets[0].URL,
 		"a relative index URL resolves against the repository base",
+	)
+}
+
+func TestDiscoverIndexDateOnlyUsesEndOfUTCDate(t *testing.T) {
+	t.Parallel()
+
+	const index = `apiVersion: v1
+entries:
+  nginx:
+    - version: 18.0.0
+      created: "2026-01-02"
+`
+
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return bodyResponse(req, index), nil
+	})
+	p := helm.New(helm.WithTransport(transport), anon())
+
+	res, err := p.Resource(directiveOf(
+		directive.KV{Key: "registry", Value: "https://charts.bitnami.com/bitnami"},
+		directive.KV{Key: "chart", Value: "nginx"},
+	))
+	require.NoError(t, err)
+	candidates, err := p.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Equal(t,
+		time.Date(2026, 1, 2, 23, 59, 59, 0, time.UTC),
+		candidates[0].PublishedAt,
 	)
 }
 
