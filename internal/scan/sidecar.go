@@ -10,6 +10,8 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/sidecar"
+	xos "github.com/gechr/x/os"
+	"github.com/gechr/x/set"
 )
 
 // scanPath turns one walked file into zero or more Files. A sidecar name resolves
@@ -140,7 +142,7 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 			fail(err)
 			continue
 		}
-		if file.Ignored[line] {
+		if file.Ignored.Contains(line) {
 			// The local clover:ignore wins, but surface the suppressed entry as a
 			// visible skip rather than dropping it silently.
 			errs = append(errs, LineError{
@@ -154,11 +156,11 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 			})
 			continue
 		}
-		if governed[line] {
+		if governed.Contains(line) {
 			fail(fmt.Errorf("targets line %d, already governed by another directive", line+1))
 			continue
 		}
-		governed[line] = true
+		governed.Add(line)
 		located = append(located, Located{Line: line, Directive: entry.Directive, Sidecar: true})
 	}
 	return located, errs
@@ -167,11 +169,10 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 // governedLines marks the lines an inline directive owns - its comment line and
 // the target below it - so a sidecar entry resolving onto either is caught as
 // double-governance rather than silently applied alongside.
-func governedLines(found []Located) map[int]bool {
-	governed := make(map[int]bool, len(found))
+func governedLines(found []Located) set.Set[int] {
+	governed := make(set.Set[int], len(found))
 	for _, loc := range found {
-		governed[loc.Line] = true
-		governed[loc.Line+1] = true
+		governed.Add(loc.Line, loc.Line+1)
 	}
 	return governed
 }
@@ -195,7 +196,7 @@ func sidecarRootsFor(roots []string) []string {
 			continue
 		}
 		for _, name := range sidecar.Names(root) {
-			if info, err := os.Stat(name); err == nil && info.Mode().IsRegular() {
+			if ok, _ := xos.IsFile(name); ok {
 				extra = append(extra, name)
 			}
 		}
@@ -207,7 +208,7 @@ func sidecarRootsFor(roots []string) []string {
 // walk can leave it to the sidecar's job rather than emit a duplicate File.
 func hasSidecar(path string) bool {
 	for _, name := range sidecar.Names(path) {
-		if info, err := os.Stat(name); err == nil && info.Mode().IsRegular() {
+		if ok, _ := xos.IsFile(name); ok {
 			return true
 		}
 	}
@@ -221,6 +222,6 @@ func supersededByYAML(sidecarPath, dir, targetName string) bool {
 	if filepath.Base(sidecarPath) == preferred {
 		return false
 	}
-	info, err := os.Stat(filepath.Join(dir, preferred))
-	return err == nil && info.Mode().IsRegular()
+	ok, _ := xos.IsFile(filepath.Join(dir, preferred))
+	return ok
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/log/field"
+	"github.com/gechr/x/set"
 )
 
 const prefilterChunkSize = 32 << 10
@@ -53,7 +54,7 @@ type File struct {
 	// next-line target, or the lines inside an ignore-start/ignore-end block).
 	// It lets annotate honour the same opt-out the directive scan does; it is nil
 	// when the file has no such control.
-	Ignored map[int]bool
+	Ignored set.Set[int]
 	Errors  []LineError
 }
 
@@ -107,15 +108,15 @@ func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bo
 	var (
 		found      []Located
 		problems   []LineError
-		ignored    map[int]bool
+		ignored    set.Set[int]
 		inBlock    bool
 		ignoreLine = -1 // line index suppressed by a preceding clover:ignore
 	)
 	markIgnored := func(i int) {
 		if ignored == nil {
-			ignored = make(map[int]bool)
+			ignored = set.New[int]()
 		}
-		ignored[i] = true
+		ignored.Add(i)
 	}
 	for i, line := range lines {
 		// A line inside an ignore block, or the target of a clover:ignore, is

@@ -3,7 +3,6 @@ package scan
 import (
 	"context"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -13,6 +12,8 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
 	xfilepath "github.com/gechr/x/filepath"
+	xos "github.com/gechr/x/os"
+	"github.com/gechr/x/set"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -29,12 +30,7 @@ const (
 const defaultMaxSize = 5 << 20 // 5 MiB
 
 // vcsDirs are always skipped during the walk.
-var vcsDirs = map[string]bool{
-	".git": true,
-	".jj":  true,
-	".hg":  true,
-	".svn": true,
-}
+var vcsDirs = set.New(".git", ".jj", ".hg", ".svn")
 
 type scanJob struct {
 	path string
@@ -118,7 +114,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 // walk, which skips it - a missing root warns but does not fail the run.
 func warnMissingRoots(roots []string) {
 	for _, root := range roots {
-		if _, err := os.Stat(root); err != nil {
+		if exists, _ := xos.Exists(root); !exists {
 			clog.Warn().Path(field.Path, root).Msg("Path does not exist")
 		}
 	}
@@ -140,7 +136,7 @@ func walk(ctx context.Context, root string, cfg config, jobs chan<- scanJob) err
 		}
 
 		if d.IsDir() {
-			if vcsDirs[d.Name()] {
+			if vcsDirs.Contains(d.Name()) {
 				clog.Debug().
 					Path(field.Path, path).
 					Str(field.Reason, reasonVCS).
