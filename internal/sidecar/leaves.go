@@ -2,6 +2,7 @@ package sidecar
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"slices"
 	"sort"
@@ -75,7 +76,7 @@ func Leaves(source []byte) ([]Leaf, error) {
 	for _, k := range byExpr {
 		kept = append(kept, k)
 	}
-	slices.SortFunc(kept, func(a, b keptLeaf) int { return a.off - b.off })
+	slices.SortFunc(kept, func(a, b keptLeaf) int { return cmp.Compare(a.off, b.off) })
 
 	leaves := make([]Leaf, len(kept))
 	for i, k := range kept {
