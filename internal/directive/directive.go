@@ -81,7 +81,7 @@ func (d Directive) Bool(key string) (bool, error) {
 		return false, nil
 	default:
 		return false, fmt.Errorf(
-			"%s must be %s or %s, got %q",
+			"%q must be %s or %s, got %q",
 			key,
 			constant.BoolTrue,
 			constant.BoolFalse,
