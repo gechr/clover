@@ -12,9 +12,9 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.5.8
-	github.com/gechr/clog v0.11.12
-	github.com/gechr/x v0.2.1
+	github.com/gechr/clib v0.5.9
+	github.com/gechr/clog v0.11.14
+	github.com/gechr/x v0.2.4
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
@@ -29,7 +29,7 @@ require (
 	4d63.com/gochecknoglobals v0.2.2 // indirect
 	charm.land/bubbles/v2 v2.0.0 // indirect
 	charm.land/bubbletea/v2 v2.0.2 // indirect
-	charm.land/lipgloss/v2 v2.0.4
+	charm.land/lipgloss/v2 v2.0.5
 	codeberg.org/chavacava/garif v0.2.0 // indirect
 	codeberg.org/polyfloyd/go-errorlint v1.9.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
@@ -103,7 +103,7 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clive v0.2.4
+	github.com/gechr/clive v0.2.5
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect

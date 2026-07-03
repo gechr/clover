@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/gechr/clover/internal/dates"
@@ -70,6 +71,13 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 // the latest version - not the most recently updated tag, which a backport to an
 // old release line would otherwise float to the top.
 func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Candidate, error) {
+	// search= filters tags by substring server-side and composes with the version
+	// ordering. Every tag selection can accept carries the hinted qualifier and
+	// so contains it, so the filter only skips tags that could never be selected.
+	var search string
+	if q := provider.Qualifier(ctx); q != "" {
+		search = "&search=" + url.QueryEscape(q)
+	}
 	tags, truncated, err := listAll[tag](
 		ctx, p.rest, "tags", res.host, p.credential(res.host),
 		func(page int) string {
@@ -78,7 +86,7 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 				res.projectID(),
 				perPage,
 				page,
-			)
+			) + search
 		},
 	)
 	if err != nil {

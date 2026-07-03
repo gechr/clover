@@ -80,6 +80,27 @@ func TestDiscoverTagsRequest(t *testing.T) {
 	require.Equal(t, "desc", seen[0].URL.Query().Get("sort"))
 }
 
+// TestDiscoverTagsQualifierFiltersServerSide covers the qualifier hint: a hinted
+// lookup narrows the tag listing with search=, an unhinted one stays unfiltered.
+func TestDiscoverTagsQualifierFiltersServerSide(t *testing.T) {
+	t.Parallel()
+
+	var seen []*http.Request
+	p := newProvider(`[{"name":"v2.0.0-ent","commit":{"id":"abc"}}]`, &seen)
+	res := resourceFor(t, p, directive.KV{Key: "repository", Value: "group/project"})
+
+	_, err := p.Discover(provider.WithQualifier(t.Context(), "ent"), res)
+	require.NoError(t, err)
+	require.Len(t, seen, 1)
+	require.Equal(t, "ent", seen[0].URL.Query().Get("search"),
+		"a qualifier hint narrows the listing server-side")
+
+	_, err = p.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Len(t, seen, 2)
+	require.False(t, seen[1].URL.Query().Has("search"), "no hint leaves the listing unfiltered")
+}
+
 // TestDiscoverRoutesSelfManagedHost covers a self-managed host: the request
 // targets https://<host>/api/v4 rather than gitlab.com, on the same /api/v4
 // surface.
