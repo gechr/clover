@@ -7,13 +7,6 @@ package display
 
 import xstrings "github.com/gechr/x/strings"
 
-// Hash lengths clover abbreviates: a git commit SHA (40 hex) or a sha256 sum
-// (64 hex).
-const (
-	commitLen = 40
-	sha256Len = 64
-)
-
 // width is the length an abbreviated hash is shortened to, including the marker;
 // it keeps enough of both ends to stay recognisable against the full value.
 const width = 13
@@ -33,8 +26,5 @@ func Value(v string) string {
 // IsHash reports whether v is a git commit SHA or a sha256 sum: exactly 40 or 64
 // hexadecimal characters.
 func IsHash(v string) bool {
-	if len(v) != commitLen && len(v) != sha256Len {
-		return false
-	}
-	return xstrings.IsHex(v)
+	return xstrings.IsGitCommit(v) || xstrings.IsSHA256(v)
 }
