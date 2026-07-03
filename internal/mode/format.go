@@ -306,12 +306,7 @@ func providerKeys(name string) []string {
 	if !ok {
 		return nil
 	}
-	keys := prov.Keys()
-	names := make([]string, len(keys))
-	for i, key := range keys {
-		names[i] = key.Name
-	}
-	return names
+	return provider.KeyNames(prov)
 }
 
 // applyChanges returns a copy of lines with each change spliced onto its line.

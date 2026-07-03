@@ -72,9 +72,7 @@ func checkKeys(m Marker) error {
 		if !ok {
 			return nil // provider does not resolve; the provider check reports it
 		}
-		for _, k := range prov.Keys() {
-			providerKeys = append(providerKeys, k.Name)
-		}
+		providerKeys = provider.KeyNames(prov)
 	}
 	if m.Sidecar {
 		return m.Directive.CheckKeysSidecar(providerKeys)

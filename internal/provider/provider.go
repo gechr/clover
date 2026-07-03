@@ -20,6 +20,17 @@ type Key struct {
 	Required bool
 }
 
+// KeyNames returns the names of the directive keys a provider accepts, in its
+// canonical order.
+func KeyNames(p Provider) []string {
+	keys := p.Keys()
+	names := make([]string, len(keys))
+	for i, key := range keys {
+		names[i] = key.Name
+	}
+	return names
+}
+
 // Provider adapts one upstream source of versions. Resource validates a
 // directive into a descriptor once; Discover is the single network method,
 // returning rich candidates with whatever metadata the API gave for free.
