@@ -68,12 +68,25 @@ func TestResolveDownloadAndHash(t *testing.T) {
 
 	const content = "the-release-binary-bytes"
 	sum := sha256.Sum256([]byte(content))
+	var gotCacheControl string
 
 	assets := []model.Asset{{Name: "tool_linux_amd64.tar.gz", URL: "http://x/tool"}}
-	got, err := checksum.Resolve(t.Context(), serveBody(content),
-		checksum.Request{Source: "download", Assets: assets, Pattern: "*linux_amd64*"})
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			gotCacheControl = req.Header.Get("Cache-Control")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(content)),
+				Request:    req,
+			}, nil
+		}),
+	}
+	got, err := checksum.Resolve(t.Context(), client, checksum.Request{
+		Source: "download", Assets: assets, Pattern: "*linux_amd64*",
+	})
 	require.NoError(t, err)
 	require.Equal(t, hex.EncodeToString(sum[:]), got)
+	require.Equal(t, "no-store", gotCacheControl)
 }
 
 func TestResolveVerify(t *testing.T) {

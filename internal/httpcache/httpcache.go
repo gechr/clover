@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -11,46 +12,43 @@ import (
 	"strings"
 	"time"
 
+	xslices "github.com/gechr/x/slices"
+	xstrings "github.com/gechr/x/strings"
 	"golang.org/x/sync/singleflight"
 )
+
+var errTooLarge = errors.New("response body exceeds cache entry limit")
 
 const (
 	defaultTimeout = 30 * time.Second
 	dialTimeout    = 5 * time.Second
 	keepAlive      = 30 * time.Second
+	maxEntryBytes  = 16 << 20 // 16 MiB
 )
 
 type config struct {
-	base    http.RoundTripper
-	store   Store
-	timeout time.Duration
+	base          http.RoundTripper
+	store         Store
+	timeout       time.Duration
+	maxEntryBytes int64
 }
-
-// Option configures the client returned by [New].
-type Option func(*config)
-
-// WithStore sets the cache backend (default: an in-memory [MemStore]). This is
-// the seam for a disk-backed, cross-run store.
-func WithStore(s Store) Option { return func(c *config) { c.store = s } }
-
-// WithTransport sets the underlying transport the cache wraps on a miss. Compose
-// a rate-limit-aware transport here so cache hits never consume rate limit.
-func WithTransport(rt http.RoundTripper) Option { return func(c *config) { c.base = rt } }
-
-// WithTimeout sets the client's total per-request timeout.
-func WithTimeout(d time.Duration) Option { return func(c *config) { c.timeout = d } }
 
 // New returns an *http.Client whose transport caches and coalesces GET requests.
 // Providers use the returned client like any other and remain unaware of the
 // cache.
 func New(opts ...Option) *http.Client {
-	cfg := config{base: newBaseTransport(), store: NewMemStore(), timeout: defaultTimeout}
+	cfg := config{
+		base:          newBaseTransport(),
+		store:         NewMemStore(),
+		timeout:       defaultTimeout,
+		maxEntryBytes: maxEntryBytes,
+	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 	return &http.Client{
 		Timeout:   cfg.timeout,
-		Transport: &Transport{base: cfg.base, store: cfg.store},
+		Transport: &Transport{base: cfg.base, store: cfg.store, maxEntryBytes: cfg.maxEntryBytes},
 	}
 }
 
@@ -58,14 +56,18 @@ func New(opts ...Option) *http.Client {
 // through; GET requests are served from the store when present, and otherwise
 // fetched once - concurrent identical fetches share a single round trip.
 type Transport struct {
-	base  http.RoundTripper
-	store Store
-	group singleflight.Group
+	base          http.RoundTripper
+	store         Store
+	group         singleflight.Group
+	maxEntryBytes int64
 }
 
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Method != http.MethodGet {
+		return t.base.RoundTrip(req)
+	}
+	if noStore(req.Header) {
 		return t.base.RoundTrip(req)
 	}
 
@@ -82,9 +84,13 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
+		if tooLarge(resp, t.maxEntryBytes) {
+			_ = resp.Body.Close()
+			return nil, errTooLarge
+		}
 		defer func() { _ = resp.Body.Close() }()
 
-		entry, err := newEntry(resp)
+		entry, err := newEntry(resp, t.maxEntryBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -94,6 +100,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return entry, nil
 	})
 	if err != nil {
+		if errors.Is(err, errTooLarge) {
+			return t.base.RoundTrip(req)
+		}
 		return nil, err
 	}
 
@@ -117,14 +126,24 @@ func (e *Entry) response(req *http.Request) *http.Response {
 	}
 }
 
-// newEntry buffers a response body so it can be cached and replayed. The caller
-// owns closing the original response body.
-func newEntry(resp *http.Response) (*Entry, error) {
-	body, err := io.ReadAll(resp.Body)
+// newEntry buffers a bounded response body so it can be cached and replayed. The
+// caller owns closing the original response body.
+func newEntry(resp *http.Response, limit int64) (*Entry, error) {
+	if limit <= 0 {
+		return nil, errTooLarge
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, err
 	}
+	if int64(len(body)) > limit {
+		return nil, errTooLarge
+	}
 	return &Entry{Status: resp.StatusCode, Header: resp.Header.Clone(), Body: body}, nil
+}
+
+func tooLarge(resp *http.Response, limit int64) bool {
+	return limit <= 0 || resp.ContentLength > limit
 }
 
 // cacheable reports whether a response may be stored: a 200 that the origin did
@@ -133,12 +152,26 @@ func cacheable(resp *http.Response) bool {
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}
-	for _, directive := range resp.Header.Values("Cache-Control") {
-		if strings.Contains(strings.ToLower(directive), "no-store") {
-			return false
+	return !noStore(resp.Header)
+}
+
+// noStore reports whether headers carry a Cache-Control no-store directive.
+func noStore(header http.Header) bool {
+	for _, value := range header.Values("Cache-Control") {
+		directives := xstrings.SplitCSV(value)
+		for i, directive := range directives {
+			directives[i] = cacheDirectiveName(directive)
+		}
+		if xslices.ContainsFold(directives, "no-store") {
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+func cacheDirectiveName(directive string) string {
+	name, _, _ := strings.Cut(directive, "=")
+	return strings.TrimSpace(name)
 }
 
 // fingerprint derives the cache key from the parts of a request that change the

@@ -119,12 +119,56 @@ func TestNonOKNotCached(t *testing.T) {
 func TestNoStoreNotCached(t *testing.T) {
 	t.Parallel()
 
-	fake := &fakeTransport{body: "x", header: http.Header{"Cache-Control": {"no-store"}}}
+	fake := &fakeTransport{body: "x", header: http.Header{"Cache-Control": {"private, no-store"}}}
 	client := httpcache.New(httpcache.WithTransport(fake))
 
 	get(t, client, "https://example.test/a")
 	get(t, client, "https://example.test/a")
 	require.Equal(t, int64(2), fake.calls.Load(), "no-store responses are not cached")
+}
+
+func TestRequestNoStoreBypassesCache(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{body: "x"}
+	client := httpcache.New(httpcache.WithTransport(fake))
+
+	do := func() {
+		req, err := http.NewRequest(http.MethodGet, "https://example.test/a", nil)
+		require.NoError(t, err)
+		req.Header.Set("Cache-Control", "no-store")
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+	}
+	do()
+	do()
+	require.Equal(t, int64(2), fake.calls.Load(), "request no-store bypasses cache")
+}
+
+func TestNoStoreIsExactDirective(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{body: "x", header: http.Header{"Cache-Control": {"x-no-store"}}}
+	client := httpcache.New(httpcache.WithTransport(fake))
+
+	get(t, client, "https://example.test/a")
+	get(t, client, "https://example.test/a")
+	require.Equal(t, int64(1), fake.calls.Load(), "only an exact no-store directive bypasses cache")
+}
+
+func TestOversizeBodyNotCached(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{body: "larger than the limit"}
+	client := httpcache.New(
+		httpcache.WithMaxEntryBytes(5),
+		httpcache.WithTransport(fake),
+	)
+
+	require.Equal(t, "larger than the limit", get(t, client, "https://example.test/a"))
+	require.Equal(t, "larger than the limit", get(t, client, "https://example.test/a"))
+	require.Equal(t, int64(4), fake.calls.Load(), "oversize responses pass through without caching")
 }
 
 func TestCoalescesConcurrentGETs(t *testing.T) {

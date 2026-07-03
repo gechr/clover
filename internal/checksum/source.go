@@ -119,6 +119,7 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 	if err != nil {
 		return "", fmt.Errorf("checksum: build request: %w", err)
 	}
+	get.Header.Set("Cache-Control", "no-store")
 	resp, err := client.Do(get)
 	if err != nil {
 		return "", fmt.Errorf("checksum: download %s: %w", asset.Name, err)
