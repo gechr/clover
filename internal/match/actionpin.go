@@ -2,7 +2,6 @@ package match
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/gechr/clover/internal/model"
@@ -57,8 +56,8 @@ func (ActionPin) Locate(line string) (Location, error) {
 			return nil, errors.New("action pin has unexpected text after the commit SHA")
 		}
 		return actionPinLocated{
-			commit: commit,
-			pinned: line[commit.Start:commit.End],
+			securePin: securePin{pinned: line[commit.Start:commit.End]},
+			commit:    commit,
 		}, nil
 	}
 	commentStart := end + hash + 1
@@ -74,9 +73,9 @@ func (ActionPin) Locate(line string) (Location, error) {
 	semver, _ := version.Parse(token.Core)
 	return actionPinLocated{
 		anchored:   anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		securePin:  securePin{pinned: line[commit.Start:commit.End]},
 		token:      token,
 		commit:     commit,
-		pinned:     line[commit.Start:commit.End],
 		hasComment: true,
 	}, nil
 }
@@ -112,15 +111,12 @@ func commitSpan(line string) (Span, int, error) {
 // for an undocumented pin, whose comment Render synthesises rather than replaces.
 type actionPinLocated struct {
 	anchored
+	securePin
 
 	token      Token
 	commit     Span
-	pinned     string // the commit SHA currently pinned, for verification
 	hasComment bool
 }
-
-// Pinned reports the commit SHA currently on the line.
-func (l actionPinLocated) Pinned() string { return l.pinned }
 
 // Rendered reports the version-comment text Render will write for candidate -
 // the restyled current version, so the report shows what lands on the line
@@ -139,27 +135,19 @@ func (l actionPinLocated) Rendered(candidate model.Candidate) string {
 // than half-update when the candidate lacks a usable commit or the located spans
 // no longer fit the line.
 func (l actionPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
-	if !xstrings.IsGitCommit(candidate.Commit) {
-		return "", false, fmt.Errorf(
-			"candidate has no full commit SHA to pin, got %q",
-			candidate.Commit,
-		)
+	if err := requireCommit(candidate); err != nil {
+		return "", false, err
 	}
-
 	if !l.hasComment {
 		return l.appendComment(line, candidate)
 	}
-
-	commit, comment := l.commit, l.token.Span
-	if commit.Start < 0 || commit.End > comment.Start || comment.End > len(line) {
-		return "", false, errors.New("located spans no longer fit the line")
-	}
-
-	version := restyle(l.token, candidate.Version)
-	newLine := line[:commit.Start] + candidate.Commit +
-		line[commit.End:comment.Start] + version +
-		line[comment.End:]
-	return newLine, newLine != line, nil
+	return spliceTwo(
+		line,
+		l.commit,
+		candidate.Commit,
+		l.token.Span,
+		restyle(l.token, candidate.Version),
+	)
 }
 
 // appendComment rewrites the SHA and adds a "# vX.Y.Z" version comment to a pin

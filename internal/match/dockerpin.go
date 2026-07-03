@@ -2,7 +2,6 @@ package match
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -44,10 +43,10 @@ func (DockerPin) Locate(line string) (Location, error) {
 
 	semver, _ := version.Parse(token.Core)
 	return dockerPinLocated{
-		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		token:    token,
-		digest:   digest,
-		pinned:   line[digest.Start:digest.End],
+		anchored:  anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
+		securePin: securePin{pinned: line[digest.Start:digest.End]},
+		token:     token,
+		digest:    digest,
 	}, nil
 }
 
@@ -78,14 +77,11 @@ func digestSpan(line string) (int, Span, error) {
 // both rewritten from one candidate.
 type dockerPinLocated struct {
 	anchored
+	securePin
 
 	token  Token
 	digest Span
-	pinned string // the sha256:<hex> digest currently pinned, for verification
 }
-
-// Pinned reports the sha256:<hex> content digest currently on the line.
-func (l dockerPinLocated) Pinned() string { return l.pinned }
 
 // Rendered reports the tag text Render will write for candidate - the restyled
 // version, which may differ from candidate.Version. The pipeline resolves the
@@ -102,23 +98,16 @@ func (dockerPinLocated) NeedsDigest() bool { return true }
 // with the candidate's, in one pass. It errors rather than half-update when the
 // candidate lacks a digest or the located spans no longer fit the line.
 func (l dockerPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
-	if !isDigest(candidate.Digest) {
-		return "", false, fmt.Errorf(
-			"candidate has no sha256 digest to pin, got %q",
-			candidate.Digest,
-		)
+	if err := requireDigest(candidate); err != nil {
+		return "", false, err
 	}
-
-	tag, digest := l.token.Span, l.digest
-	if tag.Start < 0 || tag.End > digest.Start || digest.End > len(line) {
-		return "", false, errors.New("located spans no longer fit the line")
-	}
-
-	version := restyle(l.token, candidate.Version)
-	newLine := line[:tag.Start] + version +
-		line[tag.End:digest.Start] + candidate.Digest +
-		line[digest.End:]
-	return newLine, newLine != line, nil
+	return spliceTwo(
+		line,
+		l.token.Span,
+		restyle(l.token, candidate.Version),
+		l.digest,
+		candidate.Digest,
+	)
 }
 
 // isDigest reports whether s is a full sha256:<64-hex> content digest.

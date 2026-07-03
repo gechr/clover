@@ -38,12 +38,10 @@ func (DockerTag) Locate(line string) (Location, error) {
 // slash, so a registry's :port is not mistaken for it; the returned token's span
 // is relative to ref (and so to the line, since ref is a prefix of it).
 func imageTag(ref string) (Token, error) {
-	slash := strings.LastIndexByte(ref, '/')
-	colon := strings.LastIndexByte(ref[slash+1:], ':')
-	if colon < 0 {
+	tagStart, ok := imageTagStart(ref)
+	if !ok {
 		return Token{}, errors.New("image has no tag to anchor the version")
 	}
-	tagStart := slash + 1 + colon + 1
 
 	tokens := Find(ref[tagStart:])
 	if len(tokens) != 1 {
@@ -53,4 +51,17 @@ func imageTag(ref string) (Token, error) {
 	token.Span.Start += tagStart
 	token.Span.End += tagStart
 	return token, nil
+}
+
+// imageTagStart returns the index where a docker image reference's tag begins -
+// just past the colon opening the last colon-separated segment after the last
+// slash, so a registry's :port is never mistaken for it - or false when ref
+// carries no tag.
+func imageTagStart(ref string) (int, bool) {
+	slash := strings.LastIndexByte(ref, '/')
+	colon := strings.LastIndexByte(ref[slash+1:], ':')
+	if colon < 0 {
+		return 0, false
+	}
+	return slash + 1 + colon + 1, true
 }

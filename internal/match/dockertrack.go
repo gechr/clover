@@ -2,8 +2,6 @@ package match
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/gechr/clover/internal/model"
 )
@@ -38,10 +36,10 @@ func (DockerTrack) Locate(line string) (Location, error) {
 	}
 
 	return dockerTrackLocated{
-		anchored: anchored{raw: line[tag.Start:tag.End], semver: nil},
-		tag:      tag,
-		digest:   digest,
-		pinned:   line[digest.Start:digest.End],
+		anchored:  anchored{raw: line[tag.Start:tag.End], semver: nil},
+		securePin: securePin{pinned: line[digest.Start:digest.End]},
+		tag:       tag,
+		digest:    digest,
 	}, nil
 }
 
@@ -50,26 +48,22 @@ func (DockerTrack) Locate(line string) (Location, error) {
 // as a version) so a floating tag like "latest" is captured. ref is the part of
 // the line before the @ digest, so the tag runs to its end.
 func imageTagLiteral(ref string) (Span, error) {
-	slash := strings.LastIndexByte(ref, '/')
-	colon := strings.LastIndexByte(ref[slash+1:], ':')
-	if colon < 0 {
+	tagStart, ok := imageTagStart(ref)
+	if !ok {
 		return Span{}, errors.New("image has no tag to track")
 	}
-	return Span{Start: slash + 1 + colon + 1, End: len(ref)}, nil
+	return Span{Start: tagStart, End: len(ref)}, nil
 }
 
 // dockerTrackLocated is a tracked digest pin: the literal tag span plus the
 // @sha256 digest span, both rewritten from one candidate.
 type dockerTrackLocated struct {
 	anchored
+	securePin
 
 	tag    Span
 	digest Span
-	pinned string // the sha256:<hex> digest currently pinned, for verification
 }
-
-// Pinned reports the sha256:<hex> content digest currently on the line.
-func (l dockerTrackLocated) Pinned() string { return l.pinned }
 
 // NeedsDigest is true: tracking refreshes the content digest the floating tag
 // resolves to, so the pipeline resolves one for the chosen candidate.
@@ -80,20 +74,8 @@ func (dockerTrackLocated) NeedsDigest() bool { return true }
 // rather than half-update when the candidate lacks a digest or the located spans
 // no longer fit the line.
 func (l dockerTrackLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
-	if !isDigest(candidate.Digest) {
-		return "", false, fmt.Errorf(
-			"candidate has no sha256 digest to pin, got %q",
-			candidate.Digest,
-		)
+	if err := requireDigest(candidate); err != nil {
+		return "", false, err
 	}
-
-	tag, digest := l.tag, l.digest
-	if tag.Start < 0 || tag.End > digest.Start || digest.End > len(line) {
-		return "", false, errors.New("located spans no longer fit the line")
-	}
-
-	newLine := line[:tag.Start] + candidate.Version +
-		line[tag.End:digest.Start] + candidate.Digest +
-		line[digest.End:]
-	return newLine, newLine != line, nil
+	return spliceTwo(line, l.tag, candidate.Version, l.digest, candidate.Digest)
 }

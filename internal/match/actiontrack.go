@@ -2,11 +2,9 @@ package match
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/gechr/clover/internal/model"
-	xstrings "github.com/gechr/x/strings"
 )
 
 // ActionTrack rewrites a GitHub Actions secure pin whose trailing comment names
@@ -38,10 +36,10 @@ func (ActionTrack) Locate(line string) (Location, error) {
 	}
 
 	return actionTrackLocated{
-		anchored: anchored{raw: line[comment.Start:comment.End], semver: nil},
-		comment:  comment,
-		commit:   commit,
-		pinned:   line[commit.Start:commit.End],
+		anchored:  anchored{raw: line[comment.Start:comment.End], semver: nil},
+		securePin: securePin{pinned: line[commit.Start:commit.End]},
+		comment:   comment,
+		commit:    commit,
 	}, nil
 }
 
@@ -74,34 +72,19 @@ func isSpaceByte(b byte) bool { return b == ' ' || b == '\t' }
 // literal branch comment, both rewritten from one candidate.
 type actionTrackLocated struct {
 	anchored
+	securePin
 
 	comment Span
 	commit  Span
-	pinned  string // the commit SHA currently pinned, for verification
 }
-
-// Pinned reports the commit SHA currently on the line.
-func (l actionTrackLocated) Pinned() string { return l.pinned }
 
 // Render replaces the commit SHA with the candidate's commit and the comment
 // with the candidate version (the tracked branch, unchanged for track=*), both
 // in one pass. It errors rather than half-update when the candidate lacks a
 // usable commit or the located spans no longer fit the line.
 func (l actionTrackLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
-	if !xstrings.IsGitCommit(candidate.Commit) {
-		return "", false, fmt.Errorf(
-			"candidate has no full commit SHA to pin, got %q",
-			candidate.Commit,
-		)
+	if err := requireCommit(candidate); err != nil {
+		return "", false, err
 	}
-
-	commit, comment := l.commit, l.comment
-	if commit.Start < 0 || commit.End > comment.Start || comment.End > len(line) {
-		return "", false, errors.New("located spans no longer fit the line")
-	}
-
-	newLine := line[:commit.Start] + candidate.Commit +
-		line[commit.End:comment.Start] + candidate.Version +
-		line[comment.End:]
-	return newLine, newLine != line, nil
+	return spliceTwo(line, l.commit, candidate.Commit, l.comment, candidate.Version)
 }
