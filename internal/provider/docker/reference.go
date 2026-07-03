@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gechr/clover/internal/oci"
+	"github.com/gechr/x/set"
 )
 
 // Registry hosts that all mean Docker Hub. Docker Hub is addressed by several
@@ -19,14 +20,14 @@ const (
 )
 
 // dockerHubAliases are the registry= values that resolve to Docker Hub.
-var dockerHubAliases = map[string]bool{
-	"":                        true,
-	"docker.io":               true,
-	"index.docker.io":         true,
-	"registry-1.docker.io":    true,
-	"registry.hub.docker.com": true,
-	hubAPIHost:                true,
-}
+var dockerHubAliases = set.New(
+	"",
+	"docker.io",
+	"index.docker.io",
+	"registry-1.docker.io",
+	"registry.hub.docker.com",
+	hubAPIHost,
+)
 
 // reference is docker's validated descriptor: the registry host and the
 // repository path within it, plus whether it points at Docker Hub - which has
@@ -89,7 +90,7 @@ func newReference(registry, repository, platform string) (reference, error) {
 		}
 	}
 
-	if dockerHubAliases[registry] {
+	if dockerHubAliases.Contains(registry) {
 		if !strings.Contains(repository, "/") {
 			repository = hubDefaultNamespace + repository
 		}
