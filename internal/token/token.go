@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	xos "github.com/gechr/x/os"
 	"github.com/zalando/go-keyring"
@@ -27,7 +28,14 @@ const dirPerm = 0o700
 
 // Store reads and writes tokens by host, keyring-first with a file fallback.
 type Store struct {
-	dir string // base directory for the file fallback
+	mu    sync.RWMutex
+	cache map[string]cachedToken
+	dir   string // base directory for the file fallback
+}
+
+type cachedToken struct {
+	token string
+	ok    bool
 }
 
 // Option configures a [Store].
@@ -46,7 +54,7 @@ func New(opts ...Option) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("token: locate config dir: %w", err)
 	}
-	store := &Store{dir: filepath.Join(dir, service, "hosts")}
+	store := &Store{cache: make(map[string]cachedToken), dir: filepath.Join(dir, service, "hosts")}
 	for _, opt := range opts {
 		opt(store)
 	}
@@ -57,18 +65,25 @@ func New(opts ...Option) (*Store, error) {
 // fallback. Both values are trimmed, and an empty result is reported as a miss
 // (false) so an empty entry never shadows a later credential source.
 func (s *Store) Get(host string) (string, bool) {
+	if token, ok, cached := s.cached(host); cached {
+		return token, ok
+	}
 	if tok, err := keyring.Get(service, host); err == nil {
 		if tok = strings.TrimSpace(tok); tok != "" {
+			s.cacheSet(host, tok, true)
 			return tok, true
 		}
 	}
 	tok, err := os.ReadFile(s.path(host))
 	if err != nil {
+		s.cacheSet(host, "", false)
 		return "", false
 	}
 	if trimmed := strings.TrimSpace(string(tok)); trimmed != "" {
+		s.cacheSet(host, trimmed, true)
 		return trimmed, true
 	}
+	s.cacheSet(host, "", false)
 	return "", false
 }
 
@@ -76,6 +91,7 @@ func (s *Store) Get(host string) (string, bool) {
 // keyring is unavailable (commonly headless Linux without a secret service).
 func (s *Store) Set(host, token string) error {
 	if err := keyring.Set(service, host, token); err == nil {
+		s.cacheSet(host, token, true)
 		return nil
 	}
 	if err := xos.EnsureDir(s.dir, dirPerm); err != nil {
@@ -84,6 +100,7 @@ func (s *Store) Set(host, token string) error {
 	if err := xos.AtomicWrite(s.path(host), []byte(token), filePerm); err != nil {
 		return fmt.Errorf("token: write token file: %w", err)
 	}
+	s.cacheSet(host, token, true)
 	return nil
 }
 
@@ -96,7 +113,25 @@ func (s *Store) Delete(host string) error {
 	if err := os.Remove(s.path(host)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("token: remove token file: %w", err)
 	}
+	s.cacheSet(host, "", false)
 	return nil
+}
+
+func (s *Store) cached(host string) (string, bool, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	cached, ok := s.cache[host]
+	return cached.token, cached.ok, ok
+}
+
+func (s *Store) cacheSet(host, token string, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cache == nil {
+		s.cache = make(map[string]cachedToken)
+	}
+	trimmed := strings.TrimSpace(token)
+	s.cache[host] = cachedToken{token: trimmed, ok: ok && trimmed != ""}
 }
 
 // path is the fallback file path for host, sanitised so the host can never

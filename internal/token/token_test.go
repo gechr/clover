@@ -29,6 +29,21 @@ func TestKeyringRoundTrip(t *testing.T) {
 	require.False(t, ok, "deleted")
 }
 
+func TestSetUpdatesCachedMiss(t *testing.T) {
+	keyring.MockInit()
+
+	store, err := token.New(token.WithDir(t.TempDir()))
+	require.NoError(t, err)
+
+	_, ok := store.Get("github.com")
+	require.False(t, ok)
+
+	require.NoError(t, store.Set("github.com", "gho_secret"))
+	got, ok := store.Get("github.com")
+	require.True(t, ok)
+	require.Equal(t, "gho_secret", got)
+}
+
 // TestFileFallback forces the keyring to fail so Set/Get exercise the 0600 file
 // path that headless environments rely on.
 func TestFileFallback(t *testing.T) {
