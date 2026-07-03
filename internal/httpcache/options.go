@@ -8,6 +8,11 @@ import (
 // Option configures the client returned by [New].
 type Option func(*config)
 
+// WithErrorBackoff sets how long a fetch error is replayed to further requests
+// for the same key before the fetch is retried. A non-positive value disables
+// the backoff.
+func WithErrorBackoff(d time.Duration) Option { return func(c *config) { c.errorBackoff = d } }
+
 // WithMaxEntryBytes sets the largest response body the cache will buffer. A
 // non-positive value disables response-body caching.
 func WithMaxEntryBytes(n int64) Option { return func(c *config) { c.maxEntryBytes = n } }

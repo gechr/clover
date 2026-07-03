@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	xslices "github.com/gechr/x/slices"
@@ -22,6 +23,7 @@ var errTooLarge = errors.New("response body exceeds cache entry limit")
 const (
 	defaultTimeout = 30 * time.Second
 	dialTimeout    = 5 * time.Second
+	errorBackoff   = 5 * time.Second
 	keepAlive      = 30 * time.Second
 	maxEntryBytes  = 16 << 20 // 16 MiB
 )
@@ -30,6 +32,7 @@ type config struct {
 	base          http.RoundTripper
 	store         Store
 	timeout       time.Duration
+	errorBackoff  time.Duration
 	maxEntryBytes int64
 }
 
@@ -41,25 +44,43 @@ func New(opts ...Option) *http.Client {
 		base:          newBaseTransport(),
 		store:         NewMemStore(),
 		timeout:       defaultTimeout,
+		errorBackoff:  errorBackoff,
 		maxEntryBytes: maxEntryBytes,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 	return &http.Client{
-		Timeout:   cfg.timeout,
-		Transport: &Transport{base: cfg.base, store: cfg.store, maxEntryBytes: cfg.maxEntryBytes},
+		Timeout: cfg.timeout,
+		Transport: &Transport{
+			base:          cfg.base,
+			store:         cfg.store,
+			errorBackoff:  cfg.errorBackoff,
+			failures:      make(map[string]failure),
+			maxEntryBytes: cfg.maxEntryBytes,
+		},
 	}
 }
 
 // Transport is the caching http.RoundTripper. Non-GET requests pass straight
 // through; GET requests are served from the store when present, and otherwise
-// fetched once - concurrent identical fetches share a single round trip.
+// fetched once - concurrent identical fetches share a single round trip, and a
+// fetch error is replayed to further requests for the backoff window, so a dead
+// host costs one connection timeout per window instead of one per caller.
 type Transport struct {
 	base          http.RoundTripper
 	store         Store
 	group         singleflight.Group
+	failMu        sync.Mutex
+	failures      map[string]failure
+	errorBackoff  time.Duration
 	maxEntryBytes int64
+}
+
+// failure is a remembered fetch error, replayed until the backoff window ends.
+type failure struct {
+	err error
+	at  time.Time
 }
 
 // RoundTrip implements http.RoundTripper.
@@ -75,6 +96,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if entry, ok := t.store.Get(key); ok {
 		return entry.response(req), nil
 	}
+	if err := t.recentFailure(key); err != nil {
+		return nil, err
+	}
 
 	result, err, _ := t.group.Do(key, func() (any, error) {
 		if entry, ok := t.store.Get(key); ok {
@@ -82,6 +106,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		resp, err := t.base.RoundTrip(req)
 		if err != nil {
+			t.recordFailure(key, err)
 			return nil, err
 		}
 		if tooLarge(resp, t.maxEntryBytes) {
@@ -111,6 +136,36 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return t.base.RoundTrip(req) // unreachable; defensive
 	}
 	return entry.response(req), nil
+}
+
+// recentFailure returns the error remembered for key when its backoff window is
+// still open, and forgets expired failures.
+func (t *Transport) recentFailure(key string) error {
+	if t.errorBackoff <= 0 {
+		return nil
+	}
+	t.failMu.Lock()
+	defer t.failMu.Unlock()
+	f, ok := t.failures[key]
+	if !ok {
+		return nil
+	}
+	if time.Since(f.at) >= t.errorBackoff {
+		delete(t.failures, key)
+		return nil
+	}
+	return f.err
+}
+
+// recordFailure records a fetch error for key so requests within the backoff
+// window fail fast instead of redialing.
+func (t *Transport) recordFailure(key string, err error) {
+	if t.errorBackoff <= 0 {
+		return
+	}
+	t.failMu.Lock()
+	defer t.failMu.Unlock()
+	t.failures[key] = failure{err: err, at: time.Now()}
 }
 
 // response reconstructs a fresh, independently-readable response from a cached

@@ -1,6 +1,7 @@
 package httpcache_test
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -21,12 +22,16 @@ type fakeTransport struct {
 	body   string
 	header http.Header
 	delay  time.Duration
+	err    error
 }
 
 func (f *fakeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	f.calls.Add(1)
 	if f.delay > 0 {
 		time.Sleep(f.delay)
+	}
+	if f.err != nil {
+		return nil, f.err
 	}
 	header := http.Header{}
 	if f.header != nil {
@@ -181,6 +186,57 @@ func TestOversizeBodyNotCached(t *testing.T) {
 	require.Equal(t, "larger than the limit", get(t, client, "https://example.test/a"))
 	require.Equal(t, "larger than the limit", get(t, client, "https://example.test/a"))
 	require.Equal(t, int64(4), fake.calls.Load(), "oversize responses pass through without caching")
+}
+
+func TestErrorBackoffReplaysFailure(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{err: errors.New("dial tcp: connection refused")}
+	client := httpcache.New(httpcache.WithTransport(fake))
+
+	_, err := client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": dial tcp: connection refused`)
+	_, err = client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": dial tcp: connection refused`)
+	require.Equal(t, int64(1), fake.calls.Load(), "second GET replays the remembered error")
+
+	// A different key is unaffected by the remembered failure.
+	_, err = client.Get("https://example.test/b")
+	require.EqualError(t, err, `Get "https://example.test/b": dial tcp: connection refused`)
+	require.Equal(t, int64(2), fake.calls.Load(), "backoff is per key")
+}
+
+func TestErrorBackoffExpires(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{err: errors.New("boom")}
+	client := httpcache.New(
+		httpcache.WithErrorBackoff(time.Millisecond),
+		httpcache.WithTransport(fake),
+	)
+
+	_, err := client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": boom`)
+	time.Sleep(5 * time.Millisecond)
+	_, err = client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": boom`)
+	require.Equal(t, int64(2), fake.calls.Load(), "an expired backoff retries the fetch")
+}
+
+func TestErrorBackoffDisabled(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{err: errors.New("boom")}
+	client := httpcache.New(
+		httpcache.WithErrorBackoff(0),
+		httpcache.WithTransport(fake),
+	)
+
+	_, err := client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": boom`)
+	_, err = client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": boom`)
+	require.Equal(t, int64(2), fake.calls.Load(), "a disabled backoff retries every fetch")
 }
 
 func TestCoalescesConcurrentGETs(t *testing.T) {
