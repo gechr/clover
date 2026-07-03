@@ -95,7 +95,7 @@ func promptBrowser(authURL string) {
 	if interactive {
 		fmt.Fprintf(out, "Opening your browser to authorize Clover...\n")
 		if err := browser.OpenURL(authURL); err != nil {
-			fmt.Fprintf(out, "Could not open a browser; visit %s\n", bold(authURL))
+			fmt.Fprintf(out, "Could not open a browser - visit %s\n", bold(authURL))
 		}
 	} else {
 		fmt.Fprintf(out, "Open %s to authorize Clover\n", bold(authURL))
@@ -140,7 +140,7 @@ func promptDeviceCode(userCode, verificationURL string) {
 	if err := browser.OpenURL(verificationURL); err != nil {
 		fmt.Fprintf(
 			out,
-			"Could not open a browser; go to %s and enter the code\n",
+			"Could not open a browser - go to %s and enter the code\n",
 			verificationURL,
 		)
 	}
