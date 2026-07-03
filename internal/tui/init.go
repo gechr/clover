@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/gechr/x/set"
 )
 
 // SelectProviders asks which upstream providers the project will use, with every
@@ -68,13 +69,10 @@ type Settings struct {
 func Configure(in ConfigureInput) (Settings, error) {
 	settings := Settings{RequiredVersion: in.DefaultVersion, Write: true}
 
-	preselected := make(map[string]bool, len(in.DefaultExcludes))
-	for _, glob := range in.DefaultExcludes {
-		preselected[glob] = true
-	}
+	preselected := set.New(in.DefaultExcludes...)
 	excludeOptions := make([]huh.Option[string], len(in.ExcludeOptions))
 	for i, glob := range in.ExcludeOptions {
-		excludeOptions[i] = huh.NewOption(glob, glob).Selected(preselected[glob])
+		excludeOptions[i] = huh.NewOption(glob, glob).Selected(preselected.Contains(glob))
 	}
 
 	confirmTitle := fmt.Sprintf("Write %s?", in.Path)
