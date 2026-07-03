@@ -7,7 +7,6 @@ import (
 
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/version"
 )
 
 // pageSize bounds tag discovery to one page. The Hub API orders newest-first, so
@@ -30,35 +29,16 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 }
 
 // discoverRegistry lists tags from a (non-Hub) OCI registry via the shared
-// client, noting truncation when a shallow lookup left a further page unread so
-// the edge can suggest --deep.
+// client.
 func (p *Provider) discoverRegistry(ctx context.Context, ref reference) ([]model.Candidate, error) {
-	tags, truncated, err := p.client.Tags(ctx, ref.ociRepo(), provider.Deep(ctx))
-	if err != nil {
-		return nil, err
-	}
-	if truncated {
-		provider.NoteTruncated(ctx, ref.String(), ref.url())
-	}
-	candidates := make([]model.Candidate, 0, len(tags))
-	for _, t := range tags {
-		candidates = append(candidates, candidate(t, time.Time{}))
-	}
-	return candidates, nil
+	return provider.DiscoverOCITags(ctx, p.client, ref.ociRepo(), ref.String(), ref.url())
 }
 
-// candidate builds a model.Candidate, parsing the raw tag for comparison. A
-// recognized variant suffix (1.27-alpine) is stripped before parsing so the tag
-// orders by its numeric core rather than as a prerelease, while a true
-// prerelease (2.0.0-rc.1) is kept. A tag that is not semver-shaped yields a nil
+// candidate builds a model.Candidate, parsing the raw tag for comparison; see
+// [model.NewVariantCandidate]. A tag that is not semver-shaped yields a nil
 // Semver and is skipped by selection.
 func candidate(raw string, published time.Time) model.Candidate {
-	base, _ := version.SplitVariant(raw)
-	semver, _ := version.Parse(base)
-	return model.Candidate{
-		Version:     raw,
-		Semver:      semver,
-		Ref:         raw,
-		PublishedAt: published,
-	}
+	c := model.NewVariantCandidate(raw)
+	c.PublishedAt = published
+	return c
 }
