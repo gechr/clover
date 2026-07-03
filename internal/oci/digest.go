@@ -19,13 +19,31 @@ var acceptManifests = strings.Join([]string{
 	"application/vnd.docker.distribution.manifest.v2+json",
 }, ", ")
 
+type digestKey struct {
+	Host       string
+	AuthHost   string
+	Repository string
+	Platform   string
+	Tag        string
+}
+
 // Digest resolves the content digest a tag points at. By default it returns the
 // multi-arch index digest from the Docker-Content-Digest header (a HEAD). When
 // repo.Platform is set, it instead returns that os/arch's manifest digest from
 // the index - what `docker pull --platform` would pin.
 func (c *Client) Digest(ctx context.Context, repo Repo, tag string) (string, error) {
+	key := repo.digestKey(tag)
+	if digest, ok := c.cachedDigest(key); ok {
+		return digest, nil
+	}
+
 	if repo.Platform != "" {
-		return c.digestForPlatform(ctx, repo, tag)
+		digest, err := c.digestForPlatform(ctx, repo, tag)
+		if err != nil {
+			return "", err
+		}
+		c.storeDigest(key, digest)
+		return digest, nil
 	}
 
 	resp, err := c.fetchManifest(ctx, http.MethodHead, repo, tag)
@@ -41,6 +59,7 @@ func (c *Client) Digest(ctx context.Context, repo Repo, tag string) (string, err
 	if digest == "" {
 		return "", fmt.Errorf("%s: registry returned no digest for %s", c.label, tag)
 	}
+	c.storeDigest(key, digest)
 	return digest, nil
 }
 
@@ -122,4 +141,30 @@ func (c *Client) digestForPlatform(ctx context.Context, repo Repo, tag string) (
 		}
 	}
 	return "", fmt.Errorf("%s: no manifest for platform %s in %s", c.label, repo.Platform, tag)
+}
+
+func (c *Client) cachedDigest(key digestKey) (string, bool) {
+	c.digestMu.Lock()
+	defer c.digestMu.Unlock()
+	digest, ok := c.digests[key]
+	return digest, ok
+}
+
+func (c *Client) storeDigest(key digestKey, digest string) {
+	c.digestMu.Lock()
+	defer c.digestMu.Unlock()
+	if c.digests == nil {
+		c.digests = make(map[digestKey]string)
+	}
+	c.digests[key] = digest
+}
+
+func (r Repo) digestKey(tag string) digestKey {
+	return digestKey{
+		Host:       r.Host,
+		AuthHost:   r.authHost(),
+		Repository: r.Repository,
+		Platform:   r.Platform,
+		Tag:        tag,
+	}
 }

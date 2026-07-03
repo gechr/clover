@@ -67,6 +67,9 @@ type Client struct {
 	tokenMu    sync.Mutex
 	tokens     map[tokenKey]cachedToken
 	repoTokens map[repoTokenKey]tokenKey
+
+	digestMu sync.Mutex
+	digests  map[digestKey]string
 }
 
 // Option configures a [Client].

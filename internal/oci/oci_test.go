@@ -303,6 +303,44 @@ func TestTokenReusedAcrossTagsAndDigest(t *testing.T) {
 	require.Equal(t, 1, tokens)
 }
 
+func TestDigestCached(t *testing.T) {
+	t.Parallel()
+
+	const want = "sha256:b0a73115a4313244422ef5348a3cfa1068a0a189e54c4c3c3e3a41c050d4f96e"
+	var manifests int
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			return jsonResponse(req, `{"token":"abc"}`), nil
+		case strings.Contains(req.URL.Path, "/manifests/"):
+			manifests++
+			if req.Header.Get("Authorization") == "" {
+				return challengeResponse(req), nil
+			}
+			header := http.Header{}
+			header.Set("Docker-Content-Digest", want)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     header,
+				Body:       http.NoBody,
+				Request:    req,
+			}, nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	})
+	client := newClient(transport)
+	repo := oci.Repo{Host: "registry.example.com", Repository: "team/img"}
+
+	digest, err := client.Digest(t.Context(), repo, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, want, digest)
+
+	digest, err = client.Digest(t.Context(), repo, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, want, digest)
+	require.Equal(t, 2, manifests)
+}
+
 const (
 	amdDigest = "sha256:" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	armDigest = "sha256:" + "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
