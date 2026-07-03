@@ -9,7 +9,6 @@ import (
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/version"
 )
 
 // perPage is the page size, GitLab's ceiling for the list endpoints. A shallow
@@ -172,13 +171,9 @@ func listAll[T any](
 // carrying the commit SHA and date the API supplied for free. A tag that is not
 // semver-shaped yields a nil Semver and is skipped by selection.
 func candidate(raw, commit string, published time.Time, assets []model.Asset) model.Candidate {
-	semver, _ := version.Parse(raw)
-	return model.Candidate{
-		Version:     raw,
-		Semver:      semver,
-		Commit:      commit,
-		Ref:         raw,
-		PublishedAt: published,
-		Assets:      assets,
-	}
+	c := model.NewCandidate(raw)
+	c.Commit = commit
+	c.PublishedAt = published
+	c.Assets = assets
+	return c
 }

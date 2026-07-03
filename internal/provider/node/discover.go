@@ -10,7 +10,6 @@ import (
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/version"
 )
 
 const (
@@ -91,13 +90,9 @@ func (p *Provider) fetch(ctx context.Context) ([]release, error) {
 // free. A version that is not semver-shaped yields a nil Semver and is skipped by
 // selection.
 func candidate(rel release) model.Candidate {
-	semver, _ := version.Parse(rel.Version)
-	return model.Candidate{
-		Version:     rel.Version,
-		Semver:      semver,
-		PublishedAt: rel.Date.Time,
-		Ref:         rel.Version,
-	}
+	c := model.NewCandidate(rel.Version)
+	c.PublishedAt = rel.Date.Time
+	return c
 }
 
 // matches reports whether a release belongs to the requested scope: an LTS

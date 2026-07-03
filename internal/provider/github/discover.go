@@ -10,7 +10,6 @@ import (
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
-	"github.com/gechr/clover/internal/version"
 	xhttp "github.com/gechr/x/http"
 )
 
@@ -330,14 +329,10 @@ func candidate(
 	published time.Time,
 	assets []model.Asset,
 ) model.Candidate {
-	semver, _ := version.Parse(raw)
-	return model.Candidate{
-		Version:     raw,
-		Semver:      semver,
-		Prerelease:  prerelease,
-		Commit:      commit,
-		Ref:         raw,
-		PublishedAt: published,
-		Assets:      assets,
-	}
+	c := model.NewCandidate(raw)
+	c.Prerelease = prerelease
+	c.Commit = commit
+	c.PublishedAt = published
+	c.Assets = assets
+	return c
 }

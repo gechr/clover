@@ -6,6 +6,25 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
+// NewCandidate returns the candidate for a raw published version: Version and
+// Ref carry it verbatim and Semver holds its parse, nil when it is not
+// semver-shaped. Optional metadata (commit, publication time, assets) is set by
+// the caller on the result.
+func NewCandidate(raw string) Candidate {
+	semver, _ := version.Parse(raw)
+	return Candidate{Version: raw, Semver: semver, Ref: raw}
+}
+
+// NewVariantCandidate returns the candidate for a tag that may carry a variant
+// suffix (e.g. 1.27-alpine): the suffix is stripped before parsing so the tag
+// orders by its numeric core rather than as a prerelease, while a true
+// prerelease (2.0.0-rc.1) is kept.
+func NewVariantCandidate(raw string) Candidate {
+	base, _ := version.SplitVariant(raw)
+	semver, _ := version.Parse(base)
+	return Candidate{Version: raw, Semver: semver, Ref: raw}
+}
+
 // Candidate is one version a provider discovered, enriched with whatever
 // metadata the provider's API returned for free at discovery. clover carries this
 // whole record forward - never collapsing it to a bare version string - so a
