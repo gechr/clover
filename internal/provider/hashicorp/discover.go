@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -141,13 +140,7 @@ func (p *Provider) page(ctx context.Context, listURL, product string) ([]release
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf(
-			"hashicorp: list %s releases: %s (%s)",
-			product,
-			strings.TrimSpace(string(msg)),
-			resp.Status,
-		)
+		return nil, provider.StatusError(fmt.Sprintf("hashicorp: list %s releases", product), resp)
 	}
 
 	var releases []release

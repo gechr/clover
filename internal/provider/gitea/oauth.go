@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/gechr/clover/internal/provider"
 )
 
 // teaClientID is Gitea's built-in public "tea" OAuth application, registered on
@@ -99,12 +100,7 @@ func postToken(
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		msg, _ := io.ReadAll(resp.Body)
-		return creds{}, fmt.Errorf(
-			"gitea: token request: %s (%s)",
-			strings.TrimSpace(string(msg)),
-			resp.Status,
-		)
+		return creds{}, provider.StatusError("gitea: token request", resp)
 	}
 
 	var body struct {

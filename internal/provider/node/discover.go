@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -77,12 +76,7 @@ func (p *Provider) fetch(ctx context.Context) ([]release, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf(
-			"node: list releases: %s (%s)",
-			strings.TrimSpace(string(msg)),
-			resp.Status,
-		)
+		return nil, provider.StatusError("node: list releases", resp)
 	}
 
 	var releases []release
