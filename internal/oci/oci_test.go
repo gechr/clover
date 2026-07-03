@@ -103,20 +103,28 @@ func TestNextLink(t *testing.T) {
 
 	const base = "https://registry.example.com/v2/team/api/tags/list?n=100"
 
+	link := func(value string) http.Header {
+		h := http.Header{}
+		if value != "" {
+			h.Set("Link", value)
+		}
+		return h
+	}
+
 	// A relative next target resolves against the request URL.
 	require.Equal(t,
 		"https://registry.example.com/v2/team/api/tags/list?last=z",
-		oci.NextLink(`</v2/team/api/tags/list?last=z>; rel="next"`, base))
+		oci.NextLink(link(`</v2/team/api/tags/list?last=z>; rel="next"`), base))
 
 	// A cross-host absolute target is rejected (SSRF guard).
 	require.Empty(t,
-		oci.NextLink(`<http://169.254.169.254/latest/meta-data/>; rel="next"`, base))
+		oci.NextLink(link(`<http://169.254.169.254/latest/meta-data/>; rel="next"`), base))
 
 	// A non-next relation yields nothing.
-	require.Empty(t, oci.NextLink(`</v2/team/api/tags/list?last=z>; rel="prev"`, base))
+	require.Empty(t, oci.NextLink(link(`</v2/team/api/tags/list?last=z>; rel="prev"`), base))
 
 	// No header, no next page.
-	require.Empty(t, oci.NextLink("", base))
+	require.Empty(t, oci.NextLink(link(""), base))
 }
 
 func TestTagsBearerChallenge(t *testing.T) {

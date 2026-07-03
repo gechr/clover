@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
+
+	xhttp "github.com/gechr/x/http"
 )
 
 // tagList is the subset of the registry v2 tags response clover reads. The list
@@ -74,26 +75,22 @@ func (c *Client) tagPage(
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		return "", tagList{}, fmt.Errorf("%s: decode tags: %w", c.label, err)
 	}
-	return nextLink(resp.Header.Get("Link"), url), list, nil
+	return nextLink(resp.Header, url), list, nil
 }
 
-// nextRel extracts the <target> of a rel="next" Link, tolerating an unquoted
-// rel and stopping at the comma that separates one link from the next.
-var nextRel = regexp.MustCompile(`<([^>]+)>[^,]*\brel="?next"?`)
-
-// nextLink resolves the rel="next" pagination target from a Link header against
-// the request URL, returning "" unless it is same-scheme, same-host - so a
-// registry cannot redirect the deep walk to an arbitrary or internal endpoint.
-func nextLink(header, requestURL string) string {
-	m := nextRel.FindStringSubmatch(header)
-	if m == nil {
+// nextLink resolves the rel="next" pagination target from the response headers
+// against the request URL, returning "" unless it is same-scheme, same-host - so
+// a registry cannot redirect the deep walk to an arbitrary or internal endpoint.
+func nextLink(header http.Header, requestURL string) string {
+	target := xhttp.NextLink(header)
+	if target == "" {
 		return ""
 	}
 	base, err := url.Parse(requestURL)
 	if err != nil {
 		return ""
 	}
-	next, err := base.Parse(m[1])
+	next, err := base.Parse(target)
 	if err != nil || next.Scheme != base.Scheme || next.Host != base.Host {
 		return ""
 	}
