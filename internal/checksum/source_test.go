@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gechr/clover/internal/checksum"
@@ -61,6 +62,39 @@ func TestResolveChecksumsSibling(t *testing.T) {
 		checksum.Request{Source: "checksums", Assets: assets, Pattern: "*linux_amd64*"})
 	require.NoError(t, err)
 	require.Equal(t, sumA, got)
+}
+
+func TestResolverCachesParsedChecksums(t *testing.T) {
+	t.Parallel()
+
+	body := sumA + "  tool_linux_amd64.tar.gz\n" +
+		sumB + "  tool_darwin_arm64.tar.gz\n"
+	var calls atomic.Int64
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls.Add(1)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Request:    req,
+			}, nil
+		}),
+	}
+	resolver := checksum.NewResolver(client)
+	req := checksum.Request{
+		Source: "checksums", URL: "http://x/checksums.txt", Version: "1.0.0",
+	}
+
+	req.Pattern = "*linux_amd64*"
+	got, err := resolver.Resolve(t.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, sumA, got)
+
+	req.Pattern = "*darwin_arm64*"
+	got, err = resolver.Resolve(t.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, sumB, got)
+	require.Equal(t, int64(1), calls.Load())
 }
 
 func TestResolveDownloadAndHash(t *testing.T) {

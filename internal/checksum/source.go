@@ -37,17 +37,23 @@ type Request struct {
 // Download}; auto tries them in that order, and verify cross-checks the digest
 // against a checksums file.
 func Resolve(ctx context.Context, client *http.Client, req Request) (string, error) {
+	return NewResolver(client).Resolve(ctx, req)
+}
+
+// Resolve sources a sha256 for the asset the request selects, reusing parsed
+// checksum files across calls on the resolver.
+func (r *Resolver) Resolve(ctx context.Context, req Request) (string, error) {
 	switch cmp.Or(req.Source, constant.Sha256Auto) {
 	case constant.Sha256Auto:
-		return auto(ctx, client, req)
+		return r.auto(ctx, req)
 	case constant.Sha256Digest:
 		return digest(req)
 	case constant.Sha256Checksums:
-		return checksums(ctx, client, req)
+		return r.checksums(ctx, req)
 	case constant.Sha256Download:
-		return downloadAndHash(ctx, client, req)
+		return downloadAndHash(ctx, r.client, req)
 	case constant.Sha256Verify:
-		return verify(ctx, client, req)
+		return r.verify(ctx, req)
 	}
 	return "", fmt.Errorf("checksum: unknown source %q", req.Source)
 }
@@ -57,17 +63,17 @@ func Resolve(ctx context.Context, client *http.Client, req Request) (string, err
 // failure is terminal rather than silently degrading to download-and-hash, so a
 // publisher's checksum outage is not masked. A discovered sibling, having no
 // user intent behind it, still falls through.
-func auto(ctx context.Context, client *http.Client, req Request) (string, error) {
+func (r *Resolver) auto(ctx context.Context, req Request) (string, error) {
 	if sum, err := digest(req); err == nil {
 		return sum, nil
 	}
 	if req.URL != "" {
-		return checksums(ctx, client, req)
+		return r.checksums(ctx, req)
 	}
-	if sum, err := checksums(ctx, client, req); err == nil {
+	if sum, err := r.checksums(ctx, req); err == nil {
 		return sum, nil
 	}
-	return downloadAndHash(ctx, client, req)
+	return downloadAndHash(ctx, r.client, req)
 }
 
 // digest returns the matched asset's provider-supplied sha256 digest.
@@ -85,9 +91,9 @@ func digest(req Request) (string, error) {
 
 // checksums sources the hash from a published checksum file: the explicit
 // sha256-url, or a sibling discovered among the release assets.
-func checksums(ctx context.Context, client *http.Client, req Request) (string, error) {
+func (r *Resolver) checksums(ctx context.Context, req Request) (string, error) {
 	if req.URL != "" {
-		return Fetch(ctx, client, req.URL, req.Version, req.Pattern)
+		return r.fetch(ctx, req.URL, req.Version, req.Pattern)
 	}
 
 	asset, err := matchAsset(req)
@@ -101,11 +107,11 @@ func checksums(ctx context.Context, client *http.Client, req Request) (string, e
 			constant.DirectiveSha256URL,
 		)
 	}
-	data, err := fetchBody(ctx, client, url, maxSize)
+	entries, err := r.fetchEntries(ctx, url)
 	if err != nil {
 		return "", err
 	}
-	return hashForFile(parse(string(data)), asset.Name)
+	return hashForFile(entries, asset.Name)
 }
 
 // downloadAndHash downloads the matched asset and computes its sha256.
@@ -146,12 +152,12 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 
 // verify requires the provider digest and the checksums file to agree, so a
 // tampered or mismatched checksum fails loud rather than silently pinning one.
-func verify(ctx context.Context, client *http.Client, req Request) (string, error) {
+func (r *Resolver) verify(ctx context.Context, req Request) (string, error) {
 	fromDigest, err := digest(req)
 	if err != nil {
 		return "", fmt.Errorf("checksum: verify: %w", err)
 	}
-	fromFile, err := checksums(ctx, client, req)
+	fromFile, err := r.checksums(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("checksum: verify: %w", err)
 	}

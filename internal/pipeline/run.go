@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -329,7 +328,7 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 type plan struct {
 	configs        *config.Resolver
 	downgrade      *bool
-	checksumClient *http.Client
+	checksumSource *checksum.Resolver
 	deep           *bool
 	disabled       []Result
 	force          *bool
@@ -392,10 +391,11 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		results[i] = Result{Marker: m, NewLine: targetLine(lines, m)}
 	}
 
+	checksumClient := httpcache.New()
 	return &plan{
 		configs:        set.configs,
 		downgrade:      set.downgrade,
-		checksumClient: httpcache.New(),
+		checksumSource: checksum.NewResolver(checksumClient),
 		deep:           set.deep,
 		disabled:       disabled,
 		force:          set.force,
@@ -1197,7 +1197,7 @@ func (p *plan) followValue(ctx context.Context, m Marker) (string, error) {
 	url, _ := m.Directive.Get(constant.DirectiveSha256URL)
 	pat, _ := m.Directive.Get(constant.DirectivePattern)
 	source, _ := m.Directive.Get(constant.DirectiveSha256Source)
-	return checksum.Resolve(ctx, p.checksumClient, checksum.Request{
+	return p.checksumSource.Resolve(ctx, checksum.Request{
 		Source:  source,
 		Assets:  cand.Assets,
 		Pattern: pat,

@@ -9,10 +9,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/pattern"
 	xstrings "github.com/gechr/x/strings"
+	"golang.org/x/sync/singleflight"
 )
 
 // maxSize caps the checksum-file download, so a mispointed URL never streams a
@@ -26,21 +28,89 @@ type entry struct {
 	file string
 }
 
+// Resolver sources sha256 values with a run-scoped cache of parsed checksum
+// files, so many followers can choose from one downloaded checksum list.
+type Resolver struct {
+	client *http.Client
+	group  singleflight.Group
+
+	mu      sync.RWMutex
+	entries map[string][]entry
+}
+
+// NewResolver returns a checksum resolver using client for HTTP downloads.
+func NewResolver(client *http.Client) *Resolver {
+	return &Resolver{client: client, entries: make(map[string][]entry)}
+}
+
 // Fetch downloads the checksum file at rawURL (with <version> expanded) and
 // returns the sha256 for the asset matching pat. An empty pat is allowed only
 // when the file holds a single entry.
 func Fetch(ctx context.Context, client *http.Client, rawURL, version, pat string) (string, error) {
 	//nolint:exhaustive // a substitution map supplies only the tokens it has a value for.
 	url := pattern.Expand(rawURL, pattern.TokenMap{pattern.TokenVersion: version})
-	data, err := fetchBody(ctx, client, url, maxSize)
+	entries, err := fetchEntries(ctx, client, url)
 	if err != nil {
 		return "", err
 	}
-	entries := parse(string(data))
-	if len(entries) == 0 {
-		return "", fmt.Errorf("checksum: no sha256 entries at %s", url)
+	return choose(entries, pat)
+}
+
+func (r *Resolver) fetch(ctx context.Context, rawURL, version, pat string) (string, error) {
+	//nolint:exhaustive // a substitution map supplies only the tokens it has a value for.
+	url := pattern.Expand(rawURL, pattern.TokenMap{pattern.TokenVersion: version})
+	entries, err := r.fetchEntries(ctx, url)
+	if err != nil {
+		return "", err
 	}
 	return choose(entries, pat)
+}
+
+func (r *Resolver) fetchEntries(ctx context.Context, url string) ([]entry, error) {
+	if entries, ok := r.cached(url); ok {
+		return entries, nil
+	}
+
+	result, err, _ := r.group.Do(url, func() (any, error) {
+		if entries, ok := r.cached(url); ok {
+			return entries, nil
+		}
+		entries, err := fetchEntries(ctx, r.client, url)
+		if err != nil {
+			return nil, err
+		}
+		r.mu.Lock()
+		r.entries[url] = entries
+		r.mu.Unlock()
+		return entries, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	entries, ok := result.([]entry)
+	if !ok {
+		return fetchEntries(ctx, r.client, url)
+	}
+	return entries, nil
+}
+
+func (r *Resolver) cached(url string) ([]entry, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entries, ok := r.entries[url]
+	return entries, ok
+}
+
+func fetchEntries(ctx context.Context, client *http.Client, url string) ([]entry, error) {
+	data, err := fetchBody(ctx, client, url, maxSize)
+	if err != nil {
+		return nil, err
+	}
+	entries := parse(string(data))
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("checksum: no sha256 entries at %s", url)
+	}
+	return entries, nil
 }
 
 // fetchBody GETs url and reads up to limit bytes.
