@@ -233,10 +233,6 @@ func launch() {
 	event.Msg("Launching Clover")
 }
 
-// enabled reports whether a tri-state bool pointer is set and true, the form a
-// resolved CLI-or-config toggle takes before it feeds a plain-bool decision.
-func enabled(b *bool) bool { return b != nil && *b }
-
 // roots returns the paths to scan, defaulting to the current directory when none
 // are given.
 func roots(paths []string) []string {

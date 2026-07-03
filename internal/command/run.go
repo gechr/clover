@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/clover/internal/tui"
+	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
 	"github.com/gechr/x/terminal"
@@ -66,7 +67,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
 	// a verify-implied deep proceed without prompting, like --verify.
-	if enabled(c.Deep) && !confirmDeep(c.Yes) {
+	if ptr.Deref(c.Deep) && !confirmDeep(c.Yes) {
 		clog.Info().Symbol("🛑").Msg("Deep lookup cancelled")
 		return nil
 	}

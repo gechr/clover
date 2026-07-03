@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/x/human"
+	"github.com/gechr/x/ptr"
 	xslices "github.com/gechr/x/slices"
 )
 
@@ -88,15 +89,15 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 // win as a group, then annotate.check, then annotate.write, then preview.
 func (c *cmdAnnotate) mode(cfg *config.Config) (bool, bool) {
 	switch {
-	case enabled(c.Check):
+	case ptr.Deref(c.Check):
 		return false, true
-	case enabled(c.DryRun):
+	case ptr.Deref(c.DryRun):
 		return false, false
-	case enabled(c.Write):
+	case ptr.Deref(c.Write):
 		return true, false
-	case enabled(cfg.AnnotateCheck()):
+	case ptr.Deref(cfg.AnnotateCheck()):
 		return false, true
-	case enabled(cfg.AnnotateWrite()):
+	case ptr.Deref(cfg.AnnotateWrite()):
 		return true, false
 	default:
 		return false, false
