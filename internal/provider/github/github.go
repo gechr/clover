@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -42,14 +41,10 @@ const defaultHost = "github.com"
 // public reads still work.
 var errAnonymous = errors.New("no GitHub credentials; using anonymous access")
 
-// Directive keys and the values the source key accepts.
+// Directive keys the provider accepts beyond the forge-shared source key.
 const (
 	keyRepository = constant.DirectiveRepository
 	keyHost       = constant.DirectiveHost
-	keySource     = "source"
-
-	sourceTags     = "tags"
-	sourceReleases = "releases"
 )
 
 // rateHeaders describes GitHub's rate-limit headers for the ratelimit transport.
@@ -140,52 +135,29 @@ func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyRepository, Required: true},
 		{Name: keyHost},
-		{Name: keySource},
+		{Name: forge.KeySource},
 	}
 }
 
 // Resource validates a directive into a GitHub resource.
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
-	repo, ok := d.Get(keyRepository)
-	if !ok {
-		return nil, fmt.Errorf("github: %q is required", keyRepository)
-	}
-	owner, name, ok := strings.Cut(repo, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
-		return nil, fmt.Errorf("github: %q must be owner/name, got %q", keyRepository, repo)
+	owner, name, err := forge.OwnerName(constant.ProviderGithub, d)
+	if err != nil {
+		return nil, err
 	}
 
-	host := defaultHost
-	if h, ok := d.Get(keyHost); ok {
-		nh, valid := forge.NormalizeHost(h)
-		if !valid {
-			return nil, fmt.Errorf("github: %q must be a valid host, got %q", keyHost, h)
-		}
-		host = nh
+	host, err := forge.Host(constant.ProviderGithub, d, defaultHost)
+	if err != nil {
+		return nil, err
 	}
 
-	source := sourceTags
-	if s, ok := d.Get(keySource); ok {
-		if s != sourceTags && s != sourceReleases {
-			return nil, fmt.Errorf(
-				"github: %q must be %s or %s, got %q",
-				keySource,
-				sourceTags,
-				sourceReleases,
-				s,
-			)
-		}
-		source = s
+	source, err := forge.Source(constant.ProviderGithub, d)
+	if err != nil {
+		return nil, err
 	}
 
-	// asset= filters on release asset filenames, which only releases publish.
-	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
-		return nil, fmt.Errorf(
-			"github: %q requires %q to be %q",
-			constant.RuleAsset,
-			keySource,
-			sourceReleases,
-		)
+	if err := forge.RequireReleasesForAsset(constant.ProviderGithub, d, source); err != nil {
+		return nil, err
 	}
 
 	return resource{host: host, owner: owner, name: name, source: source}, nil

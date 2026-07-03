@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/gechr/clover/internal/constant"
@@ -44,14 +43,10 @@ const defaultHost = "codeberg.org"
 // reads still work.
 var errAnonymous = errors.New("no Gitea credentials; using anonymous access")
 
-// Directive keys and the values the source key accepts.
+// Directive keys the provider accepts beyond the forge-shared source key.
 const (
 	keyRepository = constant.DirectiveRepository
 	keyHost       = constant.DirectiveHost
-	keySource     = "source"
-
-	sourceTags     = "tags"
-	sourceReleases = "releases"
 )
 
 // Provider resolves versions from a Gitea/Forgejo project's tags or releases over
@@ -130,7 +125,7 @@ func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyRepository, Required: true},
 		{Name: keyHost},
-		{Name: keySource},
+		{Name: forge.KeySource},
 	}
 }
 
@@ -138,48 +133,23 @@ func (p *Provider) Keys() []provider.Key {
 // strict owner/name: Gitea and Forgejo organize repos under a flat owner, with no
 // nested subgroups, unlike GitLab.
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
-	repo, ok := d.Get(keyRepository)
-	if !ok {
-		return nil, fmt.Errorf("gitea: %q is required", keyRepository)
-	}
-	owner, name, ok := strings.Cut(repo, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
-		return nil, fmt.Errorf("gitea: %q must be owner/name, got %q", keyRepository, repo)
+	owner, name, err := forge.OwnerName(constant.ProviderGitea, d)
+	if err != nil {
+		return nil, err
 	}
 
-	host := defaultHost
-	if h, ok := d.Get(keyHost); ok {
-		nh, valid := forge.NormalizeHost(h)
-		if !valid {
-			return nil, fmt.Errorf("gitea: %q must be a valid host, got %q", keyHost, h)
-		}
-		host = nh
+	host, err := forge.Host(constant.ProviderGitea, d, defaultHost)
+	if err != nil {
+		return nil, err
 	}
 
-	source := sourceTags
-	if s, ok := d.Get(keySource); ok {
-		if s != sourceTags && s != sourceReleases {
-			return nil, fmt.Errorf(
-				"gitea: %q must be %s or %s, got %q",
-				keySource,
-				sourceTags,
-				sourceReleases,
-				s,
-			)
-		}
-		source = s
+	source, err := forge.Source(constant.ProviderGitea, d)
+	if err != nil {
+		return nil, err
 	}
 
-	// asset= filters on release asset filenames, which only releases publish; a tag
-	// candidate has none, so the filter would always fail later. Reject it up front,
-	// mirroring the github provider.
-	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
-		return nil, fmt.Errorf(
-			"gitea: %q requires %q to be %q",
-			constant.RuleAsset,
-			keySource,
-			sourceReleases,
-		)
+	if err := forge.RequireReleasesForAsset(constant.ProviderGitea, d, source); err != nil {
+		return nil, err
 	}
 
 	return resource{host: host, owner: owner, name: name, source: source}, nil

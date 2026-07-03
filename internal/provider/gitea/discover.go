@@ -56,9 +56,9 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	}
 
 	switch res.source {
-	case sourceReleases:
+	case forge.SourceReleases:
 		return p.discoverReleases(ctx, res)
-	case sourceTags:
+	case forge.SourceTags:
 		return p.discoverTags(ctx, res)
 	}
 	return nil, fmt.Errorf("gitea: unknown source %q", res.source)

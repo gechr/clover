@@ -45,14 +45,10 @@ const defaultHost = "gitlab.com"
 // public reads still work.
 var errAnonymous = errors.New("no GitLab credentials; using anonymous access")
 
-// Directive keys and the values the source key accepts.
+// Directive keys the provider accepts beyond the forge-shared source key.
 const (
 	keyRepository = constant.DirectiveRepository
 	keyHost       = constant.DirectiveHost
-	keySource     = "source"
-
-	sourceTags     = "tags"
-	sourceReleases = "releases"
 )
 
 // rateHeaders describes GitLab.com's rate-limit headers for the ratelimit
@@ -146,7 +142,7 @@ func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyRepository, Required: true},
 		{Name: keyHost},
-		{Name: keySource},
+		{Name: forge.KeySource},
 	}
 }
 
@@ -169,39 +165,18 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 		return nil, fmt.Errorf("gitlab: %q has an empty path segment: %q", keyRepository, repo)
 	}
 
-	host := defaultHost
-	if h, ok := d.Get(keyHost); ok {
-		nh, valid := forge.NormalizeHost(h)
-		if !valid {
-			return nil, fmt.Errorf("gitlab: %q must be a valid host, got %q", keyHost, h)
-		}
-		host = nh
+	host, err := forge.Host(constant.ProviderGitlab, d, defaultHost)
+	if err != nil {
+		return nil, err
 	}
 
-	source := sourceTags
-	if s, ok := d.Get(keySource); ok {
-		if s != sourceTags && s != sourceReleases {
-			return nil, fmt.Errorf(
-				"gitlab: %q must be %s or %s, got %q",
-				keySource,
-				sourceTags,
-				sourceReleases,
-				s,
-			)
-		}
-		source = s
+	source, err := forge.Source(constant.ProviderGitlab, d)
+	if err != nil {
+		return nil, err
 	}
 
-	// asset= filters on release asset names, which only releases publish; a tag
-	// candidate has none, so the filter would always fail later. Reject it up front,
-	// mirroring the github provider.
-	if _, ok := d.Get(constant.RuleAsset); ok && source != sourceReleases {
-		return nil, fmt.Errorf(
-			"gitlab: %q requires %q to be %q",
-			constant.RuleAsset,
-			keySource,
-			sourceReleases,
-		)
+	if err := forge.RequireReleasesForAsset(constant.ProviderGitlab, d, source); err != nil {
+		return nil, err
 	}
 
 	return resource{host: host, repository: repo, source: source}, nil
