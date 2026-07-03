@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/x/set"
 )
 
 // Resolver resolves the effective config governing a scanned path: the user
@@ -26,7 +27,7 @@ type Resolver struct {
 
 	mu      sync.Mutex
 	cache   map[string]result
-	seen    map[string]struct{}
+	seen    set.Set[string]
 	loadErr error
 }
 
@@ -48,7 +49,7 @@ func NewResolver(user *Config, explicit string, noConfig bool) *Resolver {
 		disabled: noConfig,
 		roots:    vcs.NewResolver(),
 		cache:    make(map[string]result),
-		seen:     make(map[string]struct{}),
+		seen:     set.New[string](),
 	}
 }
 
@@ -83,7 +84,7 @@ func (r *Resolver) ForDir(dir string) (*Config, error) {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.seen[root] = struct{}{}
+	r.seen.Add(root)
 	if res, ok := r.cache[root]; ok {
 		return res.cfg, res.err
 	}
@@ -110,7 +111,7 @@ func (r *Resolver) Primary() *Config {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(r.seen) == 1 {
+	if r.seen.Len() == 1 {
 		for root := range r.seen {
 			return r.cache[root].cfg
 		}
