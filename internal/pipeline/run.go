@@ -1131,12 +1131,8 @@ func (p *plan) movedCommit(m Marker, current string) string {
 // ref (track=). Such a producer's target moves by design, so a held follower of
 // it must not warn when the commit changes - the move is expected.
 func (p *plan) producerFloating(from string) bool {
-	for _, m := range p.markers {
-		if m.ID == from {
-			return m.Directive.Has(constant.DirectiveTrack)
-		}
-	}
-	return false
+	m, ok := p.markerByID(from)
+	return ok && m.Directive.Has(constant.DirectiveTrack)
 }
 
 // unpinnedDigest reports whether s is an empty or all-zero digest - the
@@ -1150,12 +1146,18 @@ func unpinnedDigest(s string) bool {
 // (manual) provider. Such a producer publishes Old==New unconditionally, so the
 // held-digest guard must skip it or a manual version bump would never re-pin.
 func (p *plan) producerAnchored(from string) bool {
+	m, ok := p.markerByID(from)
+	return ok && m.Provider == constant.ProviderManual
+}
+
+// markerByID finds the marker whose follow-edge ID matches id.
+func (p *plan) markerByID(id string) (Marker, bool) {
 	for _, m := range p.markers {
-		if m.ID == from {
-			return m.Provider == constant.ProviderManual
+		if m.ID == id {
+			return m, true
 		}
 	}
-	return false
+	return Marker{}, false
 }
 
 // forceFor reports whether followed digests are re-pinned for marker m even when
