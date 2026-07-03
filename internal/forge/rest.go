@@ -2,11 +2,15 @@ package forge
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 )
 
 // RESTClient issues a forge's REST GETs over a shared transport. It holds no
@@ -14,14 +18,15 @@ import (
 // Authorization value, since both the host and the credential are per-marker
 // values.
 type RESTClient struct {
-	httpClient *http.Client
-	accept     string
+	httpClient   *http.Client
+	rejectedAuth *sync.Map
+	accept       string
 }
 
 // NewRESTClient returns a client issuing GETs through httpClient, sending
 // accept as the Accept header on every request.
 func NewRESTClient(httpClient *http.Client, accept string) RESTClient {
-	return RESTClient{httpClient: httpClient, accept: accept}
+	return RESTClient{httpClient: httpClient, rejectedAuth: &sync.Map{}, accept: accept}
 }
 
 // HTTPClient returns the underlying client, for requests that go beyond the
@@ -60,12 +65,22 @@ func (c RESTClient) DoWithContext(
 	url, authorization string,
 	response any,
 ) (http.Header, error) {
+	rejectionKey := authRejectionKey(url, authorization)
+	if c.rejectedAuth != nil && rejectionKey != "" {
+		if _, rejected := c.rejectedAuth.Load(rejectionKey); rejected {
+			authorization = ""
+		}
+	}
+
 	resp, err := c.do(ctx, url, authorization)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusUnauthorized && authorization != "" {
 		resp.Body.Close()
+		if c.rejectedAuth != nil && rejectionKey != "" {
+			c.rejectedAuth.Store(rejectionKey, true)
+		}
 		resp, err = c.do(ctx, url, "")
 		if err != nil {
 			return nil, err
@@ -94,4 +109,17 @@ func (c RESTClient) do(ctx context.Context, url, authorization string) (*http.Re
 		req.Header.Set("Authorization", authorization)
 	}
 	return c.httpClient.Do(req)
+}
+
+func authRejectionKey(rawURL, authorization string) string {
+	if authorization == "" {
+		return ""
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	origin := parsed.Scheme + "://" + parsed.Host
+	sum := sha256.Sum256([]byte(authorization))
+	return origin + "\n" + hex.EncodeToString(sum[:])
 }
