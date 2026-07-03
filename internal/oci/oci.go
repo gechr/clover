@@ -63,6 +63,10 @@ type Client struct {
 
 	once   sync.Once
 	client *http.Client
+
+	tokenMu    sync.Mutex
+	tokens     map[tokenKey]cachedToken
+	repoTokens map[repoTokenKey]tokenKey
 }
 
 // Option configures a [Client].

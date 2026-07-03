@@ -27,7 +27,7 @@ func (c *Client) Tags(ctx context.Context, repo Repo, deep bool) ([]string, bool
 
 	var (
 		tags  []string
-		token string
+		token = c.cachedRepoToken(repo)
 	)
 	for next != "" {
 		page, list, err := c.tagPage(ctx, next, repo, &token)
@@ -56,9 +56,12 @@ func (c *Client) tagPage(
 	if err != nil {
 		return "", tagList{}, err
 	}
-	if resp.StatusCode == http.StatusUnauthorized && *token == "" {
+	if resp.StatusCode == http.StatusUnauthorized {
 		challenge := resp.Header.Get("WWW-Authenticate")
 		_ = resp.Body.Close()
+		if *token != "" {
+			c.forgetRepoToken(repo)
+		}
 		if *token, err = c.fetchToken(ctx, challenge, repo); err != nil {
 			return "", tagList{}, err
 		}

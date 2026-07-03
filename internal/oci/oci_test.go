@@ -255,6 +255,54 @@ func TestDigest(t *testing.T) {
 	require.Equal(t, want, digest)
 }
 
+func TestTokenReusedAcrossTagsAndDigest(t *testing.T) {
+	t.Parallel()
+
+	const want = "sha256:b0a73115a4313244422ef5348a3cfa1068a0a189e54c4c3c3e3a41c050d4f96e"
+	var (
+		challenges int
+		tokens     int
+	)
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			tokens++
+			return jsonResponse(req, `{"token":"abc","expires_in":3600}`), nil
+		case strings.Contains(req.URL.Path, "/tags/list"):
+			if req.Header.Get("Authorization") == "" {
+				challenges++
+				return challengeResponse(req), nil
+			}
+			require.Equal(t, "Bearer abc", req.Header.Get("Authorization"))
+			return jsonResponse(req, `{"tags":["1.0.0"]}`), nil
+		case strings.Contains(req.URL.Path, "/manifests/"):
+			require.Equal(t, "Bearer abc", req.Header.Get("Authorization"))
+			header := http.Header{}
+			header.Set("Docker-Content-Digest", want)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     header,
+				Body:       http.NoBody,
+				Request:    req,
+			}, nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	})
+	client := newClient(transport)
+	repo := oci.Repo{Host: "registry.example.com", Repository: "team/img"}
+
+	tags, truncated, err := client.Tags(t.Context(), repo, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, tags)
+	require.False(t, truncated)
+
+	digest, err := client.Digest(t.Context(), repo, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, want, digest)
+	require.Equal(t, 1, challenges)
+	require.Equal(t, 1, tokens)
+}
+
 const (
 	amdDigest = "sha256:" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	armDigest = "sha256:" + "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

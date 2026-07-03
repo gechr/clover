@@ -54,14 +54,18 @@ func (c *Client) fetchManifest(
 	tag string,
 ) (*http.Response, error) {
 	url := fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Host, repo.Repository, tag)
+	token := c.cachedRepoToken(repo)
 
-	resp, err := c.send(ctx, method, url, "", acceptManifests)
+	resp, err := c.send(ctx, method, url, token, acceptManifests)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		challenge := resp.Header.Get("WWW-Authenticate")
 		_ = resp.Body.Close()
+		if token != "" {
+			c.forgetRepoToken(repo)
+		}
 		token, terr := c.fetchToken(ctx, challenge, repo)
 		if terr != nil {
 			return nil, terr

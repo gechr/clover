@@ -3,12 +3,38 @@ package oci
 import (
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/google/go-containerregistry/pkg/authn"
 )
+
+const tokenExpirySkew = 30 * time.Second
+
+type tokenKey struct {
+	Realm      string
+	Service    string
+	Scope      string
+	AuthHost   string
+	Credential string
+}
+
+type repoTokenKey struct {
+	Host       string
+	AuthHost   string
+	Repository string
+}
+
+type cachedToken struct {
+	Value  string
+	Expiry time.Time
+}
 
 // fetchToken satisfies a registry's Bearer challenge: it requests a token from
 // the challenge's realm with the advertised service and scope, authenticating
@@ -25,7 +51,26 @@ func (c *Client) fetchToken(ctx context.Context, challenge string, repo Repo) (s
 
 	cfg := c.ResolveAuth(repo.authHost())
 	if cfg != nil && cfg.RegistryToken != "" {
+		c.storeRepoToken(repo, tokenKey{
+			Realm:      realm,
+			Service:    params["service"],
+			Scope:      params["scope"],
+			AuthHost:   repo.authHost(),
+			Credential: credentialFingerprint(cfg),
+		}, cachedToken{Value: cfg.RegistryToken})
 		return cfg.RegistryToken, nil
+	}
+
+	key := tokenKey{
+		Realm:      realm,
+		Service:    params["service"],
+		Scope:      params["scope"],
+		AuthHost:   repo.authHost(),
+		Credential: credentialFingerprint(cfg),
+	}
+	if token, ok := c.cachedToken(key); ok {
+		c.rememberRepoToken(repo, key)
+		return token, nil
 	}
 
 	u, err := url.Parse(realm)
@@ -59,11 +104,116 @@ func (c *Client) fetchToken(ctx context.Context, challenge string, repo Repo) (s
 	var token struct {
 		Token       string `json:"token"`
 		AccessToken string `json:"access_token"`
+		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
 		return "", fmt.Errorf("%s: decode token: %w", c.label, err)
 	}
-	return cmp.Or(token.Token, token.AccessToken), nil
+	value := cmp.Or(token.Token, token.AccessToken)
+	c.storeRepoToken(repo, key, cachedToken{Value: value, Expiry: tokenExpiry(token.ExpiresIn)})
+	return value, nil
+}
+
+func tokenExpiry(expiresIn int64) time.Time {
+	if expiresIn <= 0 {
+		return time.Time{}
+	}
+	return time.Now().Add(time.Duration(expiresIn) * time.Second)
+}
+
+func (c *Client) cachedRepoToken(repo Repo) string {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	if c.repoTokens == nil || c.tokens == nil {
+		return ""
+	}
+	key, ok := c.repoTokens[repo.cacheKey()]
+	if !ok {
+		return ""
+	}
+	token, ok := c.tokens[key]
+	if !ok || token.expired() {
+		delete(c.repoTokens, repo.cacheKey())
+		delete(c.tokens, key)
+		return ""
+	}
+	return token.Value
+}
+
+func (c *Client) cachedToken(key tokenKey) (string, bool) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	if c.tokens == nil {
+		return "", false
+	}
+	token, ok := c.tokens[key]
+	if !ok || token.expired() {
+		delete(c.tokens, key)
+		return "", false
+	}
+	return token.Value, true
+}
+
+func (c *Client) forgetRepoToken(repo Repo) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	if c.repoTokens == nil {
+		return
+	}
+	key, ok := c.repoTokens[repo.cacheKey()]
+	if !ok {
+		return
+	}
+	delete(c.repoTokens, repo.cacheKey())
+	delete(c.tokens, key)
+}
+
+func (c *Client) rememberRepoToken(repo Repo, key tokenKey) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	if c.repoTokens == nil {
+		c.repoTokens = make(map[repoTokenKey]tokenKey)
+	}
+	c.repoTokens[repo.cacheKey()] = key
+}
+
+func (c *Client) storeRepoToken(repo Repo, key tokenKey, token cachedToken) {
+	if token.Value == "" {
+		return
+	}
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	if c.tokens == nil {
+		c.tokens = make(map[tokenKey]cachedToken)
+	}
+	if c.repoTokens == nil {
+		c.repoTokens = make(map[repoTokenKey]tokenKey)
+	}
+	c.tokens[key] = token
+	c.repoTokens[repo.cacheKey()] = key
+}
+
+func (t cachedToken) expired() bool {
+	return !t.Expiry.IsZero() && time.Now().After(t.Expiry.Add(-tokenExpirySkew))
+}
+
+func (r Repo) cacheKey() repoTokenKey {
+	return repoTokenKey{Host: r.Host, AuthHost: r.authHost(), Repository: r.Repository}
+}
+
+func credentialFingerprint(cfg *authn.AuthConfig) string {
+	if cfg == nil {
+		return ""
+	}
+	raw := strings.Join([]string{
+		cfg.Username,
+		cfg.Password,
+		cfg.Auth,
+		cfg.IdentityToken,
+		cfg.RegistryToken,
+	}, "\n")
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }
 
 // parseChallenge parses a Bearer WWW-Authenticate header into its realm and the
