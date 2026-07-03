@@ -48,8 +48,7 @@ func (c *cmdInit) Run() error {
 	}
 
 	path := filepath.Join(c.Dir, configFileName)
-	_, statErr := os.Stat(path)
-	exists := statErr == nil
+	exists, _ := xos.Exists(path)
 
 	providers, err := tui.SelectProviders(provider.Names())
 	if err != nil {

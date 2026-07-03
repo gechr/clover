@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/x/human"
+	xslices "github.com/gechr/x/slices"
 )
 
 // cmdAnnotate adds clover: directives to lines Clover can already track but that
@@ -113,12 +114,9 @@ func annotateDiscovered(summary mode.AnnotateSummary) {
 			Msg("No Clover annotation candidates found")
 		return
 	}
-	var files int
-	for _, f := range summary.Files {
-		if len(f.Changes) > 0 || (f.Sidecar != nil && len(f.Sidecar.Entries) > 0) {
-			files++
-		}
-	}
+	files := xslices.CountFunc(summary.Files, func(f mode.AnnotateFile) bool {
+		return len(f.Changes) > 0 || (f.Sidecar != nil && len(f.Sidecar.Entries) > 0)
+	})
 	clog.Info().
 		Symbol("💬").
 		Int(field.Scanned, summary.Scanned).
@@ -129,11 +127,7 @@ func annotateDiscovered(summary mode.AnnotateSummary) {
 
 // writeFailures counts the files whose annotations could not be written.
 func writeFailures(summary mode.AnnotateSummary) int {
-	var n int
-	for _, file := range summary.Files {
-		if file.WriteErr != nil {
-			n++
-		}
-	}
-	return n
+	return xslices.CountFunc(summary.Files, func(f mode.AnnotateFile) bool {
+		return f.WriteErr != nil
+	})
 }

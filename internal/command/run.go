@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/clover/internal/tui"
+	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
 	"github.com/gechr/x/terminal"
 )
@@ -218,15 +219,15 @@ func reportAuth(ctx context.Context, summary mode.Summary) {
 // sorted, excluding followers (which resolve from another marker, not a
 // provider).
 func usedProviders(summary mode.Summary) []string {
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	var names []string
 	for _, outcome := range summary.Outcomes {
 		for _, result := range outcome.Results {
 			name := result.Marker.Provider
-			if name == "" || name == constant.ProviderFollow || seen[name] {
+			if name == "" || name == constant.ProviderFollow || seen.Contains(name) {
 				continue
 			}
-			seen[name] = true
+			seen.Add(name)
 			names = append(names, name)
 		}
 	}
