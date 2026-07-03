@@ -1,26 +1,30 @@
 package version
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/gechr/x/set"
+)
 
 // variants are the recognized image variant suffixes - distro flavours and
 // codenames that decorate a tag (nginx:1.27-alpine) and must be preserved, as
 // opposed to a semver prerelease (2.0.0-rc.1) which go-version also parses after
 // a dash. The set is curated; an unknown trailing segment is a prerelease.
-var variants = map[string]bool{
-	"alpine": true,
-	"slim":   true,
+var variants = set.New(
+	"alpine",
+	"slim",
 	// Debian release codenames.
-	"buster":   true,
-	"bullseye": true,
-	"bookworm": true,
-	"trixie":   true,
-	"sid":      true,
+	"buster",
+	"bullseye",
+	"bookworm",
+	"trixie",
+	"sid",
 	// Ubuntu release codenames.
-	"bionic": true,
-	"focal":  true,
-	"jammy":  true,
-	"noble":  true,
-}
+	"bionic",
+	"focal",
+	"jammy",
+	"noble",
+)
 
 // IsVariant reports whether a trailing dash-segment is a recognized image
 // variant (a suffix to preserve) rather than a prerelease. It matches the first
@@ -29,7 +33,7 @@ var variants = map[string]bool{
 func IsVariant(segment string) bool {
 	word, _, _ := strings.Cut(segment, "-")
 	word = strings.TrimRight(word, "0123456789.")
-	return variants[strings.ToLower(word)]
+	return variants.Contains(strings.ToLower(word))
 }
 
 // Qualifier returns the trailing dash-suffix of a tag - the prerelease or
