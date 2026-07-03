@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/x/set"
+	xstrings "github.com/gechr/x/strings"
 )
 
 const prefilterChunkSize = 32 << 10
@@ -219,7 +220,7 @@ func skipFile(path, reason string) *clog.Event {
 // splitLines splits content losslessly so line numbers and content survive for
 // the rewrite, normalising CRLF to LF.
 func splitLines(content []byte) []string {
-	return strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
+	return xstrings.SplitLinesRaw(string(content))
 }
 
 // containsKeyword reports whether chunk contains the directive keyword, either
