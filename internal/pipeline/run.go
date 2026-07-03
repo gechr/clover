@@ -34,6 +34,7 @@ import (
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
 )
 
@@ -534,11 +535,8 @@ func (p *plan) configFor(file string) *config.Config {
 func (p *plan) deepFor(m Marker) bool {
 	cfg := p.configFor(m.File)
 	verify := cmp.Or(p.verify, cfg.Verify())
-	return truthy(cmp.Or(p.deep, cfg.Deep())) || truthy(verify)
+	return ptr.Deref(cmp.Or(p.deep, cfg.Deep())) || ptr.Deref(verify)
 }
-
-// truthy reports whether a tri-state bool pointer is set and true.
-func truthy(b *bool) bool { return b != nil && *b }
 
 // resolveProducer locates the current token, selects the newest allowed
 // candidate, publishes it under the marker's id for followers, and renders it.
@@ -1165,7 +1163,7 @@ func (p *plan) markerByID(id string) (Marker, bool) {
 // their version is unchanged: the --force override wins, else the root's
 // run.force. The default holds an unchanged version's digest.
 func (p *plan) forceFor(m Marker) bool {
-	return truthy(cmp.Or(p.force, p.configFor(m.File).Force()))
+	return ptr.Deref(cmp.Or(p.force, p.configFor(m.File).Force()))
 }
 
 // followerCandidate wraps a follower's resolved value in a Candidate typed by the
