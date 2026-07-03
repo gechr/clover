@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
+	"github.com/gechr/x/set"
 )
 
 // syntheticInferencePath is the YAML path annotate hands [match.Infer] when
@@ -234,20 +235,19 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	// A directive binds to the line below it, so its comment and target are both
 	// off-limits to a fresh insertion. existing maps a target line to its
 	// directive so force can rewrite the comment above it.
-	governed := map[int]bool{}
+	governed := set.New[int]()
 	existing := map[int]scan.Located{}
 	for _, loc := range file.Found {
 		if loc.Sidecar {
-			governed[loc.Line] = true // the sidecar already rewrites this line; never re-annotate it
+			governed.Add(loc.Line) // the sidecar already rewrites this line; never re-annotate it
 			continue
 		}
-		governed[loc.Line] = true
-		governed[loc.Line+1] = true
+		governed.Add(loc.Line, loc.Line+1)
 		existing[loc.Line+1] = loc
 	}
 
 	for i, line := range file.Lines {
-		if file.Ignored[i] {
+		if file.Ignored.Contains(i) {
 			if recognized(file.Path, line) {
 				annotated.Skips = append(annotated.Skips, skip(i, "ignored"))
 			}
@@ -295,7 +295,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			}
 			continue
 		}
-		if governed[i] {
+		if governed.Contains(i) {
 			continue
 		}
 		if change, ok := insert(syntax, i, line); ok {
@@ -498,10 +498,10 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 		return nil, []AnnotateSkip{{Line: -1, Reason: err.Error()}}
 	}
 
-	governed := map[int]bool{}
+	governed := set.New[int]()
 	for _, loc := range file.Found {
 		if loc.Sidecar {
-			governed[loc.Line] = true
+			governed.Add(loc.Line)
 		}
 	}
 
@@ -511,19 +511,21 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 		if leaf.Line >= len(file.Lines) {
 			continue
 		}
-		if file.Ignored[leaf.Line] {
+		if file.Ignored.Contains(leaf.Line) {
 			if recognizedLeaf(leaf) {
 				skips = append(skips, skip(leaf.Line, "ignored"))
 			}
 			continue
 		}
-		if governed[leaf.Line] {
+		if governed.Contains(leaf.Line) {
 			continue
 		}
 		d, reason, ok := recognizeLeaf(file.Lines[leaf.Line], leaf)
 		if ok {
 			fresh = append(fresh, sidecarEntry{directive: d, target: leaf.Line})
-			governed[leaf.Line] = true // a line earns one entry; a second leaf on it would double-govern at lint
+			governed.Add(
+				leaf.Line,
+			) // a line earns one entry; a second leaf on it would double-govern at lint
 		} else if reason != "" {
 			skips = append(skips, skip(leaf.Line, reason))
 		}

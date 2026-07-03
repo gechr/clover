@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
+	"github.com/gechr/x/set"
 )
 
 // FormatChange is a directive comment line format would rewrite: its 0-based
@@ -138,15 +139,15 @@ func Format(
 	sidecarResults := formatSidecars(formatted, prune, dry, parallelism)
 
 	out := make([]FormatFile, 0, len(files))
-	seenSidecar := map[string]bool{}
+	seenSidecar := set.New[string]()
 	for _, w := range formatted {
 		if w == nil {
 			continue
 		}
 		// Re-emit the sidecar before the target's (absent) inline directives, on the
 		// first target that carries it - mirroring the sequential emit order.
-		if w.hasSidecar && !seenSidecar[w.sidecar] {
-			seenSidecar[w.sidecar] = true
+		if w.hasSidecar && !seenSidecar.Contains(w.sidecar) {
+			seenSidecar.Add(w.sidecar)
 			out = append(out, sidecarResults[w.sidecar])
 		}
 		out = append(out, w.file)
@@ -168,10 +169,10 @@ type formatWork struct {
 // each is formatted (and written) exactly once.
 func formatSidecars(work []*formatWork, prune, dry bool, parallelism int) map[string]FormatFile {
 	var paths []string
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	for _, w := range work {
-		if w != nil && w.hasSidecar && !seen[w.sidecar] {
-			seen[w.sidecar] = true
+		if w != nil && w.hasSidecar && !seen.Contains(w.sidecar) {
+			seen.Add(w.sidecar)
 			paths = append(paths, w.sidecar)
 		}
 	}

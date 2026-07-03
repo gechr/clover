@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gechr/clover/internal/pipeline"
+	xslices "github.com/gechr/x/slices"
 )
 
 // Outcome pairs a file's resolution results with what the mode did to it on
@@ -44,11 +45,7 @@ func (s Summary) Errored() int {
 func (s Summary) count(pred func(pipeline.Result) bool) int {
 	var n int
 	for _, o := range s.Outcomes {
-		for _, r := range o.Results {
-			if pred(r) {
-				n++
-			}
-		}
+		n += xslices.CountFunc(o.Results, pred)
 	}
 	return n
 }
