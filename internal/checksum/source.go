@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -134,7 +135,7 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 	}
 	if n > maxDownload {
 		return "", fmt.Errorf(
-			"checksum: asset %q is too large to hash; set %q",
+			"checksum: asset %q is too large to hash - set %q",
 			asset.Name,
 			constant.DirectiveSha256URL,
 		)
@@ -228,6 +229,20 @@ func hashForFile(entries []entry, name string) (string, error) {
 	return "", fmt.Errorf("checksum: %q not found in the checksum file", name)
 }
 
+// sidecarExts are the extensions of checksum and signature files that ride
+// alongside release artifacts.
+var sidecarExts = []string{
+	".sha256",
+	".sha512",
+	".md5",
+	".sum",
+	".sig",
+	".asc",
+	".pem",
+	".cert",
+	".sbom",
+}
+
 // isSidecar reports whether name is a checksum or signature file rather than a
 // release artifact to pin.
 func isSidecar(name string) bool {
@@ -235,12 +250,9 @@ func isSidecar(name string) bool {
 	if isChecksumList(lower) {
 		return true
 	}
-	for _, ext := range []string{".sha256", ".sha512", ".md5", ".sum", ".sig", ".asc", ".pem", ".cert", ".sbom"} {
-		if strings.HasSuffix(lower, ext) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(sidecarExts, func(ext string) bool {
+		return strings.HasSuffix(lower, ext)
+	})
 }
 
 // isChecksumList reports whether name is a combined checksum file.
