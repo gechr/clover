@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -172,6 +173,8 @@ func atoi(value string) (int, bool) {
 	if value == "" {
 		return 0, false
 	}
+	value, _, _ = strings.Cut(value, ";")
+	value = strings.TrimSpace(value)
 	n, err := strconv.Atoi(value)
 	return n, err == nil
 }

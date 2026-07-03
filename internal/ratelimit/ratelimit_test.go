@@ -119,6 +119,28 @@ func TestShortCircuitsAfterExhaustion(t *testing.T) {
 	)
 }
 
+func TestParsesWindowedRemaining(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_000_000, 0)
+	reset := now.Add(time.Hour)
+	base := &fakeBase{responses: []*http.Response{
+		response(http.StatusOK, http.Header{
+			"X-Ratelimit-Remaining": {"0;w=3600"},
+			"X-Ratelimit-Reset":     {strconv.FormatInt(reset.Unix(), 10)},
+		}),
+	}}
+	rt := ratelimit.New(base, githubHeaders, ratelimit.WithClock(func() time.Time { return now }))
+
+	resp, err := rt.RoundTrip(newReq(t))
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	_, err = rt.RoundTrip(newReq(t))
+	require.Error(t, err)
+	require.Equal(t, int64(1), base.calls.Load())
+}
+
 func TestAllowsAgainAfterReset(t *testing.T) {
 	t.Parallel()
 
