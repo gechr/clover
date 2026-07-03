@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"sync"
 )
 
 // Task is a node in the follow-edge dependency graph: an optional ID others may
@@ -170,16 +169,8 @@ func waves(parent []int, reason []string) [][]int {
 // runWave runs the given tasks concurrently, capped at workers. Each result is
 // written to its own index, so the shared slice needs no lock.
 func runWave(ctx context.Context, runnable []int, tasks []Task, results []Result, workers int) {
-	slots := make(chan struct{}, workers)
-	var wg sync.WaitGroup
-	for _, i := range runnable {
-		wg.Add(1)
-		slots <- struct{}{}
-		go func() {
-			defer wg.Done()
-			defer func() { <-slots }()
-			results[i].Err = tasks[i].Run(ctx)
-		}()
-	}
-	wg.Wait()
+	Parallel(workers, len(runnable), func(k int) {
+		i := runnable[k]
+		results[i].Err = tasks[i].Run(ctx)
+	})
 }

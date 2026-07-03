@@ -8,7 +8,7 @@ import "sync"
 // concurrently. workers < 1 runs one at a time.
 //
 // It is the bounded parallel-for the per-file modes (format, annotate) and the
-// per-marker validation share, mirroring runWave's slot semaphore.
+// per-marker validation and the pipeline's task waves share.
 func Parallel(workers, n int, fn func(i int)) {
 	if workers < 1 {
 		workers = 1
