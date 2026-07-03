@@ -1,6 +1,7 @@
 package mode
 
 import (
+	"cmp"
 	"context"
 	"os"
 	"path/filepath"
@@ -323,15 +324,34 @@ func skip(line int, reason string) AnnotateSkip {
 // valid resource, and locate a trackable version. An empty reason means the
 // candidate is safe to annotate.
 func unresolvedReason(path string, inf match.Inference, line string) string {
-	prov, ok := provider.Get(inf.Provider)
+	return unresolved(inf.Provider, inferredDirective(inf), line,
+		func() (match.Rewriter, error) {
+			return match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}), nil
+		})
+}
+
+// unresolved runs the offline checks lint and run perform against a candidate
+// annotation: the provider must exist, build a valid resource from d, and the
+// rewriter must locate a trackable version on line. An empty reason means the
+// candidate is safe to emit.
+func unresolved(
+	providerName string,
+	d directive.Directive,
+	line string,
+	rewriter func() (match.Rewriter, error),
+) string {
+	prov, ok := provider.Get(providerName)
 	if !ok {
 		return "unknown provider"
 	}
-	if _, err := prov.Resource(inferredDirective(inf)); err != nil {
+	if _, err := prov.Resource(d); err != nil {
 		return err.Error()
 	}
-	if _, err := match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}).
-		Locate(line); err != nil {
+	rw, err := rewriter()
+	if err != nil {
+		return err.Error()
+	}
+	if _, err = rw.Locate(line); err != nil {
 		return err.Error()
 	}
 	return ""
@@ -438,7 +458,7 @@ func applyAnnotations(lines []string, changes []AnnotateChange) []string {
 	copy(out, lines)
 
 	ordered := slices.Clone(changes)
-	slices.SortFunc(ordered, func(a, b AnnotateChange) int { return b.At - a.At })
+	slices.SortFunc(ordered, func(a, b AnnotateChange) int { return cmp.Compare(b.At, a.At) })
 	for _, c := range ordered {
 		if c.Existing {
 			out[c.At] = c.Line
@@ -581,6 +601,16 @@ func inferenceLine(leaf sidecar.Leaf) (string, bool) {
 	return " image: " + leaf.Value, true
 }
 
+// sourceKeyPairs builds the source-identifying key prefix every annotation
+// carries: the provider, the registry when one is inferred, and the repository.
+func sourceKeyPairs(inf match.Inference) []directive.KV {
+	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
+	if inf.Registry != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
+	}
+	return append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
+}
+
 // explicitDirective builds the sidecar entry for an inferred reference: the
 // resolved provider and its parameters written explicitly (a sidecar entry has no
 // line adjacency to re-infer from at bind time), the jq locator that pins it to
@@ -590,11 +620,7 @@ func inferenceLine(leaf sidecar.Leaf) (string, bool) {
 // matches and run errors instead of tracking the wrong repository. RenderYAML
 // imposes canonical key order, so the field order here is immaterial.
 func explicitDirective(inf match.Inference, jqExpr string) directive.Directive {
-	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
-	if inf.Registry != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
-	}
-	pairs = append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
+	pairs := sourceKeyPairs(inf)
 	pairs = append(pairs, directive.KV{Key: constant.DirectiveJQ, Value: jqExpr})
 	if inf.Provider == constant.ProviderDocker {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveFind, Value: imageFind(inf)})
@@ -617,21 +643,9 @@ func imageFind(inf match.Inference) string {
 // resolve, running the same offline checks lint and run perform. An empty reason
 // means the entry is safe to emit.
 func sidecarUnresolvedReason(inf match.Inference, d directive.Directive, line string) string {
-	prov, ok := provider.Get(inf.Provider)
-	if !ok {
-		return "unknown provider"
-	}
-	if _, err := prov.Resource(d); err != nil {
-		return err.Error()
-	}
-	rewriter, err := sidecarRewriter(inf, d, line)
-	if err != nil {
-		return err.Error()
-	}
-	if _, err = rewriter.Locate(line); err != nil {
-		return err.Error()
-	}
-	return ""
+	return unresolved(inf.Provider, d, line, func() (match.Rewriter, error) {
+		return sidecarRewriter(inf, d, line)
+	})
 }
 
 // sidecarRewriter mirrors the run pipeline's generated-sidecar rewriter choice.
@@ -761,11 +775,7 @@ func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 // kept in its written order. The locator is preserved deliberately - it still
 // resolves to the line, so only the drifted source needs repair.
 func refreshSource(existing directive.Directive, inf match.Inference) directive.Directive {
-	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
-	if inf.Registry != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
-	}
-	pairs = append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
+	pairs := sourceKeyPairs(inf)
 	for _, kv := range existing.Pairs {
 		switch kv.Key {
 		case constant.DirectiveProvider,
