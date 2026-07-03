@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -96,12 +97,12 @@ func (f Filter) Empty() bool {
 // pure-exclusion filter keeps everything except the excluded.
 func (f Filter) Match(tags []string) bool {
 	for _, excluded := range f.Not {
-		if contains(tags, excluded) {
+		if xslices.ContainsFold(tags, excluded) {
 			return false
 		}
 	}
 	for _, want := range f.All {
-		if !contains(tags, want) {
+		if !xslices.ContainsFold(tags, want) {
 			return false
 		}
 	}
@@ -109,7 +110,7 @@ func (f Filter) Match(tags []string) bool {
 		return true
 	}
 	for _, want := range f.Any {
-		if contains(tags, want) {
+		if xslices.ContainsFold(tags, want) {
 			return true
 		}
 	}
@@ -147,14 +148,4 @@ func (f Filter) String() string {
 		parts = append(parts, logicalNot+excluded)
 	}
 	return strings.Join(parts, logicalAnd)
-}
-
-// contains reports whether tags holds want, case-insensitively.
-func contains(tags []string, want string) bool {
-	for _, tag := range tags {
-		if strings.EqualFold(tag, want) {
-			return true
-		}
-	}
-	return false
 }
