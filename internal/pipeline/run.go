@@ -34,6 +34,7 @@ import (
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/x/set"
 )
 
 // ErrNoCandidate reports that no discovered version satisfied the marker's rule
@@ -267,20 +268,20 @@ func gateVersions(
 	if configs == nil {
 		return files, nil
 	}
-	blocked := map[string]bool{}
-	decided := map[string]bool{}
+	blocked := set.New[string]()
+	decided := set.New[string]()
 	for _, f := range files {
 		root := configs.Root(filepath.Dir(f.Path))
-		if decided[root] {
+		if decided.Contains(root) {
 			continue
 		}
-		decided[root] = true
+		decided.Add(root)
 		cfg, err := configs.ForDir(filepath.Dir(f.Path))
 		if err != nil {
 			return nil, err
 		}
 		if verr := cfg.CheckVersion(current); verr != nil {
-			blocked[root] = true
+			blocked.Add(root)
 			clog.Warn().
 				Path(field.Path, root).
 				Str(field.Required, requiredConstraint(cfg)).
@@ -288,12 +289,12 @@ func gateVersions(
 				Msg("Skipping repository - clover does not satisfy its `required-version`")
 		}
 	}
-	if len(blocked) == 0 {
+	if blocked.Len() == 0 {
 		return files, nil
 	}
 	kept := make([]scan.File, 0, len(files))
 	for _, f := range files {
-		if !blocked[configs.Root(filepath.Dir(f.Path))] {
+		if !blocked.Contains(configs.Root(filepath.Dir(f.Path))) {
 			kept = append(kept, f)
 		}
 	}
