@@ -25,6 +25,7 @@ import (
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/shell"
 	xstrings "github.com/gechr/x/strings"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -212,7 +213,7 @@ func validateValues(cfg *Config) error {
 			return fmt.Errorf("invalid %q constraint %q: %w", keyRequiredVersion, rv, err)
 		}
 	}
-	if enabled(cfg.Annotate.Write) && enabled(cfg.Annotate.Check) {
+	if ptr.Deref(cfg.Annotate.Write) && ptr.Deref(cfg.Annotate.Check) {
 		return errors.New("annotate.write and annotate.check are mutually exclusive")
 	}
 	return nil
@@ -362,9 +363,6 @@ func derefOutput(o *output.Mode) output.Mode {
 	}
 	return *o
 }
-
-// enabled reports whether a tri-state bool pointer is set and true.
-func enabled(b *bool) bool { return b != nil && *b }
 
 // run returns the run block, nil-safe so the accessors need not branch.
 func (c *Config) run() Run {
