@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/x/set"
 )
 
 // canonicalLeading, canonicalLocator, and canonicalTrailing are the fixed zones
@@ -48,18 +49,13 @@ var (
 // repeatableKeys are the multi-valued keys a directive may carry more than once
 // (the keys [Directive.All] reads): the text codec repeats the pair, the YAML
 // codec collapses them into a single sequence value.
-var repeatableKeys = map[string]bool{
-	constant.RuleInclude: true,
-	constant.RuleExclude: true,
-}
+var repeatableKeys = set.New(constant.RuleInclude, constant.RuleExclude)
 
 // csvKeys are the keys whose single value is a comma-separated list (the keys
 // [Directive.CSV] reads). The YAML codec lets such a key be written as a
 // sequence and joins it back into one comma-separated value, so an item that
 // itself holds commas flattens transparently.
-var csvKeys = map[string]bool{
-	constant.DirectiveTags: true,
-}
+var csvKeys = set.New(constant.DirectiveTags)
 
 // Reorder returns the directive with its pairs sorted into canonical order: the
 // leading common keys, then providerKeys (the provider's own, in the order it
@@ -109,11 +105,11 @@ func Reorder(d Directive, providerKeys []string) Directive {
 // Both codecs consult it: the text codec repeats the pair, the YAML codec
 // represents the values as a single sequence.
 func isRepeatable(key string) bool {
-	return repeatableKeys[key]
+	return repeatableKeys.Contains(key)
 }
 
 // isCSV reports whether key's single value is a comma-separated list, so the
 // YAML codec may accept a sequence and join it into one value.
 func isCSV(key string) bool {
-	return csvKeys[key]
+	return csvKeys.Contains(key)
 }

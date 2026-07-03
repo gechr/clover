@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 )
@@ -21,42 +22,39 @@ var ErrUnknownKey = errors.New("unknown key")
 // provider's own Keys(), so the validator unions the two. A key in neither set
 // is unknown: a typo or a stale annotation from another tool, which the grammar
 // rejects rather than silently carrying as inert configuration.
-var commonKeys = map[string]bool{
-	constant.DirectiveDisabled:     true,
-	constant.DirectiveFind:         true,
-	constant.DirectiveFrom:         true,
-	constant.DirectiveID:           true,
-	constant.DirectivePattern:      true,
-	constant.DirectiveProvider:     true,
-	constant.DirectiveReplace:      true,
-	constant.DirectiveSelect:       true,
-	constant.DirectiveSha256Source: true,
-	constant.DirectiveSha256URL:    true,
-	constant.DirectiveTags:         true,
-	constant.DirectiveTrack:        true,
-	constant.DirectiveValue:        true,
-	constant.DirectiveVerify:       true,
-	constant.DirectiveVerifyBranch: true,
-	constant.RuleAsset:             true,
-	constant.RuleBehind:            true,
-	constant.RuleConstraint:        true,
-	constant.RuleCooldown:          true,
-	constant.RuleDowngrade:         true,
-	constant.RuleExclude:           true,
-	constant.RuleInclude:           true,
-	constant.RulePrerelease:        true,
-	constant.RuleTagPrefix:         true,
-}
+var commonKeys = set.New(
+	constant.DirectiveDisabled,
+	constant.DirectiveFind,
+	constant.DirectiveFrom,
+	constant.DirectiveID,
+	constant.DirectivePattern,
+	constant.DirectiveProvider,
+	constant.DirectiveReplace,
+	constant.DirectiveSelect,
+	constant.DirectiveSha256Source,
+	constant.DirectiveSha256URL,
+	constant.DirectiveTags,
+	constant.DirectiveTrack,
+	constant.DirectiveValue,
+	constant.DirectiveVerify,
+	constant.DirectiveVerifyBranch,
+	constant.RuleAsset,
+	constant.RuleBehind,
+	constant.RuleConstraint,
+	constant.RuleCooldown,
+	constant.RuleDowngrade,
+	constant.RuleExclude,
+	constant.RuleInclude,
+	constant.RulePrerelease,
+	constant.RuleTagPrefix,
+)
 
 // CommonKeys returns the provider-agnostic directive vocabulary in sorted order -
 // every key valid on any marker regardless of provider. It exposes the same set
 // [CheckKeys] validates against, so a caller (the sidecar schema's drift guard)
 // can enumerate the vocabulary without reaching into the unexported map.
 func CommonKeys() []string {
-	keys := make([]string, 0, len(commonKeys))
-	for key := range commonKeys {
-		keys = append(keys, key)
-	}
+	keys := commonKeys.Slice()
 	xslices.SortNatural(keys)
 	return keys
 }
@@ -94,7 +92,7 @@ func (d Directive) CheckKeysSidecar(providerKeys []string) error {
 func (d Directive) PruneUnknownKeys(providerKeys []string) (Directive, []string) {
 	var removed []string
 	for _, kv := range d.Pairs {
-		if !commonKeys[kv.Key] && !slices.Contains(providerKeys, kv.Key) {
+		if !commonKeys.Contains(kv.Key) && !slices.Contains(providerKeys, kv.Key) {
 			removed = append(removed, kv.Key)
 		}
 	}
@@ -103,7 +101,7 @@ func (d Directive) PruneUnknownKeys(providerKeys []string) (Directive, []string)
 	}
 	kept := make([]KV, 0, len(d.Pairs)-len(removed))
 	for _, kv := range d.Pairs {
-		if commonKeys[kv.Key] || slices.Contains(providerKeys, kv.Key) {
+		if commonKeys.Contains(kv.Key) || slices.Contains(providerKeys, kv.Key) {
 			kept = append(kept, kv)
 		}
 	}
@@ -117,7 +115,7 @@ func (d Directive) PruneUnknownKeys(providerKeys []string) (Directive, []string)
 // checked in written order so the reported one is stable.
 func (d Directive) FirstUnknownKey(providerKeys []string) (string, string, bool) {
 	for _, kv := range d.Pairs {
-		if commonKeys[kv.Key] || slices.Contains(providerKeys, kv.Key) {
+		if commonKeys.Contains(kv.Key) || slices.Contains(providerKeys, kv.Key) {
 			continue
 		}
 		return kv.Key, closest(kv.Key, providerKeys), true
@@ -130,11 +128,7 @@ func (d Directive) FirstUnknownKey(providerKeys []string) (string, string, bool)
 // provider's keys, so a mistyped repository on docker suggests "repository".
 // Candidates are sorted so an equidistant tie resolves deterministically.
 func closest(unknown string, providerKeys []string) string {
-	candidates := make([]string, 0, len(commonKeys)+len(providerKeys))
-	for k := range commonKeys {
-		candidates = append(candidates, k)
-	}
-	candidates = append(candidates, providerKeys...)
+	candidates := append(commonKeys.Slice(), providerKeys...)
 	xslices.SortNatural(candidates)
 	return xstrings.Closest(unknown, candidates)
 }
