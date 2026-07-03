@@ -132,23 +132,18 @@ func (r *Resolver) PrimaryForPaths(paths []string) (*Config, error) {
 		paths = []string{"."}
 	}
 
-	type seenConfig struct {
-		cfg *Config
-		err error
-	}
-	seen := make(map[string]seenConfig)
+	seen := make(map[string]*Config)
 	for _, path := range paths {
 		dir := configStartDir(path)
-		root := r.Root(dir)
 		cfg, err := r.ForDir(dir)
 		if err != nil {
 			return nil, err
 		}
-		seen[root] = seenConfig{cfg: cfg, err: err}
+		seen[r.Root(dir)] = cfg
 	}
 	if len(seen) == 1 {
-		for _, res := range seen {
-			return res.cfg, res.err
+		for _, cfg := range seen {
+			return cfg, nil
 		}
 	}
 	return r.user, nil
