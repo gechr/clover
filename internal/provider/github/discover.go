@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/gechr/clover/internal/dates"
@@ -151,12 +152,9 @@ func candidatesFromTags(tags []tag) []model.Candidate {
 // signal that a shallow page held at least one real version, so a deep fallback
 // would add nothing.
 func anyParsable(candidates []model.Candidate) bool {
-	for _, c := range candidates {
-		if c.Semver != nil {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(candidates, func(c model.Candidate) bool {
+		return c.Semver != nil
+	})
 }
 
 func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.Candidate, error) {
