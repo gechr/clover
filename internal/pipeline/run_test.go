@@ -27,6 +27,7 @@ type fakeProvider struct {
 	candidates   []model.Candidate
 	err          error
 	deep         *bool             // when set, Discover records whether a deep lookup was requested
+	qualifier    *string           // when set, Discover records the qualifier hint
 	truncate     bool              // when set, Discover reports a truncated lookup
 	link         string            // when set, the Linker capability returns link+candidate.Ref
 	digest       string            // the digest the Digester capability returns
@@ -90,6 +91,9 @@ func (f fakeProvider) Discover(
 	if f.deep != nil {
 		*f.deep = provider.Deep(ctx)
 	}
+	if f.qualifier != nil {
+		*f.qualifier = provider.Qualifier(ctx)
+	}
 	if f.truncate {
 		provider.NoteTruncated(ctx, f.name, "https://"+f.name)
 	}
@@ -121,6 +125,43 @@ func TestRunDeepReachesDiscover(t *testing.T) {
 	_, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithDeep(new(true)))
 	require.NoError(t, err)
 	require.True(t, got, "WithDeep(true) reaches the provider's Discover")
+}
+
+// The located tag's qualifier reaches Discover as a hint, so a provider can
+// narrow discovery server-side; a plain tag or an explicit include - which can
+// widen selection beyond the suffix - leaves the hint unset.
+func TestRunQualifierHintReachesDiscover(t *testing.T) {
+	var got string
+	provider.Register(fakeProvider{
+		name:      "qualhint",
+		qualifier: &got,
+		candidates: []model.Candidate{
+			candidate(t, "1.3.0"),
+			variantTag(t, "1.3.0-alpine"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=qualhint repository=x/y\nversion: 1.2.0-alpine\n",
+	})
+	_, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, "alpine", got, "a qualified tag hints its suffix")
+
+	dir = write(t, map[string]string{
+		"app.txt": "# clover: provider=qualhint repository=x/y\nversion: 1.2.0\n",
+	})
+	_, err = pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Empty(t, got, "a plain tag sets no hint")
+
+	dir = write(t, map[string]string{
+		"app.txt": "# clover: provider=qualhint repository=x/y include=*-alpine\n" +
+			"version: 1.2.0-alpine\n",
+	})
+	_, err = pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Empty(t, got, "an explicit include clears the hint")
 }
 
 // A repository's run.deep default drives a deep lookup for its own markers,

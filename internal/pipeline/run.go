@@ -603,6 +603,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		ctx = provider.WithTruncationSink(ctx, func(provider.Truncation) { truncated.Store(true) })
 	}
 
+	// Selection is pinned to the located tag's own suffix (see variantInclude),
+	// so tell the provider, which may then skip tags that could never match.
+	if q := qualifierHint(located.Current(), m.Directive); q != "" {
+		ctx = provider.WithQualifier(ctx, q)
+	}
+
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
 		return err
@@ -1397,6 +1403,16 @@ func prefixedAttrs(prefix string) func(model.Candidate) version.Attrs {
 			PublishedAt: c.PublishedAt,
 		}
 	}
+}
+
+// qualifierHint returns the qualifier selection will be pinned to: the located
+// tag's suffix when variantInclude's scoping applies, "" when an explicit
+// directive include overrides it or the tag is plain.
+func qualifierHint(raw string, d directive.Directive) string {
+	if d.Has(constant.RuleInclude) {
+		return ""
+	}
+	return version.Qualifier(raw)
 }
 
 // variantInclude returns an include option restricting selection to candidates
