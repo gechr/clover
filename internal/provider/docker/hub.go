@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
@@ -36,6 +37,13 @@ func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Cand
 		"https://%s/v2/repositories/%s/tags?page_size=%d&ordering=last_updated",
 		hubAPIHost, ref.repository, pageSize,
 	)
+	// name= filters tags by substring server-side. Every tag selection can accept
+	// carries the hinted qualifier and so contains it, so filtering skips only
+	// tags that could never be selected - a repo with thousands of tags across
+	// many variants shrinks to the marker's own track.
+	if q := provider.Qualifier(ctx); q != "" {
+		url += "&name=" + neturl.QueryEscape(q)
+	}
 	token := p.hubToken(ctx)
 
 	var candidates []model.Candidate

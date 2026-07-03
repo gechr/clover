@@ -120,6 +120,30 @@ func TestDiscoverHubRequestsNewestFirst(t *testing.T) {
 	require.NotContains(t, gotQuery, "ordering=-last_updated")
 }
 
+func TestDiscoverHubQualifierFiltersServerSide(t *testing.T) {
+	t.Parallel()
+
+	var gotQuery string
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotQuery = req.URL.RawQuery
+		return jsonResponse(req, `{"results":[{"name":"1.0.0-alpine3.22"}]}`), nil
+	})
+	p := docker.New(docker.WithTransport(transport), anon())
+
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "node"}))
+	require.NoError(t, err)
+
+	_, err = p.Discover(provider.WithQualifier(t.Context(), "alpine3.22"), res)
+	require.NoError(t, err)
+	require.Equal(t, "page_size=100&ordering=last_updated&name=alpine3.22", gotQuery,
+		"a qualifier hint narrows the listing server-side")
+
+	_, err = p.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Equal(t, "page_size=100&ordering=last_updated", gotQuery,
+		"no hint leaves the listing unfiltered")
+}
+
 func TestDiscoverHubDeepPaginates(t *testing.T) {
 	t.Parallel()
 
