@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/x/set"
 )
 
 const (
@@ -66,7 +67,7 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	}
 
 	candidates := make([]model.Candidate, 0, len(releases))
-	seen := make(map[string]struct{}, len(releases))
+	seen := make(set.Set[string], len(releases))
 	for _, rel := range releases {
 		if rel.Version == "" {
 			continue
@@ -82,10 +83,10 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		if res.build != "" {
 			ver = rel.Version
 		}
-		if _, dup := seen[ver]; dup {
+		if seen.Contains(ver) {
 			continue
 		}
-		seen[ver] = struct{}{}
+		seen.Add(ver)
 		candidates = append(candidates, candidate(ver, rel))
 	}
 	return candidates, nil
