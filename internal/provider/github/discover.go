@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
+	xhttp "github.com/gechr/x/http"
 )
 
 // perPage is the page size, GitHub's ceiling for both the REST tags endpoint and
@@ -275,7 +276,7 @@ func listAll[T any](
 			return nil, fmt.Errorf("github: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
-		next := forge.NextLink(header)
+		next := xhttp.NextLink(header)
 		// Never follow a next page to a different origin: the credential must not
 		// leak off the host the lookup started on.
 		if next != "" && !forge.SameOrigin(start, next) {

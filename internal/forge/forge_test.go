@@ -3,7 +3,6 @@ package forge_test
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"net/http"
 	"testing"
 
 	"github.com/gechr/clover/internal/forge"
@@ -74,19 +73,6 @@ func TestRandomState(t *testing.T) {
 	b, err := forge.RandomState()
 	require.NoError(t, err)
 	require.NotEqual(t, a, b)
-}
-
-func TestNextLink(t *testing.T) {
-	t.Parallel()
-
-	h := http.Header{}
-	require.Empty(t, forge.NextLink(h))
-
-	h.Set("Link", `<https://x/p2>; rel="next", <https://x/p9>; rel="last"`)
-	require.Equal(t, "https://x/p2", forge.NextLink(h))
-
-	h.Set("Link", `<https://x/p9>; rel="last"`)
-	require.Empty(t, forge.NextLink(h))
 }
 
 func TestPATHost(t *testing.T) {

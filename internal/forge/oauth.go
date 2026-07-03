@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"net/http"
-	"strings"
 )
 
 // PKCE returns an RFC 7636 verifier (32 random bytes, 43 base64url chars) and its
@@ -30,23 +28,4 @@ func RandomState() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
-}
-
-// NextLink returns the rel="next" URL from an RFC 8288 Link header, or "" when
-// none. Forges that paginate with the standard Link header expose the
-// authoritative "more pages" signal here, rather than guessing from a full page.
-func NextLink(header http.Header) string {
-	for part := range strings.SplitSeq(header.Get("Link"), ",") {
-		ref, attrs, ok := strings.Cut(strings.TrimSpace(part), ";")
-		if !ok {
-			continue
-		}
-		link := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(ref), "<"), ">")
-		for attr := range strings.SplitSeq(attrs, ";") {
-			if strings.TrimSpace(attr) == `rel="next"` {
-				return link
-			}
-		}
-	}
-	return ""
 }

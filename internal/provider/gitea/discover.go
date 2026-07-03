@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
+	xhttp "github.com/gechr/x/http"
 )
 
 // perPage is the page size, Gitea's ceiling for the list endpoints. A shallow
@@ -143,7 +144,7 @@ func listAll[T any](
 			return nil, false, fmt.Errorf("gitea: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
-		next := forge.NextLink(header)
+		next := xhttp.NextLink(header)
 		// Never follow a next page to a different origin: the credential must not
 		// leak off the host the lookup started on.
 		if next != "" && !forge.SameOrigin(start, next) {
