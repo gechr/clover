@@ -178,7 +178,12 @@ func cacheDirectiveName(directive string) string {
 // response. Authorization is included because authenticated responses differ;
 // hashing it keeps tokens out of any future on-disk keys.
 func fingerprint(req *http.Request) string {
-	raw := req.Method + "\n" + req.URL.String() + "\n" + req.Header.Get("Authorization")
+	raw := strings.Join([]string{
+		req.Method,
+		req.URL.String(),
+		req.Header.Get("Authorization"),
+		req.Header.Get("Accept"),
+	}, "\n")
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }

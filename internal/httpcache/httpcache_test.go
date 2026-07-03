@@ -65,7 +65,7 @@ func TestCachesRepeatedGET(t *testing.T) {
 	require.Equal(t, int64(1), fake.calls.Load(), "second GET should be served from cache")
 }
 
-func TestDistinctURLsAndAuthAreSeparate(t *testing.T) {
+func TestDistinctURLsAuthAndAcceptAreSeparate(t *testing.T) {
 	t.Parallel()
 
 	fake := &fakeTransport{body: "x"}
@@ -87,6 +87,18 @@ func TestDistinctURLsAndAuthAreSeparate(t *testing.T) {
 	do("Bearer one")
 	do("Bearer two")
 	require.Equal(t, int64(4), fake.calls.Load(), "auth is part of the cache key")
+
+	accept := func(value string) {
+		req, err := http.NewRequest(http.MethodGet, "https://example.test/a", nil)
+		require.NoError(t, err)
+		req.Header.Set("Accept", value)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+	}
+	accept("application/json")
+	accept("application/vnd.oci.image.index.v1+json")
+	require.Equal(t, int64(6), fake.calls.Load(), "accept is part of the cache key")
 }
 
 func TestNonGETNotCached(t *testing.T) {
