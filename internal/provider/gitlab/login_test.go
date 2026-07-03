@@ -3,6 +3,7 @@ package gitlab_test
 import (
 	"testing"
 
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ import (
 func TestLoginSelfManagedRequiresClientID(t *testing.T) {
 	t.Parallel()
 
-	err := gitlab.Login(t.Context(), "gitlab.example.com", "", func(gitlab.Code) {})
+	err := gitlab.Login(t.Context(), "gitlab.example.com", "", func(forge.Code) {})
 	require.EqualError(t, err,
 		"gitlab: gitlab.example.com requires --client-id (register an application on the instance)")
 }
@@ -23,6 +24,6 @@ func TestLoginSelfManagedRequiresClientID(t *testing.T) {
 func TestLoginInvalidHost(t *testing.T) {
 	t.Parallel()
 
-	err := gitlab.Login(t.Context(), "gitlab.example.com/foo", "id", func(gitlab.Code) {})
+	err := gitlab.Login(t.Context(), "gitlab.example.com/foo", "id", func(forge.Code) {})
 	require.EqualError(t, err, "gitlab: invalid host")
 }

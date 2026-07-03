@@ -11,6 +11,7 @@ import (
 	"github.com/cli/browser"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider/gitea"
 	"github.com/gechr/clover/internal/provider/github"
@@ -18,22 +19,16 @@ import (
 	"github.com/gechr/x/terminal"
 )
 
-// deviceLogins maps a provider name to its OAuth device flow against a host. Each
-// provider keeps its own typed Code, so the dispatch adapts it to
-// promptDeviceCode's plain arguments here rather than forcing a shared type
-// across the providers. docker is absent: it authenticates through its own
-// keychain, not a Clover device flow.
-var deviceLogins = map[string]func(ctx context.Context, host, clientID string) error{
-	constant.ProviderGithub: func(ctx context.Context, host, clientID string) error {
-		return github.Login(ctx, host, clientID, func(c github.Code) {
-			promptDeviceCode(c.UserCode, c.VerificationURL)
-		})
-	},
-	constant.ProviderGitlab: func(ctx context.Context, host, clientID string) error {
-		return gitlab.Login(ctx, host, clientID, func(c gitlab.Code) {
-			promptDeviceCode(c.UserCode, c.VerificationURL)
-		})
-	},
+// deviceLogins maps a provider name to its OAuth device flow against a host.
+// docker is absent: it authenticates through its own keychain, not a Clover
+// device flow.
+var deviceLogins = map[string]func(
+	ctx context.Context,
+	host, clientID string,
+	prompt func(forge.Code),
+) error{
+	constant.ProviderGithub: github.Login,
+	constant.ProviderGitlab: gitlab.Login,
 }
 
 // cmdLogin authenticates Clover with a provider, storing the minted token so
@@ -71,7 +66,10 @@ func (c *cmdLogin) Run() error {
 		if !ok {
 			return fmt.Errorf("login: provider %q has no interactive login", c.Provider)
 		}
-		if err := login(ctx, c.Host, c.ClientID); err != nil {
+		prompt := func(code forge.Code) {
+			promptDeviceCode(code.UserCode, code.VerificationURL)
+		}
+		if err := login(ctx, c.Host, c.ClientID, prompt); err != nil {
 			return err
 		}
 	}
