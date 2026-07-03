@@ -263,13 +263,13 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 // across a repository's whole history.
 func listAll[T any](
 	ctx context.Context,
-	rest *restClient,
+	rest forge.RESTClient,
 	what, start, token string,
 ) ([]T, error) {
 	var all []T
 	for url := start; ; {
 		var batch []T
-		header, err := rest.DoWithContext(ctx, url, token, &batch)
+		header, err := rest.DoWithContext(ctx, url, forge.Bearer(token), &batch)
 		if err != nil {
 			return nil, fmt.Errorf("github: list %s: %w", what, err)
 		}
@@ -301,7 +301,8 @@ func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) 
 		SHA string `json:"sha"`
 	}
 	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, tag))
-	if _, err := p.client().DoWithContext(ctx, url, p.credential(res.host), &commit); err != nil {
+	if _, err := p.client().
+		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &commit); err != nil {
 		return "", fmt.Errorf("github: resolve commit for %s: %w", tag, err)
 	}
 	return commit.SHA, nil

@@ -65,7 +65,7 @@ type Provider struct {
 	tokenOpt  string            // injected PAT, for tests; bypasses the env chain
 	store     tokenStore        // reads/refreshes the clover-minted login; nil skips that rung
 
-	rest      *restClient
+	rest      forge.RESTClient
 	refreshMu sync.Map // host -> *sync.Mutex, serializing token refresh per host
 }
 
@@ -118,7 +118,7 @@ func New(opts ...Option) *Provider {
 	if transport == nil {
 		transport = httpcache.New().Transport
 	}
-	p.rest = &restClient{httpClient: &http.Client{Transport: transport}}
+	p.rest = forge.NewRESTClient(&http.Client{Transport: transport}, "application/json")
 	return p
 }
 
@@ -223,6 +223,13 @@ func (p *Provider) AuthHint() string {
 // host it is bound to - a marker-controlled host= must not redirect it. A login
 // minted by `clover login` is an OAuth access token sent as `Bearer`, refreshed
 // and re-persisted when it has expired. An empty token means anonymous access.
+// authorization resolves the credential for a host into a ready Authorization
+// header value; empty means anonymous access.
+func (p *Provider) authorization(ctx context.Context, host string) string {
+	token, scheme := p.auth(ctx, host)
+	return forge.Authorization(scheme, token)
+}
+
 func (p *Provider) auth(ctx context.Context, host string) (string, string) {
 	if pat := p.staticCredential(); pat != "" && host == p.patHost() {
 		return pat, "token"
@@ -260,7 +267,7 @@ func (p *Provider) refreshAndStore(
 	if c, ok := p.storedCreds(host); ok && !c.expired() {
 		return c.AccessToken, "Bearer" // refreshed by another marker while we waited
 	}
-	refreshed, err := refreshCreds(ctx, p.rest.httpClient, host, expired)
+	refreshed, err := refreshCreds(ctx, p.rest.HTTPClient(), host, expired)
 	if err != nil {
 		return "", "" // refresh failed; fall back to anonymous
 	}

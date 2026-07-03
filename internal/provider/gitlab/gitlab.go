@@ -76,7 +76,7 @@ type Provider struct {
 	tokenOpt  string            // injected host-bound PAT, for tests; bypasses the env chain
 	store     tokenStore        // reads the clover-minted token; nil falls through the chain
 
-	rest *restClient
+	rest forge.RESTClient
 }
 
 // tokenStore is the read side of the token store the credential chain consults.
@@ -129,7 +129,7 @@ func New(opts ...Option) *Provider {
 			httpcache.WithTransport(ratelimit.New(nil, rateHeaders)),
 		).Transport
 	}
-	p.rest = &restClient{httpClient: &http.Client{Transport: transport}}
+	p.rest = forge.NewRESTClient(&http.Client{Transport: transport}, "application/json")
 	return p
 }
 

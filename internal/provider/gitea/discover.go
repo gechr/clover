@@ -73,8 +73,7 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 		res.host,
 		fmt.Sprintf("repos/%s/%s/tags?limit=%d", res.owner, res.name, perPage),
 	)
-	token, scheme := p.auth(ctx, res.host)
-	tags, truncated, err := listAll[tag](ctx, p.rest, "tags", start, token, scheme)
+	tags, truncated, err := listAll[tag](ctx, p.rest, "tags", start, p.authorization(ctx, res.host))
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +95,13 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		res.host,
 		fmt.Sprintf("repos/%s/%s/releases?limit=%d", res.owner, res.name, perPage),
 	)
-	token, scheme := p.auth(ctx, res.host)
-	releases, truncated, err := listAll[release](ctx, p.rest, "releases", start, token, scheme)
+	releases, truncated, err := listAll[release](
+		ctx,
+		p.rest,
+		"releases",
+		start,
+		p.authorization(ctx, res.host),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +137,13 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 // --deep.
 func listAll[T any](
 	ctx context.Context,
-	rest *restClient,
-	what, start, token, scheme string,
+	rest forge.RESTClient,
+	what, start, authorization string,
 ) ([]T, bool, error) {
 	var all []T
 	for url := start; ; {
 		var batch []T
-		header, err := rest.DoWithContext(ctx, url, token, scheme, &batch)
+		header, err := rest.DoWithContext(ctx, url, authorization, &batch)
 		if err != nil {
 			return nil, false, fmt.Errorf("gitea: list %s: %w", what, err)
 		}

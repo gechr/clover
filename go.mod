@@ -12,7 +12,7 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.5.6
+	github.com/gechr/clib v0.5.8
 	github.com/gechr/clog v0.11.12
 	github.com/gechr/x v0.2.0
 	github.com/gobwas/glob v0.2.3
@@ -103,7 +103,7 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clive v0.2.2
+	github.com/gechr/clive v0.2.4
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect

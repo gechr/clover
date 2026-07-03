@@ -75,7 +75,7 @@ type Provider struct {
 
 	once     sync.Once
 	resolved http.RoundTripper // the transport actually in use (test override or cached default)
-	rest     *restClient
+	rest     forge.RESTClient
 	gqlCache sync.Map // host -> *gqlEntry, building each host's GraphQL client once
 }
 
@@ -277,13 +277,16 @@ func (p *Provider) initClients() {
 			).Transport
 		}
 		p.resolved = transport
-		p.rest = &restClient{httpClient: &http.Client{Transport: transport}}
+		p.rest = forge.NewRESTClient(
+			&http.Client{Transport: transport},
+			"application/vnd.github+json",
+		)
 	})
 }
 
 // client returns the lazily-built REST client. It is always available, so this
 // never errors - anonymous access is valid (just rate-limited).
-func (p *Provider) client() *restClient {
+func (p *Provider) client() forge.RESTClient {
 	p.initClients()
 	return p.rest
 }

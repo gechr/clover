@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/provider"
 )
 
@@ -19,7 +20,8 @@ func (p *Provider) DefaultBranch(ctx context.Context, r provider.Resource) (stri
 		DefaultBranch string `json:"default_branch"`
 	}
 	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s", res.owner, res.name))
-	if _, err := p.client().DoWithContext(ctx, url, p.credential(res.host), &repo); err != nil {
+	if _, err := p.client().
+		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &repo); err != nil {
 		return "", fmt.Errorf("github: resolve default branch: %w", err)
 	}
 	return repo.DefaultBranch, nil
@@ -53,7 +55,7 @@ func (p *Provider) Branches(ctx context.Context, r provider.Resource) ([]provide
 			perPage,
 			page,
 		))
-		if _, err := rest.DoWithContext(ctx, url, token, &batch); err != nil {
+		if _, err := rest.DoWithContext(ctx, url, forge.Bearer(token), &batch); err != nil {
 			return nil, fmt.Errorf("github: list branches: %w", err)
 		}
 		for _, b := range batch {
@@ -86,7 +88,8 @@ func (p *Provider) Reachable(
 		res.host,
 		fmt.Sprintf("repos/%s/%s/compare/%s...%s", res.owner, res.name, branch, commit),
 	)
-	if _, err := p.client().DoWithContext(ctx, url, p.credential(res.host), &cmp); err != nil {
+	if _, err := p.client().
+		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &cmp); err != nil {
 		return false, fmt.Errorf("github: compare %s...%s: %w", branch, commit, err)
 	}
 	return cmp.Status == "behind" || cmp.Status == "identical", nil

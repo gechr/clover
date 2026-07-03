@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clover/internal/dates"
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
@@ -143,14 +144,19 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 // finds no candidate can be hinted toward --deep.
 func listAll[T any](
 	ctx context.Context,
-	rest *restClient,
+	rest forge.RESTClient,
 	what, host, token string,
 	pathFor func(page int) string,
 ) ([]T, bool, error) {
 	var all []T
 	for page := 1; ; page++ {
 		var batch []T
-		header, err := rest.DoWithContext(ctx, apiURL(host, pathFor(page)), token, &batch)
+		header, err := rest.DoWithContext(
+			ctx,
+			apiURL(host, pathFor(page)),
+			forge.Bearer(token),
+			&batch,
+		)
 		if err != nil {
 			return nil, false, fmt.Errorf("gitlab: list %s: %w", what, err)
 		}
