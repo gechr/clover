@@ -1,6 +1,7 @@
 package httpcache_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -124,6 +125,78 @@ func TestNonGETNotCached(t *testing.T) {
 	post()
 	post()
 	require.Equal(t, int64(2), fake.calls.Load(), "non-GET requests are never cached")
+}
+
+func TestCacheablePOSTsAreCachedByBody(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{handler: func(req *http.Request) (*http.Response, error) {
+		body, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader(string(body))),
+			Request:    req,
+		}, nil
+	}}
+	client := httpcache.New(httpcache.WithTransport(fake))
+
+	post := func(body string) string {
+		req, err := http.NewRequestWithContext(
+			httpcache.WithCacheableRequest(context.Background(), time.Minute),
+			http.MethodPost,
+			"https://example.test/graphql",
+			strings.NewReader(body),
+		)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		data, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return string(data)
+	}
+
+	require.Equal(t, "query one", post("query one"))
+	require.Equal(t, "query one", post("query one"))
+	require.Equal(t, "query two", post("query two"))
+	require.Equal(t, int64(2), fake.calls.Load(), "the request body is part of the cache key")
+}
+
+func TestCacheablePOSTFallbackFreshnessWorksAcrossRuns(t *testing.T) {
+	t.Parallel()
+
+	store := httpcache.NewMemStore()
+	fake := &fakeTransport{body: "cached"}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	req, err := http.NewRequestWithContext(
+		httpcache.WithCacheableRequest(context.Background(), time.Minute),
+		http.MethodPost,
+		"https://example.test/graphql",
+		strings.NewReader(`{"query":"QUERY"}`),
+	)
+	require.NoError(t, err)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int64(1), fake.calls.Load())
+
+	time.Sleep(10 * time.Millisecond)
+	nextFake := &fakeTransport{body: "unused"}
+	nextClient := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(nextFake))
+	req, err = http.NewRequestWithContext(
+		httpcache.WithCacheableRequest(context.Background(), time.Minute),
+		http.MethodPost,
+		"https://example.test/graphql",
+		strings.NewReader(`{"query":"QUERY"}`),
+	)
+	require.NoError(t, err)
+	resp, err = nextClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int64(0), nextFake.calls.Load(), "fresh cacheable POST hits across runs")
 }
 
 func TestRetryableStatusNotCached(t *testing.T) {

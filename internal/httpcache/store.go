@@ -12,10 +12,11 @@ import (
 // serialize an entry for a disk-backed [Store]. An entry is immutable once
 // constructed - replaying clones the Header and only reads the Body.
 type Entry struct {
-	Status   int         `json:"status"`
-	Header   http.Header `json:"header"`
-	Body     []byte      `json:"body"`
-	StoredAt time.Time   `json:"stored_at"`
+	Status     int         `json:"status"`
+	Header     http.Header `json:"header"`
+	Body       []byte      `json:"body"`
+	StoredAt   time.Time   `json:"stored_at"`
+	FreshUntil time.Time   `json:"fresh_until"`
 }
 
 // Store is the cache backend behind the transport. The default is in-memory and

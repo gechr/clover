@@ -12,6 +12,9 @@ import (
 // fresh reports whether the entry is still within its origin-granted freshness
 // lifetime, so it may be served without contacting the origin.
 func (e *Entry) fresh(now time.Time) bool {
+	if !e.FreshUntil.IsZero() {
+		return now.Before(e.FreshUntil)
+	}
 	ttl, ok := lifetime(e.Header)
 	return ok && now.Sub(e.StoredAt) < ttl
 }
@@ -29,6 +32,18 @@ func (e *Entry) refreshed(now time.Time) *Entry {
 // Last-Modified) usable for a conditional request.
 func (e *Entry) revalidatable() bool {
 	return e.Header.Get("ETag") != "" || e.Header.Get("Last-Modified") != ""
+}
+
+func (e *Entry) withFallbackFreshness(ttl time.Duration) *Entry {
+	if ttl <= 0 || e.revalidatable() {
+		return e
+	}
+	if _, ok := lifetime(e.Header); ok {
+		return e
+	}
+	clone := *e
+	clone.FreshUntil = clone.StoredAt.Add(ttl)
+	return &clone
 }
 
 // lifetime returns the positive freshness lifetime the origin granted:

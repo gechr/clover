@@ -97,7 +97,8 @@ type failure struct {
 
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.Method != http.MethodGet {
+	policy := policy(req.Context())
+	if req.Method != http.MethodGet && !policy.cacheable {
 		counters.requests.Add(1)
 		return t.base.RoundTrip(req)
 	}
@@ -106,23 +107,29 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return t.base.RoundTrip(req)
 	}
 
-	key := fingerprint(req)
-	if entry, ok := t.store.Get(key); ok && t.fresh(entry) {
+	key, keyed := fingerprint(req)
+	if !keyed {
+		counters.requests.Add(1)
+		return t.base.RoundTrip(req)
+	}
+	if entry, found := t.store.Get(key); found && t.fresh(entry) {
+		closeRequestBody(req)
 		counters.hits.Add(1)
 		return entry.response(req), nil
 	}
 	if err := t.recentFailure(key); err != nil {
+		closeRequestBody(req)
 		counters.replayed.Add(1)
 		return nil, err
 	}
 
 	result, err, shared := t.group.Do(key, func() (any, error) {
-		entry, ok := t.store.Get(key)
-		if ok && t.fresh(entry) {
+		entry, found := t.store.Get(key)
+		if found && t.fresh(entry) {
 			return entry, nil
 		}
 		var stale *Entry
-		if ok && entry.revalidatable() {
+		if found && entry.revalidatable() {
 			stale = entry
 		}
 		counters.requests.Add(1)
@@ -148,6 +155,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
+		entry = entry.withFallbackFreshness(policy.fallbackFreshness)
 		if cacheable(resp) {
 			t.store.Set(key, entry)
 		}
@@ -167,6 +175,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	entry, ok := result.(*Entry)
 	if !ok {
 		return t.base.RoundTrip(req) // unreachable; defensive
+	}
+	if shared {
+		closeRequestBody(req)
 	}
 	return entry.response(req), nil
 }
@@ -310,15 +321,58 @@ func cacheDirectiveName(directive string) string {
 // fingerprint derives the cache key from the parts of a request that change the
 // response. Authorization is included because authenticated responses differ;
 // hashing it keeps tokens out of any future on-disk keys.
-func fingerprint(req *http.Request) string {
-	raw := strings.Join([]string{
+func fingerprint(req *http.Request) (string, bool) {
+	parts := []string{
 		req.Method,
 		req.URL.String(),
 		req.Header.Get("Authorization"),
 		req.Header.Get("Accept"),
-	}, "\n")
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
+	}
+	body, ok := requestBody(req)
+	if !ok {
+		return "", false
+	}
+	if body != nil {
+		parts = append(parts, req.Header.Get("Content-Type"))
+	}
+	hasher := sha256.New()
+	_, _ = io.WriteString(hasher, strings.Join(parts, "\n"))
+	if body != nil {
+		_, _ = hasher.Write([]byte("\n"))
+		_, _ = hasher.Write(body)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), true
+}
+
+func requestBody(req *http.Request) ([]byte, bool) {
+	if req.Method == http.MethodGet || req.Body == nil {
+		return nil, true
+	}
+	if req.GetBody != nil {
+		body, err := req.GetBody()
+		if err != nil {
+			return nil, false
+		}
+		defer func() { _ = body.Close() }()
+		data, err := io.ReadAll(body)
+		return data, err == nil
+	}
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, false
+	}
+	_ = req.Body.Close()
+	req.Body = io.NopCloser(bytes.NewReader(data))
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+	return data, true
+}
+
+func closeRequestBody(req *http.Request) {
+	if req.Body != nil {
+		_ = req.Body.Close()
+	}
 }
 
 // newBaseTransport clones the default transport but caps connection setup, so an

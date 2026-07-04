@@ -104,7 +104,9 @@ func (s *DiskStore) Set(key string, entry *Entry) {
 	}
 	if !entry.revalidatable() {
 		if _, ok := lifetime(entry.Header); !ok {
-			return
+			if entry.FreshUntil.IsZero() {
+				return
+			}
 		}
 	}
 	persisted := *entry

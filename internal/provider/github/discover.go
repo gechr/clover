@@ -9,6 +9,7 @@ import (
 
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/forge"
+	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	xhttp "github.com/gechr/x/http"
@@ -19,6 +20,8 @@ import (
 // for selection and respectful of the rate limit - so a tag marker costs one
 // request. A deep lookup pages to exhaustion instead.
 const perPage = 100
+
+const gqlCacheFreshness = time.Minute
 
 // tagsQuery lists a repository's tags ordered newest-first by their target
 // commit date - the order the GitHub web UI shows, which the REST tags endpoint
@@ -247,7 +250,12 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 		if q := cmp.Or(provider.TagPrefix(ctx), provider.Qualifier(ctx)); q != "" {
 			variables["query"] = q
 		}
-		if err := gql.DoWithContext(ctx, tagsQuery, variables, &resp); err != nil {
+		if err := gql.DoWithContext(
+			httpcache.WithCacheableRequest(ctx, gqlCacheFreshness),
+			tagsQuery,
+			variables,
+			&resp,
+		); err != nil {
 			return nil, fmt.Errorf("github: list tags: %w", err)
 		}
 		for _, n := range resp.Repository.Refs.Nodes {
