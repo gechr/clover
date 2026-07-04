@@ -91,7 +91,6 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 	if stats := httpcache.Snapshot(); stats != (httpcache.Stats{}) {
 		logger.Debug().
 			Symbol("🌐").
-			OmitZero(true).
 			Int(field.Requests, int(stats.Requests)).
 			Int(field.Cached, int(stats.Hits)).
 			Int(field.Revalidated, int(stats.Revalidated)).
