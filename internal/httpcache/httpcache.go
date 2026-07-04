@@ -58,15 +58,17 @@ func New(opts ...Option) *http.Client {
 			errorBackoff:  cfg.errorBackoff,
 			failures:      make(map[string]failure),
 			maxEntryBytes: cfg.maxEntryBytes,
+			startedAt:     time.Now(),
 		},
 	}
 }
 
 // Transport is the caching http.RoundTripper. Non-GET requests pass straight
-// through; GET requests are served from the store when present, and otherwise
-// fetched once - concurrent identical fetches share a single round trip, and a
-// fetch error is replayed to further requests for the backoff window, so a dead
-// host costs one connection timeout per window instead of one per caller.
+// through; GET requests are served from the store while fresh, revalidated with
+// a conditional request when stale but carrying a validator, and otherwise
+// fetched - concurrent identical fetches share a single round trip, and a fetch
+// error is replayed to further requests for the backoff window, so a dead host
+// costs one connection timeout per window instead of one per caller.
 type Transport struct {
 	base          http.RoundTripper
 	store         Store
@@ -75,6 +77,7 @@ type Transport struct {
 	failures      map[string]failure
 	errorBackoff  time.Duration
 	maxEntryBytes int64
+	startedAt     time.Time
 }
 
 // failure is a remembered fetch error, replayed until the backoff window ends.
@@ -93,7 +96,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	key := fingerprint(req)
-	if entry, ok := t.store.Get(key); ok {
+	if entry, ok := t.store.Get(key); ok && t.fresh(entry) {
 		return entry.response(req), nil
 	}
 	if err := t.recentFailure(key); err != nil {
@@ -101,13 +104,24 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	result, err, _ := t.group.Do(key, func() (any, error) {
-		if entry, ok := t.store.Get(key); ok {
+		entry, ok := t.store.Get(key)
+		if ok && t.fresh(entry) {
 			return entry, nil
 		}
-		resp, err := t.base.RoundTrip(req)
+		var stale *Entry
+		if ok && entry.revalidatable() {
+			stale = entry
+		}
+		resp, err := t.base.RoundTrip(conditionalRequest(req, stale))
 		if err != nil {
 			t.recordFailure(key, err)
 			return nil, err
+		}
+		if stale != nil && resp.StatusCode == http.StatusNotModified {
+			_ = resp.Body.Close()
+			refreshed := stale.refreshed(time.Now())
+			t.store.Set(key, refreshed)
+			return refreshed, nil
 		}
 		if tooLarge(resp, t.maxEntryBytes) {
 			_ = resp.Body.Close()
@@ -115,7 +129,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		entry, err := newEntry(resp, t.maxEntryBytes)
+		entry, err = newEntry(resp, t.maxEntryBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -136,6 +150,35 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return t.base.RoundTrip(req) // unreachable; defensive
 	}
 	return entry.response(req), nil
+}
+
+// fresh reports whether entry may be served without contacting the origin. An
+// entry stored during this transport's lifetime is always fresh - a run is
+// short, and this is the in-run contract providers rely on. Older entries
+// (loaded from a cross-run store) are fresh only within their origin-granted
+// lifetime.
+func (t *Transport) fresh(entry *Entry) bool {
+	now := time.Now()
+	if !entry.StoredAt.Before(t.startedAt) {
+		return true
+	}
+	return entry.fresh(now)
+}
+
+// conditionalRequest returns req with the stale entry's validators attached, so
+// the origin can answer 304 Not Modified. A nil stale returns req unchanged.
+func conditionalRequest(req *http.Request, stale *Entry) *http.Request {
+	if stale == nil {
+		return req
+	}
+	req = req.Clone(req.Context())
+	if etag := stale.Header.Get("ETag"); etag != "" {
+		req.Header.Set("If-None-Match", etag)
+	}
+	if modified := stale.Header.Get("Last-Modified"); modified != "" {
+		req.Header.Set("If-Modified-Since", modified)
+	}
+	return req
 }
 
 // recentFailure returns the error remembered for key when its backoff window is

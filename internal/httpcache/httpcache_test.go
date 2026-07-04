@@ -17,18 +17,22 @@ import (
 // fakeTransport is a base RoundTripper that counts calls and returns a canned
 // response, so the tests exercise caching without any real network.
 type fakeTransport struct {
-	calls  atomic.Int64
-	status int
-	body   string
-	header http.Header
-	delay  time.Duration
-	err    error
+	calls   atomic.Int64
+	status  int
+	body    string
+	header  http.Header
+	delay   time.Duration
+	err     error
+	handler func(*http.Request) (*http.Response, error)
 }
 
 func (f *fakeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	f.calls.Add(1)
 	if f.delay > 0 {
 		time.Sleep(f.delay)
+	}
+	if f.handler != nil {
+		return f.handler(req)
 	}
 	if f.err != nil {
 		return nil, f.err
@@ -237,6 +241,140 @@ func TestErrorBackoffDisabled(t *testing.T) {
 	_, err = client.Get("https://example.test/a")
 	require.EqualError(t, err, `Get "https://example.test/a": boom`)
 	require.Equal(t, int64(2), fake.calls.Load(), "a disabled backoff retries every fetch")
+}
+
+// crossRunStore populates a store through one client and returns it, so a
+// second client sees the entries as predating its own run - the same shape as
+// entries loaded from a cross-run (disk) store.
+func crossRunStore(t *testing.T, header http.Header, body string) *httpcache.MemStore {
+	t.Helper()
+	store := httpcache.NewMemStore()
+	fake := &fakeTransport{body: body, header: header}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+	get(t, client, "https://example.test/a")
+	// Guarantee the stored entry strictly predates the next client's start.
+	time.Sleep(10 * time.Millisecond)
+	return store
+}
+
+func TestCrossRunFreshEntryBypassesTransport(t *testing.T) {
+	t.Parallel()
+
+	header := http.Header{
+		"Cache-Control": {"public, max-age=300"},
+		"Etag":          {`W/"v1"`},
+	}
+	store := crossRunStore(t, header, "cached")
+	fake := &fakeTransport{body: "unused"}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	require.Equal(t, "cached", get(t, client, "https://example.test/a"))
+	// The rate-limit invariant: a fresh hit never reaches the base transport,
+	// so a rate-limit-aware transport composed there spends no quota.
+	require.Equal(t, int64(0), fake.calls.Load(), "fresh cross-run entries make no round trip")
+}
+
+func TestStaleEntryRevalidatedNotModified(t *testing.T) {
+	t.Parallel()
+
+	store := crossRunStore(t, http.Header{"Etag": {`W/"v1"`}}, "cached")
+	var conditional []*http.Request
+	fake := &fakeTransport{handler: func(req *http.Request) (*http.Response, error) {
+		conditional = append(conditional, req)
+		return &http.Response{
+			StatusCode: http.StatusNotModified,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	}}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	require.Equal(t, "cached", get(t, client, "https://example.test/a"))
+	require.Equal(
+		t,
+		int64(1),
+		fake.calls.Load(),
+		"a stale entry revalidates through the base transport",
+	)
+	require.Len(t, conditional, 1)
+	require.Equal(t, `W/"v1"`, conditional[0].Header.Get("If-None-Match"))
+
+	// The 304 reset the entry's store time, so further requests are in-run hits.
+	require.Equal(t, "cached", get(t, client, "https://example.test/a"))
+	require.Equal(
+		t,
+		int64(1),
+		fake.calls.Load(),
+		"a revalidated entry is fresh for the rest of the run",
+	)
+}
+
+func TestStaleEntryRevalidatedLastModified(t *testing.T) {
+	t.Parallel()
+
+	const modified = "Wed, 24 Jun 2026 23:36:26 GMT"
+	store := crossRunStore(t, http.Header{"Last-Modified": {modified}}, "cached")
+	var conditional []*http.Request
+	fake := &fakeTransport{handler: func(req *http.Request) (*http.Response, error) {
+		conditional = append(conditional, req)
+		return &http.Response{
+			StatusCode: http.StatusNotModified,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	}}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	require.Equal(t, "cached", get(t, client, "https://example.test/a"))
+	require.Len(t, conditional, 1)
+	require.Equal(t, modified, conditional[0].Header.Get("If-Modified-Since"))
+}
+
+func TestStaleEntryReplacedOnOK(t *testing.T) {
+	t.Parallel()
+
+	store := crossRunStore(t, http.Header{"Etag": {`W/"v1"`}}, "old")
+	fake := &fakeTransport{body: "new", header: http.Header{"Etag": {`W/"v2"`}}}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	require.Equal(t, "new", get(t, client, "https://example.test/a"))
+	require.Equal(t, "new", get(t, client, "https://example.test/a"))
+	require.Equal(t, int64(1), fake.calls.Load(), "a 200 replaces the stale entry")
+}
+
+func TestStaleEntryWithoutValidatorRefetched(t *testing.T) {
+	t.Parallel()
+
+	store := crossRunStore(t, http.Header{}, "old")
+	var requests []*http.Request
+	fake := &fakeTransport{handler: func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader("new")),
+			Request:    req,
+		}, nil
+	}}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	require.Equal(t, "new", get(t, client, "https://example.test/a"))
+	require.Len(t, requests, 1)
+	require.Empty(t, requests[0].Header.Get("If-None-Match"))
+	require.Empty(t, requests[0].Header.Get("If-Modified-Since"))
+}
+
+func TestStaleEntryRevalidationErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	store := crossRunStore(t, http.Header{"Etag": {`W/"v1"`}}, "cached")
+	fake := &fakeTransport{err: errors.New("boom")}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	_, err := client.Get("https://example.test/a")
+	require.EqualError(t, err, `Get "https://example.test/a": boom`)
 }
 
 func TestCoalescesConcurrentGETs(t *testing.T) {

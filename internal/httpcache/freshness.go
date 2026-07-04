@@ -16,6 +16,15 @@ func (e *Entry) fresh(now time.Time) bool {
 	return ok && now.Sub(e.StoredAt) < ttl
 }
 
+// refreshed returns a copy of the entry with its store time reset, recording a
+// successful revalidation. The copy is shallow - entries are immutable, so
+// sharing the Header and Body is safe.
+func (e *Entry) refreshed(now time.Time) *Entry {
+	clone := *e
+	clone.StoredAt = now
+	return &clone
+}
+
 // revalidatable reports whether the entry carries a validator (ETag or
 // Last-Modified) usable for a conditional request.
 func (e *Entry) revalidatable() bool {
