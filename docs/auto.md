@@ -2,6 +2,8 @@
 
 When you omit `provider` (or set `provider=auto`), Clover infers the provider and its parameters from the content of the target line. Common cases need almost no annotation.
 
+<!-- clover-lint-skip -->
+
 ```dockerfile
 # clover: constraint=minor
 FROM redis:7.2.0

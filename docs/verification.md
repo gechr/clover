@@ -2,6 +2,8 @@
 
 When a line carries a secure pin - a Docker digest or a GitHub commit - Clover can deep-verify that the pin genuinely corresponds to the ref it claims, rather than trusting it blindly.
 
+<!-- clover-lint-skip -->
+
 ```yaml
 # clover: provider=github track=main verify=true verify-branch=main
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main

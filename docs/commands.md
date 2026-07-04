@@ -32,7 +32,7 @@ clover run [options] [<path>…]
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                  |
 | `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged                 |
 | `--[no-]verify`         | Verify secure pins against upstream tags; implies `--deep`                             |
-| `-o, --output <output>` | Output detail: `text` (default) or `wide`                                              |
+| `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                   |
 | `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded      |
 | `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                      |
 | `--no-config`           | Do not load any `.clover.yaml` config                                                  |

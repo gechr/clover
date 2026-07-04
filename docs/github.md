@@ -74,6 +74,8 @@ A pin with **no comment at all** is documented on the next `run`. With no commen
 
 A pin whose comment is a **branch name** tracks that branch's HEAD instead of selecting a version: the comment stays put while the SHA is re-resolved each run. See [Tracking](tracking.md) and [Verification](verification.md):
 
+<!-- clover-lint-skip -->
+
 ```yaml
 # clover: provider=github track=main verify-branch=main
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main

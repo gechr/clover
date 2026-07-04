@@ -2,10 +2,14 @@
 
 Some references are not versions at all. A Docker tag like `latest` or `nonroot`, or a GitHub Action pinned to a branch HEAD, keeps the same name while the digest or commit it points at drifts. `track` keeps that secure pin fresh without selecting a new version.
 
+<!-- clover-lint-skip -->
+
 ```dockerfile
 # clover: provider=docker track=*
 FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000000000000
 ```
+
+<!-- clover-lint-skip -->
 
 ```yaml
 # clover: provider=github track=main verify-branch=main

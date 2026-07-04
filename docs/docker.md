@@ -53,6 +53,8 @@ Leave `platform` unset for the index digest; it is opt-in, never inferred from t
 
 A tag like `latest` or `nonroot` does not change name, but the digest it points at drifts. Use [`track`](tracking.md) to keep the digest pin fresh while leaving the tag text alone, and [`value=sha256`](checksums.md) to render the digest.
 
+<!-- clover-lint-skip -->
+
 ```dockerfile
 # clover: provider=docker track=*
 FROM redis:latest@sha256:0000000000000000000000000000000000000000000000000000000000000000
