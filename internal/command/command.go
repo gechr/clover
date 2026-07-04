@@ -21,7 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider/http"
 	"github.com/gechr/clover/internal/tag"
 	"github.com/gechr/conductor"
-	ckong "github.com/gechr/conductor/cli/kong"
+	cli "github.com/gechr/conductor/cli/kong"
 )
 
 const (
@@ -38,10 +38,10 @@ const (
 	scanLabelCandidates = "Scanning for Clover candidates"
 )
 
-// cli is the top-level command tree. The embedded CompletionFlags add the hidden
+// root is the top-level command tree. The embedded CompletionFlags add the hidden
 // shell-completion flags; each remaining field is a subcommand whose Run method
 // kong invokes for the selected command.
-type cli struct {
+type root struct {
 	clib.CompletionFlags
 
 	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file',group='Global Options/Configuration'\""
@@ -86,8 +86,8 @@ func Run() int {
 
 	provider.RegisterAll(all.New(http.WithVersion(clive.Current()))...)
 
-	var root cli
-	prog, err := ckong.New(app, &root)
+	var r root
+	prog, err := cli.New(app, &r)
 	if err != nil {
 		clog.Error().Err(err).Msg("Failed to build CLI")
 		return exitFailure
@@ -102,15 +102,15 @@ func Run() int {
 	if err != nil {
 		prog.Parser.FatalIfErrorf(err)
 	}
-	logger.SetVerbose(root.Verbose)
+	logger.SetVerbose(r.Verbose)
 
-	resolver, err := newResolver(root)
+	resolver, err := newResolver(r)
 	if err != nil {
 		clog.Error().Err(err).Msg("Failed to load config")
 		return exitFailure
 	}
 	kctx.Bind(resolver)
-	kctx.Bind(parallelism(root.Parallelism))
+	kctx.Bind(parallelism(r.Parallelism))
 
 	flush := app.Notify(kctx.Command())
 	runErr := kctx.Run()
@@ -145,20 +145,20 @@ func reportExit(err error) {
 // config lazily. --config and --no-config short-circuit discovery, the latter
 // skipping the user layer too for a fully unconfigured run. The required-version
 // gate is no longer applied here: it runs per repository root inside the scan.
-func newResolver(root cli) (*config.Resolver, error) {
+func newResolver(r root) (*config.Resolver, error) {
 	var user *config.Config
-	if !root.NoConfig {
+	if !r.NoConfig {
 		loaded, err := config.LoadUser()
 		if err != nil {
 			return nil, err
 		}
 		user = loaded
 	}
-	resolver := config.NewResolver(user, root.Config, root.NoConfig)
+	resolver := config.NewResolver(user, r.Config, r.NoConfig)
 	// An explicit --config governs every path, so validate it once up front rather
 	// than waiting for the scan to read it - a bad path or malformed file fails
 	// fast with a clear "Failed to load config" before any work begins.
-	if root.Config != "" {
+	if r.Config != "" {
 		if _, err := resolver.ForDir("."); err != nil {
 			return nil, err
 		}
