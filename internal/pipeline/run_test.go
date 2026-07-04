@@ -28,6 +28,7 @@ type fakeProvider struct {
 	err          error
 	deep         *bool             // when set, Discover records whether a deep lookup was requested
 	qualifier    *string           // when set, Discover records the qualifier hint
+	tagPrefix    *string           // when set, Discover records the tag-prefix hint
 	truncate     bool              // when set, Discover reports a truncated lookup
 	link         string            // when set, the Linker capability returns link+candidate.Ref
 	digest       string            // the digest the Digester capability returns
@@ -93,6 +94,9 @@ func (f fakeProvider) Discover(
 	}
 	if f.qualifier != nil {
 		*f.qualifier = provider.Qualifier(ctx)
+	}
+	if f.tagPrefix != nil {
+		*f.tagPrefix = provider.TagPrefix(ctx)
 	}
 	if f.truncate {
 		provider.NoteTruncated(ctx, f.name, "https://"+f.name)
@@ -162,6 +166,34 @@ func TestRunQualifierHintReachesDiscover(t *testing.T) {
 	_, err = pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.Empty(t, got, "an explicit include clears the hint")
+}
+
+// The marker's tag-prefix reaches Discover as a hint, so a provider can narrow
+// discovery server-side; a marker without one leaves the hint unset.
+func TestRunTagPrefixHintReachesDiscover(t *testing.T) {
+	var got string
+	provider.Register(fakeProvider{
+		name:      "prefixhint",
+		tagPrefix: &got,
+		candidates: []model.Candidate{
+			{Version: "api/v1.5.0"},
+			candidate(t, "1.3.0"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=prefixhint repository=x/y tag-prefix=api/\nversion: v1.4.0\n",
+	})
+	_, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, "api/", got, "a tag-prefix marker hints its prefix")
+
+	dir = write(t, map[string]string{
+		"app.txt": "# clover: provider=prefixhint repository=x/y\nversion: 1.2.0\n",
+	})
+	_, err = pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Empty(t, got, "no tag-prefix sets no hint")
 }
 
 // A repository's run.deep default drives a deep lookup for its own markers,

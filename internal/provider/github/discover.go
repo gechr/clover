@@ -1,6 +1,7 @@
 package github
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -239,10 +240,11 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 	for {
 		var resp gqlTagsResponse
 		variables := map[string]any{"owner": res.owner, "name": res.name, "cursor": cursor}
-		// Every tag selection can accept carries the hinted qualifier and so
-		// contains it, so the substring filter only skips tags that could never
-		// be selected.
-		if q := provider.Qualifier(ctx); q != "" {
+		// Every tag selection can accept contains the hinted tag-prefix or
+		// qualifier, so the substring filter only skips tags that could never be
+		// selected. The prefix wins when both are set, being the stronger
+		// constraint.
+		if q := cmp.Or(provider.TagPrefix(ctx), provider.Qualifier(ctx)); q != "" {
 			variables["query"] = q
 		}
 		if err := gql.DoWithContext(ctx, tagsQuery, variables, &resp); err != nil {

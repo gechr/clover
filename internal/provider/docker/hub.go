@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -38,10 +39,11 @@ func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Cand
 		hubAPIHost, ref.repository, pageSize,
 	)
 	// name= filters tags by substring server-side. Every tag selection can accept
-	// carries the hinted qualifier and so contains it, so filtering skips only
-	// tags that could never be selected - a repo with thousands of tags across
-	// many variants shrinks to the marker's own track.
-	if q := provider.Qualifier(ctx); q != "" {
+	// contains the hinted tag-prefix or qualifier, so filtering skips only tags
+	// that could never be selected - a repo with thousands of tags across many
+	// variants shrinks to the marker's own track. The prefix wins when both are
+	// set, being the stronger constraint.
+	if q := cmp.Or(provider.TagPrefix(ctx), provider.Qualifier(ctx)); q != "" {
 		url += "&name=" + neturl.QueryEscape(q)
 	}
 	token := p.hubToken(ctx)

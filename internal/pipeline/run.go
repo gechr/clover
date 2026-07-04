@@ -608,6 +608,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if q := qualifierHint(located.Current(), m.Directive); q != "" {
 		ctx = provider.WithQualifier(ctx, q)
 	}
+	// Likewise a tag without the marker's tag-prefix can never be selected (see
+	// prefixedAttrs), so the provider may skip those too.
+	prefix, _ := m.Directive.Get(constant.RuleTagPrefix)
+	if prefix != "" {
+		ctx = provider.WithTagPrefix(ctx, prefix)
+	}
 
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
@@ -655,7 +661,6 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// prefix is stripped from the winner so everything downstream - render, the
 	// published value, a digest - sees the bare version.
 	extract := attrs
-	prefix, _ := m.Directive.Get(constant.RuleTagPrefix)
 	if prefix != "" {
 		extract = prefixedAttrs(prefix)
 	}

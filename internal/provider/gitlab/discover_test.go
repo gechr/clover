@@ -99,6 +99,13 @@ func TestDiscoverTagsQualifierFiltersServerSide(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, seen, 2)
 	require.False(t, seen[1].URL.Query().Has("search"), "no hint leaves the listing unfiltered")
+
+	ctx := provider.WithQualifier(t.Context(), "ent")
+	_, err = p.Discover(provider.WithTagPrefix(ctx, "api/"), res)
+	require.NoError(t, err)
+	require.Len(t, seen, 3)
+	require.Equal(t, "^api/", seen[2].URL.Query().Get("search"),
+		"the tag-prefix wins over the qualifier and anchors the search")
 }
 
 // TestDiscoverRoutesSelfManagedHost covers a self-managed host: the request

@@ -331,8 +331,13 @@ func TestDiscoverTagsGraphQLQualifierFiltersServerSide(t *testing.T) {
 	require.NoError(t, err)
 	_, err = p.Discover(t.Context(), res)
 	require.NoError(t, err)
-	require.Equal(t, []any{"ent", nil}, queries,
-		"a qualifier hint narrows the refs connection, no hint stays unfiltered")
+	_, err = p.Discover(
+		provider.WithTagPrefix(provider.WithQualifier(t.Context(), "ent"), "api/"),
+		res,
+	)
+	require.NoError(t, err)
+	require.Equal(t, []any{"ent", nil, "api/"}, queries,
+		"a hint narrows the refs connection, the tag-prefix winning over the qualifier")
 }
 
 // emptyRefs is a GraphQL refs payload with no tags, for tests that only need to

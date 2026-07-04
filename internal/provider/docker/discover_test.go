@@ -142,6 +142,12 @@ func TestDiscoverHubQualifierFiltersServerSide(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "page_size=100&ordering=last_updated", gotQuery,
 		"no hint leaves the listing unfiltered")
+
+	ctx := provider.WithQualifier(t.Context(), "alpine3.22")
+	_, err = p.Discover(provider.WithTagPrefix(ctx, "api/"), res)
+	require.NoError(t, err)
+	require.Equal(t, "page_size=100&ordering=last_updated&name=api%2F", gotQuery,
+		"the tag-prefix wins over the qualifier")
 }
 
 func TestDiscoverHubDeepPaginates(t *testing.T) {
