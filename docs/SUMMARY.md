@@ -37,3 +37,5 @@
   - [Verification](verification.md)
 
 - [Commands](commands.md)
+
+- [Caching](caching.md)
