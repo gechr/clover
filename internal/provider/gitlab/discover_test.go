@@ -239,6 +239,31 @@ func TestDiscoverShallowReadsOnePage(t *testing.T) {
 	require.Len(t, seen, 1)
 }
 
+// TestDiscoverDeepStopsAtVersionFloor covers the floor cutoff: the tag listing
+// is version-ordered, so a deep walk ends on the page that reaches below the
+// hinted current version instead of paging to exhaustion.
+func TestDiscoverDeepStopsAtVersionFloor(t *testing.T) {
+	t.Parallel()
+
+	var seen []*http.Request
+	p := gitlab.New(
+		gitlab.WithTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req)
+			resp := jsonResponse(req,
+				`[{"name":"v2.0.0","commit":{"id":"c2"}},{"name":"v0.9.0","commit":{"id":"c0"}}]`)
+			resp.Header.Set("X-Next-Page", "2") // more pages remain
+			return resp, nil
+		})),
+	)
+	res := resourceFor(t, p, directive.KV{Key: "repository", Value: "group/project"})
+
+	ctx := provider.WithDeep(t.Context(), true)
+	got, err := p.Discover(provider.WithVersionFloor(ctx, "1.0.0"), res)
+	require.NoError(t, err)
+	require.Len(t, seen, 1, "the page reaching below the floor is the last fetched")
+	require.Len(t, got, 2, "the stopping page's own tags are still candidates")
+}
+
 func TestDiscoverError(t *testing.T) {
 	t.Parallel()
 

@@ -614,6 +614,19 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if prefix != "" {
 		ctx = provider.WithTagPrefix(ctx, prefix)
 	}
+	// With downgrades off, selection cannot pick below the current version, so a
+	// version-ordered provider may stop paging once its listing passes it. The
+	// gate mirrors the downgrade precedence below: a CLI/config override
+	// decides, and otherwise any directive-level rule is assumed live. A
+	// tag-prefix suppresses the floor - the provider sees raw tags whose
+	// version-ordering the prefix may break.
+	cfg := p.configFor(m.File)
+	downgrade := cmp.Or(p.downgrade, cfg.Downgrade())
+	downgradeOff := downgrade != nil && !*downgrade ||
+		downgrade == nil && !m.Directive.Has(constant.RuleDowngrade)
+	if located.Semver() != nil && prefix == "" && downgradeOff {
+		ctx = provider.WithVersionFloor(ctx, located.Semver().String())
+	}
 
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
@@ -635,8 +648,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// A CLI override wins over the root's config default, which wins over the
 	// directive's own rule; appended after the directive options so a set value
 	// takes precedence. nil at both levels leaves the per-directive rule in force.
-	cfg := p.configFor(m.File)
-	if downgrade := cmp.Or(p.downgrade, cfg.Downgrade()); downgrade != nil {
+	if downgrade != nil {
 		opts = append(opts, version.WithDowngrade(*downgrade))
 	}
 	if prerelease := cmp.Or(p.prerelease, cfg.Prerelease()); prerelease != nil {

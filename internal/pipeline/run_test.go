@@ -29,6 +29,7 @@ type fakeProvider struct {
 	deep         *bool             // when set, Discover records whether a deep lookup was requested
 	qualifier    *string           // when set, Discover records the qualifier hint
 	tagPrefix    *string           // when set, Discover records the tag-prefix hint
+	floor        *string           // when set, Discover records the version-floor hint
 	truncate     bool              // when set, Discover reports a truncated lookup
 	link         string            // when set, the Linker capability returns link+candidate.Ref
 	digest       string            // the digest the Digester capability returns
@@ -97,6 +98,9 @@ func (f fakeProvider) Discover(
 	}
 	if f.tagPrefix != nil {
 		*f.tagPrefix = provider.TagPrefix(ctx)
+	}
+	if f.floor != nil {
+		*f.floor = provider.VersionFloor(ctx)
 	}
 	if f.truncate {
 		provider.NoteTruncated(ctx, f.name, "https://"+f.name)
@@ -194,6 +198,42 @@ func TestRunTagPrefixHintReachesDiscover(t *testing.T) {
 	_, err = pipeline.Run(context.Background(), []string{dir})
 	require.NoError(t, err)
 	require.Empty(t, got, "no tag-prefix sets no hint")
+}
+
+// The current version reaches Discover as a floor hint when selection cannot
+// pick below it, so a version-ordered provider can stop paging early; a
+// downgrade rule or a tag-prefix suppresses the floor.
+func TestRunVersionFloorHintReachesDiscover(t *testing.T) {
+	var got string
+	provider.Register(fakeProvider{
+		name:  "floorhint",
+		floor: &got,
+		candidates: []model.Candidate{
+			candidate(t, "1.3.0"),
+			{Version: "api/v1.5.0"},
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=floorhint repository=x/y\nversion: 1.2.0\n",
+	})
+	_, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, "1.2.0", got, "the current version is the floor")
+
+	dir = write(t, map[string]string{
+		"app.txt": "# clover: provider=floorhint repository=x/y downgrade=true\nversion: 1.2.0\n",
+	})
+	_, err = pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Empty(t, got, "a directive downgrade rule suppresses the floor")
+
+	dir = write(t, map[string]string{
+		"app.txt": "# clover: provider=floorhint repository=x/y tag-prefix=api/\nversion: v1.4.0\n",
+	})
+	_, err = pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Empty(t, got, "a tag-prefix suppresses the floor")
 }
 
 // A repository's run.deep default drives a deep lookup for its own markers,

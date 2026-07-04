@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/version"
 )
 
 // perPage is the page size, GitLab's ceiling for the list endpoints. A shallow
@@ -83,7 +84,11 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 	case provider.Qualifier(ctx) != "":
 		search = "&search=" + url.QueryEscape(provider.Qualifier(ctx))
 	}
-	tags, truncated, err := listAll[tag](
+	// The listing is version-ordered, so a page reaching below the hinted floor
+	// is the last one that can hold a selectable version - later pages are lower
+	// still, and selection cannot pick below the current version.
+	floor := versionFloor(ctx)
+	tags, truncated, err := listAll(
 		ctx, p.rest, "tags", res.host, p.credential(res.host),
 		func(page int) string {
 			return fmt.Sprintf(
@@ -93,6 +98,7 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 				page,
 			) + search
 		},
+		func(batch []tag) bool { return belowFloor(batch, floor) },
 	)
 	if err != nil {
 		return nil, err
@@ -121,6 +127,7 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 				page,
 			)
 		},
+		nil, // date-ordered, so no version floor applies
 	)
 	if err != nil {
 		return nil, err
@@ -153,12 +160,15 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 // X-Next-Page header rather than guessing from the item count, so a full final
 // page is not mistaken for a truncated one. The second return reports a truncated
 // shallow lookup - a first page with more behind it - so a constrained marker that
-// finds no candidate can be hinted toward --deep.
+// finds no candidate can be hinted toward --deep. A non-nil stop that reports
+// true for a batch ends the walk there without truncation: nothing selectable
+// remains behind it, so no lookup is deeper.
 func listAll[T any](
 	ctx context.Context,
 	rest forge.RESTClient,
 	what, host, token string,
 	pathFor func(page int) string,
+	stop func(batch []T) bool,
 ) ([]T, bool, error) {
 	var all []T
 	for page := 1; ; page++ {
@@ -173,11 +183,41 @@ func listAll[T any](
 			return nil, false, fmt.Errorf("gitlab: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
+		if stop != nil && stop(batch) {
+			return all, false, nil
+		}
 		hasNext := header.Get("X-Next-Page") != ""
 		if !hasNext || !provider.Deep(ctx) {
 			return all, !provider.Deep(ctx) && hasNext, nil
 		}
 	}
+}
+
+// versionFloor parses the version floor hint, nil when absent or unparsable.
+func versionFloor(ctx context.Context) *version.Version {
+	floor := provider.VersionFloor(ctx)
+	if floor == "" {
+		return nil
+	}
+	v, err := version.Parse(floor)
+	if err != nil {
+		return nil
+	}
+	return v
+}
+
+// belowFloor reports whether the version-ordered batch reaches below the floor:
+// any tag parsing strictly under it means every later page is lower still.
+func belowFloor(batch []tag, floor *version.Version) bool {
+	if floor == nil {
+		return false
+	}
+	for _, t := range batch {
+		if v, err := version.Parse(t.Name); err == nil && v.LessThan(floor) {
+			return true
+		}
+	}
+	return false
 }
 
 // candidate builds a model.Candidate, parsing the raw tag for comparison and
