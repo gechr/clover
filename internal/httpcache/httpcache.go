@@ -279,11 +279,10 @@ func cacheable(resp *http.Response) bool {
 
 // negative reports whether a status is a client error whose outcome is stable
 // for the rest of the run - a missing release stays missing - so replaying it
-// saves a request per repeated probe. A retryable status (408, 5xx) is a
-// transient failure a later attempt could clear, and 429 must stay uncached so
-// a lifted rate limit is observed.
+// saves a request per repeated probe. A retryable status (408, 429, 5xx) is a
+// transient failure a later attempt could clear.
 func negative(status int) bool {
-	if xhttp.IsRetryableStatus(status) || status == http.StatusTooManyRequests {
+	if xhttp.IsRetryableStatus(status) {
 		return false
 	}
 	return status >= http.StatusBadRequest && status < http.StatusInternalServerError
