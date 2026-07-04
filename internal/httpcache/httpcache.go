@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -246,7 +245,7 @@ func (t *Transport) recordFailure(key string, err error) {
 func (e *Entry) response(req *http.Request) *http.Response {
 	return &http.Response{
 		StatusCode:    e.Status,
-		Status:        strconv.Itoa(e.Status) + " " + http.StatusText(e.Status),
+		Status:        xhttp.Status(e.Status),
 		Header:        e.Header.Clone(),
 		Body:          io.NopCloser(bytes.NewReader(e.Body)),
 		ContentLength: int64(len(e.Body)),
