@@ -3,15 +3,19 @@ package httpcache
 import (
 	"net/http"
 	"sync"
+	"time"
 )
 
 // Entry is a cached HTTP response, buffered so it can be replayed any number of
-// times. The Header is retained in full, so the validators a future
-// conditional-request store needs (ETag, Last-Modified) are already present.
+// times. The Header is retained in full, so the validators conditional
+// revalidation needs (ETag, Last-Modified) are already present. The JSON tags
+// serialize an entry for a disk-backed [Store]. An entry is immutable once
+// constructed - replaying clones the Header and only reads the Body.
 type Entry struct {
-	Status int
-	Header http.Header
-	Body   []byte
+	Status   int         `json:"status"`
+	Header   http.Header `json:"header"`
+	Body     []byte      `json:"body"`
+	StoredAt time.Time   `json:"stored_at"`
 }
 
 // Store is the cache backend behind the transport. The default is in-memory and

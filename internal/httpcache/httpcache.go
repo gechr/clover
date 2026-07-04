@@ -194,7 +194,12 @@ func newEntry(resp *http.Response, limit int64) (*Entry, error) {
 	if int64(len(body)) > limit {
 		return nil, errTooLarge
 	}
-	return &Entry{Status: resp.StatusCode, Header: resp.Header.Clone(), Body: body}, nil
+	return &Entry{
+		Status:   resp.StatusCode,
+		Header:   resp.Header.Clone(),
+		Body:     body,
+		StoredAt: time.Now(),
+	}, nil
 }
 
 func tooLarge(resp *http.Response, limit int64) bool {
