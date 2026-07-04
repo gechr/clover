@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	xhttp "github.com/gechr/x/http"
 	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 	"golang.org/x/sync/singleflight"
@@ -257,13 +258,25 @@ func tooLarge(resp *http.Response, limit int64) bool {
 	return limit <= 0 || resp.ContentLength > limit
 }
 
-// cacheable reports whether a response may be stored: a 200 that the origin did
-// not mark no-store.
+// cacheable reports whether a response may be stored: a 200, or a negative
+// answer, that the origin did not mark no-store.
 func cacheable(resp *http.Response) bool {
-	if resp.StatusCode != http.StatusOK {
+	if noStore(resp.Header) {
 		return false
 	}
-	return !noStore(resp.Header)
+	return resp.StatusCode == http.StatusOK || negative(resp.StatusCode)
+}
+
+// negative reports whether a status is a client error whose outcome is stable
+// for the rest of the run - a missing release stays missing - so replaying it
+// saves a request per repeated probe. A retryable status (408, 5xx) is a
+// transient failure a later attempt could clear, and 429 must stay uncached so
+// a lifted rate limit is observed.
+func negative(status int) bool {
+	if xhttp.IsRetryableStatus(status) || status == http.StatusTooManyRequests {
+		return false
+	}
+	return status >= http.StatusBadRequest && status < http.StatusInternalServerError
 }
 
 // noStore reports whether headers carry a Cache-Control no-store directive.

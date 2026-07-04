@@ -126,15 +126,55 @@ func TestNonGETNotCached(t *testing.T) {
 	require.Equal(t, int64(2), fake.calls.Load(), "non-GET requests are never cached")
 }
 
-func TestNonOKNotCached(t *testing.T) {
+func TestRetryableStatusNotCached(t *testing.T) {
 	t.Parallel()
 
-	fake := &fakeTransport{status: http.StatusInternalServerError, body: "boom"}
+	for _, status := range []int{
+		http.StatusRequestTimeout,
+		http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+	} {
+		fake := &fakeTransport{status: status, body: "boom"}
+		client := httpcache.New(httpcache.WithTransport(fake))
+
+		get(t, client, "https://example.test/a")
+		get(t, client, "https://example.test/a")
+		require.Equal(t, int64(2), fake.calls.Load(),
+			"a transient failure status is fetched every time")
+	}
+}
+
+func TestNegativeStatusCachedForRun(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{status: http.StatusNotFound, body: "missing"}
+	client := httpcache.New(httpcache.WithTransport(fake))
+
+	do := func() int {
+		resp, err := client.Get("https://example.test/a")
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		return resp.StatusCode
+	}
+	require.Equal(t, http.StatusNotFound, do())
+	require.Equal(t, http.StatusNotFound, do())
+	require.Equal(t, int64(1), fake.calls.Load(),
+		"a repeated probe replays the cached negative answer")
+}
+
+func TestNegativeNoStoreNotCached(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{
+		status: http.StatusNotFound,
+		body:   "missing",
+		header: http.Header{"Cache-Control": {"no-store"}},
+	}
 	client := httpcache.New(httpcache.WithTransport(fake))
 
 	get(t, client, "https://example.test/a")
 	get(t, client, "https://example.test/a")
-	require.Equal(t, int64(2), fake.calls.Load(), "only 200 responses are cached")
+	require.Equal(t, int64(2), fake.calls.Load(), "no-store wins over negative caching")
 }
 
 func TestNoStoreNotCached(t *testing.T) {

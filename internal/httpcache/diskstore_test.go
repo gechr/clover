@@ -1,6 +1,7 @@
 package httpcache_test
 
 import (
+	"cmp"
 	"io"
 	"net/http"
 	"os"
@@ -79,6 +80,7 @@ func TestDiskStoreAdmission(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
+		status int
 		header http.Header
 		want   bool
 	}{
@@ -95,13 +97,18 @@ func TestDiskStoreAdmission(t *testing.T) {
 			header: http.Header{"Content-Type": {"application/json"}},
 			want:   false,
 		},
+		"negative entry stays run-scoped": {
+			status: http.StatusNotFound,
+			header: http.Header{"Etag": {`W/"v1"`}, "Cache-Control": {"max-age=60"}},
+			want:   false,
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			store, dir := diskStore(t)
 			store.Set("key", &httpcache.Entry{
-				Status:   http.StatusOK,
+				Status:   cmp.Or(tt.status, http.StatusOK),
 				Header:   tt.header,
 				StoredAt: storedAt,
 			})

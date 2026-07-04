@@ -2,6 +2,7 @@ package httpcache
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -93,9 +94,14 @@ func (s *DiskStore) Get(key string) (*Entry, bool) {
 	return &entry, true
 }
 
-// Set persists entry when a later run could serve it again: it must carry a
-// validator or positive freshness. Anything else would be pure disk waste.
+// Set persists entry when a later run could serve it again: a 200 carrying a
+// validator or positive freshness. Anything else would be pure disk waste - and
+// a negative entry is stable only within a run, so it stays memory-only however
+// long its origin-granted lifetime.
 func (s *DiskStore) Set(key string, entry *Entry) {
+	if entry.Status != http.StatusOK {
+		return
+	}
 	if !entry.revalidatable() {
 		if _, ok := lifetime(entry.Header); !ok {
 			return
