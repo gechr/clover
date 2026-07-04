@@ -5,15 +5,11 @@ package command
 import (
 	"errors"
 	"os"
-	"strings"
 
 	"github.com/alecthomas/kong"
 	clib "github.com/gechr/clib/cli/kong"
-	"github.com/gechr/clib/complete"
 	"github.com/gechr/clib/help"
-	"github.com/gechr/clib/theme"
 	"github.com/gechr/clive"
-	"github.com/gechr/clive/notify"
 	"github.com/gechr/clive/updater"
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
@@ -24,6 +20,8 @@ import (
 	"github.com/gechr/clover/internal/provider/all"
 	"github.com/gechr/clover/internal/provider/http"
 	"github.com/gechr/clover/internal/tag"
+	"github.com/gechr/conductor"
+	ckong "github.com/gechr/conductor/cli/kong"
 )
 
 const (
@@ -71,49 +69,37 @@ type parallelism int
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
+	app := conductor.New(conductor.App{
+		Name:        name,
+		Description: description,
+		Module:      module,
+		Updater:     updateConfig(),
+		NotifyOnly:  []string{"run", "lint", "format"},
+		HelpLong:    "Print long help",
+		HelpOptions: []help.RendererOption{
+			//nolint:mnd // self-explanatory
+			help.WithDescriptionWidth(80),
+		},
+		ConfigureLog: logger.Configure,
+	})
+
 	provider.RegisterAll(all.New(http.WithVersion(clive.Current()))...)
 
 	var root cli
-
-	flags, err := clib.Reflect(&root)
+	prog, err := ckong.New(app, &root)
 	if err != nil {
-		clog.Error().Err(err).Msg("Failed to inspect CLI")
+		clog.Error().Err(err).Msg("Failed to build CLI")
 		return exitFailure
 	}
-	gen := newGenerator(flags)
-
-	parser := kong.Must(&root,
-		kong.Name(name),
-		kong.Description(description),
-		kong.Vars{"version": versionString()},
-		kong.Help(clib.HelpPrinterFunc(
-			help.NewRenderer(
-				theme.Auto(),
-				//nolint:mnd // self-explanatory
-				help.WithDescriptionWidth(80),
-			),
-			clib.NodeSectionsFunc(),
-			help.WithHelpFlags("Print short help", "Print long help"),
-		)),
-		kong.Bind(gen),
-	)
-	// Populate subcommand specs from the parser model before completion so the
-	// generated script lists run/lint/format and their flags.
-	gen.Subs = clib.Subcommands(parser)
 
 	// Completion runs before parsing so it works without a subcommand, which kong
 	// would otherwise demand.
-	if completion, args, ok := clib.Preflight(); ok {
-		if _, handleErr := completion.Handle(gen, nil, clib.WithArgs(args)); handleErr != nil {
-			clog.Error().Err(handleErr).Msg("Completion failed")
-			return exitFailure
-		}
-		return exitSuccess
+	kctx, handled, code, err := prog.Parse(os.Args[1:])
+	if handled {
+		return code
 	}
-
-	kctx, err := parser.Parse(os.Args[1:])
 	if err != nil {
-		parser.FatalIfErrorf(err)
+		prog.Parser.FatalIfErrorf(err)
 	}
 	logger.SetVerbose(root.Verbose)
 
@@ -125,9 +111,9 @@ func Run() int {
 	kctx.Bind(resolver)
 	kctx.Bind(parallelism(root.Parallelism))
 
-	flush := startNotify(kctx.Command())
+	flush := app.Notify(kctx.Command())
 	runErr := kctx.Run()
-	code := exitSuccess
+	code = exitSuccess
 	if runErr != nil {
 		reportExit(runErr)
 		code = exitFailure
@@ -150,29 +136,6 @@ func reportExit(err error) {
 		return
 	}
 	clog.Error().Err(err).Msg("Failed")
-}
-
-// startNotify begins clive's update check before dispatch, for the commands a
-// user runs repeatedly, and returns a function that prints any pending hint once
-// the command finishes. clive serves the hint from cache and refreshes in the
-// background, so this never blocks or slows the run; CLOVER_NO_UPDATE_CHECK
-// disables it.
-func startNotify(command string) func() {
-	switch firstField(command) {
-	case "run", "lint", "format":
-		return notify.Check(updateConfig())
-	default:
-		return func() {}
-	}
-}
-
-// firstField returns the first space-separated word of s, the leading verb of a
-// kong command path like "run <path>".
-func firstField(s string) string {
-	if before, _, ok := strings.Cut(s, " "); ok {
-		return before
-	}
-	return s
 }
 
 // newResolver builds the per-root config resolver bound for command dispatch. It
@@ -200,26 +163,6 @@ func newResolver(root cli) (*config.Resolver, error) {
 		}
 	}
 	return resolver, nil
-}
-
-// newGenerator builds the shell-completion generator from the CLI's flags, plus
-// specs for the help flags kong adds itself.
-func newGenerator(flags []complete.FlagMeta) *complete.Generator {
-	gen := complete.NewGenerator(name).FromFlags(flags)
-	gen.Specs = append(gen.Specs,
-		complete.Spec{ShortFlag: "h", Terse: "Print short help"},
-		complete.Spec{LongFlag: "help", Terse: "Print long help"},
-	)
-	return gen
-}
-
-// versionString returns clive's current version, or a friendly placeholder
-// when unknown, matching what `clover version` prints via clive.Print.
-func versionString() string {
-	if v := clive.Current(); v != "" {
-		return v
-	}
-	return "Version information is not available"
 }
 
 // launch logs the startup banner naming Clover's version, so a run records up

@@ -13,8 +13,9 @@ require (
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.5.9
-	github.com/gechr/clog v0.11.14
-	github.com/gechr/x v0.2.5
+	github.com/gechr/clog v0.11.15
+	github.com/gechr/conductor v0.0.1
+	github.com/gechr/x v0.2.8
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
@@ -22,6 +23,23 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/sync v0.21.0
+)
+
+require (
+	code.gitea.io/sdk/gitea v0.22.1 // indirect
+	github.com/42wim/httpsig v1.2.3 // indirect
+	github.com/creativeprojects/go-selfupdate v1.5.2 // indirect
+	github.com/davidmz/go-pageant v1.0.2 // indirect
+	github.com/go-fed/httpsig v1.1.0 // indirect
+	github.com/google/go-github/v74 v74.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
+	gitlab.com/gitlab-org/api/client-go v1.9.1 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 )
 
 require (
@@ -101,7 +119,7 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
 	github.com/gechr/clive v0.2.6
 	github.com/ghostiam/protogetter v0.3.20 // indirect
@@ -252,7 +270,7 @@ require (
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

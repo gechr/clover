@@ -6,10 +6,8 @@ import (
 	"os"
 
 	"github.com/gechr/clover/internal/command"
-	"github.com/gechr/clover/internal/logger"
 )
 
 func main() {
-	logger.Init()
 	os.Exit(command.Run())
 }

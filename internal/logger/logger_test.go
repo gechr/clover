@@ -5,6 +5,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/logger"
+	"github.com/gechr/conductor"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestSetVerboseEnablesDebugLogs(t *testing.T) {
 	require.Equal(t, clog.LevelDebug, clog.GetLevel())
 }
 
-func TestInitLoadsCloverHyperlinkFormat(t *testing.T) {
+func TestConductorInitLoadsCloverHyperlinkFormat(t *testing.T) {
 	t.Setenv("CLOVER_HYPERLINK_FORMAT", "vscode")
 	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Cleanup(func() {
@@ -27,7 +28,9 @@ func TestInitLoadsCloverHyperlinkFormat(t *testing.T) {
 		clog.SetFieldFormats(clog.DefaultFieldFormats())
 	})
 
-	logger.Init()
+	// The env prefix now comes from conductor (derived from the app name),
+	// with Clover's own customisations layered on via ConfigureLog.
+	conductor.New(conductor.App{Name: "clover", ConfigureLog: logger.Configure})
 
 	formats := clog.Default.FieldFormats()
 	require.Equal(t, "vscode://file{path}", formats.HyperlinkPathFormat)
