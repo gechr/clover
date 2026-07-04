@@ -417,6 +417,21 @@ func TestStaleEntryRevalidationErrorPropagates(t *testing.T) {
 	require.EqualError(t, err, `Get "https://example.test/a": boom`)
 }
 
+func TestSnapshotCountsActivity(t *testing.T) { //nolint:paralleltest // reads process-wide counters
+	before := httpcache.Snapshot()
+
+	fake := &fakeTransport{body: "x"}
+	client := httpcache.New(httpcache.WithTransport(fake))
+	get(t, client, "https://stats.test/a")
+	get(t, client, "https://stats.test/a")
+
+	after := httpcache.Snapshot()
+	require.Equal(t, int64(1), after.Requests-before.Requests, "one lookup reached the network")
+	require.Equal(t, int64(1), after.Hits-before.Hits, "one was served from cache")
+	require.Equal(t, before.Revalidated, after.Revalidated)
+	require.Equal(t, before.Replayed, after.Replayed)
+}
+
 func TestCoalescesConcurrentGETs(t *testing.T) {
 	t.Parallel()
 

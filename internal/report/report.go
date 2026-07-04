@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/display"
+	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/output"
@@ -82,6 +83,21 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 	// found" warning already stands on its own.
 	if empty(summary) {
 		return
+	}
+
+	// Transport accounting, visible under --verbose: how many lookups reached
+	// the network and how many the cache layers absorbed. A run that made no
+	// requests at all has nothing to account for.
+	if stats := httpcache.Snapshot(); stats != (httpcache.Stats{}) {
+		logger.Debug().
+			Symbol("🌐").
+			OmitZero(true).
+			Int(field.Requests, int(stats.Requests)).
+			Int(field.Cached, int(stats.Hits)).
+			Int(field.Revalidated, int(stats.Revalidated)).
+			Int(field.Coalesced, int(stats.Coalesced)).
+			Int(field.Replayed, int(stats.Replayed)).
+			Msg("Transport activity")
 	}
 
 	summarize(logger, dryRun).

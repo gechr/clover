@@ -98,21 +98,25 @@ type failure struct {
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Method != http.MethodGet {
+		counters.requests.Add(1)
 		return t.base.RoundTrip(req)
 	}
 	if noStore(req.Header) {
+		counters.requests.Add(1)
 		return t.base.RoundTrip(req)
 	}
 
 	key := fingerprint(req)
 	if entry, ok := t.store.Get(key); ok && t.fresh(entry) {
+		counters.hits.Add(1)
 		return entry.response(req), nil
 	}
 	if err := t.recentFailure(key); err != nil {
+		counters.replayed.Add(1)
 		return nil, err
 	}
 
-	result, err, _ := t.group.Do(key, func() (any, error) {
+	result, err, shared := t.group.Do(key, func() (any, error) {
 		entry, ok := t.store.Get(key)
 		if ok && t.fresh(entry) {
 			return entry, nil
@@ -121,6 +125,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if ok && entry.revalidatable() {
 			stale = entry
 		}
+		counters.requests.Add(1)
 		resp, err := t.base.RoundTrip(conditionalRequest(req, stale))
 		if err != nil {
 			t.recordFailure(key, err)
@@ -128,6 +133,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		if stale != nil && resp.StatusCode == http.StatusNotModified {
 			_ = resp.Body.Close()
+			counters.revalidated.Add(1)
 			refreshed := stale.refreshed(time.Now())
 			t.store.Set(key, refreshed)
 			return refreshed, nil
@@ -147,8 +153,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		return entry, nil
 	})
+	if shared {
+		counters.coalesced.Add(1)
+	}
 	if err != nil {
 		if errors.Is(err, errTooLarge) {
+			counters.requests.Add(1)
 			return t.base.RoundTrip(req)
 		}
 		return nil, err
