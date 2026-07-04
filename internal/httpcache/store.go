@@ -26,6 +26,37 @@ type Store interface {
 	Set(key string, entry *Entry)
 }
 
+// LayeredStore composes a run-scoped store over a cross-run one: Get checks
+// mem first and promotes disk hits into it, Set writes both. The transport
+// stays unaware of the layering - it only sees a [Store].
+type LayeredStore struct {
+	mem  Store
+	disk Store
+}
+
+// NewLayeredStore returns a store reading through mem to disk.
+func NewLayeredStore(mem, disk Store) *LayeredStore {
+	return &LayeredStore{mem: mem, disk: disk}
+}
+
+// Get returns the entry for key from the first layer holding it.
+func (l *LayeredStore) Get(key string) (*Entry, bool) {
+	if entry, ok := l.mem.Get(key); ok {
+		return entry, true
+	}
+	entry, ok := l.disk.Get(key)
+	if ok {
+		l.mem.Set(key, entry)
+	}
+	return entry, ok
+}
+
+// Set stores entry in both layers.
+func (l *LayeredStore) Set(key string, entry *Entry) {
+	l.mem.Set(key, entry)
+	l.disk.Set(key, entry)
+}
+
 // MemStore is a concurrency-safe, in-memory [Store]. It lives for as long as the
 // transport that holds it, which for a CLI run means the whole run.
 type MemStore struct {
