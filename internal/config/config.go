@@ -77,6 +77,7 @@ type Run struct {
 	Downgrade  *bool        `yaml:"downgrade"`
 	Deep       *bool        `yaml:"deep"`
 	Force      *bool        `yaml:"force"`
+	Cache      *bool        `yaml:"cache"`
 	Output     *output.Mode `yaml:"output"`
 }
 
@@ -140,6 +141,7 @@ func Merge(user, project *Config) *Config {
 	merged.Run.Downgrade = cmp.Or(project.Run.Downgrade, merged.Run.Downgrade)
 	merged.Run.Deep = cmp.Or(project.Run.Deep, merged.Run.Deep)
 	merged.Run.Force = cmp.Or(project.Run.Force, merged.Run.Force)
+	merged.Run.Cache = cmp.Or(project.Run.Cache, merged.Run.Cache)
 	merged.Run.Output = cmp.Or(project.Run.Output, merged.Run.Output)
 	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
 	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
@@ -306,6 +308,10 @@ func (c *Config) Deep() *bool { return c.run().Deep }
 // Force returns the configured run.force default (nil = unset). When true, a
 // followed digest is re-pinned even if the version it follows is unchanged.
 func (c *Config) Force() *bool { return c.run().Force }
+
+// Cache returns the configured run.cache setting (nil = unset). When false,
+// cacheable responses are not persisted across runs.
+func (c *Config) Cache() *bool { return c.run().Cache }
 
 // Prune returns the configured fmt.prune default (nil = unset).
 func (c *Config) Prune() *bool {

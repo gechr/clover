@@ -4,10 +4,49 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	xos "github.com/gechr/x/os"
 )
+
+// sharedDisk is the process-wide cross-run store, layered under every client
+// [New] builds once [EnableSharedDisk] has run.
+var sharedDisk atomic.Pointer[DiskStore]
+
+// EnableSharedDisk opens the disk store rooted at dir and layers it under every
+// client built by [New]. The command layer calls it once, so all providers
+// share one handle. Clients already built are covered too - their disk tier is
+// a lazy delegate, so enabling works whenever it happens during startup.
+func EnableSharedDisk(dir string) error {
+	disk, err := NewDiskStore(dir)
+	if err != nil {
+		return err
+	}
+	sharedDisk.Store(disk)
+	return nil
+}
+
+// sharedDiskStore delegates to the process-wide disk store at access time,
+// doing nothing until [EnableSharedDisk] has run - providers that build their
+// clients before the command layer enables the cache still gain the disk tier.
+type sharedDiskStore struct{}
+
+// Get returns the entry for key from the shared disk store, when enabled.
+func (sharedDiskStore) Get(key string) (*Entry, bool) {
+	disk := sharedDisk.Load()
+	if disk == nil {
+		return nil, false
+	}
+	return disk.Get(key)
+}
+
+// Set stores entry in the shared disk store, when enabled.
+func (sharedDiskStore) Set(key string, entry *Entry) {
+	if disk := sharedDisk.Load(); disk != nil {
+		disk.Set(key, entry)
+	}
+}
 
 const (
 	dirPerm   = 0o700

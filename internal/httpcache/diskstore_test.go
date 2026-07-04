@@ -180,6 +180,30 @@ func TestLayeredStoreSetWritesBothLayers(t *testing.T) {
 	require.True(t, ok)
 }
 
+// TestEnableSharedDisk is deliberately not parallel: it toggles the process-wide
+// store, so it must never overlap tests relying on the in-memory default.
+func TestEnableSharedDisk(t *testing.T) { //nolint:paralleltest // mutates the shared store
+	dir := t.TempDir()
+	require.NoError(t, httpcache.EnableSharedDisk(dir))
+	t.Cleanup(httpcache.ResetSharedDisk)
+
+	fake := &fakeTransport{body: "cached", header: http.Header{"Etag": {`W/"v1"`}}}
+	client := httpcache.New(httpcache.WithTransport(fake))
+	require.Equal(t, "cached", get(t, client, "https://example.test/shared"))
+
+	files, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, files, 1, "the default store persists cacheable entries to disk")
+}
+
+func TestEnableSharedDiskUnusableDir(
+	t *testing.T,
+) { //nolint:paralleltest // mutates the shared store
+	blocker := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(blocker, nil, 0o600))
+	require.Error(t, httpcache.EnableSharedDisk(filepath.Join(blocker, "nested")))
+}
+
 // TestDiskStoreAcrossClients is the cross-run scenario end to end: a second
 // client with a fresh in-memory tier revalidates the disk entry with a
 // conditional request and serves the persisted body on 304.

@@ -1,10 +1,12 @@
 package command
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/output"
@@ -23,6 +26,7 @@ import (
 	"github.com/gechr/clover/internal/tui"
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
+	"github.com/gechr/x/shell"
 	xslices "github.com/gechr/x/slices"
 	"github.com/gechr/x/terminal"
 )
@@ -64,6 +68,8 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	if err != nil {
 		return err
 	}
+
+	enableHTTPCache(configs, c.Paths)
 
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
 	// a verify-implied deep proceed without prompting, like --verify.
@@ -119,6 +125,34 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	reportDeep(summary, truncated)
 	report.Run(clog.Default, summary, c.DryRun, detail)
 	return runErr(summary)
+}
+
+// noCacheEnv disables the cross-run HTTP cache when set to any non-empty
+// value, the same escape-hatch shape as CLOVER_NO_UPDATE_CHECK.
+const noCacheEnv = "CLOVER_NO_CACHE"
+
+// enableHTTPCache opens the cross-run HTTP cache under the XDG cache dir,
+// unless CLOVER_NO_CACHE or a run.cache config of false disables it. It is
+// best-effort: any failure leaves the in-memory cache, never the run.
+func enableHTTPCache(configs *config.Resolver, paths []string) {
+	if os.Getenv(noCacheEnv) != "" {
+		return
+	}
+	// A config that fails to load resolves to nil here - the scan reports the
+	// error itself, and the cache stays at its default of on.
+	if cfg, err := configs.PrimaryForPaths(paths); err == nil && cfg != nil {
+		if !ptr.Deref(cmp.Or(cfg.Cache(), new(true))) {
+			return
+		}
+	}
+	base, err := shell.CacheDir()
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(base, "clover", "http")
+	if err := httpcache.EnableSharedDisk(dir); err != nil {
+		clog.Warn().Err(err).Path(field.Path, dir).Msg("Skipping the HTTP disk cache")
+	}
 }
 
 // failuresError is the exit-status error a command returns when its run finished

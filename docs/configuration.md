@@ -35,20 +35,21 @@ annotate:
 
 Settings are grouped by the command they configure, with a `global` block for cross-command defaults. See [`.clover.reference.yaml`](../.clover.reference.yaml) for every key with its default.
 
-| Key                | Description                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `required-version` | A version constraint the running `clover` binary must satisfy (e.g. `">=0.1.0"`, `"~>0.1"`). Clover refuses to run if its own version falls outside the range.  |
-| `paths.exclude`    | [Doublestar](https://github.com/bmatcuk/doublestar) globs that are excluded from scanning. Everything else under the scanned paths is searched for annotations. |
-| `global.output`    | Default output detail (`text`, `wide`, or `github`) shared by `run` and `lint`                                                                                  |
-| `run.verify`       | Verify secure pins against their upstream tags by default (implies a deep lookup)                                                                               |
-| `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                  |
-| `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                  |
-| `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                 |
-| `run.output`       | Output detail for `clover run`; overrides `global.output`                                                                                                       |
-| `lint.output`      | Output detail for `clover lint`; overrides `global.output`                                                                                                      |
-| `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                            |
-| `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                |
-| `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                     |
+| Key                | Description                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `required-version` | A version constraint the running `clover` binary must satisfy (e.g. `">=0.1.0"`, `"~>0.1"`). Clover refuses to run if its own version falls outside the range.                           |
+| `paths.exclude`    | [Doublestar](https://github.com/bmatcuk/doublestar) globs that are excluded from scanning. Everything else under the scanned paths is searched for annotations.                          |
+| `global.output`    | Default output detail (`text`, `wide`, or `github`) shared by `run` and `lint`                                                                                                           |
+| `run.verify`       | Verify secure pins against their upstream tags by default (implies a deep lookup)                                                                                                        |
+| `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                                           |
+| `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                                           |
+| `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                                          |
+| `run.cache`        | Persist cacheable HTTP responses across runs under the XDG cache directory and revalidate them with conditional requests. On by default - set `false` to fetch everything fresh each run |
+| `run.output`       | Output detail for `clover run`; overrides `global.output`                                                                                                                                |
+| `lint.output`      | Output detail for `clover lint`; overrides `global.output`                                                                                                                               |
+| `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                                                     |
+| `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                         |
+| `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                                              |
 
 **Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive; otherwise the config supplies the default a directive can still override.
 
@@ -58,7 +59,9 @@ An unknown key is reported as a warning (with a "did you mean?" hint for a likel
 
 ## Environment variables
 
-Clover also reads process-wide settings from `CLOVER_*` environment variables. To make file and line hyperlinks open in an editor, set `CLOVER_HYPERLINK_FORMAT` to one of the supported editor presets:
+Clover also reads process-wide settings from `CLOVER_*` environment variables. Set `CLOVER_NO_CACHE=1` to disable the cross-run HTTP cache for a run, overriding `run.cache`.
+
+To make file and line hyperlinks open in an editor, set `CLOVER_HYPERLINK_FORMAT` to one of the supported editor presets:
 
 ```bash
 export CLOVER_HYPERLINK_FORMAT=vscode

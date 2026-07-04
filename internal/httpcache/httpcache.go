@@ -42,7 +42,7 @@ type config struct {
 func New(opts ...Option) *http.Client {
 	cfg := config{
 		base:          newBaseTransport(),
-		store:         NewMemStore(),
+		store:         defaultStore(),
 		timeout:       defaultTimeout,
 		errorBackoff:  errorBackoff,
 		maxEntryBytes: maxEntryBytes,
@@ -61,6 +61,14 @@ func New(opts ...Option) *http.Client {
 			startedAt:     time.Now(),
 		},
 	}
+}
+
+// defaultStore is the store New uses when no [WithStore] is given: the run's
+// in-memory store, layered over the shared disk delegate. The disk tier is
+// inert until [EnableSharedDisk] runs, so this is a plain in-memory cache for
+// commands that never enable it.
+func defaultStore() Store {
+	return NewLayeredStore(NewMemStore(), sharedDiskStore{})
 }
 
 // Transport is the caching http.RoundTripper. Non-GET requests pass straight

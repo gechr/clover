@@ -59,6 +59,10 @@
           "type": "boolean",
           "description": "Re-pin a followed digest even when the version it follows is unchanged."
         },
+        "cache": {
+          "type": "boolean",
+          "description": "Persist cacheable HTTP responses across runs and revalidate them with conditional requests (default true)."
+        },
         "output": {
           "$ref": "#/$defs/output"
         }

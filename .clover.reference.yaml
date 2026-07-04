@@ -43,6 +43,9 @@ run:
   downgrade: false
   # Follow pagination to fetch every version (more accurate, but slower).
   deep: false
+  # Persist cacheable HTTP responses across runs under the XDG cache directory
+  # and revalidate them with conditional requests.
+  cache: true
   # Output detail for run; overrides global.output.
   output: text
 
