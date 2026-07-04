@@ -23,10 +23,12 @@ const perPage = 100
 // commit date - the order the GitHub web UI shows, which the REST tags endpoint
 // cannot produce (it has no sort parameter). An annotated tag's target is a Tag
 // object whose own target is the peeled commit; a lightweight tag's target is
-// the commit directly. first=100 is GitHub's page ceiling (perPage).
-const tagsQuery = `query($owner: String!, $name: String!, $cursor: String) {
+// the commit directly. first=100 is GitHub's page ceiling (perPage). query
+// filters refs by substring server-side (null means unfiltered), composing with
+// the ordering.
+const tagsQuery = `query($owner: String!, $name: String!, $cursor: String, $query: String) {
   repository(owner: $owner, name: $name) {
-    refs(refPrefix: "refs/tags/", first: 100, after: $cursor, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+    refs(refPrefix: "refs/tags/", query: $query, first: 100, after: $cursor, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
       nodes {
         name
         target {
@@ -237,6 +239,12 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 	for {
 		var resp gqlTagsResponse
 		variables := map[string]any{"owner": res.owner, "name": res.name, "cursor": cursor}
+		// Every tag selection can accept carries the hinted qualifier and so
+		// contains it, so the substring filter only skips tags that could never
+		// be selected.
+		if q := provider.Qualifier(ctx); q != "" {
+			variables["query"] = q
+		}
 		if err := gql.DoWithContext(ctx, tagsQuery, variables, &resp); err != nil {
 			return nil, fmt.Errorf("github: list tags: %w", err)
 		}

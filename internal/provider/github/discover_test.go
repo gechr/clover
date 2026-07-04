@@ -1,6 +1,7 @@
 package github_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -302,6 +303,36 @@ func TestDiscoverTagsGraphQLWhenAuthenticated(t *testing.T) {
 	require.Equal(t, "v1.3.0", candidates[0].Version)
 	require.Equal(t, "aaa", candidates[0].Commit, "a lightweight tag's target is the commit")
 	require.Equal(t, "bbb", candidates[1].Commit, "an annotated tag is peeled to its commit")
+}
+
+// TestDiscoverTagsGraphQLQualifierFiltersServerSide covers the qualifier hint on
+// the authenticated path: a hinted lookup narrows the refs connection with the
+// query variable, an unhinted one sends null and stays unfiltered.
+func TestDiscoverTagsGraphQLQualifierFiltersServerSide(t *testing.T) {
+	t.Parallel()
+
+	var queries []any
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var body struct {
+			Variables map[string]any `json:"variables"`
+		}
+		require.NoError(t, json.NewDecoder(req.Body).Decode(&body))
+		queries = append(queries, body.Variables["query"])
+		return graphqlResponse(req, emptyRefs), nil
+	})
+	p := github.New(
+		github.WithTransport(transport),
+		github.WithStore(stubStore{token: "t", ok: true}),
+	)
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+
+	_, err = p.Discover(provider.WithQualifier(t.Context(), "ent"), res)
+	require.NoError(t, err)
+	_, err = p.Discover(t.Context(), res)
+	require.NoError(t, err)
+	require.Equal(t, []any{"ent", nil}, queries,
+		"a qualifier hint narrows the refs connection, no hint stays unfiltered")
 }
 
 // emptyRefs is a GraphQL refs payload with no tags, for tests that only need to
