@@ -71,6 +71,7 @@ type parallelism int
 func Run() int {
 	app := conductor.New(conductor.App{
 		Name:        name,
+		DisplayName: "Clover",
 		Description: description,
 		Module:      module,
 		Updater:     updateConfig(),
