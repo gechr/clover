@@ -14,7 +14,7 @@ require (
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.5.9
 	github.com/gechr/clog v0.11.15
-	github.com/gechr/conductor v0.0.1
+	github.com/gechr/conductor v0.0.2
 	github.com/gechr/x v0.2.8
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
@@ -23,23 +23,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/sync v0.21.0
-)
-
-require (
-	code.gitea.io/sdk/gitea v0.22.1 // indirect
-	github.com/42wim/httpsig v1.2.3 // indirect
-	github.com/creativeprojects/go-selfupdate v1.5.2 // indirect
-	github.com/davidmz/go-pageant v1.0.2 // indirect
-	github.com/go-fed/httpsig v1.1.0 // indirect
-	github.com/google/go-github/v74 v74.0.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
-	github.com/ulikunitz/xz v0.5.15 // indirect
-	gitlab.com/gitlab-org/api/client-go v1.9.1 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
 )
 
 require (
