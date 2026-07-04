@@ -43,11 +43,11 @@ A key that may repeat inline ([`include`](filtering.md), [`exclude`](filtering.m
   tags: [infra, cli]
 ```
 
-Every key from [Annotations](annotations.md#keys) is valid in a sidecar, plus the `jq` locator below.
+Every key from [Annotations](annotations.md#keys) is valid in a sidecar, plus the `jq` locator below - except the [`target` and `offset` anchors](annotations.md#anchoring-the-target-line), which are relative to a comment line and so have no meaning here.
 
 ## Locators
 
-An inline directive governs the line below it; a sidecar entry has no such adjacency, so it must name its own target line. Every entry carries a locator - `jq`, `find`, or both:
+An inline directive governs the line below it (or its [`target` anchor](annotations.md#anchoring-the-target-line)'s first match); a sidecar entry has no such adjacency, so it must name its own target line. Every entry carries a locator - `jq`, `find`, or both:
 
 - **`find`** - a glob (with `<version>` and other [placeholders](find-replace.md)) or a `/regex/`, matched against the file's lines. It works for **any** comment-less format and selects the one line whose content matches.
 - **`jq`** - a [jq](https://jqlang.org) path expression (e.g. `.["$schema"]`, `.dependencies.react`) evaluated against the target as JSON. It is JSON-only and **recommended for JSON**: it is robust against the same version string appearing twice, against reformatting, and against a key moving. Clover resolves the path to a line without ever re-serializing the JSON, so the file's formatting and key order are preserved.

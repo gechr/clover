@@ -12,8 +12,9 @@ import (
 // of a directive's canonical key order; a provider's own keys slot between the
 // leading zone and the locator. The leading zone names the marker and its follow
 // edges (provider first, so which provider keys are valid is known); the locator
-// zone names the line a sidecar entry targets; the trailing zone is the
-// selection rule then control. Keys not listed here (deferred or unknown) are
+// zone names the line the directive targets (target for an inline comment,
+// jq/find for a sidecar entry) and the region within it; the trailing zone is
+// the selection rule then control. Keys not listed here (deferred or unknown) are
 // kept, in their original order, after every known key - the grammar warns on
 // unknown keys but never drops them, so a future key survives a format pass on
 // an older binary.
@@ -27,6 +28,8 @@ var (
 		constant.DirectiveSelect,
 	}
 	canonicalLocator = []string{
+		constant.DirectiveOffset,
+		constant.DirectiveTarget,
 		constant.DirectiveJQ,
 		constant.DirectiveFind,
 		constant.DirectiveReplace,

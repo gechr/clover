@@ -29,8 +29,9 @@ const nsSep = "\x00"
 // in different repositories does not clash.
 type Marker struct {
 	File      string
-	Line      int // 0-based index of the directive's comment line
-	Target    int // 0-based index of the line it rewrites
+	Line      int   // 0-based index of the directive's comment line
+	Target    int   // 0-based index of the line it rewrites; -1 when resolution failed
+	TargetErr error // why the target line could not be resolved
 	Directive directive.Directive
 	Provider  string   // provider name; follow for a follower
 	ID        string   // namespaced producer id, or ""
@@ -56,17 +57,16 @@ func Markers(file scan.File, resolver *vcs.Resolver) []Marker {
 	return markers
 }
 
-// bind turns a located directive into a Marker. The target defaults to the next
-// line; offset/range targeting is a later addition. An omitted provider means
-// the marker follows another (provider= follow); provider=auto is resolved from
-// the target line.
+// bind turns a located directive into a Marker. The target is the next line, a
+// target= anchor's first match below the comment, or a sidecar entry's already-
+// resolved line - scan.Located.Target decides. An omitted provider means the
+// marker follows another (provider= follow); provider=auto is resolved from the
+// target line.
 func bind(file scan.File, root string, found scan.Located) Marker {
 	d := found.Directive
-	// An inline directive rewrites the line below its comment; a sidecar entry's
-	// Line is already the resolved target line it rewrites.
-	target := found.Line + 1
-	if found.Sidecar {
-		target = found.Line
+	target, targetErr := found.Target(file.Lines)
+	if targetErr != nil {
+		target = -1 // no line to rewrite; validation reports targetErr
 	}
 
 	provider := value(d, constant.DirectiveProvider)
@@ -81,6 +81,7 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		File:      file.Path,
 		Line:      found.Line,
 		Target:    target,
+		TargetErr: targetErr,
 		Directive: d,
 		Provider:  provider,
 		ID:        namespace(root, value(d, constant.DirectiveID)),
@@ -97,7 +98,7 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 // repository) appended. When nothing matches, the provider stays auto so
 // resolution rejects it with a clear "unknown provider" error.
 func infer(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
-	if target >= len(file.Lines) {
+	if target < 0 || target >= len(file.Lines) {
 		return constant.ProviderAuto, d
 	}
 	inferred, ok := match.Infer(file.Path, file.Lines[target])

@@ -131,6 +131,45 @@ func TestRunResolvedSidecarFailureStaysHard(t *testing.T) {
 	require.Equal(t, 0, summary.Skipped())
 }
 
+// A sidecar entry resolving onto the line an inline target= anchor already
+// governs is double-governance: the guard reserves the anchor's resolved line,
+// not just the line below the comment.
+func TestLintSidecarTargetAnchorDoubleGovernanceErrors(t *testing.T) {
+	provider.Register(offlineProvider{name: "dgovanchor"})
+	dir := writeTree(t, map[string]string{
+		"app.yaml": "# clover: provider=dgovanchor repository=x/y target=/^version:/\n" +
+			"name: app\n" +
+			"version: 1.2.0\n",
+		"app.yaml.clover.yaml": "- provider: dgovanchor\n" +
+			"  repository: x/y\n" +
+			"  find: /^version:/\n",
+	})
+
+	summary, err := mode.Lint(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Errored(), "the sidecar entry targets an anchored line")
+}
+
+// A sidecar entry carrying an inline-only anchor key (offset/target) fails
+// lint: a sidecar entry is located by its own jq/find, so a comment-relative
+// anchor is meaningless there.
+func TestLintSidecarAnchorKeyErrors(t *testing.T) {
+	provider.Register(offlineProvider{name: "anchorsidecar"})
+	for _, anchor := range []string{"offset: 2", "target: image:*"} {
+		dir := writeTree(t, map[string]string{
+			"tsconfig.json": schemaTarget,
+			"tsconfig.json.clover.yaml": "- provider: anchorsidecar\n" +
+				"  repository: a/b\n" +
+				"  find: schemas/<version>/schema.json\n" +
+				"  " + anchor + "\n",
+		})
+
+		summary, err := mode.Lint(context.Background(), []string{dir})
+		require.NoError(t, err)
+		require.Equal(t, 1, summary.Errored(), anchor)
+	}
+}
+
 // A dangling sidecar (no target sibling) fails lint and names the missing target.
 func TestLintDanglingSidecarErrors(t *testing.T) {
 	dir := writeTree(t, map[string]string{

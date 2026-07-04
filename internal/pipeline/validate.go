@@ -48,6 +48,9 @@ func (p *plan) check(i int) error {
 	if err := checkKeys(m); err != nil {
 		return err
 	}
+	if m.TargetErr != nil {
+		return m.TargetErr
+	}
 	if m.Directive.Has(constant.DirectiveTrack) {
 		return p.checkTrack(m)
 	}

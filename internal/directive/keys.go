@@ -27,6 +27,7 @@ var commonKeys = set.New(
 	constant.DirectiveFind,
 	constant.DirectiveFrom,
 	constant.DirectiveID,
+	constant.DirectiveOffset,
 	constant.DirectivePattern,
 	constant.DirectiveProvider,
 	constant.DirectiveReplace,
@@ -34,6 +35,7 @@ var commonKeys = set.New(
 	constant.DirectiveSha256Source,
 	constant.DirectiveSha256URL,
 	constant.DirectiveTags,
+	constant.DirectiveTarget,
 	constant.DirectiveTrack,
 	constant.DirectiveValue,
 	constant.DirectiveVerify,
@@ -76,11 +78,26 @@ func (d Directive) CheckKeys(providerKeys []string) error {
 	}
 }
 
+// inlineOnlyKeys anchor a directive relative to its comment line, which a
+// sidecar entry (located by its own jq/find) has no use for.
+var inlineOnlyKeys = []string{constant.DirectiveOffset, constant.DirectiveTarget}
+
 // CheckKeysSidecar validates a sidecar entry's keys, permitting jq in addition
 // to the common vocabulary and providerKeys. jq is a locator key that only a
 // sidecar may carry (an inline directive still rejects it via [Directive.CheckKeys]),
-// so the two paths diverge only by that one key.
+// and the comment-relative anchors offset and target are the inverse - inline
+// only.
 func (d Directive) CheckKeysSidecar(providerKeys []string) error {
+	for _, key := range inlineOnlyKeys {
+		if d.Has(key) {
+			return fmt.Errorf(
+				"%q is only valid in an inline directive - a sidecar entry locates its line with %q or %q",
+				key,
+				constant.DirectiveFind,
+				constant.DirectiveJQ,
+			)
+		}
+	}
 	return d.CheckKeys(append(slices.Clone(providerKeys), constant.DirectiveJQ))
 }
 

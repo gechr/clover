@@ -85,3 +85,37 @@ func TestFirstUnknownKey(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckKeysSidecarRejectsAnchors pins offset= and target= as inline-only: a
+// sidecar entry is located by its own jq/find, so an anchor relative to a
+// comment line is meaningless there, while the inline path accepts both as
+// common keys.
+func TestCheckKeysSidecarRejectsAnchors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		key, value, wantErr string
+	}{
+		{
+			key:     "offset",
+			value:   "2",
+			wantErr: `"offset" is only valid in an inline directive - a sidecar entry locates its line with "find" or "jq"`,
+		},
+		{
+			key:     "target",
+			value:   "image:*",
+			wantErr: `"target" is only valid in an inline directive - a sidecar entry locates its line with "find" or "jq"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
+			d := directive.Directive{Pairs: []directive.KV{
+				{Key: "provider", Value: "github"},
+				{Key: tt.key, Value: tt.value},
+			}}
+			require.NoError(t, d.CheckKeys(nil))
+			require.EqualError(t, d.CheckKeysSidecar(nil), tt.wantErr)
+		})
+	}
+}

@@ -108,6 +108,31 @@ func TestLintWritesNothing(t *testing.T) {
 	require.Equal(t, original, string(got))
 }
 
+// TestLintTargetAnchor covers the target= anchor offline: a resolving anchor
+// lints clean, and one matching no line below the comment is a hard error.
+func TestLintTargetAnchor(t *testing.T) {
+	provider.Register(offlineProvider{name: "lintanchor"})
+
+	clean := write(
+		t,
+		"# clover: provider=lintanchor repository=x/y target=version:*\n"+
+			"name: app\n"+
+			"version: 1.2.0\n",
+	)
+	summary, err := mode.Lint(context.Background(), []string{clean})
+	require.NoError(t, err)
+	require.True(t, summary.OK())
+
+	noMatch := write(
+		t,
+		"# clover: provider=lintanchor repository=x/y target=nonesuch*\n"+
+			"version: 1.2.0\n",
+	)
+	summary, err = mode.Lint(context.Background(), []string{noMatch})
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Errored(), "an anchor matching no line is a lint error")
+}
+
 func TestLintRejectsUnknownKey(t *testing.T) {
 	provider.Register(fakeProvider{name: "uklint"})
 	dir := write(t, "# clover: provider=uklint repository=x/y max-major=4\nversion: 1.2.0\n")

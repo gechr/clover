@@ -7,7 +7,7 @@ An annotation is a `clover:` comment that tells Clover how to keep the next line
 FROM redis:7.2.0
 ```
 
-The comment governs the **target line** - by default the line immediately below it. Lines without a `clover:` comment are never touched.
+The comment governs the **target line** - by default the line immediately below it, or the first matching line below it when a [`target` anchor](#anchoring-the-target-line) is set. Lines without a `clover:` comment are never touched.
 
 ## Comment syntax
 
@@ -53,9 +53,27 @@ Every annotation is a flat list of space-separated `key=value` pairs. The availa
 | Floating refs | [`track`](tracking.md), [`verify`, `verify-branch`](verification.md)                                                                                                                                                      |
 | Links         | [`id`, `from`, `select`, `value`](following.md)                                                                                                                                                                           |
 | Side values   | [`value`, `sha256-source`, `sha256-url`, `pattern`](checksums.md)                                                                                                                                                         |
-| Matching      | [`find`, `replace`](find-replace.md), `disabled`, `tags`                                                                                                                                                                  |
+| Matching      | [`target`, `offset`](#anchoring-the-target-line), [`find`, `replace`](find-replace.md), `disabled`, `tags`                                                                                                                |
 
 You rarely need most of them. Clover infers sensible patterns from the existing content of the target line, so a `provider` and a `repository` are usually enough.
+
+## Anchoring the target line
+
+When the comment can't sit directly above the value - a generated block, a license header that must stay first, a value buried a few lines into a mapping - two anchor keys move the target line:
+
+- **`target`** - a glob or `/regex/`; the comment governs the **first matching line below it**. Prefer this: the anchor follows the content, so lines added or removed between the comment and the value never silently retarget the directive.
+- **`offset`** - a fixed number of lines below the comment. The default is `1`, the line immediately below.
+
+```yaml
+# clover: provider=docker repository=redis constraint=minor target=image:*
+metadata:
+  name: redis
+image: redis:7.2.0
+```
+
+They compose: `offset` sets where the `target` search **starts**, so `offset=3 target=image:*` skips any `image:` in the first two lines below the comment and anchors to the first match from the third. A `target` that matches no line below its comment, or an `offset` that is not a positive integer, is a lint error, and `clover run` reports it without touching the file.
+
+The anchors pick the **line**; [`find` and `replace`](find-replace.md) still control the region *within* that line, and everything composes. In a sidecar entry `target` and `offset` are invalid - a sidecar names its line with its own [locators](sidecar.md#locators).
 
 ## Matching the value
 

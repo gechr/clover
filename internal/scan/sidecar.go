@@ -120,7 +120,7 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 		return nil, []LineError{{Sidecar: true, Err: err}}
 	}
 
-	governed := governedLines(file.Found)
+	governed := governedLines(file.Found, file.Lines)
 	var (
 		located []Located
 		errs    []LineError
@@ -167,12 +167,17 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 }
 
 // governedLines marks the lines an inline directive owns - its comment line and
-// the target below it - so a sidecar entry resolving onto either is caught as
-// double-governance rather than silently applied alongside.
-func governedLines(found []Located) set.Set[int] {
+// the line it targets (the next line, or its target= match) - so a sidecar
+// entry resolving onto either is caught as double-governance rather than
+// silently applied alongside. A directive whose target does not resolve owns
+// only its comment line; its own validation reports the fault.
+func governedLines(found []Located, lines []string) set.Set[int] {
 	governed := make(set.Set[int], len(found))
 	for _, loc := range found {
-		governed.Add(loc.Line, loc.Line+1)
+		governed.Add(loc.Line)
+		if target, err := loc.Target(lines); err == nil {
+			governed.Add(target)
+		}
 	}
 	return governed
 }

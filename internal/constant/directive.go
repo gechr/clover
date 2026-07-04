@@ -21,10 +21,12 @@ const (
 	DirectiveFind     = "find"     // explicit find pattern (glob with <placeholders>, or /regex/)
 	DirectiveFrom     = "from"     // follow the producer with this id
 	DirectiveID       = "id"       // publish this marker's result under this id
+	DirectiveOffset   = "offset"   // lines below the comment where the governed line (or the target= search) starts; default 1
 	DirectiveProvider = "provider" // upstream source; omitted ⇒ follow
 	DirectiveReplace  = "replace"  // explicit replace template, pairs with find
 	DirectiveSelect   = "select"   // follow the old or new value
 	DirectiveTags     = "tags"     // comma-separated labels for --tags filtering
+	DirectiveTarget   = "target"   // glob or /regex/ anchoring the governed line: the first match below the comment
 	DirectiveTrack    = "track"    // track a floating ref (docker tag, github branch); * infers it from the line
 	DirectiveValue    = "value"    // what a follower projects
 	DirectiveVerify   = "verify"   // deep-verify this marker's secure pin against upstream

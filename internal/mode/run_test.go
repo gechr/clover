@@ -102,6 +102,67 @@ func TestRunAddsActionPinComment(t *testing.T) {
 	)
 }
 
+// TestRunWritesTargetAnchoredLine confirms target= redirects the rewrite: the
+// governed line is the first match below the comment, not the line immediately
+// under it, and intervening lines stay untouched.
+func TestRunWritesTargetAnchoredLine(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "anchor", candidates: []model.Candidate{candidate(t, "1.5.0")}},
+	)
+	dir := write(
+		t,
+		"# clover: provider=anchor repository=x/y target=/^version:/\n"+
+			"name: app\n"+
+			"description: version 1.0.0 of app\n"+
+			"version: 1.2.0\n",
+	)
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Changed())
+
+	got, err := os.ReadFile(filepath.Join(dir, "app.txt"))
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"# clover: provider=anchor repository=x/y target=/^version:/\n"+
+			"name: app\n"+
+			"description: version 1.0.0 of app\n"+
+			"version: 1.5.0\n",
+		string(got),
+	)
+}
+
+// TestRunWritesOffsetLine confirms offset= redirects the rewrite a fixed number
+// of lines below the comment instead of the default next line.
+func TestRunWritesOffsetLine(t *testing.T) {
+	provider.Register(
+		fakeProvider{name: "skew", candidates: []model.Candidate{candidate(t, "1.5.0")}},
+	)
+	dir := write(
+		t,
+		"# clover: provider=skew repository=x/y offset=3\n"+
+			"name: app\n"+
+			"kind: demo\n"+
+			"version: 1.2.0\n",
+	)
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Changed())
+
+	got, err := os.ReadFile(filepath.Join(dir, "app.txt"))
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"# clover: provider=skew repository=x/y offset=3\n"+
+			"name: app\n"+
+			"kind: demo\n"+
+			"version: 1.5.0\n",
+		string(got),
+	)
+}
+
 func TestRunDryRunWritesNothing(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "dry", candidates: []model.Candidate{candidate(t, "1.5.0")}},

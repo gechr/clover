@@ -30,6 +30,10 @@ func TestSchemaCoversEveryDirectiveKey(t *testing.T) {
 	for _, key := range directive.CommonKeys() {
 		want[key] = true
 	}
+	// offset and target anchor an inline comment to a line below it; a sidecar
+	// entry is located by its own jq/find, so the schema must not offer them.
+	delete(want, constant.DirectiveOffset)
+	delete(want, constant.DirectiveTarget)
 	for _, name := range provider.Names() {
 		prov, ok := provider.Get(name)
 		require.True(t, ok)
