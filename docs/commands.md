@@ -26,7 +26,8 @@ clover run [options] [<path>…]
 | ----------------------- | -------------------------------------------------------------------------------------- |
 | `-t, --tag <tag>`       | Only process directives matching these tags                                            |
 | `-n, --dry-run`         | Resolve and render but write nothing                                                   |
-| `--[no-]deep`           | Follow pagination to fetch every version - more accurate, but slower and more requests |
+| `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)        |
+| `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests) |
 | `-y, --yes`             | Proceed without confirming a deep lookup                                               |
 | `--[no-]downgrade`      | Allow selecting versions older than the current one                                    |
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                  |

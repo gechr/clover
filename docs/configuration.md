@@ -59,7 +59,7 @@ An unknown key is reported as a warning (with a "did you mean?" hint for a likel
 
 ## Environment variables
 
-Clover also reads process-wide settings from `CLOVER_*` environment variables. Set `CLOVER_NO_CACHE=1` to disable the cross-run HTTP cache for a run, overriding `run.cache`.
+Clover also reads process-wide settings from `CLOVER_*` environment variables. Set `CLOVER_NO_CACHE=1` to disable the cross-run HTTP cache for a run, overriding `run.cache`. An explicit `--[no-]cache` flag wins over both.
 
 To make file and line hyperlinks open in an editor, set `CLOVER_HYPERLINK_FORMAT` to one of the supported editor presets:
 

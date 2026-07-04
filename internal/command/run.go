@@ -38,6 +38,7 @@ type cmdRun struct {
 	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection'"                                                                negatable:""`
 	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection'"                                                               negatable:""`
 	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection'"                                                                    negatable:""`
+	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                   clib:"terse='HTTP cache',group='Options/Lookup'"                                                                         negatable:""`
 	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup'"                                                                        negatable:""`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup'\""
 	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                            short:"y"`
@@ -69,7 +70,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 		return err
 	}
 
-	enableHTTPCache(configs, c.Paths)
+	enableHTTPCache(c.Cache, configs, c.Paths)
 
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
 	// a verify-implied deep proceed without prompting, like --verify.
@@ -132,18 +133,15 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 const noCacheEnv = "CLOVER_NO_CACHE"
 
 // enableHTTPCache opens the cross-run HTTP cache under the XDG cache dir,
-// unless CLOVER_NO_CACHE or a run.cache config of false disables it. It is
-// best-effort: any failure leaves the in-memory cache, never the run.
-func enableHTTPCache(configs *config.Resolver, paths []string) {
-	if os.Getenv(noCacheEnv) != "" {
-		return
-	}
+// unless the --[no-]cache flag, CLOVER_NO_CACHE, or a run.cache config of false
+// disables it. It is best-effort: any failure leaves the in-memory cache, never
+// the run.
+func enableHTTPCache(cache *bool, configs *config.Resolver, paths []string) {
 	// A config that fails to load resolves to nil here - the scan reports the
 	// error itself, and the cache stays at its default of on.
-	if cfg, err := configs.PrimaryForPaths(paths); err == nil && cfg != nil {
-		if !ptr.Deref(cmp.Or(cfg.Cache(), new(true))) {
-			return
-		}
+	cfg, _ := configs.PrimaryForPaths(paths)
+	if !cacheEnabled(cache, os.Getenv(noCacheEnv) != "", cfg) {
+		return
 	}
 	base, err := shell.CacheDir()
 	if err != nil {
@@ -153,6 +151,19 @@ func enableHTTPCache(configs *config.Resolver, paths []string) {
 	if err := httpcache.EnableSharedDisk(dir); err != nil {
 		clog.Warn().Err(err).Path(field.Path, dir).Msg("Skipping the HTTP disk cache")
 	}
+}
+
+// cacheEnabled resolves the cross-run cache toggle, each level winning over the
+// next: the --[no-]cache flag, the CLOVER_NO_CACHE variable, the run.cache
+// config, and the default of on.
+func cacheEnabled(cache *bool, noCache bool, cfg *config.Config) bool {
+	if noCache {
+		cache = cmp.Or(cache, new(false))
+	}
+	if cfg != nil {
+		cache = cmp.Or(cache, cfg.Cache())
+	}
+	return ptr.Deref(cmp.Or(cache, new(true)))
 }
 
 // failuresError is the exit-status error a command returns when its run finished
