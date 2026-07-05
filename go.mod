@@ -15,7 +15,7 @@ require (
 	github.com/gechr/clib v0.5.9
 	github.com/gechr/clog v0.11.15
 	github.com/gechr/conductor v0.0.8
-	github.com/gechr/x v0.2.8
+	github.com/gechr/x v0.2.9
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0

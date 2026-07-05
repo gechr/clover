@@ -50,13 +50,13 @@ type root struct {
 	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Global Options/Diagnostics'"`
 
 	Annotate cmdAnnotate "help:\"Add `provider=auto` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
-	Format   cmdFormat   `help:"Canonicalise directive comments"                              clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
+	Format   cmdFormat   `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
-	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing"  clib:"terse='Check directives'" cmd:""`
-	Login    cmdLogin    `help:"Authenticate Clover with a provider"                          clib:"terse='Authenticate'"     cmd:""`
-	Run      cmdRun      `help:"Resolve version references and update them in place"          clib:"terse='Update versions'"  cmd:""`
-	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"             clib:"terse='Self-update'"      cmd:"" aliases:"up"`
-	Version  cmdVersion  `help:"Print version information"                                    clib:"terse='Print version'"    cmd:""`
+	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
+	Login    cmdLogin    `help:"Authenticate Clover with a provider"                         clib:"terse='Authenticate'"     cmd:""`
+	Run      cmdRun      `help:"Resolve version references and update them in place"         clib:"terse='Update versions'"  cmd:""`
+	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:"" aliases:"up"`
+	Version  cmdVersion  `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
 
 	VersionFlag kong.VersionFlag `name:"version" short:"V" help:"Print version information" hidden:""`
 }
