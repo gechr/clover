@@ -13,7 +13,6 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
-	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/pipeline"
@@ -22,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/gechr/x/set"
+	xsync "github.com/gechr/x/sync"
 )
 
 // syntheticInferencePath is the YAML path annotate hands [match.Infer] when
@@ -179,7 +179,7 @@ func Annotate(
 	// leaves a nil slot, compacted away below.
 	results := make([]*AnnotateFile, len(files))
 	var done atomic.Int64
-	exec.Parallel(parallelism, len(files), func(i int) {
+	xsync.Parallel(parallelism, len(files), func(i int) {
 		// Count each file as it finishes - the closure defers the increment to exit
 		// (not defer-time), so the final tally reaches len(files); registered before
 		// the sidecar early-return so skipped files still count.

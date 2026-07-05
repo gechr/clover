@@ -3,9 +3,9 @@ package mode
 import (
 	"context"
 
-	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/scan"
+	xsync "github.com/gechr/x/sync"
 )
 
 // Run resolves every marker under roots against its provider and rewrites each
@@ -30,7 +30,7 @@ func Run(
 	// paths) and each outcome is kept at its own index, so they run concurrently
 	// while preserving file order - this is the win on a mass update.
 	outcomes := make([]Outcome, len(files))
-	exec.Parallel(parallelism, len(files), func(i int) {
+	xsync.Parallel(parallelism, len(files), func(i int) {
 		file := files[i]
 		if scan.IsSidecar(file.Path) {
 			softenSidecarErrors(file.Results)

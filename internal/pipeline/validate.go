@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/rule"
+	xsync "github.com/gechr/x/sync"
 )
 
 // validate checks each marker offline, then asks the executor - running no-op
@@ -19,7 +20,7 @@ func (p *plan) validate(ctx context.Context) {
 	// Each marker's offline check writes only its own result slot and reads
 	// immutable shared state (the provider registry, its marker, its file lines),
 	// so the checks run concurrently, bounded by the worker count.
-	exec.Parallel(p.workers, len(p.markers), func(i int) {
+	xsync.Parallel(p.workers, len(p.markers), func(i int) {
 		p.results[i].Err = p.check(i)
 	})
 

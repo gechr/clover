@@ -10,12 +10,12 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
-	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/gechr/x/set"
+	xsync "github.com/gechr/x/sync"
 )
 
 // FormatChange is a directive comment line format would rewrite: its 0-based
@@ -115,7 +115,7 @@ func Format(
 	// sidecar dedup and the line-order assembly stay sequential below, so only the
 	// heavy per-file formatting runs in parallel.
 	formatted := make([]*formatWork, len(files))
-	exec.Parallel(parallelism, len(files), func(i int) {
+	xsync.Parallel(parallelism, len(files), func(i int) {
 		file := files[i]
 		if scan.IsSidecar(file.Path) {
 			return // a sidecar's diagnostics File has no inline directives to format
@@ -178,7 +178,7 @@ func formatSidecars(work []*formatWork, prune, dry bool, parallelism int) map[st
 	}
 
 	results := make([]FormatFile, len(paths))
-	exec.Parallel(parallelism, len(paths), func(j int) {
+	xsync.Parallel(parallelism, len(paths), func(j int) {
 		results[j] = formatSidecar(paths[j], prune, dry)
 	})
 

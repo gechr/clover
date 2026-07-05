@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+
+	xsync "github.com/gechr/x/sync"
 )
 
 // Task is a node in the follow-edge dependency graph: an optional ID others may
@@ -169,7 +171,7 @@ func waves(parent []int, reason []string) [][]int {
 // runWave runs the given tasks concurrently, capped at workers. Each result is
 // written to its own index, so the shared slice needs no lock.
 func runWave(ctx context.Context, runnable []int, tasks []Task, results []Result, workers int) {
-	Parallel(workers, len(runnable), func(k int) {
+	xsync.Parallel(workers, len(runnable), func(k int) {
 		i := runnable[k]
 		results[i].Err = tasks[i].Run(ctx)
 	})
