@@ -44,6 +44,7 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                                           |
 | `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                                           |
 | `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                                          |
+| `run.force`        | Re-pin followed digests by default, even when the version they follow is unchanged                                                                                                       |
 | `run.cache`        | Persist cacheable HTTP responses across runs and revalidate them with conditional requests (see [Caching](caching.md)). On by default - set `false` to fetch everything fresh each run   |
 | `run.output`       | Output detail for `clover run`; overrides `global.output`                                                                                                                                |
 | `lint.output`      | Output detail for `clover lint`; overrides `global.output`                                                                                                                               |

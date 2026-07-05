@@ -49,14 +49,14 @@ type root struct {
 	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Global Options/Execution'"  short:"P" default:"10" placeholder:"<n>"`
 	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Global Options/Diagnostics'"`
 
+	Annotate cmdAnnotate "help:\"Add `provider=auto` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
+	Format   cmdFormat   `help:"Canonicalise directive comments"                              clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
-	Login    cmdLogin    `help:"Authenticate Clover with a provider"                         clib:"terse='Authenticate'"     cmd:""`
-	Run      cmdRun      `help:"Resolve version references and update them in place"         clib:"terse='Update versions'"  cmd:""`
-	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
-	Format   cmdFormat   `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
-	Annotate cmdAnnotate `help:"Add provider=auto directives to recognised version lines"    clib:"terse='Add directives'"   cmd:"" aliases:"add"`
-	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"            clib:"terse='Self-update'"      cmd:"" aliases:"up"`
-	Version  cmdVersion  `help:"Print version information"                                   clib:"terse='Print version'"    cmd:""`
+	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing"  clib:"terse='Check directives'" cmd:""`
+	Login    cmdLogin    `help:"Authenticate Clover with a provider"                          clib:"terse='Authenticate'"     cmd:""`
+	Run      cmdRun      `help:"Resolve version references and update them in place"          clib:"terse='Update versions'"  cmd:""`
+	Update   cmdUpdate   `help:"Update Clover to the latest release via Homebrew"             clib:"terse='Self-update'"      cmd:"" aliases:"up"`
+	Version  cmdVersion  `help:"Print version information"                                    clib:"terse='Print version'"    cmd:""`
 
 	VersionFlag kong.VersionFlag `name:"version" short:"V" help:"Print version information" hidden:""`
 }

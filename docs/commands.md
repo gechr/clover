@@ -4,15 +4,16 @@
 clover <command>
 ```
 
-| Command   | Description                                                       |
-| --------- | ----------------------------------------------------------------- |
-| `init`    | Create a starter [`.clover.yaml`](configuration.md) interactively |
-| `run`     | Resolve version references and update them in place               |
-| `lint`    | Check every directive resolves, offline and without writing       |
-| `format`  | Canonicalize directive comments                                   |
-| `login`   | Authenticate Clover with a provider (GitHub, GitLab, Gitea)       |
-| `update`  | Update Clover to the latest release via Homebrew                  |
-| `version` | Print version information                                         |
+| Command    | Alias | Description                                                        |
+| ---------- | ----- | ------------------------------------------------------------------ |
+| `init`     |       | Create a starter [`.clover.yaml`](configuration.md) interactively  |
+| `run`      |       | Resolve version references and update them in place                |
+| `lint`     |       | Check every directive resolves, offline and without writing        |
+| `format`   | `fmt` | Canonicalize directive comments                                    |
+| `annotate` |       | Add `provider=auto` directives to recognized version lines         |
+| `login`    |       | Authenticate Clover with a provider (GitHub, GitLab, Gitea)        |
+| `update`   | `up`  | Update Clover to the latest release via Homebrew                   |
+| `version`  |       | Print version information                                          |
 
 ## `run`
 
@@ -47,6 +48,8 @@ Validate every directive - that it parses, resolves, and that its `find` pattern
 ```text
 clover lint [options] [<path>…]
 ```
+
+`lint` accepts the same `-t/--tag` selection and `-o, --output` options as `run`.
 
 ## `format`
 

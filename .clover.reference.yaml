@@ -43,6 +43,8 @@ run:
   downgrade: false
   # Follow pagination to fetch every version (more accurate, but slower).
   deep: false
+  # Re-pin followed digests even when the version they follow is unchanged.
+  force: false
   # Persist cacheable HTTP responses across runs under the XDG cache directory
   # and revalidate them with conditional requests.
   cache: true
