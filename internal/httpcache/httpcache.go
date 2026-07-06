@@ -147,7 +147,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if stale != nil && resp.StatusCode == http.StatusNotModified {
 			_ = resp.Body.Close()
 			counters.revalidated.Add(1)
-			refreshed := stale.refreshed(time.Now())
+			refreshed := stale.refreshed(time.Now(), resp.Header)
 			t.store.Set(key, refreshed)
 			return refreshed, nil
 		}

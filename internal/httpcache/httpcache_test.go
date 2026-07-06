@@ -442,6 +442,36 @@ func TestStaleEntryRevalidatedNotModified(t *testing.T) {
 	)
 }
 
+func TestRevalidationMergesUpdatedHeaders(t *testing.T) {
+	t.Parallel()
+
+	store := crossRunStore(t, http.Header{"Etag": {`W/"v1"`}}, "cached")
+	fake := &fakeTransport{handler: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNotModified,
+			Header: http.Header{
+				"Etag":           {`W/"v2"`},
+				"Content-Length": {"999"},
+			},
+			Body:    io.NopCloser(strings.NewReader("")),
+			Request: req,
+		}, nil
+	}}
+	client := httpcache.New(httpcache.WithStore(store), httpcache.WithTransport(fake))
+
+	resp, err := client.Get("https://example.test/a")
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(
+		t,
+		`W/"v2"`,
+		resp.Header.Get("Etag"),
+		"the 304's validator replaces the stored one",
+	)
+	require.Empty(t, resp.Header.Get("Content-Length"),
+		"the 304's Content-Length does not describe the stored body")
+}
+
 func TestStaleEntryRevalidatedLastModified(t *testing.T) {
 	t.Parallel()
 

@@ -19,12 +19,20 @@ func (e *Entry) fresh(now time.Time) bool {
 	return ok && now.Sub(e.StoredAt) < ttl
 }
 
-// refreshed returns a copy of the entry with its store time reset, recording a
-// successful revalidation. The copy is shallow - entries are immutable, so
-// sharing the Header and Body is safe.
-func (e *Entry) refreshed(now time.Time) *Entry {
+// refreshed returns a copy of the entry with its store time reset and the 304
+// response's header fields folded in (RFC 9111 §3.2) - the origin may grant new
+// freshness or a new validator alongside a 304. Content-Length is excepted, as
+// the stored body is unchanged. The Body is shared - entries are immutable.
+func (e *Entry) refreshed(now time.Time, update http.Header) *Entry {
 	clone := *e
 	clone.StoredAt = now
+	clone.Header = e.Header.Clone()
+	for name, values := range update {
+		if http.CanonicalHeaderKey(name) == "Content-Length" {
+			continue
+		}
+		clone.Header[http.CanonicalHeaderKey(name)] = values
+	}
 	return &clone
 }
 
