@@ -34,6 +34,12 @@ func KeyNames(p Provider) []string {
 // Provider adapts one upstream source of versions. Resource validates a
 // directive into a descriptor once; Discover is the single network method,
 // returning rich candidates with whatever metadata the API gave for free.
+//
+// Everything beyond this contract is an optional capability, expressed as a
+// further interface discovered by type assertion: [RecencyOrderer],
+// [Anchorer], [Digester], [Linker], [Committer], [BranchChecker], and
+// [Authenticator]. A provider implements only the capabilities its upstream
+// supports, and the pipeline degrades gracefully where one is absent.
 type Provider interface {
 	// Name is the provider's identifier, as written in a directive's provider=.
 	Name() string
