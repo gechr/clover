@@ -105,6 +105,13 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		counters.requests.Add(1)
 		return t.base.RoundTrip(req)
 	}
+	// A non-positive cap disables response-body caching outright, so skip the
+	// cache path - going through it would fetch once to discover the entry
+	// cannot be stored and once more for the caller.
+	if t.maxEntryBytes <= 0 {
+		counters.requests.Add(1)
+		return t.base.RoundTrip(req)
+	}
 
 	key, keyed := fingerprint(req)
 	if !keyed {

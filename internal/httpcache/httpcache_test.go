@@ -305,6 +305,25 @@ func TestOversizeBodyNotCached(t *testing.T) {
 	require.Equal(t, int64(4), fake.calls.Load(), "oversize responses pass through without caching")
 }
 
+func TestDisabledEntryCapPassesThrough(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeTransport{body: "uncached"}
+	client := httpcache.New(
+		httpcache.WithMaxEntryBytes(0),
+		httpcache.WithTransport(fake),
+	)
+
+	require.Equal(t, "uncached", get(t, client, "https://example.test/a"))
+	require.Equal(t, "uncached", get(t, client, "https://example.test/a"))
+	require.Equal(
+		t,
+		int64(2),
+		fake.calls.Load(),
+		"a disabled cap issues exactly one request per call",
+	)
+}
+
 func TestErrorBackoffReplaysFailure(t *testing.T) {
 	t.Parallel()
 
