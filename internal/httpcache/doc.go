@@ -8,4 +8,10 @@
 // The cache is keyed by method, URL, and Authorization, and stores full
 // responses including their validators (ETag, Last-Modified), leaving room for a
 // disk-backed Store and conditional revalidation behind the same seam.
+//
+// The RFC 9111 semantics are implemented selectively, scoped to a short-lived
+// CLI talking to known APIs: no-store is honored, but the no-cache and
+// must-revalidate directives and the Age header are deliberately ignored, and
+// Vary is subsumed by keying on the headers that matter here (Authorization,
+// Accept).
 package httpcache
