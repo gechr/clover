@@ -1,5 +1,5 @@
 # clover: provider=github repository=rust-lang/mdBook constraint=major
-MDBOOK_VERSION ?= 0.5.3
+MDBOOK_VERSION ?= 0.5.4
 # clover: provider=github repository=highlightjs/cdn-release constraint=major
 HLJS_VERSION   ?= 11.11.1
 HLJS_URL       := https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@$(HLJS_VERSION)/build
