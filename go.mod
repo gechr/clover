@@ -12,10 +12,10 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.5.9
-	github.com/gechr/clog v0.11.15
-	github.com/gechr/conductor v0.0.8
-	github.com/gechr/x v0.2.9
+	github.com/gechr/clib v0.5.11
+	github.com/gechr/clog v0.11.18
+	github.com/gechr/conductor v0.0.9
+	github.com/gechr/x v0.2.13
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
@@ -104,7 +104,7 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clive v0.2.9
+	github.com/gechr/clive v0.3.0
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
@@ -189,7 +189,7 @@ require (
 	github.com/nunnatsa/ginkgolinter v0.23.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.4.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
