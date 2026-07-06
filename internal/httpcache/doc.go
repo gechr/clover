@@ -5,9 +5,10 @@
 // upstream cause a single round trip. Cache hits make no network call at all,
 // which is also the most effective way to stay within an API's rate limit.
 //
-// The cache is keyed by method, URL, and Authorization, and stores full
-// responses including their validators (ETag, Last-Modified), leaving room for a
-// disk-backed Store and conditional revalidation behind the same seam.
+// The cache is keyed by method, URL, Authorization, Accept, and (for cacheable
+// non-GET requests) the body, and stores full responses including their
+// validators (ETag, Last-Modified), leaving room for a disk-backed Store and
+// conditional revalidation behind the same seam.
 //
 // The RFC 9111 semantics are implemented selectively, scoped to a short-lived
 // CLI talking to known APIs: no-store is honored, but the no-cache and

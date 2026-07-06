@@ -63,10 +63,11 @@ func New(opts ...Option) *http.Client {
 	}
 }
 
-// defaultStore is the store New uses when no [WithStore] is given: the run's
-// in-memory store, layered over the shared disk delegate. The disk tier is
-// inert until [EnableSharedDisk] runs, so this is a plain in-memory cache for
-// commands that never enable it.
+// defaultStore is the store New uses when no [WithStore] is given: a fresh
+// in-memory store for this client, layered over the shared disk delegate.
+// Memory is per-client (per-provider); only the disk tier is shared across
+// clients. The disk tier is inert until [EnableSharedDisk] runs, so this is a
+// plain in-memory cache for commands that never enable it.
 func defaultStore() Store {
 	return NewLayeredStore(NewMemStore(), sharedDiskStore{})
 }
