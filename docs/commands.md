@@ -33,9 +33,9 @@ clover run [options] [<path>…]
 | `--[no-]downgrade`      | Allow selecting versions older than the current one                                    |
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                  |
 | `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged                 |
-| `--[no-]verify`         | Verify secure pins against upstream tags; implies `--deep`                             |
+| `--[no-]verify`         | Verify secure pins against upstream tags (implies `--deep`)                            |
 | `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                   |
-| `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded      |
+| `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded)     |
 | `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                      |
 | `--no-config`           | Do not load any `.clover.yaml` config                                                  |
 
@@ -43,7 +43,7 @@ With no paths, Clover scans the current directory. Pass files or directories to 
 
 ## `lint`
 
-Validate every directive - that it parses, resolves, and that its `find` pattern matches the target line - without touching any files or making network calls. Useful in CI.
+Validate that every directive parses, resolves, and has a `find` pattern that matches the target line, without touching any files or making network calls. Useful in CI.
 
 ```text
 clover lint [options] [<path>…]
@@ -59,44 +59,44 @@ Rewrite directive comments into canonical form and key order, migrating deprecat
 clover format [options] [<path>…]
 ```
 
-| Option            | Description                                                                       |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `--check`         | Report directives that need formatting and exit non-zero without writing          |
-| `-n, --dry-run`   | Report what would be reformatted without writing                                  |
-| `--[no-]prune`    | Remove unknown keys instead of erroring on them                                   |
-| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded |
-| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                 |
-| `--no-config`     | Do not load any `.clover.yaml` config                                             |
+| Option            | Description                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `--check`         | Report directives that need formatting and exit non-zero without writing           |
+| `-n, --dry-run`   | Report what would be reformatted without writing                                   |
+| `--[no-]prune`    | Remove unknown keys instead of erroring on them                                    |
+| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded) |
+| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                  |
+| `--no-config`     | Do not load any `.clover.yaml` config                                              |
 
-`--check` is the CI gate; `--dry-run` previews the same rewrites but exits zero.
+`--check` is the CI gate, while `--dry-run` previews the same rewrites but exits zero.
 
 ## `annotate`
 
-Add `clover: provider=auto` directives to lines Clover can already track but that carry none. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. It is the inverse of [auto-detection](auto.md): rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each.
+Add `clover: provider=auto` directives to lines Clover can already track but that carry none. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. It is the inverse of [auto-detection](auto.md). Rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each.
 
 ```text
 clover annotate [options] [<path>…]
 ```
 
-| Option            | Description                                                                       |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `--check`         | Report annotations that would be added and exit non-zero without writing          |
-| `-n, --dry-run`   | Preview the proposed annotations without writing                                  |
-| `-w, --write`     | Apply the proposed annotations                                                    |
-| `--force`         | Rewrite an existing annotation into its canonical minimal form                    |
-| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude; VCS directories stay excluded |
-| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                 |
-| `--no-config`     | Do not load any `.clover.yaml` config                                             |
+| Option            | Description                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `--check`         | Report annotations that would be added and exit non-zero without writing           |
+| `-n, --dry-run`   | Preview the proposed annotations without writing                                   |
+| `-w, --write`     | Apply the proposed annotations                                                     |
+| `--force`         | Rewrite an existing annotation into its canonical minimal form                     |
+| `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded) |
+| `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                  |
+| `--no-config`     | Do not load any `.clover.yaml` config                                              |
 
-Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. Set [`annotate.write`](configuration.md) to opt in to writing by default, or [`annotate.check`](configuration.md) to make annotate a default CI gate. `--dry-run`, `--write`, and `--check` override the configured mode for one invocation. Every annotation is verified offline first; unresolved lines are left alone.
+Unlike `run` and `format`, `annotate` previews by default and writes only with `--write`, since it inserts new lines. Set [`annotate.write`](configuration.md) to opt in to writing by default, or [`annotate.check`](configuration.md) to make annotate a default CI gate. `--dry-run`, `--write`, and `--check` override the configured mode for one invocation. Every annotation is verified offline first, and unresolved lines are left alone.
 
 Pass global `--verbose` with `annotate` to show recognized candidates Clover deliberately skipped, including the reason they failed validation or were opted out.
 
-Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce - `provider=auto`, or an explicit provider the line infers - is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` inference supplies while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
+Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce (`provider=auto`, or an explicit provider the line infers) is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` keys that inference supplies while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
 
 ## `login`
 
-Authenticate with a provider (for higher rate limits or private sources). GitHub and GitLab use an OAuth device flow; Gitea uses a browser-based loopback flow.
+Authenticate with a provider (for higher rate limits or private sources). GitHub and GitLab use an OAuth device flow, while Gitea uses a browser-based loopback flow.
 
 Pass `--host` to authenticate against a GitHub Enterprise Server, self-managed GitLab, or self-hosted Gitea instance. Such an instance runs its own OAuth application, so `--host` requires a matching `--client-id` (the public hosts use Clover's embedded app).
 

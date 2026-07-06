@@ -9,8 +9,8 @@ A keyword caps the bump relative to the current value:
 | Constraint | Allows                                 |
 | ---------- | -------------------------------------- |
 | `major`    | any newer version                      |
-| `minor`    | same major; newer minor or patch       |
-| `patch`    | same major and minor; newer patch only |
+| `minor`    | same major, newer minor or patch       |
+| `patch`    | same major and minor, newer patch only |
 
 ```dockerfile
 # clover: provider=docker repository=redis constraint=minor

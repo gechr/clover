@@ -13,7 +13,7 @@ FROM redis:7.2.0
 | -------------------------------------------- | ------------------------------------------------------------------------- |
 | `provider`                                   | `github`                                                                  |
 | `repository`                                 | The `owner/name` of the repository to track                               |
-| `host`                                       | The host; defaults to `github.com`                                        |
+| `host`                                       | The host, defaulting to `github.com`                                      |
 | `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`)       |
 | [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
 | [`include`](filtering.md)                    | Keep only matching tags                                                   |
@@ -26,14 +26,14 @@ FROM redis:7.2.0
 
 ## Selecting by asset
 
-Some releases matter only when they ship a particular artifact - a Linux binary, say. `asset` keeps only releases whose asset list contains a filename matching its glob (or `/regex/`), then selects the newest of those. It requires `source=releases`, since only releases publish assets.
+Some releases matter only when they ship a particular artifact, such as a Linux binary. `asset` keeps only releases whose asset list contains a filename matching its glob (or `/regex/`), then selects the newest of those. It requires `source=releases`, since only releases publish assets.
 
 ```yaml
 # clover: provider=github repository=owner/tool source=releases asset=*linux_amd64.tar.gz constraint=minor
 version: v1.4.0
 ```
 
-Pair it with a [`value=sha256`](checksums.md) follower to source that asset's checksum alongside the version. `asset` selects which release; [`pattern`](checksums.md) selects which of its assets to hash.
+Pair it with a [`value=sha256`](checksums.md) follower to source that asset's checksum alongside the version. `asset` selects which release, and [`pattern`](checksums.md) selects which of its assets to hash.
 
 ## GitHub Enterprise Server
 
@@ -55,24 +55,24 @@ clover login
 clover login github --host ghe.example.com --client-id <id>
 ```
 
-GitHub.com uses Clover's embedded OAuth app; a GitHub Enterprise Server instance runs its own, so `--host` needs a matching `--client-id` (register an OAuth app on the instance with the device flow enabled). The minted token is stored in your system keychain under that host.
+GitHub.com uses Clover's embedded OAuth app. A GitHub Enterprise Server instance runs its own, so `--host` needs a matching `--client-id` (register an OAuth app on the instance with the device flow enabled). The minted token is stored in your system keychain under that host.
 
-Alternatively, set `CLOVER_GITHUB_TOKEN` to a [personal access token](https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with read access; Clover also honors a `gh`-compatible token (`GH_TOKEN`/`GITHUB_TOKEN`, or `GH_ENTERPRISE_TOKEN`/`GITHUB_ENTERPRISE_TOKEN` for an enterprise host). For safety `CLOVER_GITHUB_TOKEN` is sent only to one host - `github.com` by default, or the host named by `CLOVER_GITHUB_HOST` - so a marker that names a different `host` never receives it. To use it against an enterprise instance, set `CLOVER_GITHUB_HOST=ghe.example.com`.
+Alternatively, set `CLOVER_GITHUB_TOKEN` to a [personal access token](https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with read access. Clover also honors a `gh`-compatible token (`GH_TOKEN`/`GITHUB_TOKEN`, or `GH_ENTERPRISE_TOKEN`/`GITHUB_ENTERPRISE_TOKEN` for an enterprise host). For safety `CLOVER_GITHUB_TOKEN` is sent only to one host, `github.com` by default or the host named by `CLOVER_GITHUB_HOST`, so a marker that names a different `host` never receives it. To use it against an enterprise instance, set `CLOVER_GITHUB_HOST=ghe.example.com`.
 
 ## Pinning an Action to a commit
 
-GitHub Actions are pinned to a full commit SHA, with the human-readable ref kept in a trailing comment. Clover keeps both halves of the pin in step - the commit SHA *and* the comment - so the comment can never drift away from the commit it names. A secure pin is recognized by its shape (`uses: owner/repo@<40-hex-sha>`), not its location, so a pin is kept fresh wherever it lives: a workflow, a composite `action.yml`, or a reusable-workflow caller.
+GitHub Actions are pinned to a full commit SHA, with the human-readable ref kept in a trailing comment. Clover keeps both halves of the pin in step, the commit SHA *and* the comment, so the comment can never drift away from the commit it names. A secure pin is recognized by its shape (`uses: owner/repo@<40-hex-sha>`), not its location, so a pin is kept fresh wherever it lives: a workflow, a composite `action.yml`, or a reusable-workflow caller.
 
-A pin whose comment is a **version tag** tracks releases. Clover resolves the newest tag allowed by the directive's [`constraint`](constraints.md), then rewrites the SHA to that tag's commit and the comment to the tag - together, in one pass:
+A pin whose comment is a **version tag** tracks releases. Clover resolves the newest tag allowed by the directive's [`constraint`](constraints.md), then rewrites the SHA to that tag's commit and the comment to the tag, together in one pass:
 
 ```yaml
 # clover: provider=github repository=actions/checkout constraint=major
 - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
 ```
 
-A pin with **no comment at all** is documented on the next `run`. With no comment to anchor a relative `constraint`, Clover resolves the newest version (or one a range allows), rewrites the SHA, and appends the comment - so `- uses: actions/checkout@<sha>` becomes `- uses: actions/checkout@<sha> # v4.2.0`. A bare pin becomes a self-documenting one.
+A pin with **no comment at all** is documented on the next `run`. With no comment to anchor a relative `constraint`, Clover resolves the newest version (or one a range allows), rewrites the SHA, and appends the comment, so `- uses: actions/checkout@<sha>` becomes `- uses: actions/checkout@<sha> # v4.2.0`. A bare pin becomes a self-documenting one.
 
-A pin whose comment is a **branch name** tracks that branch's HEAD instead of selecting a version: the comment stays put while the SHA is re-resolved each run. See [Tracking](tracking.md) and [Verification](verification.md):
+A pin whose comment is a **branch name** tracks that branch's HEAD instead of selecting a version. The comment stays put while the SHA is re-resolved each run. See [Tracking](tracking.md) and [Verification](verification.md):
 
 <!-- clover-lint-skip -->
 

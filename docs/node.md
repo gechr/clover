@@ -1,6 +1,6 @@
 # Node.js
 
-The Node.js provider tracks the runtime versions published at [`nodejs.org`](https://nodejs.org/dist/), reading the release index (`nodejs.org/dist/index.json`) that lists every release. It resolves the bare runtime version (e.g. a `.node-version` file or a CI variable) - a `node:24-bookworm` container tag is a Docker image, handled by the [Docker](docker.md) provider.
+The Node.js provider tracks the runtime versions published at [`nodejs.org`](https://nodejs.org/dist/), reading the release index (`nodejs.org/dist/index.json`) that lists every release. It resolves the bare runtime version, e.g. a `.node-version` file or a CI variable. A `node:24-bookworm` container tag is a Docker image, handled by the [Docker](docker.md) provider.
 
 ```yaml
 # clover: provider=node constraint=minor
@@ -18,25 +18,25 @@ node_version: 24.18.0
 | [`exclude`](filtering.md)      | Drop matching versions                                                           |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                               |
 
-The release index is public, so the Node.js provider needs no authentication. It is selected explicitly with `provider=node` - a bare version line carries no signal to [infer](auto.md) it from.
+The release index is public, so the Node.js provider needs no authentication. It is selected explicitly with `provider=node`, since a bare version line carries no signal to [infer](auto.md) it from.
 
 ## Release lines
 
-Node.js ships a new **current** major line every six months; the even-numbered lines become **long-term support (LTS)** and are maintained for years, each under a codename (`Krypton`, `Jod`, `Iron`, `Hydrogen`, ...). By default Clover tracks every release, so the newest version satisfying the `constraint` wins:
+Node.js ships a new **current** major line every six months, and the even-numbered lines become **long-term support (LTS)**, maintained for years, each under a codename (`Krypton`, `Jod`, `Iron`, `Hydrogen`, ...). By default Clover tracks every release, so the newest version satisfying the `constraint` wins:
 
 ```yaml
 # clover: provider=node constraint=minor
 node_version: 24.18.0
 ```
 
-`lts=true` keeps only the LTS lines, dropping the current (odd or pre-promotion) releases - the form to track when you want stability over the newest features:
+`lts=true` keeps only the LTS lines, dropping the current (odd or pre-promotion) releases. This is the form to track when you want stability over the newest features:
 
 ```yaml
 # clover: provider=node lts=true constraint=major
 node_version: 24.18.0
 ```
 
-The index serves the whole release history in one response, so Clover always sees every line - `--deep` has nothing extra to fetch.
+The index serves the whole release history in one response, so Clover always sees every line, and `--deep` has nothing extra to fetch.
 
 ## Checksums
 
@@ -50,4 +50,4 @@ node_version: 24.18.0
 node_sha256: 0000000000000000000000000000000000000000000000000000000000000000
 ```
 
-The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step - a digest that was once pinned never moves on its own. Pass `--force` (or set `run.force`) to deliberately re-pin it when an unchanged version's artifact was legitimately re-published.
+The checksum is refreshed only when the version it follows actually changes, so the two never drift out of step, and a digest that was once pinned never moves on its own. Pass `--force` (or set `run.force`) to deliberately re-pin it when an unchanged version's artifact was legitimately re-published.

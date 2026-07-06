@@ -16,6 +16,6 @@ The value is a duration. Hours work, and longer units compose:
 | `72h`  | 72 hours           |
 | `2w3d` | 2 weeks and 3 days |
 
-A version that is newer than its cooldown is simply skipped; Clover stays on the current value until the candidate ages in.
+A version that is newer than its cooldown is simply skipped, and Clover stays on the current value until the candidate ages in.
 
-Cooldown still applies when [tracking floating refs](tracking.md) - a digest or commit that is too fresh is held back even though no version is being selected.
+Cooldown still applies when [tracking floating refs](tracking.md). A digest or commit that is too fresh is held back even though no version is being selected.

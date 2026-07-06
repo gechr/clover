@@ -2,7 +2,7 @@
 
 Most of Clover's behavior lives in the annotations themselves, so configuration is deliberately small. Clover reads from two layers that share the same keys:
 
-- A **user** config under your XDG config directory at `clover/config.yaml` - typically `~/.config/clover/config.yaml`, or `$XDG_CONFIG_HOME/clover/config.yaml` when that variable is set. Use it for personal defaults that should apply everywhere.
+- A **user** config at `clover/config.yaml` under your XDG config directory. This is typically `~/.config/clover/config.yaml`, or `$XDG_CONFIG_HOME/clover/config.yaml` when that variable is set. Use it for personal defaults that should apply everywhere.
 - A **project** `.clover.yaml` at a repository's root, for settings that travel with the project.
 
 The project config overlays the user one field by field: a key set in the project file wins, and anything it leaves unset falls back to the user value. Both files are optional, and both validate against the same schema.
@@ -35,24 +35,24 @@ annotate:
 
 Settings are grouped by the command they configure, with a `global` block for cross-command defaults. See [`.clover.reference.yaml`](../.clover.reference.yaml) for every key with its default.
 
-| Key                | Description                                                                                                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `required-version` | A version constraint the running `clover` binary must satisfy (e.g. `">=0.1.0"`, `"~>0.1"`). Clover refuses to run if its own version falls outside the range.                           |
-| `paths.exclude`    | [Doublestar](https://github.com/bmatcuk/doublestar) globs that are excluded from scanning. Everything else under the scanned paths is searched for annotations.                          |
-| `global.output`    | Default output detail (`text`, `wide`, or `github`) shared by `run` and `lint`                                                                                                           |
-| `run.verify`       | Verify secure pins against their upstream tags by default (implies a deep lookup)                                                                                                        |
-| `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                                           |
-| `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                                           |
-| `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                                          |
-| `run.force`        | Re-pin followed digests by default, even when the version they follow is unchanged                                                                                                       |
-| `run.cache`        | Persist cacheable HTTP responses across runs and revalidate them with conditional requests (see [Caching](caching.md)). On by default - set `false` to fetch everything fresh each run   |
-| `run.output`       | Output detail for `clover run`; overrides `global.output`                                                                                                                                |
-| `lint.output`      | Output detail for `clover lint`; overrides `global.output`                                                                                                                               |
-| `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                                                     |
-| `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                         |
-| `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                                              |
+| Key                | Description                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `required-version` | A version constraint the running `clover` binary must satisfy (e.g. `">=0.1.0"`, `"~>0.1"`). Clover refuses to run if its own version falls outside the range.                        |
+| `paths.exclude`    | [Doublestar](https://github.com/bmatcuk/doublestar) globs that are excluded from scanning. Everything else under the scanned paths is searched for annotations.                       |
+| `global.output`    | Default output detail (`text`, `wide`, or `github`) shared by `run` and `lint`                                                                                                        |
+| `run.verify`       | Verify secure pins against their upstream tags by default (implies a deep lookup)                                                                                                     |
+| `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                                        |
+| `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                                        |
+| `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                                       |
+| `run.force`        | Re-pin followed digests by default, even when the version they follow is unchanged                                                                                                    |
+| `run.cache`        | Persist cacheable HTTP responses across runs and revalidate them with conditional requests (see [Caching](caching.md)). On by default. Set `false` to fetch everything fresh each run |
+| `run.output`       | Output detail for `clover run` (overrides `global.output`)                                                                                                                            |
+| `lint.output`      | Output detail for `clover lint` (overrides `global.output`)                                                                                                                           |
+| `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                                                  |
+| `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                      |
+| `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                                           |
 
-**Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive; otherwise the config supplies the default a directive can still override.
+**Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive. Otherwise the config supplies the default, which a directive can still override.
 
 `annotate.write` and `annotate.check` are mutually exclusive.
 

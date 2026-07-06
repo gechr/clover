@@ -4,11 +4,11 @@ Sometimes a `clover:` directive shouldn't run, or a whole file or tree should st
 
 ## Ignore control comments
 
-These are standalone `clover:` comments - not keys inside a directive - written in the host file's comment syntax. Only the first token is matched, so a trailing explanation is fine (`# clover:ignore-file generated, do not edit`).
+These are standalone `clover:` comments, not keys inside a directive, written in the host file's comment syntax. Only the first token is matched, so a trailing explanation is fine (`# clover:ignore-file generated, do not edit`).
 
 ### Ignore the next directive
 
-`clover:ignore` suppresses the directive on the line immediately below it - place it directly above the `clover:` comment you want to disable:
+`clover:ignore` suppresses the directive on the line immediately below it. Place it directly above the `clover:` comment you want to disable:
 
 ```yaml
 # clover:ignore
@@ -18,11 +18,11 @@ x: 1
 y: 2
 ```
 
-Only `ignored/one` is skipped; `kept/two` is processed as usual.
+Only `ignored/one` is skipped, and `kept/two` is processed as usual.
 
 ### Ignore a block
 
-`clover:ignore-start` and `clover:ignore-end` bracket a region; every directive between them is suppressed:
+`clover:ignore-start` and `clover:ignore-end` bracket a region, and every directive between them is suppressed:
 
 ```yaml
 # clover:ignore-start
@@ -46,7 +46,7 @@ w: 4
 
 ### `clover:ignore` vs `disabled`
 
-The [`disabled`](annotations.md#disabling-and-filtering) key disables a single annotation from within the annotation itself. The ignore comments are separate controls, and they reach further - a block, a whole file, or (with `.gitignore`) entire trees - which a per-annotation key cannot.
+The [`disabled`](annotations.md#disabling-and-filtering) key disables a single annotation from within the annotation itself. The ignore comments are separate controls that reach further than a per-annotation key can, covering a block, a whole file, or even entire trees with `.gitignore`.
 
 ## `.gitignore`
 
@@ -57,11 +57,11 @@ During the walk Clover prunes any path your `.gitignore` files match, so generat
 ignored/
 ```
 
-A directive in `ignored/` is pruned; a sibling outside it is scanned normally.
+A directive in `ignored/` is pruned, and a sibling outside it is scanned normally.
 
 ## Overriding with `--no-ignore`
 
-Pass `--no-ignore` to `run`, `lint`, or `format` to scan files that `.gitignore` would otherwise exclude. VCS directories (`.git`, `.jj`, `.hg`, `.svn`) stay excluded regardless, and the in-file `clover:ignore` controls still apply - it only disables `.gitignore` pruning.
+Pass `--no-ignore` to `run`, `lint`, or `format` to scan files that `.gitignore` would otherwise exclude. VCS directories (`.git`, `.jj`, `.hg`, `.svn`) stay excluded regardless, and the in-file `clover:ignore` controls still apply, since the flag only disables `.gitignore` pruning.
 
 ```text
 clover run --no-ignore

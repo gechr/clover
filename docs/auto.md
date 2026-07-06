@@ -19,7 +19,7 @@ Auto-detection covers the obvious cases. Set `provider` explicitly when:
 - you are tracking something that is not literally written on the target line,
 - you want the annotation to document intent regardless of the line's contents.
 
-Inference only fills in what you leave out - any key you set yourself always wins.
+Inference only fills in what you leave out, and any key you set yourself always wins.
 
 ## Generating annotations
 

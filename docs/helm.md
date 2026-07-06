@@ -9,23 +9,23 @@ version: 18.2.0
 
 ## Keys
 
-| Key                            | Description                                                                                                          |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `provider`                     | `helm`                                                                                                               |
-| `registry`                     | The chart source. An `https://` (or `http://`) URL is a classic repository; an `oci://` URL is an OCI registry base. |
-| `chart`                        | The chart name (e.g. `nginx`). A bare name - the repository path belongs in `registry`.                              |
-| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                                            |
-| [`include`](filtering.md)      | Keep only matching versions                                                                                          |
-| [`exclude`](filtering.md)      | Drop matching versions                                                                                               |
-| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                                                                 |
-| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible (classic repositories only - see below)                           |
+| Key                            | Description                                                                                                                |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `provider`                     | `helm`                                                                                                                     |
+| `registry`                     | The chart source. An `https://` (or `http://`) URL is a classic repository, while an `oci://` URL is an OCI registry base. |
+| `chart`                        | The chart name (e.g. `nginx`). A bare name, since the repository path belongs in `registry`.                               |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                                                  |
+| [`include`](filtering.md)      | Keep only matching versions                                                                                                |
+| [`exclude`](filtering.md)      | Drop matching versions                                                                                                     |
+| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                                                                       |
+| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible (classic repositories only, see below)                                  |
 
 ## Classic vs OCI
 
 The `registry` scheme selects how Clover looks up versions:
 
-- **Classic (`https://`)** - Clover fetches `<registry>/index.yaml` and reads the named chart's published versions. The index carries each version's release date, so [`cooldown`](cooldown.md) applies, and the chart-tarball checksum, so a [follower](checksums.md) can source it without a download.
-- **OCI (`oci://`)** - Clover lists the chart's tags from the registry. OCI tags carry no dates, so `cooldown` does not apply; pass [`--deep`](commands.md) if a chart has more tags than fit on one page.
+- **Classic (`https://`).** Clover fetches `<registry>/index.yaml` and reads the named chart's published versions. The index carries each version's release date, so [`cooldown`](cooldown.md) applies, and the chart-tarball checksum, which a [follower](checksums.md) can source without a download.
+- **OCI (`oci://`).** Clover lists the chart's tags from the registry. OCI tags carry no dates, so `cooldown` does not apply. Pass [`--deep`](commands.md) if a chart has more tags than fit on one page.
 
 ```yaml
 # clover: provider=helm registry=oci://registry-1.docker.io/bitnamicharts chart=nginx constraint=minor

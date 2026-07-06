@@ -28,7 +28,7 @@ On each run Clover re-resolves the digest (Docker) or commit (GitHub) and rewrit
 
 ## Interaction with other keys
 
-`track` replaces the selection stage, so it cannot be combined with selection keys - [`constraint`](constraints.md), [`include` / `exclude`](filtering.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), and `downgrade`.
+`track` replaces the selection stage, so it cannot be combined with the selection keys: [`constraint`](constraints.md), [`include` / `exclude`](filtering.md), [`behind`](filtering.md), [`prerelease`](prereleases.md), and `downgrade`.
 
 Two things still apply:
 

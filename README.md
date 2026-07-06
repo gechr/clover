@@ -1,6 +1,6 @@
 <h1 align="center">🍀 Clover</h1>
 
-Clover keeps version references in a codebase synchronized with their upstream sources of truth. Annotate a line with a `clover:` comment describing where its version comes from, and Clover resolves the latest matching version and rewrites the line in place - across Dockerfiles, YAML, HCL, shell, Markdown, or any other text format.
+Clover keeps version references in a codebase synchronized with their upstream sources of truth. Annotate a line with a `clover:` comment describing where its version comes from, and Clover resolves the latest matching version and rewrites the line in place. It works across Dockerfiles, YAML, HCL, shell, Markdown, and any other text format.
 
 ## Installation
 

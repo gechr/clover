@@ -2,9 +2,9 @@
 
 `find` and `replace` give you explicit control over **where** on the target line Clover rewrites and **what** it writes there. They override the automatic, shape-based matching that Clover normally applies.
 
-For an ordinary version bump you won't usually need them: Clover already locates the version on the target line, preserves its style - a leading `v`, the number of components, recognized suffixes - and rewrites it in place. Reach for `find`/`replace` when the line is unusual enough that automatic matching can't pin the right region, or when you want to rewrite more than the bare version.
+For an ordinary version bump you won't usually need them. Clover already locates the version on the target line, preserves its style (a leading `v`, the number of components, recognized suffixes), and rewrites it in place. Reach for `find`/`replace` when the line is unusual enough that automatic matching can't pin the right region, or when you want to rewrite more than the bare version.
 
-## `find` - locating the region
+## Locating the region with `find`
 
 `find` is a pattern that matches the part of the line to rewrite. It comes in two dialects.
 
@@ -22,16 +22,16 @@ Any value that is not wrapped in `/` is a glob. Literal text matches itself, `*`
 | `<patch>`                     | a single number                      | the new patch                     |
 | `<commit>`                    | a 40-character SHA                   | the new commit SHA                |
 | `<sha256>`                    | a 64-character digest                | the new `sha256` digest           |
-| `<hex>`                       | any run of hex digits                | match-only - preserved as found   |
+| `<hex>`                       | any run of hex digits                | match-only, preserved as found    |
 
-`<hex>` is match-only: it lets you span a digest or build hash you don't want to touch, and Clover writes back whatever it captured.
+`<hex>` is match-only. It lets you span a digest or build hash you don't want to touch, and Clover writes back whatever it captured.
 
 ```dockerfile
 # clover: provider=github repository=acme/toolkit constraint=minor find=toolkit-<version>-linux
 FROM toolkit-1.2.3-linux AS build
 ```
 
-Only the version moves; the surrounding `toolkit-`/`-linux` context is preserved.
+Only the version moves, and the surrounding `toolkit-`/`-linux` context is preserved.
 
 Result:
 
@@ -69,7 +69,7 @@ asset: 1.5.0-deadbeef.tgz
 
 ### Regular expressions
 
-A value wrapped in `/` is an unanchored RE2 regular expression. There are no placeholders - capture group 1 is the value Clover anchors selection on, and the whole match is the region it rewrites. Use this when the line's structure is easier to express as a regex than a glob.
+A value wrapped in `/` is an unanchored RE2 regular expression. There are no placeholders. Capture group 1 is the value Clover anchors selection on, and the whole match is the region it rewrites. Use this when the line's structure is easier to express as a regex than a glob.
 
 ```text
 # clover: provider=github repository=acme/app constraint=minor find=/v(\d+\.\d+\.\d+)/
@@ -82,15 +82,15 @@ Result:
 tag = v1.5.0
 ```
 
-## `replace` - rendering the result
+## Rendering the result with `replace`
 
 `replace` is optional, and it changes how the matched region is rewritten.
 
-**Without `replace`**, Clover substitutes each captured value in place and leaves everything else - literal text, separators, match-only captures - exactly as it found it. This is the behavior in every example above.
+**Without `replace`**, Clover substitutes each captured value in place and leaves everything else (literal text, separators, match-only captures) exactly as it found it. This is the behavior in every example above.
 
-**With `replace`**, the entire matched region is re-rendered from the template. The template is literal text with `<token>` placeholders; each token expands to its resolved value, or - for a token that only appeared in `find` - to the text that was captured there. This lets you reorder, reformat, or rewrite several values at once.
+**With `replace`**, the entire matched region is re-rendered from the template. The template is literal text with `<token>` placeholders. Each token expands to its resolved value, and a token that only appeared in `find` expands to the text captured there. This lets you reorder, reformat, or rewrite several values at once.
 
-A `replace` requires a `find` (there is nothing to match against otherwise), and a template that references a token Clover can't resolve for the candidate - say `<sha256>` when the source has no digest - is a hard error rather than a silent no-op.
+A `replace` requires a `find`, since there is nothing to match against otherwise. A template that references a token Clover can't resolve for the candidate, such as `<sha256>` when the source has no digest, is a hard error rather than a silent no-op.
 
 For example, one source version can be rendered as both a short `major.minor` series and the full version, with literal text the original line doesn't contain:
 
@@ -118,11 +118,11 @@ Result:
 ver = v1.5.0 (deadbeef)
 ```
 
-> **Secure pins don't need this.** You don't need `find`/`replace` to pin a GitHub Action (`uses: …@<sha> # vX`) or a Docker digest (`FROM …@sha256:…`). Clover recognizes those shapes and keeps the pin and its version comment in step on its own - see [pinning an action to a commit](github.md#pinning-an-action-to-a-commit).
+> **Secure pins don't need this.** You don't need `find`/`replace` to pin a GitHub Action (`uses: …@<sha> # vX`) or a Docker digest (`FROM …@sha256:…`). Clover recognizes those shapes and keeps the pin and its version comment in step on its own. See [pinning an action to a commit](github.md#pinning-an-action-to-a-commit).
 
 ## Notes
 
-- `find`/`replace` can't be combined with [`track`](tracking.md) - tracking owns its own floating-ref locator.
+- `find`/`replace` can't be combined with [`track`](tracking.md), since tracking owns its own floating-ref locator.
 - A glob has no path separators, so `*` spans every character including `/`.
 - If `find` doesn't match the target line, the update will fail rather than trying to guess.
 - In a [sidecar](sidecar.md), `find` doubles as the locator that selects the target line, since a sidecar entry has no comment to sit beside.

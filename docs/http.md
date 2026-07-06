@@ -1,6 +1,6 @@
 # HTTP
 
-The HTTP provider fetches an arbitrary URL and extracts version candidates from the response - the escape hatch for any source Clover has no bespoke provider for. It performs one anonymous `GET` of `url` and pulls one-or-many version strings out of the body, then lets the usual [constraint](constraints.md) and [filtering](filtering.md) keys select among them.
+The HTTP provider fetches an arbitrary URL and extracts version candidates from the response. It is the escape hatch for any source Clover has no bespoke provider for. It performs one anonymous `GET` of `url` and pulls one or many version strings out of the body, then lets the usual [constraint](constraints.md) and [filtering](filtering.md) keys select among them.
 
 How the body is read is set by the extraction key, and exactly one is required:
 
@@ -28,11 +28,11 @@ gh_version: 2.62.0
 
 Set exactly one of `jq` or `extract`. The expression is compiled when the directive is validated, so [`clover lint`](commands.md) reports a malformed `jq` program or `extract` pattern offline, before any request is made.
 
-The endpoint is fetched anonymously, so the HTTP provider needs no authentication; the request carries an identifying `User-Agent` (`Clover v<version>`) that `user-agent` overrides. It is selected explicitly with `provider=http` - a bare version line carries no signal to [infer](auto.md) it from.
+The endpoint is fetched anonymously, so the HTTP provider needs no authentication. The request carries an identifying `User-Agent` (`Clover v<version>`) that `user-agent` overrides. It is selected explicitly with `provider=http`, since a bare version line carries no signal to [infer](auto.md) it from.
 
 ## Extracting with `jq`
 
-`jq` parses the response as JSON and runs the program against it. A program that emits a stream - one value per result, the `.[].tag_name` idiom - contributes each string it yields; a program that returns a single array contributes each string element. Non-string results are ignored, and repeated versions are surfaced once in first-seen order.
+`jq` parses the response as JSON and runs the program against it. A program that emits a stream (one value per result, the `.[].tag_name` idiom) contributes each string it yields, and a program that returns a single array contributes each string element. Non-string results are ignored, and repeated versions are surfaced once in first-seen order.
 
 ```yaml
 # A JSON array of release objects: take every tag.
@@ -46,7 +46,7 @@ app_version: 1.4.2
 
 ## Extracting with `extract`
 
-`extract` reads the body as text and matches the [find pattern](find-replace.md) grammar against it: a glob whose `<version>` placeholder captures the version, or a `/regex/` whose first capture group (or whole match, when it has none) is the version. Every match across the body becomes a candidate. A glob must carry a single `<version>` token - the component tokens (`<major>`/`<minor>`/`<patch>`) would each capture only a fragment, so they are rejected; reach for a `/regex/` when you need finer control.
+`extract` reads the body as text and matches the [find pattern](find-replace.md) grammar against it: a glob whose `<version>` placeholder captures the version, or a `/regex/` whose first capture group (or whole match, when it has none) is the version. Every match across the body becomes a candidate. A glob must carry a single `<version>` token, since the component tokens (`<major>`/`<minor>`/`<patch>`) would each capture only a fragment and are rejected. Reach for a `/regex/` when you need finer control.
 
 ```yaml
 # A plain-text "latest" file.
@@ -58,7 +58,7 @@ app_version: 1.4.2
 app_version: 1.4.2
 ```
 
-A single fetch returns whatever the endpoint serves, so Clover always sees every version the response carries - `--deep` has nothing extra to fetch.
+A single fetch returns whatever the endpoint serves, so Clover always sees every version the response carries, and `--deep` has nothing extra to fetch.
 
 ## Checksums
 
