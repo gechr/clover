@@ -245,7 +245,7 @@ func (p *Provider) initClients() {
 		transport := p.transport
 		if transport == nil {
 			transport = httpcache.New(
-				httpcache.WithTransport(ratelimit.New(nil, rateHeaders)),
+				httpcache.WithTransport(ratelimit.New(httpcache.NewBaseTransport(), rateHeaders)),
 			).Transport
 		}
 		p.resolved = transport

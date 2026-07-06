@@ -130,7 +130,7 @@ func (c *Client) HTTPClient() *http.Client {
 			return
 		}
 		c.client = httpcache.New(
-			httpcache.WithTransport(ratelimit.New(nil, c.rateHeaders)),
+			httpcache.WithTransport(ratelimit.New(httpcache.NewBaseTransport(), c.rateHeaders)),
 		)
 	})
 	return c.client

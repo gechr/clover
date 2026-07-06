@@ -122,7 +122,7 @@ func New(opts ...Option) *Provider {
 	transport := p.transport
 	if transport == nil {
 		transport = httpcache.New(
-			httpcache.WithTransport(ratelimit.New(nil, rateHeaders)),
+			httpcache.WithTransport(ratelimit.New(httpcache.NewBaseTransport(), rateHeaders)),
 		).Transport
 	}
 	p.rest = forge.NewRESTClient(&http.Client{Transport: transport}, "application/json")

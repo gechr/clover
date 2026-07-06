@@ -41,7 +41,7 @@ type config struct {
 // cache.
 func New(opts ...Option) *http.Client {
 	cfg := config{
-		base:          newBaseTransport(),
+		base:          NewBaseTransport(),
 		store:         defaultStore(),
 		timeout:       defaultTimeout,
 		errorBackoff:  errorBackoff,
@@ -374,9 +374,11 @@ func closeRequestBody(req *http.Request) {
 	}
 }
 
-// newBaseTransport clones the default transport but caps connection setup, so an
-// unreachable host fails fast instead of hanging on the OS default.
-func newBaseTransport() http.RoundTripper {
+// NewBaseTransport clones the default transport but caps connection setup, so an
+// unreachable host fails fast instead of hanging on the OS default. It is the
+// default base for [New]; pass it as the innermost transport when composing via
+// [WithTransport], so the dial caps still apply.
+func NewBaseTransport() http.RoundTripper {
 	dialer := &net.Dialer{Timeout: dialTimeout, KeepAlive: keepAlive}
 	if base, ok := http.DefaultTransport.(*http.Transport); ok {
 		t := base.Clone()
