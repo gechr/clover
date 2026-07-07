@@ -114,8 +114,8 @@ func matchPath(glob, path string) bool {
 
 // route pairs a guard with the rewriter to use when it matches.
 type route struct {
-	when conditions
-	rw   Rewriter
+	when     conditions
+	rewriter Rewriter
 }
 
 // routes is the ordered, first-match-wins dispatch table. Smart is the
@@ -133,7 +133,7 @@ var routes = []route{
 			),
 			provider: constant.ProviderDocker,
 		},
-		rw: NewDockerPin(),
+		rewriter: NewDockerPin(),
 	},
 	{
 		// A tag-only workflow container job: uses: docker://img:tag.
@@ -142,7 +142,7 @@ var routes = []route{
 			lineMatch: mustPattern("* uses: *" + dockerScheme + "*"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewDockerTag(),
+		rewriter: NewDockerTag(),
 	},
 	{
 		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z,
@@ -155,7 +155,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
 			provider:  constant.ProviderGithub,
 		},
-		rw: NewActionPin(),
+		rewriter: NewActionPin(),
 	},
 	{
 		// A tag-pinned GitHub Actions reference: uses: owner/repo@vX.Y.Z. The
@@ -168,7 +168,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/\s+uses:\s+\S+@v?\d/`),
 			provider:  constant.ProviderGithub,
 		},
-		rw: NewActionTag(),
+		rewriter: NewActionTag(),
 	},
 	{
 		// A digest-pinned Dockerfile FROM; the @sha256 makes it a secure pin,
@@ -179,7 +179,7 @@ var routes = []route{
 			lineMatch: mustPattern("FROM *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewDockerPin(),
+		rewriter: NewDockerPin(),
 	},
 	{
 		// A digest-pinned compose/Kubernetes image: mapping.
@@ -188,7 +188,7 @@ var routes = []route{
 			lineMatch: mustPattern("* image: *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewDockerPin(),
+		rewriter: NewDockerPin(),
 	},
 	{
 		// A tag-only Dockerfile FROM instruction; the docker-tag rewriter
@@ -199,7 +199,7 @@ var routes = []route{
 			lineMatch: mustPattern("FROM *"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewDockerTag(),
+		rewriter: NewDockerTag(),
 	},
 	{
 		// A tag-only compose/Kubernetes image: mapping. The leading and
@@ -209,7 +209,7 @@ var routes = []route{
 			lineMatch: mustPattern("* image: *"),
 			provider:  constant.ProviderDocker,
 		},
-		rw: NewDockerTag(),
+		rewriter: NewDockerTag(),
 	},
 	{
 		// A GitLab CI/CD component include: component: <host>/<project>/<name>@<version>.
@@ -220,20 +220,20 @@ var routes = []route{
 			lineMatch: mustPattern("* component: *@*"),
 			provider:  constant.ProviderGitlab,
 		},
-		rw: NewSmart(),
+		rewriter: NewSmart(),
 	},
 	{
 		// A follower projecting a commit or sha256 onto its own line; the hash
 		// rewriter swaps the existing hex token. Followers carry provider=follow,
 		// so this never collides with the provider-gated routes above.
-		when: conditions{value: constant.ValueCommit},
-		rw:   NewHash(),
+		when:     conditions{value: constant.ValueCommit},
+		rewriter: NewHash(),
 	},
 	{
-		when: conditions{value: constant.ValueSha256},
-		rw:   NewHash(),
+		when:     conditions{value: constant.ValueSha256},
+		rewriter: NewHash(),
 	},
-	{rw: NewSmart()},
+	{rewriter: NewSmart()},
 }
 
 // mustPattern compiles a built-in route pattern, panicking on a malformed one
@@ -251,7 +251,7 @@ func mustPattern(raw string) *pattern.Pattern {
 func For(ctx Context) Rewriter {
 	for _, r := range routes {
 		if r.when.match(ctx) {
-			return r.rw
+			return r.rewriter
 		}
 	}
 	return NewSmart()
