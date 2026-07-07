@@ -81,4 +81,4 @@ A pin whose comment is a **branch name** tracks that branch's HEAD instead of se
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main
 ```
 
-A tag-pinned `uses:` with no SHA (`@v4`) carries no paired commit, so Clover simply bumps the ref in place. To project a resolved commit onto a separate target line, use [`value=commit`](checksums.md).
+A tag-pinned `uses:` with no SHA (`@v4`) is converted to the secure pin format on the next `run`. Clover is secure by default, so the tag is replaced by the resolved version's full commit SHA and the version itself lands in the trailing comment, at its full precision regardless of how the original tag was written. `- uses: actions/checkout@v4` becomes `- uses: actions/checkout@<sha> # v4.2.2`, and from then on the line is a secure pin kept fresh as above. To project a resolved commit onto a separate target line, use [`value=commit`](checksums.md).

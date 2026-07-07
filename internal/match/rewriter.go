@@ -158,16 +158,17 @@ var routes = []route{
 		rw: NewActionPin(),
 	},
 	{
-		// A tag-pinned GitHub Actions reference: uses: owner/repo@vX.Y.Z. The tag
-		// is the only version-shaped token on the line, so the smart rewriter bumps
-		// it in place. Must follow the SHA-pinned route, which claims the pins
-		// whose version lives in the trailing comment.
+		// A tag-pinned GitHub Actions reference: uses: owner/repo@vX.Y.Z. The
+		// action-tag rewriter converts it to the secure pin format (@<sha> with a
+		// # version comment) rather than bumping the tag in place - clover is
+		// secure by default. Must follow the SHA-pinned route, which claims the
+		// pins whose version lives in the trailing comment.
 		when: conditions{
 			path:      "**/*.{yml,yaml}",
 			lineMatch: mustPattern(`/\s+uses:\s+\S+@v?\d/`),
 			provider:  constant.ProviderGithub,
 		},
-		rw: NewSmart(),
+		rw: NewActionTag(),
 	},
 	{
 		// A digest-pinned Dockerfile FROM; the @sha256 makes it a secure pin,

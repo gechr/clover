@@ -160,12 +160,6 @@ func TestForLeavesNonPinToSmart(t *testing.T) {
 	tests := map[string]match.Context{
 		// No uses: pin at all.
 		"dockerfile": {Path: "Dockerfile", Line: "FROM nginx:1.27.0", Provider: "github"},
-		// A tag-pinned reference carries no paired SHA, so smart bumps the ref.
-		"tag pinned": {
-			Path:     ".github/workflows/ci.yml",
-			Line:     "  - uses: actions/checkout@v4",
-			Provider: "github",
-		},
 		// A short (non-40-hex) SHA is not a valid secure pin.
 		"short sha": {
 			Path:     ".github/workflows/ci.yml",
