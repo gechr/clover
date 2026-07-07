@@ -28,6 +28,7 @@ type settings struct {
 	prerelease       *bool
 	reporter         progress.Reporter
 	requireDirective bool
+	infer            bool
 	scanLabel        string
 	truncationSink   func(provider.Truncation)
 	verify           *bool
@@ -96,6 +97,14 @@ func WithPrerelease(allow *bool) Option {
 // The default discards everything; the CLI supplies a live display.
 func WithReporter(r progress.Reporter) Option {
 	return func(s *settings) { s.reporter = r }
+}
+
+// WithInfer enables synthetic markers for lines auto-detection recognizes but
+// no written directive governs, so run updates them without any annotation.
+// Pair it with WithRequireDirective(false) so files carrying no directives are
+// scanned at all.
+func WithInfer(on bool) Option {
+	return func(s *settings) { s.infer = on }
 }
 
 // WithRequireDirective sets whether the scan keeps only files that already carry

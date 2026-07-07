@@ -359,7 +359,17 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 	for _, f := range files {
 		lines[f.Path] = f.Lines
 		parseErrors = append(parseErrors, parseErrorResults(f)...)
-		for _, m := range Markers(f, resolver) {
+		ms := Markers(f, resolver)
+		if set.infer {
+			// A written directive's target is governed; every other recognized
+			// line earns a synthetic marker, resolved exactly like provider=auto.
+			governed := make(map[int]bool, len(ms))
+			for _, m := range ms {
+				governed[m.Target] = true
+			}
+			ms = append(ms, InferredMarkers(f, governed)...)
+		}
+		for _, m := range ms {
 			if !set.filter.Match(m.Tags) {
 				continue
 			}

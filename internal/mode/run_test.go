@@ -9,10 +9,63 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
 	"github.com/stretchr/testify/require"
 )
+
+// TestRunInferUpdatesUnannotatedLines covers run --infer: a recognized line
+// with no directive earns a synthetic provider=auto marker and is updated in
+// place, an unrecognized line is left alone, a clover:ignore control still
+// opts a line out, and no comments are written.
+func TestRunInferUpdatesUnannotatedLines(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".mise.toml")
+	body := "[tools]\n" +
+		"node = \"24.0.0\"\n" +
+		"# clover:ignore pinned deliberately\n" +
+		"node = \"22.0.0\"\n" +
+		"java = \"21.0.0\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+		pipeline.WithInfer(true),
+		pipeline.WithRequireDirective(false),
+	)
+	require.NoError(t, err)
+	require.Len(t, summary.Outcomes, 1)
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"[tools]\n"+
+			"node = \"26.0.0\"\n"+
+			"# clover:ignore pinned deliberately\n"+
+			"node = \"22.0.0\"\n"+
+			"java = \"21.0.0\"\n",
+		string(got),
+		"the inferred node line is bumped, the ignored and unrecognized lines stay put",
+	)
+}
+
+// TestRunWithoutInferIgnoresUnannotatedLines locks the default in: the same
+// tree resolves nothing when --infer is off, since no directive exists.
+func TestRunWithoutInferIgnoresUnannotatedLines(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".mise.toml")
+	body := "[tools]\nnode = \"24.0.0\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers)
+	require.NoError(t, err)
+	require.Empty(t, summary.Outcomes, "no directives, no work")
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, body, string(got))
+}
 
 // fakeProvider returns canned candidates without touching the network.
 type fakeProvider struct {

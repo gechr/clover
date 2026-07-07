@@ -59,6 +59,13 @@ func TestReporterDiscovered(t *testing.T) {
 		console.New(context.Background(), clog.NewWriter(&buf)).Discovered(10, 0, 0)
 		require.Equal(t, "WRN 🫠 No Clover comments found scanned=10\n", buf.String())
 	})
+
+	t.Run("none under infer is informational", func(t *testing.T) {
+		var buf bytes.Buffer
+		console.New(context.Background(), clog.NewWriter(&buf), console.WithInfer(true)).
+			Discovered(10, 0, 0)
+		require.Equal(t, "INF 🔮 No Clover comments found scanned=10\n", buf.String())
+	})
 }
 
 func TestReporterEmptyIsNoop(t *testing.T) {

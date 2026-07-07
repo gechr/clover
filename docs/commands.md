@@ -26,6 +26,7 @@ clover run [options] [<path>…]
 | Option                  | Description                                                                            |
 | ----------------------- | -------------------------------------------------------------------------------------- |
 | `-t, --tag <tag>`       | Only process directives matching these tags                                            |
+| `--infer`               | Also update lines [auto-detection](auto.md) recognizes, without requiring a directive  |
 | `-n, --dry-run`         | Resolve and render but write nothing                                                   |
 | `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)        |
 | `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests) |
@@ -40,6 +41,8 @@ clover run [options] [<path>…]
 | `--no-config`           | Do not load any `.clover.yaml` config                                                  |
 
 With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
+
+`--infer` is the zero-annotation mode: every line [auto-detection](auto.md) recognizes is updated as if it carried a bare `provider=auto` directive, without writing any comments. Written directives keep priority on their own lines (their `constraint` and other rules apply as usual), a [`clover:ignore`](ignore.md) control still opts a line out, and a recognized line that would not resolve is skipped rather than failing the run. Use [`annotate`](#annotate) instead when you want the directives in the file, where they can carry selection rules and document intent.
 
 ## `lint`
 

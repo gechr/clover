@@ -13,11 +13,11 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/infer"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/progress"
-	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/gechr/x/set"
@@ -248,7 +248,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 
 	for i, line := range file.Lines {
 		if file.Ignored.Contains(i) {
-			if recognized(file.Path, file.Lines, i) {
+			if infer.Recognizable(file.Path, file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "ignored"))
 			}
 			continue // a clover:ignore control opts this line out
@@ -256,28 +256,21 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		// A commented-out example (# - uses: …, # image: …) is documentation, not a
 		// live field, so it is never a target - inference reads raw line text and
 		// would otherwise match inside the comment.
-		if isComment(syntax, line) {
-			if recognized(file.Path, file.Lines, i) {
+		if syntax.IsComment(line) {
+			if infer.Recognizable(file.Path, file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "commented out"))
 			}
 			continue
 		}
-		inf, ok := match.Infer(file.Path, file.Lines, i)
+		// Recognize both matches the auto routes and runs the same offline
+		// resolution checks lint does, so annotate never emits a directive lint
+		// would reject: an incomplete reference, a resource that does not build,
+		// or a version the rewriter cannot locate all skip with the reason.
+		inf, reason, ok := infer.Recognize(file.Path, file.Lines, i)
 		if !ok {
 			continue
 		}
-		// An incomplete inference means the line matched a route shape but carries
-		// no usable reference (no repository, no product), so a provider=auto there
-		// could not resolve.
-		if reason := inf.Missing(); reason != "" {
-			annotated.Skips = append(annotated.Skips, skip(i, reason))
-			continue
-		}
-		// Verify before annotating: a recognized shape may still not actually resolve
-		// (a malformed image ref, FROM with no tag, a uses: pin with no version
-		// comment). Gate on the same offline checks lint runs so annotate never emits
-		// a directive lint would reject.
-		if reason := unresolvedReason(file.Path, inf, line); reason != "" {
+		if reason != "" {
 			annotated.Skips = append(annotated.Skips, skip(i, reason))
 			continue
 		}
@@ -308,91 +301,9 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	return annotated
 }
 
-// recognized reports whether lines[i] names a source annotate could infer. It is
-// used for opt-out diagnostics, so it stops before the heavier offline
-// resolution gate.
-func recognized(path string, lines []string, i int) bool {
-	inf, ok := match.Infer(path, lines, i)
-	return ok && inf.Missing() == ""
-}
-
 // skip builds a target-line diagnostic.
 func skip(line int, reason string) AnnotateSkip {
 	return AnnotateSkip{Line: line, Reason: reason}
-}
-
-// unresolvedReason reports why the directive annotate would write for this line
-// fails the offline checks lint runs: the inferred provider must exist, build a
-// valid resource, and locate a trackable version. An empty reason means the
-// candidate is safe to annotate. An inferred track selects the docker-track
-// rewriter, mirroring the run pipeline's dispatch for track markers.
-func unresolvedReason(path string, inf match.Inference, line string) string {
-	return unresolved(inf.Provider, inferredDirective(inf), line,
-		func() (match.Rewriter, error) {
-			if inf.Track != "" {
-				return match.NewDockerTrack(), nil
-			}
-			return match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}), nil
-		})
-}
-
-// unresolved runs the offline checks lint and run perform against a candidate
-// annotation: the provider must exist, build a valid resource from d, and the
-// rewriter must locate a trackable version on line. An empty reason means the
-// candidate is safe to emit.
-func unresolved(
-	providerName string,
-	d directive.Directive,
-	line string,
-	rewriter func() (match.Rewriter, error),
-) string {
-	prov, ok := provider.Get(providerName)
-	if !ok {
-		return "unknown provider"
-	}
-	if _, err := prov.Resource(d); err != nil {
-		return err.Error()
-	}
-	rw, err := rewriter()
-	if err != nil {
-		return err.Error()
-	}
-	if _, err = rw.Locate(line); err != nil {
-		return err.Error()
-	}
-	return ""
-}
-
-// inferredDirective builds the directive the pipeline binds for a provider=auto
-// marker: the inferred provider plus the parameters read from the line. It is
-// what resolvable validates the provider resource against.
-func inferredDirective(inf match.Inference) directive.Directive {
-	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
-	if inf.Repository != "" {
-		pairs = append(
-			pairs,
-			directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository},
-		)
-	}
-	if inf.Registry != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
-	}
-	if inf.Host != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
-	}
-	if inf.Product != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveProduct, Value: inf.Product})
-	}
-	if inf.Source != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveSource, Value: inf.Source})
-	}
-	if inf.TagPrefix != "" {
-		pairs = append(pairs, directive.KV{Key: constant.RuleTagPrefix, Value: inf.TagPrefix})
-	}
-	if inf.Track != "" {
-		pairs = append(pairs, directive.KV{Key: constant.DirectiveTrack, Value: inf.Track})
-	}
-	return directive.Directive{Pairs: pairs}
 }
 
 // forceEligible reports whether an existing directive may be canonicalized under
@@ -408,23 +319,6 @@ func forceEligible(d directive.Directive, inferred string) bool {
 	}
 	p, _ := d.Get(constant.DirectiveProvider)
 	return p == constant.ProviderAuto || p == inferred
-}
-
-// isComment reports whether line is wholly a comment - its first non-blank token
-// is a comment marker - so a commented-out example is never treated as a target.
-func isComment(syntax comment.Syntax, line string) bool {
-	trimmed := strings.TrimLeft(line, " \t")
-	for _, marker := range syntax.Line {
-		if strings.HasPrefix(trimmed, marker) {
-			return true
-		}
-	}
-	for _, block := range syntax.Blocks {
-		if strings.HasPrefix(trimmed, block.Open) {
-			return true
-		}
-	}
-	return false
 }
 
 // insert builds the fresh annotation for a recognized, unannotated line: a
@@ -699,7 +593,7 @@ func imageFind(inf match.Inference) string {
 // resolve, running the same offline checks lint and run perform. An empty reason
 // means the entry is safe to emit.
 func sidecarUnresolvedReason(inf match.Inference, d directive.Directive, line string) string {
-	return unresolved(inf.Provider, d, line, func() (match.Rewriter, error) {
+	return infer.Unresolved(inf.Provider, d, line, func() (match.Rewriter, error) {
 		return sidecarRewriter(inf, d, line)
 	})
 }

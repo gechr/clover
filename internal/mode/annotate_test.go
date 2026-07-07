@@ -5,6 +5,8 @@ package mode_test
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +37,8 @@ const testWorkers = 8
 // TestMain registers the real providers annotate's verify gate validates
 // inferred resources against. Their Resource parsing is offline (only Discover
 // touches the network, which annotate never calls), so the tests stay hermetic.
+// The node provider alone carries a canned transport, so the run --infer test
+// can resolve an inferred marker end to end without the network.
 func TestMain(m *testing.M) {
 	provider.RegisterAll(
 		docker.New(),
@@ -42,12 +46,29 @@ func TestMain(m *testing.M) {
 		github.New(),
 		gitlab.New(),
 		hashicorp.New(),
-		node.New(),
+		node.New(node.WithTransport(nodeIndex)),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),
 	)
 	os.Exit(m.Run())
 }
+
+// nodeIndex serves a tiny Node.js release index for every request, standing in
+// for nodejs.org so inferred node markers resolve hermetically.
+var nodeIndex = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	const body = `[{"version":"v26.0.0","date":"2026-06-24","lts":false}]`
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    req,
+	}, nil
+})
+
+// roundTripFunc adapts a function to an http.RoundTripper.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 // annotateTree writes files under a fresh temp dir and returns its path.
 func annotateTree(t *testing.T, files map[string]string) string {

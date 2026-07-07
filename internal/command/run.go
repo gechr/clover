@@ -33,16 +33,17 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                               predictor:"path"`
-	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',group='Options/Selection'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
-	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection'"                                                                negatable:""`
-	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection'"                                                               negatable:""`
-	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection'"                                                                    negatable:""`
-	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                   clib:"terse='HTTP cache',group='Options/Lookup'"                                                                         negatable:""`
-	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup'"                                                                        negatable:""`
+	Paths      []string     `name:"path" help:"Files or directories to scan"                                                       arg:"" optional:"" clib:"terse='Paths to scan'"                               predictor:"path"`
+	Infer      bool         "            help:\"Attempt to update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
+	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                                           clib:"terse='Filter by tags',group='Options/Selection/2'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
+	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                                   clib:"terse='Allow downgrades',group='Options/Selection/2'"                                                                negatable:""`
+	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                                   clib:"terse='Allow prereleases',group='Options/Selection/2'"                                                               negatable:""`
+	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                                clib:"terse='Force re-pin',group='Options/Selection/2'"                                                                    negatable:""`
+	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                               clib:"terse='HTTP cache',group='Options/Lookup'"                                                                         negatable:""`
+	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                                  clib:"terse='Deep lookup',group='Options/Lookup'"                                                                        negatable:""`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup'\""
-	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                            short:"y"`
-	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                              short:"n" aliases:"dry"`
+	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                              clib:"terse='Assume yes',group='Options/Lookup'"                            short:"y"`
+	DryRun     bool         `            help:"Resolve and render but write nothing"                                                                  clib:"terse='Dry run',group='Options/Dry Run'"                              short:"n" aliases:"dry"`
 	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
 }
@@ -55,7 +56,10 @@ func (c *cmdRun) Help() string {
 		"directory.\n\n" +
 		"Use `--dry-run` to preview the changes without writing, and `--deep` to page " +
 		"through every version when the newest may sit past the first page. Exits " +
-		"non-zero when any directive fails to resolve, so it can gate CI."
+		"non-zero when any directive fails to resolve, so it can gate CI.\n\n" +
+		"With `--infer`, lines auto-detection recognizes are updated even " +
+		"when they carry no directive at all - the zero-annotation mode. Written " +
+		"directives keep priority, and a `clover:ignore` control still opts a line out."
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -63,7 +67,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	launch()
 	start := time.Now()
 	ctx := context.Background()
-	reporter := console.New(ctx, clog.Default)
+	reporter := console.New(ctx, clog.Default, console.WithInfer(c.Infer))
 
 	filter, err := tagFilter(c.Tags)
 	if err != nil {
@@ -91,6 +95,8 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun, int(workers),
 		pipeline.WithConfig(configs),
 		pipeline.WithDeep(c.Deep),
+		pipeline.WithInfer(c.Infer),
+		pipeline.WithRequireDirective(!c.Infer),
 		pipeline.WithDowngrade(c.Downgrade),
 		pipeline.WithForce(c.Force),
 		pipeline.WithNoIgnore(c.NoIgnore),

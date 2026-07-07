@@ -3,8 +3,10 @@ package pipeline
 import (
 	"strings"
 
+	"github.com/gechr/clover/internal/comment"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/infer"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
@@ -40,6 +42,7 @@ type Marker struct {
 	Select    string   // old/new snapshot a follower reads
 	Tags      []string // labels for --tags filtering, in source order
 	Sidecar   bool     // the directive came from a YAML sidecar
+	Inferred  bool     // synthesized by run --infer; no written directive exists
 }
 
 // IsFollower reports whether the marker reuses another marker's result rather
@@ -74,7 +77,7 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 	case "":
 		provider = constant.ProviderFollow
 	case constant.ProviderAuto:
-		provider, d = infer(file, target, d)
+		provider, d = inferParams(file, target, d)
 	}
 
 	return Marker{
@@ -93,11 +96,11 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 	}
 }
 
-// infer resolves a provider=auto marker from its target line, returning the
-// detected provider and the directive with any inferred params (e.g.
+// inferParams resolves a provider=auto marker from its target line, returning
+// the detected provider and the directive with any inferred params (e.g.
 // repository) appended. When nothing matches, the provider stays auto so
 // resolution rejects it with a clear "unknown provider" error.
-func infer(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
+func inferParams(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
 	if target < 0 || target >= len(file.Lines) {
 		return constant.ProviderAuto, d
 	}
@@ -124,6 +127,38 @@ func appendParam(d directive.Directive, key, value string) directive.Directive {
 	pairs := append([]directive.KV{}, d.Pairs...)
 	pairs = append(pairs, directive.KV{Key: key, Value: value})
 	return directive.Directive{Pairs: pairs}
+}
+
+// InferredMarkers synthesizes a provider=auto marker for every ungoverned line
+// auto-detection recognizes and can resolve offline, so run --infer updates a
+// codebase carrying no directives at all. The gate is the one annotate uses
+// ([infer.Recognize]), so a recognized line that would not resolve is skipped
+// silently rather than failing the run; governed lines (a written directive's
+// target) and comment lines are never doubled up.
+func InferredMarkers(file scan.File, governed map[int]bool) []Marker {
+	syntax := comment.For(file.Path)
+	var markers []Marker
+	for i, line := range file.Lines {
+		if governed[i] || file.Ignored.Contains(i) || syntax.IsComment(line) {
+			continue
+		}
+		if _, reason, ok := infer.Recognize(file.Path, file.Lines, i); !ok || reason != "" {
+			continue
+		}
+		d := directive.Directive{Pairs: []directive.KV{
+			{Key: constant.DirectiveProvider, Value: constant.ProviderAuto},
+		}}
+		provider, d := inferParams(file, i, d)
+		markers = append(markers, Marker{
+			File:      file.Path,
+			Line:      i,
+			Target:    i,
+			Directive: d,
+			Provider:  provider,
+			Inferred:  true,
+		})
+	}
+	return markers
 }
 
 // namespace prefixes id with the repository root. An empty id stays empty.

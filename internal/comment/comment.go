@@ -16,6 +16,24 @@ type Syntax struct {
 	Blocks []Block
 }
 
+// IsComment reports whether line is wholly a comment - its first non-blank
+// token is a comment marker - so a commented-out example is never treated as a
+// live target.
+func (s Syntax) IsComment(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	for _, marker := range s.Line {
+		if strings.HasPrefix(trimmed, marker) {
+			return true
+		}
+	}
+	for _, block := range s.Blocks {
+		if strings.HasPrefix(trimmed, block.Open) {
+			return true
+		}
+	}
+	return false
+}
+
 // Body returns the comment text on line and whether one was found. For a line
 // marker it is the text after the marker; for a block it is the text between
 // the open and close delimiters, or everything after the open when the close

@@ -39,3 +39,5 @@ Inference only fills in what you leave out, and any key you set yourself always 
 ## Generating annotations
 
 To add `provider=auto` directives across an existing codebase rather than write them by hand, run [`clover annotate`](commands.md#annotate). It scans for the same lines auto-detection recognizes and inserts a directive above each, so onboarding a repository is a single command.
+
+To skip annotations entirely, run [`clover run --infer`](commands.md#run): it updates every recognized line directly, as if each carried a bare `provider=auto`, writing no comments at all. Annotations remain the way to pin selection rules (`constraint`, `include`, `cooldown`, …) to a line.
