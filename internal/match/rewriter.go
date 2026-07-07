@@ -3,6 +3,7 @@ package match
 import (
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 )
 
 // Rewriter locates the version a target line carries. Implementations range from
@@ -278,16 +280,12 @@ var routes = []route{
 	},
 	{
 		// A well-known mise tool released on GitHub: tofu = "1.8.5" tracks
-		// opentofu/opentofu. The key-to-repository map lives in miseGithubTools.
+		// opentofu/opentofu. The names come from the curated miseGithubTools map
+		// and the generated mise registry map.
 		when: conditions{
-			path: miseGlob,
-			lineMatch: mustPattern(
-				`/^\s*"?(` + strings.Join(
-					slices.Sorted(maps.Keys(miseGithubTools)),
-					"|",
-				) + `)"?\s*=\s*"/`,
-			),
-			provider: constant.ProviderGithub,
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?(` + miseToolAlternation() + `)"?\s*=\s*"/`),
+			provider:  constant.ProviderGithub,
 		},
 		rewriter: NewSmart(),
 	},
@@ -314,6 +312,22 @@ var routes = []route{
 		rewriter: NewHash(),
 	},
 	{rewriter: NewSmart()},
+}
+
+// miseToolAlternation joins every recognized mise tool name - curated and
+// generated - into the well-known-tool route's regex alternation, each name
+// quoted so a dot in a tool name stays literal.
+func miseToolAlternation() string {
+	names := slices.Concat(
+		slices.Collect(maps.Keys(miseGithubTools)),
+		slices.Collect(maps.Keys(miseRegistryTools)),
+	)
+	xslices.SortNatural(names)
+	names = xslices.Unique(names)
+	for i, name := range names {
+		names[i] = regexp.QuoteMeta(name)
+	}
+	return strings.Join(names, "|")
 }
 
 // mustPattern compiles a built-in route pattern, panicking on a malformed one

@@ -1,0 +1,195 @@
+// Command genmise generates the mise tool-name to GitHub repository map the
+// match package's auto-detection uses for mise configuration files. It reads
+// the registry directory of a mise checkout (github.com/jdx/mise), keeps every
+// tool whose default (first) backend names a GitHub repository - an aqua:,
+// github:, or ubi: backend - and emits the sorted map to the output file.
+//
+// Tools whose default backend is another ecosystem (npm:, pipx:, cargo:,
+// core:, ...) are skipped rather than mapped through a fallback backend, since
+// the versions a user pins for them follow that ecosystem's scheme, not the
+// GitHub tags. Tools the match package already maps by hand (HashiCorp
+// products, the Go toolchain, the Node.js runtime) are skipped too, so the
+// curated mappings stay authoritative.
+//
+// Usage:
+//
+//	go run ./internal/tools/genmise -src <mise-checkout> -ref <version> [-o <file>]
+package main
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"go/format"
+	"log"
+	"maps"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/BurntSushi/toml"
+)
+
+// registryTool is the subset of a mise registry entry the generator reads.
+// Backends decodes loosely: an entry is usually a plain "scheme:spec" string,
+// but may be a table ({ full = "...", options = ... }) whose full key carries
+// the same spec.
+type registryTool struct {
+	Backends []any    `toml:"backends"`
+	Aliases  []string `toml:"aliases"`
+}
+
+// backendSpec returns a backend entry's "scheme:spec" string, "" when the
+// entry carries none.
+func backendSpec(backend any) string {
+	switch b := backend.(type) {
+	case string:
+		return b
+	case map[string]any:
+		full, _ := b["full"].(string)
+		return full
+	default:
+		return ""
+	}
+}
+
+// githubBackends are the mise backend schemes whose spec is a GitHub
+// owner/repo whose tags carry the tool's versions.
+var githubBackends = []string{"aqua:", "github:", "ubi:"}
+
+// curated are the tool names the match package maps by hand; the generator
+// never emits them so the curated entries stay authoritative.
+var curated = []string{
+	// HashiCorp products, mapped to the hashicorp provider.
+	"boundary", "consul", "nomad", "packer", "terraform", "vagrant", "vault", "waypoint",
+	// Mapped by hand in the match package.
+	"go", "node", "opentofu", "tofu",
+}
+
+// owner validates the owner segment of an owner/repo spec. A GitHub owner is
+// alphanumerics and hyphens only, so an aqua HTTP-type package whose first
+// segment is a domain (atlassian.com/acli) is rejected.
+var owner = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
+
+// segment validates the repository segment (and an alias name), where dots and
+// underscores are legal.
+var segment = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+func main() {
+	src := flag.String("src", "", "path to a mise checkout (required)")
+	ref := flag.String(
+		"ref",
+		"",
+		"mise version the checkout is at, recorded in the header (required)",
+	)
+	out := flag.String("o", "zz_generated.miseregistry.go", "output file")
+	flag.Parse()
+	if *src == "" || *ref == "" {
+		flag.Usage()
+		os.Exit(2) //nolint:mnd // conventional usage-error exit code
+	}
+
+	tools, err := read(filepath.Join(*src, "registry"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	source, err := render(tools, *ref)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile(*out, source, 0o600); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("wrote %d tools to %s (mise %s)", len(tools), *out, *ref)
+}
+
+// read parses every registry TOML under dir and returns the tool-name (and
+// alias) to repository map.
+func read(dir string) (map[string]string, error) {
+	files, err := filepath.Glob(filepath.Join(dir, "*.toml"))
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no registry files under %q", dir)
+	}
+
+	tools := map[string]string{}
+	for _, file := range files {
+		name := strings.TrimSuffix(filepath.Base(file), ".toml")
+		if slices.Contains(curated, name) {
+			continue
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		var tool registryTool
+		if err := toml.Unmarshal(data, &tool); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", file, err)
+		}
+		repo, ok := repository(tool.Backends)
+		if !ok {
+			continue
+		}
+		tools[name] = repo
+		for _, alias := range tool.Aliases {
+			if segment.MatchString(alias) && !slices.Contains(curated, alias) {
+				tools[alias] = repo
+			}
+		}
+	}
+	return tools, nil
+}
+
+// repository returns the owner/repo of the tool's default backend, ok=false
+// when that backend is not GitHub-shaped or its spec is not a clean two-segment
+// path (a monorepo sub-path pins versions under tags the bare repository
+// lookup would misread, so it is skipped).
+func repository(backends []any) (string, bool) {
+	if len(backends) == 0 {
+		return "", false
+	}
+	spec := ""
+	for _, scheme := range githubBackends {
+		if rest, ok := strings.CutPrefix(backendSpec(backends[0]), scheme); ok {
+			spec = rest
+			break
+		}
+	}
+	if spec == "" {
+		return "", false
+	}
+	spec, _, _ = strings.Cut(spec, "[") // drop a [option] qualifier
+	own, repo, ok := strings.Cut(spec, "/")
+	if !ok || !owner.MatchString(own) || !segment.MatchString(repo) {
+		return "", false
+	}
+	return own + "/" + repo, true
+}
+
+// render emits the generated Go source for the tool map, gofmt-formatted.
+func render(tools map[string]string, ref string) ([]byte, error) {
+	var b bytes.Buffer
+	fmt.Fprintf(
+		&b,
+		`// Code generated by internal/tools/genmise from the mise registry (%s); DO NOT EDIT.
+
+package match
+
+// miseRegistryTools maps mise registry tool names (and aliases) to the GitHub
+// repository their default backend tracks. Regenerate with:
+//
+//	go generate ./internal/match
+var miseRegistryTools = map[string]string{
+`,
+		ref,
+	)
+	for _, name := range slices.Sorted(maps.Keys(tools)) {
+		fmt.Fprintf(&b, "\t%q: %q,\n", name, tools[name])
+	}
+	b.WriteString("}\n")
+	return format.Source(b.Bytes())
+}

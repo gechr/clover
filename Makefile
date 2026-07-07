@@ -25,6 +25,10 @@ fmt:
 	@$(GO) fix ./...
 	@$(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint fmt --enable=gci,golines,gofumpt
 
+.PHONY: gen
+gen:
+	@$(GO) generate ./...
+
 .PHONY: install
 install:
 	@$(GO) install -ldflags "$(GO_LDFLAGS)" .

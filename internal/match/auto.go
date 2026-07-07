@@ -124,9 +124,13 @@ type githubTool struct {
 // go tool and the go directive in go.mod.
 var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
 
-// miseGithubTools maps well-known mise tool names to the GitHub source whose
-// releases they track, for tools that are neither a backend-qualified key nor
-// a HashiCorp product.
+// miseGithubTools maps curated mise tool names to the GitHub source whose
+// releases they track, taking precedence over the generated registry map for
+// tools whose tags carry a prefix or that the registry routes elsewhere. The
+// long tail of well-known tools lives in miseRegistryTools, generated from the
+// mise registry:
+//
+//go:generate go run ../tools/genmise -src $MISE_SRC -ref $MISE_REF -o zz_generated.miseregistry.go
 var miseGithubTools = map[string]githubTool{
 	"go":       goTool,
 	"opentofu": {repository: "opentofu/opentofu"},
@@ -146,14 +150,18 @@ func githubReference(path, line string) (string, string) {
 	return miseTool(line)
 }
 
-// miseTool extracts the GitHub source a mise tool key tracks: a well-known
-// tool name from [miseGithubTools], or a github: or ubi: backend key, e.g.
+// miseTool extracts the GitHub source a mise tool key tracks: a curated tool
+// name from [miseGithubTools], a registry tool name from the generated
+// miseRegistryTools, or a github: or ubi: backend key, e.g.
 // `"ubi:owner/tool" = "1.2.3"` -> "owner/tool", dropping a trailing [option]
 // qualifier. It returns empty strings when the key names no repository.
 func miseTool(line string) (string, string) {
 	key := miseKey(line)
 	if tool, ok := miseGithubTools[key]; ok {
 		return tool.repository, tool.tagPrefix
+	}
+	if repo, ok := miseRegistryTools[key]; ok {
+		return repo, ""
 	}
 	for _, scheme := range []string{"github:", "ubi:"} {
 		repo, ok := strings.CutPrefix(key, scheme)

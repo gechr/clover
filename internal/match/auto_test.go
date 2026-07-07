@@ -253,6 +253,20 @@ func TestInfer(t *testing.T) {
 			ok:   false,
 		},
 		{
+			name: "mise registry tool",
+			path: ".mise.toml",
+			line: `ripgrep = "14.1.0"`,
+			want: match.Inference{Provider: "github", Repository: "BurntSushi/ripgrep"},
+			ok:   true,
+		},
+		{
+			name: "mise registry tool alias",
+			path: "mise.toml",
+			line: `rg = "14.1.0"`,
+			want: match.Inference{Provider: "github", Repository: "BurntSushi/ripgrep"},
+			ok:   true,
+		},
+		{
 			name: "mise unknown tool is not matched",
 			path: ".mise.toml",
 			line: `python = "3.13.1"`,
