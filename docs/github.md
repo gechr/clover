@@ -24,6 +24,10 @@ FROM redis:7.2.0
 | [`track`](tracking.md)                       | Track a branch HEAD instead of selecting a version                        |
 | [`verify`, `verify-branch`](verification.md) | Deep-verify a secure pin against upstream                                 |
 
+## Tags and releases
+
+`source` chooses what to list. `tags` (the default) reads the repository's tags; `releases` reads its published releases. The difference matters for [`cooldown`](cooldown.md): a GitHub tag carries no publication date of its own, only its target commit's, so rather than age a tag by a commit that may long predate it, `cooldown` is simply inert when listing tags. A release carries its own `published_at`, so `cooldown` applies under `source=releases`. Set `source=releases` when you want a version held back until it has aged.
+
 ## Selecting by asset
 
 Some releases matter only when they ship a particular artifact, such as a Linux binary. `asset` keeps only releases whose asset list contains a filename matching its glob (or `/regex/`), then selects the newest of those. It requires `source=releases`, since only releases publish assets.
