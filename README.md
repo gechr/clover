@@ -45,6 +45,23 @@ clover annotate -w # write those annotations
 
 Lines without a `clover:` comment are never touched.
 
+## Providers
+
+Clover resolves versions from a range of upstream sources:
+
+- **`github`** - releases, tags, and branch commits, with checksum and commit-SHA pinning
+- **`gitlab`** - project tags and releases
+- **`gitea`** - Gitea and Forgejo forges, defaulting to Codeberg
+- **`docker`** - image tags and digests from any OCI registry
+- **`helm`** - chart versions from HTTP or OCI repositories
+- **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools
+- **`terraform`** / **`opentofu`** - provider plugins from a registry
+- **`node`** - Node.js runtime versions
+- **`http`** - any endpoint, read with `jq` or a regular expression
+- **`manual`** - a hand-maintained value for other directives to follow
+
+Setting `provider=auto` infers the right provider from the line itself, so common cases such as GitHub Actions, `FROM` images, `go.mod`, and Terraform blocks need no provider at all.
+
 ## Documentation
 
 Full documentation is available at [gechr.github.io/clover](https://gechr.github.io/clover/).
