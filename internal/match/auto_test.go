@@ -222,6 +222,19 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "terraform required_version constraint",
+			path: "infra/versions.tf",
+			line: `  required_version = "~> 1.11.0"`,
+			want: match.Inference{Provider: "hashicorp", Product: "terraform"},
+			ok:   true,
+		},
+		{
+			name: "required_version outside a terraform file is not matched",
+			path: "notes.txt",
+			line: `required_version = "~> 1.11.0"`,
+			ok:   false,
+		},
+		{
 			name: "mise hashicorp product",
 			path: ".mise.toml",
 			line: `terraform = "1.9.8"`,

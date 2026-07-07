@@ -130,6 +130,10 @@ const miseGlob = "**/{.mise,mise}.toml"
 // goModGlob matches Go module files, whose go directive pins the toolchain.
 const goModGlob = "**/go.mod"
 
+// terraformGlob matches Terraform configuration files, whose required_version
+// constraint pins the toolchain.
+const terraformGlob = "**/*.tf"
+
 // hashicorpProducts are the mise tool names that double as HashiCorp product
 // slugs on releases.hashicorp.com, alternated into the mise route's pattern.
 var hashicorpProducts = []string{
@@ -300,6 +304,18 @@ var routes = []route{
 				) + `)"?\s*=\s*"/`,
 			),
 			provider: constant.ProviderGitea,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A Terraform required_version constraint: required_version = "~> 1.11.0".
+		// The version inside the constraint string is the only version-shaped
+		// token, so the smart rewriter bumps it in place, preserving the operator
+		// and precision around it.
+		when: conditions{
+			path:      terraformGlob,
+			lineMatch: mustPattern(`/^\s*required_version\s*=\s*"/`),
+			provider:  constant.ProviderHashicorp,
 		},
 		rewriter: NewSmart(),
 	},

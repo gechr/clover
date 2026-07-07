@@ -23,6 +23,7 @@ Auto-detection recognizes:
 - A GitLab CI/CD component include (`component: gitlab.com/group/project/name@1.0.0`), resolved by the [GitLab](gitlab.md) provider with the inferred `repository`, and the inferred `host` when the component lives on a self-managed instance.
 - A tool version in a [mise](https://mise.jdx.dev) configuration file (`.mise.toml` or `mise.toml`). A HashiCorp product like `terraform = "1.9.8"` resolves with the [HashiCorp](hashicorp.md) provider and its inferred `product`, `node` resolves with the [Node.js](node.md) provider, and a `github:` or `ubi:` backend key (or one of the several hundred registry tools released on GitHub, like `tofu`, `go`, or `ripgrep`) resolves with the [GitHub](github.md) provider and its inferred `repository`. A tool released on Codeberg, like `zig`, resolves with the [Gitea](gitea.md) provider. The tool-to-repository map is generated from the [mise registry](https://mise.jdx.dev/registry.html).
 - The `go` directive in a `go.mod` file, resolved by the [GitHub](github.md) provider against `golang/go` with `tag-prefix=go`, since Go releases are tagged `goX.Y.Z`.
+- A `required_version` constraint in a Terraform file, resolved by the [HashiCorp](hashicorp.md) provider with `product=terraform`. The version inside the constraint is bumped in place, so `"~> 1.11.0"` keeps its operator and precision. An OpenTofu configuration should set `provider` explicitly, since the line itself cannot say which toolchain it pins.
 
 ## When to be explicit
 

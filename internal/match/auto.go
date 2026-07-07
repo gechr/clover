@@ -72,7 +72,7 @@ func Infer(path, line string) (Inference, bool) {
 		case constant.ProviderGitea:
 			inferred.Repository = miseGiteaTools[miseKey(line)]
 		case constant.ProviderHashicorp:
-			inferred.Product = miseKey(line)
+			inferred.Product = hashicorpProduct(path, line)
 		}
 		return inferred, true
 	}
@@ -108,6 +108,20 @@ func componentReference(line string) (string, string) {
 		host = ""
 	}
 	return host, strings.Join(segments[1:len(segments)-1], "/")
+}
+
+// terraformProduct is the releases.hashicorp.com slug a Terraform
+// required_version constraint tracks.
+const terraformProduct = "terraform"
+
+// hashicorpProduct names the product a hashicorp-routed line pins: terraform
+// for a required_version constraint in a Terraform file, else the mise tool
+// key, which doubles as the product slug.
+func hashicorpProduct(path, line string) string {
+	if matchPath(terraformGlob, path) {
+		return terraformProduct
+	}
+	return miseKey(line)
 }
 
 // miseKey extracts the tool name from a mise configuration line, the quoted or

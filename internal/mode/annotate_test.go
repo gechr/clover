@@ -306,6 +306,24 @@ func TestAnnotateInsertsForDigestPinnedFloatingTag(t *testing.T) {
 	)
 }
 
+func TestAnnotateInsertsForTerraformRequiredVersion(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"versions.tf": "terraform {\n  required_version = \"~> 1.11.0\"\n}\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"terraform {\n  # clover: provider=auto\n  required_version = \"~> 1.11.0\"\n}\n",
+		readFile(t, filepath.Join(root, "versions.tf")),
+		"a required_version constraint earns an annotation",
+	)
+}
+
 func TestAnnotatePreviewWritesNothing(t *testing.T) {
 	t.Parallel()
 
