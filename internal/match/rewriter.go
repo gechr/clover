@@ -123,6 +123,28 @@ type route struct {
 // not user configuration (yet).
 var routes = []route{
 	{
+		// A digest-pinned workflow container job: uses: docker://img:tag@sha256:… .
+		// The docker:// scheme marks the reference as an image, so it must precede
+		// the action uses: routes.
+		when: conditions{
+			path: "**/*.{yml,yaml}",
+			lineMatch: mustPattern(
+				"* uses: *" + dockerScheme + "*" + constant.DockerDigestMarker + "*",
+			),
+			provider: constant.ProviderDocker,
+		},
+		rw: NewDockerPin(),
+	},
+	{
+		// A tag-only workflow container job: uses: docker://img:tag.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* uses: *" + dockerScheme + "*"),
+			provider:  constant.ProviderDocker,
+		},
+		rw: NewDockerTag(),
+	},
+	{
 		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z,
 		// updated SHA + version comment in lockstep. Scoped to YAML, the only place a
 		// real uses: lives, so annotate never fires on an example in Markdown prose.

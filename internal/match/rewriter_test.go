@@ -20,6 +20,26 @@ func TestForFallsBackToSmart(t *testing.T) {
 	require.IsType(t, match.Smart{}, rw)
 }
 
+// TestForContainerJobUses confirms a workflow container job's uses: docker://
+// reference routes to the docker rewriters, not the action ones: digest-pinned
+// to docker-pin, tag-only to docker-tag.
+func TestForContainerJobUses(t *testing.T) {
+	t.Parallel()
+
+	digest := "      - uses: docker://alpine:3.20@sha256:0123456789012345678901234567890123456789012345678901234567890123"
+	pinned := match.For(
+		match.Context{Path: ".github/workflows/ci.yml", Line: digest, Provider: "docker"},
+	)
+	require.IsType(t, match.DockerPin{}, pinned)
+
+	tagOnly := match.For(match.Context{
+		Path:     ".github/workflows/ci.yml",
+		Line:     "      - uses: docker://alpine:3.20",
+		Provider: "docker",
+	})
+	require.IsType(t, match.DockerTag{}, tagOnly)
+}
+
 // TestForDigestPinnedDocker confirms a digest-pinned docker line routes to the
 // docker-pin rewriter, while a tag-only one routes to the docker-tag rewriter.
 func TestForDigestPinnedDocker(t *testing.T) {

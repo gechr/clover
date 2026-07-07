@@ -180,6 +180,24 @@ func TestAnnotateInsertsForTagPinnedUses(t *testing.T) {
 	)
 }
 
+func TestAnnotateInsertsForContainerJobUses(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		".github/workflows/ci.yaml": "jobs:\n  build:\n    steps:\n      - uses: docker://alpine:3.20\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: docker://alpine:3.20\n",
+		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
+		"a container job's docker:// image earns an annotation",
+	)
+}
+
 func TestAnnotatePreviewWritesNothing(t *testing.T) {
 	t.Parallel()
 

@@ -95,12 +95,25 @@ func imageReference(line string) (string, string) {
 	return registry, remainder
 }
 
-// imageToken extracts the image reference from a Dockerfile FROM instruction or
-// a YAML image: mapping, returning "" when the line carries neither.
+// dockerScheme prefixes the image reference of a workflow container job:
+// uses: docker://<image>.
+const dockerScheme = "docker://"
+
+// imageToken extracts the image reference from a Dockerfile FROM instruction, a
+// workflow container job's uses: docker:// reference, or a YAML image: mapping,
+// returning "" when the line carries none. The uses: branch runs before the
+// image: cut, which would otherwise split inside a reference like myimage:1.2.
 func imageToken(line string) string {
 	line = strings.TrimSpace(line)
 	if rest, ok := strings.CutPrefix(line, "FROM "); ok {
 		return fromImage(rest)
+	}
+	if _, after, ok := strings.Cut(line, "uses:"); ok {
+		img, ok := strings.CutPrefix(yamlScalar(after), dockerScheme)
+		if !ok {
+			return "" // a uses: without the docker:// scheme is an action, not an image
+		}
+		return img
 	}
 	if _, after, ok := strings.Cut(line, "image:"); ok {
 		return yamlScalar(after)

@@ -74,6 +74,24 @@ func TestInfer(t *testing.T) {
 			ok:   false,
 		},
 		{
+			name: "container job image",
+			path: ".github/workflows/ci.yml",
+			line: "      - uses: docker://alpine:3.20",
+			want: match.Inference{Provider: "docker", Repository: "alpine"},
+			ok:   true,
+		},
+		{
+			name: "registry-qualified container job image with digest",
+			path: ".github/workflows/ci.yml",
+			line: "      uses: docker://ghcr.io/owner/tool:1.2.3@sha256:abc",
+			want: match.Inference{
+				Provider:   "docker",
+				Registry:   "ghcr.io",
+				Repository: "owner/tool",
+			},
+			ok: true,
+		},
+		{
 			name: "dockerfile FROM a hub image",
 			path: "Dockerfile",
 			line: "FROM nginx:1.27",
