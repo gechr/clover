@@ -1,7 +1,6 @@
 package match
 
 import (
-	"cmp"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -16,6 +15,7 @@ type Inference struct {
 	Provider   string
 	Registry   string
 	Repository string
+	TagPrefix  string
 }
 
 // Missing reports why the inference cannot resolve - a route matched but the
@@ -58,7 +58,7 @@ func Infer(path, line string) (Inference, bool) {
 		inferred := Inference{Provider: c.provider}
 		switch c.provider {
 		case constant.ProviderGithub:
-			inferred.Repository = cmp.Or(actionRepository(line), miseRepository(line))
+			inferred.Repository, inferred.TagPrefix = githubReference(path, line)
 		case constant.ProviderDocker:
 			inferred.Registry, inferred.Repository = imageReference(line)
 		case constant.ProviderGitlab:
@@ -112,22 +112,48 @@ func miseKey(line string) string {
 	return strings.Trim(strings.TrimSpace(key), `"'`)
 }
 
-// miseGithubTools maps well-known mise tool names to the GitHub repository
-// whose releases they track, for tools that are neither a backend-qualified key
-// nor a HashiCorp product.
-var miseGithubTools = map[string]string{
-	"opentofu": "opentofu/opentofu",
-	"tofu":     "opentofu/opentofu",
+// githubTool is the GitHub source a well-known tool name maps to: the
+// repository whose tags carry its releases, and the tag-prefix those tags wear
+// when they are not bare versions (golang/go tags releases goX.Y.Z).
+type githubTool struct {
+	repository string
+	tagPrefix  string
 }
 
-// miseRepository extracts the owner/repo a mise tool key tracks: a well-known
+// goTool is the source of Go toolchain releases, referenced by both the mise
+// go tool and the go directive in go.mod.
+var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
+
+// miseGithubTools maps well-known mise tool names to the GitHub source whose
+// releases they track, for tools that are neither a backend-qualified key nor
+// a HashiCorp product.
+var miseGithubTools = map[string]githubTool{
+	"go":       goTool,
+	"opentofu": {repository: "opentofu/opentofu"},
+	"tofu":     {repository: "opentofu/opentofu"},
+}
+
+// githubReference extracts the repository a line tracks on GitHub, and the
+// tag-prefix its upstream tags carry: a uses: action reference, the go
+// directive in go.mod, or a mise tool key.
+func githubReference(path, line string) (string, string) {
+	if repo := actionRepository(line); repo != "" {
+		return repo, ""
+	}
+	if matchPath(goModGlob, path) {
+		return goTool.repository, goTool.tagPrefix
+	}
+	return miseTool(line)
+}
+
+// miseTool extracts the GitHub source a mise tool key tracks: a well-known
 // tool name from [miseGithubTools], or a github: or ubi: backend key, e.g.
 // `"ubi:owner/tool" = "1.2.3"` -> "owner/tool", dropping a trailing [option]
-// qualifier. It returns "" when the key names no repository.
-func miseRepository(line string) string {
+// qualifier. It returns empty strings when the key names no repository.
+func miseTool(line string) (string, string) {
 	key := miseKey(line)
-	if repo, ok := miseGithubTools[key]; ok {
-		return repo
+	if tool, ok := miseGithubTools[key]; ok {
+		return tool.repository, tool.tagPrefix
 	}
 	for _, scheme := range []string{"github:", "ubi:"} {
 		repo, ok := strings.CutPrefix(key, scheme)
@@ -136,11 +162,11 @@ func miseRepository(line string) string {
 		}
 		repo, _, _ = strings.Cut(repo, "[")
 		if strings.Count(repo, "/") != 1 {
-			return "" // a backend repository is exactly owner/repo
+			return "", "" // a backend repository is exactly owner/repo
 		}
-		return repo
+		return repo, ""
 	}
-	return ""
+	return "", ""
 }
 
 // actionRepository extracts the owner/repo from a GitHub Actions uses: pin,

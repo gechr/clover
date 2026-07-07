@@ -125,6 +125,9 @@ type route struct {
 // versions the mise routes recognize.
 const miseGlob = "**/{.mise,mise}.toml"
 
+// goModGlob matches Go module files, whose go directive pins the toolchain.
+const goModGlob = "**/go.mod"
+
 // hashicorpProducts are the mise tool names that double as HashiCorp product
 // slugs on releases.hashicorp.com, alternated into the mise route's pattern.
 var hashicorpProducts = []string{
@@ -285,6 +288,17 @@ var routes = []route{
 				) + `)"?\s*=\s*"/`,
 			),
 			provider: constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The go directive in go.mod: go 1.23.2. Go releases are tagged goX.Y.Z
+		// in golang/go, so the github provider tracks them under the go
+		// tag-prefix.
+		when: conditions{
+			path:      goModGlob,
+			lineMatch: mustPattern(`/^go\s+\d/`),
+			provider:  constant.ProviderGithub,
 		},
 		rewriter: NewSmart(),
 	},

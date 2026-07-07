@@ -107,6 +107,7 @@ var byName = map[string]Syntax{
 	".zshrc":         hash,
 	"GNUmakefile":    hash,
 	"Makefile":       hash,
+	"go.mod":         slash,
 }
 
 // For returns the comment syntax for the file at path, matched by base name

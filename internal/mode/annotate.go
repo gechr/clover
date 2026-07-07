@@ -378,6 +378,9 @@ func inferredDirective(inf match.Inference) directive.Directive {
 	if inf.Product != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveProduct, Value: inf.Product})
 	}
+	if inf.TagPrefix != "" {
+		pairs = append(pairs, directive.KV{Key: constant.RuleTagPrefix, Value: inf.TagPrefix})
+	}
 	return directive.Directive{Pairs: pairs}
 }
 
@@ -473,6 +476,8 @@ func inferenceOwns(key string, inf match.Inference) bool {
 		return inf.Host != ""
 	case constant.DirectiveProduct:
 		return inf.Product != ""
+	case constant.RuleTagPrefix:
+		return inf.TagPrefix != ""
 	default:
 		return false
 	}
@@ -642,7 +647,11 @@ func sourceKeyPairs(inf match.Inference) []directive.KV {
 	if inf.Host != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
 	}
-	return append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
+	pairs = append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
+	if inf.TagPrefix != "" {
+		pairs = append(pairs, directive.KV{Key: constant.RuleTagPrefix, Value: inf.TagPrefix})
+	}
+	return pairs
 }
 
 // explicitDirective builds the sidecar entry for an inferred reference: the
@@ -804,10 +813,12 @@ func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 	registry, _ := existing.Get(constant.DirectiveRegistry)
 	host, _ := existing.Get(constant.DirectiveHost)
 	product, _ := existing.Get(constant.DirectiveProduct)
+	tagPrefix, _ := existing.Get(constant.RuleTagPrefix)
 	return provider != inf.Provider || repository != inf.Repository ||
 		registry != inf.Registry ||
 		(inf.Host != "" && host != inf.Host) ||
-		(inf.Product != "" && product != inf.Product)
+		(inf.Product != "" && product != inf.Product) ||
+		(inf.TagPrefix != "" && tagPrefix != inf.TagPrefix)
 }
 
 // refreshSource re-derives an entry's source keys from the line while preserving

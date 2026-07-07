@@ -227,15 +227,16 @@ func TestAnnotateInsertsForMiseTools(t *testing.T) {
 			"node = \"24.11.0\"\n" +
 			"tofu = \"1.8.5\"\n" +
 			"\"ubi:owner/tool\" = \"1.2.3\"\n" +
-			"go = \"1.23.2\"\n",
+			"go = \"1.23.2\"\n" +
+			"python = \"3.13.1\"\n",
 	})
 
 	summary := annotate(t, root, true, false)
 	require.Equal(
 		t,
-		4,
+		5,
 		summary.Added(),
-		"every recognized tool earns an annotation, go has no provider",
+		"every recognized tool earns an annotation, python has no provider",
 	)
 
 	require.Equal(
@@ -249,8 +250,28 @@ func TestAnnotateInsertsForMiseTools(t *testing.T) {
 			"tofu = \"1.8.5\"\n"+
 			"# clover: provider=auto\n"+
 			"\"ubi:owner/tool\" = \"1.2.3\"\n"+
-			"go = \"1.23.2\"\n",
+			"# clover: provider=auto\n"+
+			"go = \"1.23.2\"\n"+
+			"python = \"3.13.1\"\n",
 		readFile(t, filepath.Join(root, ".mise.toml")),
+	)
+}
+
+func TestAnnotateInsertsForGoMod(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"go.mod": "module github.com/owner/repo\n\ngo 1.23.2\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"module github.com/owner/repo\n\n// clover: provider=auto\ngo 1.23.2\n",
+		readFile(t, filepath.Join(root, "go.mod")),
+		"the go directive earns a slash-comment annotation",
 	)
 }
 

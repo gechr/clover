@@ -91,6 +91,7 @@ func TestMarkersAuto(t *testing.T) {
 		repository string
 		host       string
 		product    string
+		tagPrefix  string
 	}{
 		{
 			name: "infers github and repository from a workflow pin",
@@ -175,6 +176,18 @@ func TestMarkersAuto(t *testing.T) {
 			repository: "owner/tool",
 		},
 		{
+			name: "infers the go toolchain source from a go.mod go directive",
+			path: "go.mod",
+			lines: []string{
+				"// clover: provider=auto",
+				"go 1.23.2",
+			},
+			directive:  auto,
+			provider:   "github",
+			repository: "golang/go",
+			tagPrefix:  "go",
+		},
+		{
 			name:       "stays auto when the target is not a recognised pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
@@ -207,6 +220,7 @@ func TestMarkersAuto(t *testing.T) {
 			require.Equal(t, tt.repository, keyOf(markers[0], "repository"))
 			require.Equal(t, tt.host, keyOf(markers[0], "host"))
 			require.Equal(t, tt.product, keyOf(markers[0], "product"))
+			require.Equal(t, tt.tagPrefix, keyOf(markers[0], "tag-prefix"))
 		})
 	}
 }
