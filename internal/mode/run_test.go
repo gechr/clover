@@ -192,6 +192,70 @@ func TestRunCooldownPrecedence(t *testing.T) {
 	})
 }
 
+// TestRunCooldownUnsupportedSkips covers a cooldown set on a source that returns
+// no publication dates: clover holds the line and skips with a warning rather
+// than blindly updating past a cooldown it cannot check.
+func TestRunCooldownUnsupportedSkips(t *testing.T) {
+	// Candidates carry no PublishedAt - the shape of a GitHub tag listing.
+	provider.Register(fakeProvider{
+		name:       "undated",
+		candidates: []model.Candidate{candidate(t, "2.0.0")},
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "app.txt")
+	body := "# clover: provider=undated cooldown=72h\nversion: 1.0.0\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+		pipeline.WithNow(time.Date(2026, 7, 7, 0, 0, 0, 0, time.UTC)),
+	)
+	require.NoError(t, err, "an unsupported cooldown is a skip, not a run failure")
+	require.Equal(t, 1, summary.Skipped())
+	require.Len(t, summary.Outcomes, 1)
+	res := summary.Outcomes[0].Results[0]
+	require.True(t, res.Skipped)
+	require.Equal(
+		t,
+		"cooldown not supported - source does not provide publication dates",
+		res.Reason,
+	)
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, body, string(got), "the line is held, not updated")
+}
+
+// TestRunCooldownDisabledUpdatesUndatedSource confirms the skip is scoped to an
+// active cooldown: --cooldown=0 clears it, so the same undated source updates.
+func TestRunCooldownDisabledUpdatesUndatedSource(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "undated2",
+		candidates: []model.Candidate{candidate(t, "2.0.0")},
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "app.txt")
+	require.NoError(t, os.WriteFile(
+		path,
+		[]byte("# clover: provider=undated2 cooldown=72h\nversion: 1.0.0\n"),
+		0o644,
+	))
+
+	zero := time.Duration(0)
+	_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+		pipeline.WithNow(time.Date(2026, 7, 7, 0, 0, 0, 0, time.UTC)),
+		pipeline.WithCooldown(&zero),
+	)
+	require.NoError(t, err)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"# clover: provider=undated2 cooldown=72h\nversion: 2.0.0\n",
+		string(got),
+		"--cooldown=0 disables the gate, so the undated source updates",
+	)
+}
+
 func TestRunWritesChanges(t *testing.T) {
 	provider.Register(
 		fakeProvider{name: "run", candidates: []model.Candidate{candidate(t, "1.5.0")}},

@@ -28,7 +28,7 @@ A repository is a flat `owner/name`, since Gitea and Forgejo organize repositori
 
 Gitea orders tags by creation date and offers no version sort, so the newest tag, not necessarily the highest version, heads the listing. A shallow lookup reads the first page, and when more tags remain, Clover suggests `--deep` to read them all. A tag records the commit SHA it points at, but a release does not (Gitea's release target may be empty or a branch name, not a SHA), so a `value=commit` follower works with `source=tags`.
 
-A release carries its publication date, used by [`cooldown`](cooldown.md), and an upstream `prerelease` flag, which [prerelease](prereleases.md) filtering honors even when the tag itself looks stable. A tag carries no date of its own on Gitea, only its target commit's, so rather than age a tag by a commit that may long predate it, `cooldown` is simply inert for a tag. A [draft release](https://forgejo.org/docs/latest/user/release/) is unpublished and never a candidate.
+A release carries its publication date, used by [`cooldown`](cooldown.md), and an upstream `prerelease` flag, which [prerelease](prereleases.md) filtering honors even when the tag itself looks stable. A tag carries no date of its own on Gitea, only its target commit's, so Clover cannot age a tag without guessing. Rather than update past a cooldown it cannot check, a `cooldown` on `source=tags` skips the marker with a warning and holds the line; use `source=releases` to have it apply. A [draft release](https://forgejo.org/docs/latest/user/release/) is unpublished and never a candidate.
 
 ## Selecting by asset
 

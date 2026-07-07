@@ -18,7 +18,7 @@ The value is a duration. Hours work, and longer units compose:
 
 A version that is newer than its cooldown is simply skipped, and Clover stays on the current value until the candidate ages in.
 
-Cooldown needs a publication date to measure age against, so it only applies where the source supplies one. Dated sources include HashiCorp and Node.js releases, classic Helm repositories, and forge releases (`source=releases`). It is inert where the listing carries no date, notably GitHub, Gitea, and GitLab tags (the default `source=tags`) and OCI tag lists, where a version is always eligible.
+Cooldown needs a publication date to measure age against. Dated sources include HashiCorp and Node.js releases, classic Helm repositories, and forge releases (`source=releases`). Where the source dates nothing it returns - notably GitHub and Gitea tags (the default `source=tags`) - Clover cannot check the cooldown, so rather than silently update past it, the marker is **skipped with a warning** and the line is held. Switch to `source=releases`, or remove the cooldown, to update such a line. (GitLab tags may carry a date individually, so only the undated ones go unchecked.)
 
 Cooldown still applies when [tracking floating refs](tracking.md). A digest or commit that is too fresh is held back even though no version is being selected.
 

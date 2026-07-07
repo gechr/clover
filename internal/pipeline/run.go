@@ -37,6 +37,14 @@ import (
 	"github.com/gechr/x/set"
 )
 
+// errCooldownUnsupported marks a producer skipped, not failed: its cooldown
+// cannot be honored because the source returned no publication dates to measure
+// age against. clover holds the line rather than blindly updating past a
+// cooldown it cannot check.
+var errCooldownUnsupported = errors.New(
+	"cooldown not supported - source does not provide publication dates",
+)
+
 // ErrNoCandidate reports that no discovered version satisfied the marker's rule
 // (constraint, include/exclude, prerelease). The edge checks for it to suggest a
 // deep lookup, since a shallow lookup may have paged past a matching version.
@@ -512,6 +520,12 @@ func (p *plan) resolve(ctx context.Context) {
 			p.results[i].Skipped = true
 			p.results[i].Reason = r.Err.Error()
 			p.tasks[i].Skip(r.Err.Error())
+		case r.Err != nil && errors.Is(r.Err, errCooldownUnsupported):
+			// The source cannot honor the cooldown, so hold the line and warn
+			// rather than fail: this is a source limitation, not a run error.
+			p.results[i].Skipped = true
+			p.results[i].Reason = r.Err.Error()
+			p.tasks[i].Skip(r.Err.Error())
 		case r.Err != nil:
 			p.results[i].Err = r.Err
 		}
@@ -645,6 +659,14 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return err
 	}
 	p.results[i].Truncated = truncated.Load()
+
+	// A cooldown needs a publication date to measure age. When one is in force
+	// but the source dates nothing it returned, honoring it is impossible, so
+	// clover skips the marker with a warning instead of silently updating past a
+	// cooldown that cannot apply.
+	if cd := p.effectiveCooldown(m, cfg); cd > 0 && !p.now.IsZero() && !anyDated(candidates) {
+		return errCooldownUnsupported
+	}
 
 	opts, err := rule.Compile(m.Directive, located.Semver())
 	if err != nil {
@@ -829,6 +851,26 @@ func (p *plan) cooldownFor(m Marker, cfg *config.Config) (time.Duration, bool) {
 		}
 	}
 	return 0, false
+}
+
+// effectiveCooldown resolves the cooldown that will govern m after the override
+// chain: a --cooldown flag or run.cooldown default (via cooldownFor) wins,
+// otherwise the directive's own cooldown stands. It is what the unsupported-
+// source skip check consults, matching the value selection ends up applying.
+func (p *plan) effectiveCooldown(m Marker, cfg *config.Config) time.Duration {
+	if d, ok := p.cooldownFor(m, cfg); ok {
+		return d
+	}
+	d, _ := m.Directive.Duration(constant.RuleCooldown)
+	return d
+}
+
+// anyDated reports whether any candidate carries a publication date, the signal
+// that the source can measure a cooldown at all.
+func anyDated(candidates []model.Candidate) bool {
+	return slices.ContainsFunc(candidates, func(c model.Candidate) bool {
+		return !c.PublishedAt.IsZero()
+	})
 }
 
 // finalize publishes the resolved candidate (when the marker carries an id),

@@ -105,7 +105,6 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		Int(field.Changed, summary.Changed()).
 		Int(field.Skipped, summary.Skipped()).
 		Int(field.Disabled, summary.Disabled()).
-		Int(field.Failed, summary.Errored()).
 		Duration(field.Elapsed, summary.Elapsed).
 		Msg("Run complete")
 }

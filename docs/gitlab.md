@@ -28,7 +28,7 @@ Unlike GitHub, a GitLab project path may be nested through any number of groups 
 
 The tags endpoint is queried highest-version first (`order_by=version`), so the latest version is always read on the first page, rather than the most recently updated tag, which a backport to an old release line would otherwise float to the top. Both tags and releases carry the commit they point at, which Clover records on the resolved version.
 
-A release carries its publication date, used by [`cooldown`](cooldown.md). A tag carries its own creation date when GitLab supplies one. An annotated or lightweight tag may report none, in which case `cooldown` is simply inert for that tag rather than reading the target commit's possibly much older date. An [upcoming release](https://docs.gitlab.com/api/releases/), one scheduled for a future date, is never a candidate.
+A release carries its publication date, used by [`cooldown`](cooldown.md). A tag carries its own creation date when GitLab supplies one. An annotated or lightweight tag may report none, in which case that tag is not age-checked rather than read from the target commit's possibly much older date; if no tag in the result carries a date, the marker is skipped with a warning instead of updating past a cooldown Clover cannot check. An [upcoming release](https://docs.gitlab.com/api/releases/), one scheduled for a future date, is never a candidate.
 
 ## Selecting by asset
 

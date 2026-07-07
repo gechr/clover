@@ -26,7 +26,7 @@ FROM redis:7.2.0
 
 ## Tags and releases
 
-`source` chooses what to list. `tags` (the default) reads the repository's tags; `releases` reads its published releases. The difference matters for [`cooldown`](cooldown.md): a GitHub tag carries no publication date of its own, only its target commit's, so rather than age a tag by a commit that may long predate it, `cooldown` is simply inert when listing tags. A release carries its own `published_at`, so `cooldown` applies under `source=releases`. Set `source=releases` when you want a version held back until it has aged.
+`source` chooses what to list. `tags` (the default) reads the repository's tags; `releases` reads its published releases. The difference matters for [`cooldown`](cooldown.md): a GitHub tag carries no publication date of its own, only its target commit's, so Clover cannot age a tag without guessing from a commit that may long predate it. Rather than silently update past a cooldown it cannot check, a `cooldown` on `source=tags` **skips the marker with a warning** and holds the line. A release carries its own `published_at`, so set `source=releases` to have cooldown apply.
 
 ## Selecting by asset
 
