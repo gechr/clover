@@ -7,19 +7,34 @@ import (
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/x/set"
 )
 
-// predictorTag names the dynamic predictor bound to the --tag flags; the shell
-// completion script calls back into clover asking to expand it.
-const predictorTag = "tag"
+// Names of the dynamic predictors bound to flags; the shell completion script
+// calls back into clover naming the one to expand.
+const (
+	predictorProvider = "provider" // --enable / --disable
+	predictorTag      = "tag"      // --tag
+)
 
 // completionHandler answers a dynamic shell-completion callback. The generated
 // completion script re-invokes clover naming the predictor to expand, and the
 // handler prints one candidate per line for the shell to offer.
 func completionHandler(_, kind string, _ []string) {
-	if kind == predictorTag {
+	switch kind {
+	case predictorProvider:
+		completeProviders()
+	case predictorTag:
 		completeTags()
+	}
+}
+
+// completeProviders prints every provider --enable and --disable accept, so
+// `clover run --enable <TAB>` offers the selectable providers.
+func completeProviders() {
+	for _, name := range provider.Selectable() {
+		fmt.Println(name)
 	}
 }
 
