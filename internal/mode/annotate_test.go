@@ -16,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
+	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,12 +27,12 @@ const sha = "a0dfaeb072753c3d48cd4df5fdacfd035b2281bf"
 // must be identical and correctly ordered regardless of worker count.
 const testWorkers = 8
 
-// TestMain registers the real docker and github providers, which annotate's
-// verify gate validates inferred resources against. Their Resource parsing is
-// offline (only Discover touches the network, which annotate never calls), so the
-// tests stay hermetic.
+// TestMain registers the real docker, github, and gitlab providers, which
+// annotate's verify gate validates inferred resources against. Their Resource
+// parsing is offline (only Discover touches the network, which annotate never
+// calls), so the tests stay hermetic.
 func TestMain(m *testing.M) {
-	provider.RegisterAll(docker.New(), github.New())
+	provider.RegisterAll(docker.New(), github.New(), gitlab.New())
 	os.Exit(m.Run())
 }
 
@@ -195,6 +196,24 @@ func TestAnnotateInsertsForContainerJobUses(t *testing.T) {
 		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: docker://alpine:3.20\n",
 		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
 		"a container job's docker:// image earns an annotation",
+	)
+}
+
+func TestAnnotateInsertsForGitLabComponent(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		".gitlab-ci.yml": "include:\n  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"include:\n  # clover: provider=auto\n  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1\n",
+		readFile(t, filepath.Join(root, ".gitlab-ci.yml")),
+		"a component include earns an annotation",
 	)
 }
 

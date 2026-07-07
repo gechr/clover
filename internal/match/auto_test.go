@@ -145,6 +145,38 @@ func TestInfer(t *testing.T) {
 			ok: true,
 		},
 		{
+			name: "gitlab component include",
+			path: ".gitlab-ci.yml",
+			line: "  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1",
+			want: match.Inference{Provider: "gitlab", Repository: "components/opentofu"},
+			ok:   true,
+		},
+		{
+			name: "gitlab component with a nested project path",
+			path: ".gitlab-ci.yml",
+			line: "  - component: gitlab.com/group/subgroup/project/lint@1.0.0",
+			want: match.Inference{Provider: "gitlab", Repository: "group/subgroup/project"},
+			ok:   true,
+		},
+		{
+			name: "gitlab component on a self-managed host",
+			path: "ci/pipeline.yaml",
+			line: "  - component: gitlab.example.com/org/proj/deploy@3.1.4",
+			want: match.Inference{
+				Provider:   "gitlab",
+				Host:       "gitlab.example.com",
+				Repository: "org/proj",
+			},
+			ok: true,
+		},
+		{
+			name: "gitlab component behind a CI variable has no repository",
+			path: ".gitlab-ci.yml",
+			line: "  - component: $CI_SERVER_FQDN/org/proj/deploy@3.1.4",
+			want: match.Inference{Provider: "gitlab"},
+			ok:   true,
+		},
+		{
 			name: "workflow file but not a uses line",
 			path: ".github/workflows/ci.yaml",
 			line: "    with:",

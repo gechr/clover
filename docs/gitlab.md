@@ -34,6 +34,18 @@ A release carries its publication date, used by [`cooldown`](cooldown.md). A tag
 
 `asset` keeps only releases whose asset links contain a name matching its glob (or `/regex/`), then selects the newest of those. It requires `source=releases`, since only releases publish assets. Note that GitLab does not publish a checksum for a release asset, so a [`value=sha256`](checksums.md) follower must source one from a checksum file rather than the asset metadata.
 
+## CI/CD components
+
+A [CI/CD component](https://docs.gitlab.com/ci/components/) include names its project and version on one line, so Clover recognizes it without any explicit keys. Auto-detection reads the project path from the reference (dropping the trailing component name) and tracks the project's tags:
+
+```yaml
+include:
+  # clover: provider=auto constraint=minor
+  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1
+```
+
+A component on a self-managed instance infers its `host` from the reference as well. A reference behind a variable like `$CI_SERVER_FQDN` carries nothing to infer from, so annotate it explicitly with `provider=gitlab` and a `repository`.
+
 ## Self-managed GitLab
 
 By default the provider targets GitLab.com. Point `host` at a self-managed instance to track a project there, and Clover routes through that instance's `/api/v4` surface instead of gitlab.com's:

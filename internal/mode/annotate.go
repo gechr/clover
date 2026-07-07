@@ -290,7 +290,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			if !force || !forceEligible(loc.Directive, inf.Provider) {
 				continue
 			}
-			if change, ok := rewrite(syntax, file.Lines[loc.Line], loc); ok {
+			if change, ok := rewrite(syntax, file.Lines[loc.Line], loc, inf); ok {
 				annotated.Changes = append(annotated.Changes, change)
 			}
 			continue
@@ -371,6 +371,9 @@ func inferredDirective(inf match.Inference) directive.Directive {
 	if inf.Registry != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
 	}
+	if inf.Host != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
+	}
 	return directive.Directive{Pairs: pairs}
 }
 
@@ -410,7 +413,7 @@ func isComment(syntax comment.Syntax, line string) bool {
 // `clover: provider=auto` comment indented to match the line. ok is false when
 // the file's syntax exposes no comment delimiter.
 func insert(syntax comment.Syntax, i int, line string) (AnnotateChange, bool) {
-	body := directive.Render(canonicalDirective(directive.Directive{}))
+	body := directive.Render(canonicalDirective(directive.Directive{}, match.Inference{}))
 	comment, ok := syntax.Comment(leadingWhitespace(line), body)
 	if !ok {
 		return AnnotateChange{}, false
@@ -421,8 +424,13 @@ func insert(syntax comment.Syntax, i int, line string) (AnnotateChange, bool) {
 // rewrite canonicalizes an existing directive comment into its minimal form,
 // returning the rewritten line. ok is false when the comment cannot be
 // re-rendered or the canonical form is identical to what is already there.
-func rewrite(syntax comment.Syntax, line string, loc scan.Located) (AnnotateChange, bool) {
-	body := directive.Render(canonicalDirective(loc.Directive))
+func rewrite(
+	syntax comment.Syntax,
+	line string,
+	loc scan.Located,
+	inf match.Inference,
+) (AnnotateChange, bool) {
+	body := directive.Render(canonicalDirective(loc.Directive, inf))
 	rendered, ok := syntax.Render(line, body)
 	if !ok || rendered == line {
 		return AnnotateChange{}, false
@@ -432,22 +440,36 @@ func rewrite(syntax comment.Syntax, line string, loc scan.Located) (AnnotateChan
 
 // canonicalDirective returns the minimal directive annotate writes for a
 // recognized line: provider=auto first, then every key from the existing
-// directive except the three auto-detection supplies from the line itself
-// (provider, repository, registry), kept in their original order. For a fresh
-// insertion the input is empty, so the result is just provider=auto. Dropping
-// repository/registry is what lets force both shed a redundant explicit value
-// and repair one that has drifted from its line, while every rule key survives.
-func canonicalDirective(d directive.Directive) directive.Directive {
+// directive except the ones auto-detection supplies from the line itself (see
+// [inferenceOwns]), kept in their original order. For a fresh insertion the
+// input is empty, so the result is just provider=auto. Dropping the inference-
+// owned keys is what lets force both shed a redundant explicit value and repair
+// one that has drifted from its line, while every rule key survives.
+func canonicalDirective(d directive.Directive, inf match.Inference) directive.Directive {
 	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: constant.ProviderAuto}}
 	for _, kv := range d.Pairs {
-		switch kv.Key {
-		case constant.DirectiveProvider, constant.DirectiveRepository, constant.DirectiveRegistry:
+		if inferenceOwns(kv.Key, inf) {
 			continue
-		default:
-			pairs = append(pairs, kv)
 		}
+		pairs = append(pairs, kv)
 	}
 	return directive.Directive{Pairs: pairs}
+}
+
+// inferenceOwns reports whether auto-detection supplies key for a line inf was
+// inferred from, so force can drop it and let resolution re-derive it. The
+// provider, repository, and registry are always inference's to supply; the host
+// only when the line itself names one, so an explicit host pointing a reference
+// at a self-managed instance survives the collapse.
+func inferenceOwns(key string, inf match.Inference) bool {
+	switch key {
+	case constant.DirectiveProvider, constant.DirectiveRepository, constant.DirectiveRegistry:
+		return true
+	case constant.DirectiveHost:
+		return inf.Host != ""
+	default:
+		return false
+	}
 }
 
 // applyAnnotations returns a copy of lines with each change applied. Insertions
@@ -604,11 +626,15 @@ func inferenceLine(leaf sidecar.Leaf) (string, bool) {
 }
 
 // sourceKeyPairs builds the source-identifying key prefix every annotation
-// carries: the provider, the registry when one is inferred, and the repository.
+// carries: the provider, the registry and host when inferred, and the
+// repository.
 func sourceKeyPairs(inf match.Inference) []directive.KV {
 	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
 	if inf.Registry != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveRegistry, Value: inf.Registry})
+	}
+	if inf.Host != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
 	}
 	return append(pairs, directive.KV{Key: constant.DirectiveRepository, Value: inf.Repository})
 }
@@ -763,12 +789,16 @@ func forceSidecar(
 }
 
 // sourceDrifted reports whether an existing entry's source keys disagree with what
-// the line now infers - the signal force should re-derive them.
+// the line now infers - the signal force should re-derive them. The host is
+// compared only when the line infers one, mirroring [inferenceOwns]: an explicit
+// host inference does not supply is deliberate, not drift.
 func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 	provider, _ := existing.Get(constant.DirectiveProvider)
 	repository, _ := existing.Get(constant.DirectiveRepository)
 	registry, _ := existing.Get(constant.DirectiveRegistry)
-	return provider != inf.Provider || repository != inf.Repository || registry != inf.Registry
+	host, _ := existing.Get(constant.DirectiveHost)
+	return provider != inf.Provider || repository != inf.Repository ||
+		registry != inf.Registry || (inf.Host != "" && host != inf.Host)
 }
 
 // refreshSource re-derives an entry's source keys from the line while preserving
@@ -779,14 +809,10 @@ func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 func refreshSource(existing directive.Directive, inf match.Inference) directive.Directive {
 	pairs := sourceKeyPairs(inf)
 	for _, kv := range existing.Pairs {
-		switch kv.Key {
-		case constant.DirectiveProvider,
-			constant.DirectiveRepository,
-			constant.DirectiveRegistry:
+		if inferenceOwns(kv.Key, inf) {
 			continue // re-derived above
-		default:
-			pairs = append(pairs, kv) // keep the locator and every selection rule
 		}
+		pairs = append(pairs, kv) // keep the locator and every selection rule
 	}
 	return directive.Directive{Pairs: pairs}
 }

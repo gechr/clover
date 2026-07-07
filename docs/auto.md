@@ -19,6 +19,7 @@ Auto-detection recognizes:
 - A `FROM` instruction in a Dockerfile or Containerfile, tag-only or digest-pinned, resolved by the [Docker](docker.md) provider with the inferred `registry` and `repository`.
 - An `image:` mapping in YAML, tag-only or digest-pinned, resolved the same way.
 - A workflow container job's `uses: docker://` reference, tag-only or digest-pinned, resolved the same way.
+- A GitLab CI/CD component include (`component: gitlab.com/group/project/name@1.0.0`), resolved by the [GitLab](gitlab.md) provider with the inferred `repository`, and the inferred `host` when the component lives on a self-managed instance.
 
 ## When to be explicit
 

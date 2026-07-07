@@ -212,6 +212,17 @@ var routes = []route{
 		rw: NewDockerTag(),
 	},
 	{
+		// A GitLab CI/CD component include: component: <host>/<project>/<name>@<version>.
+		// The version is the only version-shaped token on the line, so the smart
+		// rewriter bumps it in place.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern("* component: *@*"),
+			provider:  constant.ProviderGitlab,
+		},
+		rw: NewSmart(),
+	},
+	{
 		// A follower projecting a commit or sha256 onto its own line; the hash
 		// rewriter swaps the existing hex token. Followers carry provider=follow,
 		// so this never collides with the provider-gated routes above.

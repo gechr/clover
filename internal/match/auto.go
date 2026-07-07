@@ -10,6 +10,7 @@ import (
 // its target line: the real provider plus any provider parameters readable from
 // the line. Empty parameter fields mean the line did not carry that detail.
 type Inference struct {
+	Host       string
 	Provider   string
 	Registry   string
 	Repository string
@@ -40,10 +41,43 @@ func Infer(path, line string) (Inference, bool) {
 			inferred.Repository = actionRepository(line)
 		case constant.ProviderDocker:
 			inferred.Registry, inferred.Repository = imageReference(line)
+		case constant.ProviderGitlab:
+			inferred.Host, inferred.Repository = componentReference(line)
 		}
 		return inferred, true
 	}
 	return Inference{}, false
+}
+
+// gitlabHost is the host the gitlab provider targets when host is omitted. A
+// component reference on it infers no host key, so the directive stays minimal.
+const gitlabHost = "gitlab.com"
+
+// componentReference extracts the host and project path from a GitLab CI/CD
+// component reference, e.g. "component: gitlab.com/org/proj/comp@1.2.3" ->
+// ("", "org/proj"). The component name (the last path segment) is dropped,
+// since versions are the project's tags, and the default gitlab.com host is
+// returned empty. A first segment that does not look like a host, or a
+// reference carrying a variable like $CI_SERVER_FQDN, yields no reference.
+func componentReference(line string) (string, string) {
+	_, after, ok := strings.Cut(line, "component:")
+	if !ok {
+		return "", ""
+	}
+	ref := yamlScalar(after)
+	if at := strings.IndexByte(ref, '@'); at >= 0 {
+		ref = ref[:at]
+	}
+	segments := strings.Split(ref, "/")
+	if len(segments) < 3 || !strings.Contains(segments[0], ".") ||
+		strings.ContainsRune(ref, '$') {
+		return "", ""
+	}
+	host := segments[0]
+	if host == gitlabHost {
+		host = ""
+	}
+	return host, strings.Join(segments[1:len(segments)-1], "/")
 }
 
 // actionRepository extracts the owner/repo from a GitHub Actions uses: pin,

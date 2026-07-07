@@ -107,6 +107,7 @@ func infer(file scan.File, target int, d directive.Directive) (string, directive
 	}
 	d = appendParam(d, constant.DirectiveRegistry, inferred.Registry)
 	d = appendParam(d, constant.DirectiveRepository, inferred.Repository)
+	d = appendParam(d, constant.DirectiveHost, inferred.Host)
 	return inferred.Provider, d
 }
 
