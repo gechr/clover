@@ -229,6 +229,13 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "required_version in a tofu file tracks OpenTofu releases",
+			path: "infra/versions.tofu",
+			line: `  required_version = "~> 1.8.0"`,
+			want: match.Inference{Provider: "github", Repository: "opentofu/opentofu"},
+			ok:   true,
+		},
+		{
 			name: "required_version outside a terraform file is not matched",
 			path: "notes.txt",
 			line: `required_version = "~> 1.11.0"`,
@@ -461,4 +468,16 @@ func TestInferTerraformProviders(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+
+	t.Run("a tofu file resolves against the OpenTofu registry", func(t *testing.T) {
+		t.Parallel()
+
+		got, ok := match.Infer("infra/versions.tofu", block, 6)
+		require.True(t, ok)
+		require.Equal(
+			t,
+			match.Inference{Provider: "opentofu", Source: "hashicorp/aws"},
+			got,
+		)
+	})
 }

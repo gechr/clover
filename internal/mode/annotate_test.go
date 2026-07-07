@@ -44,6 +44,7 @@ func TestMain(m *testing.M) {
 		hashicorp.New(),
 		node.New(),
 		terraform.New(terraform.Terraform),
+		terraform.New(terraform.OpenTofu),
 	)
 	os.Exit(m.Run())
 }

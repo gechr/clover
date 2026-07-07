@@ -38,7 +38,7 @@ func (i Inference) Missing() string {
 		if i.Product == "" {
 			return "line names no product"
 		}
-	case constant.ProviderTerraform:
+	case constant.ProviderTerraform, constant.ProviderOpentofu:
 		if i.Source == "" {
 			return "block names no source"
 		}
@@ -84,7 +84,7 @@ func Infer(path string, lines []string, target int) (Inference, bool) {
 			inferred.Repository = miseGiteaTools[miseKey(line)]
 		case constant.ProviderHashicorp:
 			inferred.Product = hashicorpProduct(path, line)
-		case constant.ProviderTerraform:
+		case constant.ProviderTerraform, constant.ProviderOpentofu:
 			inferred.Source = terraformSource(lines, target)
 		}
 		return inferred, true
@@ -159,6 +159,10 @@ type githubTool struct {
 // go tool and the go directive in go.mod.
 var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
 
+// tofuTool is the source of OpenTofu toolchain releases, referenced by both
+// the mise tofu tool and a .tofu file's required_version constraint.
+var tofuTool = githubTool{repository: "opentofu/opentofu"}
+
 // miseGithubTools maps curated mise tool names to the GitHub source whose
 // releases they track, taking precedence over the generated registry map for
 // tools whose tags carry a prefix or that the registry routes elsewhere. The
@@ -168,8 +172,8 @@ var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
 //go:generate go run ../tools/genmise
 var miseGithubTools = map[string]githubTool{
 	"go":       goTool,
-	"opentofu": {repository: "opentofu/opentofu"},
-	"tofu":     {repository: "opentofu/opentofu"},
+	"opentofu": tofuTool,
+	"tofu":     tofuTool,
 	// Core mise runtimes (backends = ["core:..."]) whose upstream tags cleanly
 	// carry the pinned version. Runtimes with exotic tag schemes (ruby's v3_4_1,
 	// swift's swift-6.0-RELEASE, multi-vendor java) are deliberately absent.
@@ -190,13 +194,17 @@ var miseGiteaTools = map[string]string{
 
 // githubReference extracts the repository a line tracks on GitHub, and the
 // tag-prefix its upstream tags carry: a uses: action reference, the go
-// directive in go.mod, or a mise tool key.
+// directive in go.mod, a .tofu file's required_version constraint, or a mise
+// tool key.
 func githubReference(path, line string) (string, string) {
 	if repo := actionRepository(line); repo != "" {
 		return repo, ""
 	}
 	if matchPath(goModGlob, path) {
 		return goTool.repository, goTool.tagPrefix
+	}
+	if matchPath(tofuGlob, path) {
+		return tofuTool.repository, tofuTool.tagPrefix
 	}
 	return miseTool(line)
 }

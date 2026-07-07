@@ -77,8 +77,9 @@ var byExt = map[string]Syntax{
 	".ts":    slash,
 	".tsx":   slash,
 
-	".hcl": hcl,
-	".tf":  hcl,
+	".hcl":  hcl,
+	".tf":   hcl,
+	".tofu": hcl,
 
 	".css": cstyle,
 

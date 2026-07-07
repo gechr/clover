@@ -134,6 +134,11 @@ const goModGlob = "**/go.mod"
 // constraint pins the toolchain.
 const terraformGlob = "**/*.tf"
 
+// tofuGlob matches OpenTofu configuration files. The .tofu extension is the
+// one unambiguous OpenTofu signal, since .tf contents are identical for both
+// toolchains.
+const tofuGlob = "**/*.tofu"
+
 // hashicorpProducts are the mise tool names that double as HashiCorp product
 // slugs on releases.hashicorp.com, alternated into the mise route's pattern.
 var hashicorpProducts = []string{
@@ -328,6 +333,27 @@ var routes = []route{
 			path:      terraformGlob,
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderTerraform,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// An OpenTofu required_version constraint in a .tofu file. OpenTofu
+		// releases live on GitHub, not releases.hashicorp.com, so the github
+		// provider tracks them.
+		when: conditions{
+			path:      tofuGlob,
+			lineMatch: mustPattern(`/^\s*required_version\s*=\s*"/`),
+			provider:  constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A required_providers version constraint in a .tofu file resolves
+		// against the OpenTofu registry.
+		when: conditions{
+			path:      tofuGlob,
+			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
+			provider:  constant.ProviderOpentofu,
 		},
 		rewriter: NewSmart(),
 	},
