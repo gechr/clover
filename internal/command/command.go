@@ -8,7 +8,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	clib "github.com/gechr/clib/cli/kong"
-	"github.com/gechr/clib/help"
 	"github.com/gechr/clive"
 	"github.com/gechr/clive/updater"
 	"github.com/gechr/clive/version"
@@ -70,17 +69,13 @@ type parallelism int
 // process exit code.
 func Run() int {
 	app := conductor.New(conductor.App{
-		Name:        name,
-		DisplayName: "Clover",
-		Description: description,
-		Module:      module,
-		Updater:     updateConfig(),
-		NotifyOnly:  []string{"run", "lint", "format"},
-		HelpLong:    "Print long help",
-		HelpOptions: []help.RendererOption{
-			//nolint:mnd // self-explanatory
-			help.WithDescriptionWidth(80),
-		},
+		Name:         name,
+		DisplayName:  "Clover",
+		Description:  description,
+		Module:       module,
+		Updater:      updateConfig(),
+		NotifyOnly:   []string{"run", "lint", "format"},
+		HelpLong:     "Print long help",
 		ConfigureLog: logger.Configure,
 	})
 

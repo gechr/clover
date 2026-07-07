@@ -3,6 +3,8 @@
 paths:
   exclude:
     - internal/comment/comment_test.go
+    - internal/comment/marker_test.go
     - internal/mode/sidecar_test.go
+    - internal/pipeline/marker_test.go
     - internal/scan/doc.go
     - internal/scan/sidecar_test.go

@@ -12,7 +12,7 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.5.12
+	github.com/gechr/clib v0.5.13
 	github.com/gechr/clog v0.12.5
 	github.com/gechr/conductor v0.0.11
 	github.com/gechr/x v0.2.14
