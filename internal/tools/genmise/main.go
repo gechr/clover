@@ -13,17 +13,23 @@
 //
 // Usage:
 //
-//	go run ./internal/tools/genmise -src <mise-checkout> -ref <version> [-o <file>]
+//	go run ./internal/tools/genmise [-src <mise-checkout>] [-ref <branch>] [-o <file>]
+//
+// Without -src the mise repository is shallow-cloned to a temporary directory
+// at the -ref branch (main by default), and the header records the commit the
+// map was generated from.
 package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"go/format"
 	"log"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -31,6 +37,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
+
+// miseRepo is the upstream repository a depth-1 clone fetches the registry from.
+const miseRepo = "https://github.com/jdx/mise"
 
 // registryTool is the subset of a mise registry entry the generator reads.
 // Backends decodes loosely: an entry is usually a plain "scheme:spec" string,
@@ -78,31 +87,84 @@ var owner = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
 var segment = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 func main() {
-	src := flag.String("src", "", "path to a mise checkout (required)")
-	ref := flag.String(
-		"ref",
-		"",
-		"mise version the checkout is at, recorded in the header (required)",
-	)
+	src := flag.String("src", "", "path to a mise checkout (cloned to a temp dir when omitted)")
+	ref := flag.String("ref", "main", "mise ref to generate from, recorded in the header")
 	out := flag.String("o", "zz_generated.miseregistry.go", "output file")
 	flag.Parse()
-	if *src == "" || *ref == "" {
-		flag.Usage()
-		os.Exit(2) //nolint:mnd // conventional usage-error exit code
+	log.SetFlags(0)
+
+	if err := run(context.Background(), *src, *ref, *out); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// run generates the map from the checkout at src (cloning one when empty) and
+// writes it to out. It is main's body, split out so its defers run before the
+// fatal-exit error handling.
+func run(ctx context.Context, src, ref, out string) error {
+	if src == "" {
+		clone, cleanup, err := cloneMise(ctx, ref)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		src = clone
 	}
 
-	tools, err := read(filepath.Join(*src, "registry"))
+	tools, err := read(filepath.Join(src, "registry"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	source, err := render(tools, *ref)
+	source, err := render(tools, describe(ctx, src, ref))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if err := os.WriteFile(*out, source, 0o600); err != nil {
-		log.Fatal(err)
+	if err := os.WriteFile(out, source, 0o600); err != nil {
+		return err
 	}
-	log.Printf("wrote %d tools to %s (mise %s)", len(tools), *out, *ref)
+	log.Printf("wrote %d tools to %s (mise %s)", len(tools), out, ref)
+	return nil
+}
+
+// cloneMise fetches the mise repository at ref into a temporary directory with
+// a depth-1 clone, returning the checkout path and its cleanup.
+func cloneMise(ctx context.Context, ref string) (string, func(), error) {
+	dir, err := os.MkdirTemp("", "genmise-*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+
+	cmd := exec.CommandContext(
+		ctx,
+		"git",
+		"clone",
+		"--quiet",
+		"--depth",
+		"1",
+		"--branch",
+		ref,
+		miseRepo,
+		dir,
+	)
+	cmd.Stderr = os.Stderr
+	log.Printf("cloning %s at %s", miseRepo, ref)
+	if err := cmd.Run(); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("clone mise: %w", err)
+	}
+	return dir, cleanup, nil
+}
+
+// describe returns the ref decorated with the checkout's commit (main@abc1234)
+// so the generated header pins what a moving branch pointed at, falling back to
+// the bare ref when src is not a git checkout.
+func describe(ctx context.Context, src, ref string) string {
+	out, err := exec.CommandContext(ctx, "git", "-C", src, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		return ref
+	}
+	return ref + "@" + strings.TrimSpace(string(out))
 }
 
 // read parses every registry TOML under dir and returns the tool-name (and

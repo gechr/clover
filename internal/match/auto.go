@@ -130,7 +130,7 @@ var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
 // long tail of well-known tools lives in miseRegistryTools, generated from the
 // mise registry:
 //
-//go:generate go run ../tools/genmise -src $MISE_SRC -ref $MISE_REF -o zz_generated.miseregistry.go
+//go:generate go run ../tools/genmise
 var miseGithubTools = map[string]githubTool{
 	"go":       goTool,
 	"opentofu": {repository: "opentofu/opentofu"},
