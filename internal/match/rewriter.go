@@ -126,14 +126,26 @@ var routes = []route{
 		// A SHA-pinned GitHub Actions reference: uses: owner/repo@<40-hex> # vX.Y.Z,
 		// updated SHA + version comment in lockstep. Scoped to YAML, the only place a
 		// real uses: lives, so annotate never fires on an example in Markdown prose.
-		// A tag-pinned uses: (@v4, no SHA) falls through to smart; the whitespace
-		// around uses: anchors it to a list key, not a substring like reuses:.
+		// The whitespace around uses: anchors it to a list key, not a substring like
+		// reuses:.
 		when: conditions{
 			path:      "**/*.{yml,yaml}",
 			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
 			provider:  constant.ProviderGithub,
 		},
 		rw: NewActionPin(),
+	},
+	{
+		// A tag-pinned GitHub Actions reference: uses: owner/repo@vX.Y.Z. The tag
+		// is the only version-shaped token on the line, so the smart rewriter bumps
+		// it in place. Must follow the SHA-pinned route, which claims the pins
+		// whose version lives in the trailing comment.
+		when: conditions{
+			path:      "**/*.{yml,yaml}",
+			lineMatch: mustPattern(`/\s+uses:\s+\S+@v?\d/`),
+			provider:  constant.ProviderGithub,
+		},
+		rw: NewSmart(),
 	},
 	{
 		// A digest-pinned Dockerfile FROM; the @sha256 makes it a secure pin,

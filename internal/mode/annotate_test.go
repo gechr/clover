@@ -162,6 +162,24 @@ func TestAnnotateInsertsForRecognizedLines(t *testing.T) {
 		readFile(t, filepath.Join(root, "compose.yaml")))
 }
 
+func TestAnnotateInsertsForTagPinnedUses(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		".github/workflows/ci.yaml": "jobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: actions/checkout@v4\n",
+		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
+		"a tag-pinned uses: earns an annotation just like a SHA pin",
+	)
+}
+
 func TestAnnotatePreviewWritesNothing(t *testing.T) {
 	t.Parallel()
 

@@ -11,6 +11,14 @@ FROM redis:7.2.0
 
 Here Clover recognizes a Docker image reference on the line and resolves it with the [Docker](docker.md) provider, inferring `repository=redis`. A line that names a GitHub repository resolves with the [GitHub](github.md) provider instead.
 
+## Recognized shapes
+
+Auto-detection recognizes:
+
+- A GitHub Actions `uses:` reference in YAML, pinned to a commit SHA or to a tag, resolved by the [GitHub](github.md) provider with the inferred `repository`.
+- A `FROM` instruction in a Dockerfile or Containerfile, tag-only or digest-pinned, resolved by the [Docker](docker.md) provider with the inferred `registry` and `repository`.
+- An `image:` mapping in YAML, tag-only or digest-pinned, resolved the same way.
+
 ## When to be explicit
 
 Auto-detection covers the obvious cases. Set `provider` explicitly when:
