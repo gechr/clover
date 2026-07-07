@@ -82,7 +82,7 @@ func Run() int {
 	provider.RegisterAll(all.New(http.WithVersion(clive.Current()))...)
 
 	var r root
-	prog, err := cli.New(app, &r)
+	prog, err := cli.New(app, &r, cli.WithCompletionHandler(completionHandler))
 	if err != nil {
 		clog.Error().Err(err).Msg("Failed to build CLI")
 		return exitFailure
