@@ -26,7 +26,7 @@ The version inside the constraint string is the only version-shaped token on the
 | [`exclude`](filtering.md)      | Drop matching versions                                                              |
 | [`prerelease`](prereleases.md) | Allow or exclude prerelease versions (alphas, betas, and release candidates)        |
 
-The registries are public, so the provider needs no authentication. The versions endpoint returns the whole version history in one response and carries no publication dates, so [`cooldown`](cooldown.md) is inert here. To gate on age, track the provider's GitHub repository instead, where releases carry timestamps.
+The registries are public, so the provider needs no authentication. The versions endpoint returns the whole version history in one response and carries no publication dates. Because [`cooldown`](cooldown.md) needs a date to measure age, a marker that sets one is skipped with a warning rather than updated past a gate Clover cannot check. To gate on age, track the provider's GitHub repository instead, where releases carry timestamps.
 
 ## Private registries
 
