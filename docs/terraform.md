@@ -12,7 +12,7 @@ required_providers {
 }
 ```
 
-The version inside the constraint string is the only version-shaped token on the line, so Clover bumps it in place and the operator and precision around it survive.
+The version inside the constraint string is the only version-shaped token on the line, so Clover bumps it in place and the operator and precision around it survive. [Auto-detection](auto.md) recognizes a `required_providers` version line on its own, reading the `source` from the enclosing entry, so a bare `provider=auto` (the form `clover annotate` writes) is usually enough. It resolves against the Terraform registry; an OpenTofu repository sets `provider=opentofu` explicitly.
 
 ## Keys
 

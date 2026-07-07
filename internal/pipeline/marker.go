@@ -101,7 +101,7 @@ func infer(file scan.File, target int, d directive.Directive) (string, directive
 	if target < 0 || target >= len(file.Lines) {
 		return constant.ProviderAuto, d
 	}
-	inferred, ok := match.Infer(file.Path, file.Lines[target])
+	inferred, ok := match.Infer(file.Path, file.Lines, target)
 	if !ok {
 		return constant.ProviderAuto, d
 	}
@@ -109,6 +109,7 @@ func infer(file scan.File, target int, d directive.Directive) (string, directive
 	d = appendParam(d, constant.DirectiveRepository, inferred.Repository)
 	d = appendParam(d, constant.DirectiveHost, inferred.Host)
 	d = appendParam(d, constant.DirectiveProduct, inferred.Product)
+	d = appendParam(d, constant.DirectiveSource, inferred.Source)
 	d = appendParam(d, constant.RuleTagPrefix, inferred.TagPrefix)
 	d = appendParam(d, constant.DirectiveTrack, inferred.Track)
 	return inferred.Provider, d

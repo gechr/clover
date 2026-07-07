@@ -320,6 +320,18 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// A required_providers version constraint: version = "~> 6.39". The
+		// source address lives on a sibling line of the entry, so inference
+		// parses the enclosing block (see terraformSource); a version attribute
+		// outside required_providers infers no source and is skipped.
+		when: conditions{
+			path:      terraformGlob,
+			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
+			provider:  constant.ProviderTerraform,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// The go directive in go.mod: go 1.23.2. Go releases are tagged goX.Y.Z
 		// in golang/go, so the github provider tracks them under the go
 		// tag-prefix.

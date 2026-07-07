@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/node"
+	"github.com/gechr/clover/internal/provider/terraform"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,6 +43,7 @@ func TestMain(m *testing.M) {
 		gitlab.New(),
 		hashicorp.New(),
 		node.New(),
+		terraform.New(terraform.Terraform),
 	)
 	os.Exit(m.Run())
 }
@@ -321,6 +323,39 @@ func TestAnnotateInsertsForTerraformRequiredVersion(t *testing.T) {
 		"terraform {\n  # clover: provider=auto\n  required_version = \"~> 1.11.0\"\n}\n",
 		readFile(t, filepath.Join(root, "versions.tf")),
 		"a required_version constraint earns an annotation",
+	)
+}
+
+func TestAnnotateInsertsForRequiredProviders(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"versions.tf": "terraform {\n" +
+			"  required_providers {\n" +
+			"    aws = {\n" +
+			"      source  = \"hashicorp/aws\"\n" +
+			"      version = \"~> 6.39\"\n" +
+			"    }\n" +
+			"  }\n" +
+			"}\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"terraform {\n"+
+			"  required_providers {\n"+
+			"    aws = {\n"+
+			"      source  = \"hashicorp/aws\"\n"+
+			"      # clover: provider=auto\n"+
+			"      version = \"~> 6.39\"\n"+
+			"    }\n"+
+			"  }\n"+
+			"}\n",
+		readFile(t, filepath.Join(root, "versions.tf")),
+		"a required_providers version earns an annotation, sourced from its block",
 	)
 }
 

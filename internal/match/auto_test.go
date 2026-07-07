@@ -385,7 +385,78 @@ func TestInfer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, ok := match.Infer(tt.path, tt.line)
+			got, ok := match.Infer(tt.path, []string{tt.line}, 0)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestInferTerraformProviders covers the one context-aware inference: a
+// required_providers version line whose source address lives on a sibling line
+// of its HCL block.
+func TestInferTerraformProviders(t *testing.T) {
+	t.Parallel()
+
+	block := []string{
+		"terraform {",
+		`  required_version = "~> 1.11.0"`,
+		"",
+		"  required_providers {",
+		"    aws = {",
+		`      source  = "hashicorp/aws"`,
+		`      version = "~> 6.39"`,
+		"    }",
+		"    random = {",
+		`      version = "3.6.0"`,
+		`      source  = "hashicorp/random"`,
+		"    }",
+		`    shorthand = "~> 2.0"`,
+		"  }",
+		"}",
+		"",
+		"module \"vpc\" {",
+		`  source  = "terraform-aws-modules/vpc/aws"`,
+		`  version = "5.8.1"`,
+		"}",
+	}
+
+	tests := []struct {
+		name   string
+		target int
+		want   match.Inference
+		ok     bool
+	}{
+		{
+			name:   "entry with source above the version",
+			target: 6,
+			want:   match.Inference{Provider: "terraform", Source: "hashicorp/aws"},
+			ok:     true,
+		},
+		{
+			name:   "entry with source below the version",
+			target: 9,
+			want:   match.Inference{Provider: "terraform", Source: "hashicorp/random"},
+			ok:     true,
+		},
+		{
+			name:   "shorthand entry line is not a version key",
+			target: 12,
+			ok:     false,
+		},
+		{
+			name:   "module version pins a module, not a provider",
+			target: 18,
+			want:   match.Inference{Provider: "terraform"},
+			ok:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := match.Infer("infra/versions.tf", block, tt.target)
 			require.Equal(t, tt.ok, ok)
 			require.Equal(t, tt.want, got)
 		})

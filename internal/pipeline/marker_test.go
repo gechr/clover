@@ -87,11 +87,13 @@ func TestMarkersAuto(t *testing.T) {
 		path       string
 		lines      []string
 		directive  directive.Directive
+		line       int // 0-based line the directive comment sits on
 		provider   string
 		registry   string
 		repository string
 		host       string
 		product    string
+		source     string
 		tagPrefix  string
 		track      string
 	}{
@@ -203,6 +205,25 @@ func TestMarkersAuto(t *testing.T) {
 			track:      "nonroot",
 		},
 		{
+			name: "infers the registry source from a required_providers block",
+			path: "versions.tf",
+			lines: []string{
+				"terraform {",
+				"  required_providers {",
+				"    aws = {",
+				`      source  = "hashicorp/aws"`,
+				"      # clover: provider=auto",
+				`      version = "~> 6.39"`,
+				"    }",
+				"  }",
+				"}",
+			},
+			directive: auto,
+			line:      4,
+			provider:  "terraform",
+			source:    "hashicorp/aws",
+		},
+		{
 			name:       "stays auto when the target is not a recognised pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
@@ -226,7 +247,7 @@ func TestMarkersAuto(t *testing.T) {
 			file := scan.File{
 				Path:  tt.path,
 				Lines: tt.lines,
-				Found: []scan.Located{{Line: 0, Directive: tt.directive}},
+				Found: []scan.Located{{Line: tt.line, Directive: tt.directive}},
 			}
 			markers := pipeline.Markers(file, vcs.NewResolver())
 			require.Len(t, markers, 1)
@@ -235,6 +256,7 @@ func TestMarkersAuto(t *testing.T) {
 			require.Equal(t, tt.repository, keyOf(markers[0], "repository"))
 			require.Equal(t, tt.host, keyOf(markers[0], "host"))
 			require.Equal(t, tt.product, keyOf(markers[0], "product"))
+			require.Equal(t, tt.source, keyOf(markers[0], "source"))
 			require.Equal(t, tt.tagPrefix, keyOf(markers[0], "tag-prefix"))
 			require.Equal(t, tt.track, keyOf(markers[0], "track"))
 		})

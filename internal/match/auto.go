@@ -16,6 +16,7 @@ type Inference struct {
 	Provider   string
 	Registry   string
 	Repository string
+	Source     string
 	TagPrefix  string
 	Track      string
 }
@@ -37,18 +38,28 @@ func (i Inference) Missing() string {
 		if i.Product == "" {
 			return "line names no product"
 		}
+	case constant.ProviderTerraform:
+		if i.Source == "" {
+			return "block names no source"
+		}
 	}
 	return ""
 }
 
-// Infer resolves the provider for an `auto` marker from its file path and target
-// line, reusing the dispatch routes: the first route whose path and line match
-// (ignoring its provider guard, which is the answer) names the provider. It also
-// reads the provider's parameters from the line - the repository from a GitHub
-// Actions pin, the registry and repository from a container image reference - so
-// a bare `provider=auto` needs no further keys. It returns ok=false when nothing
-// matches, leaving the marker for the caller to reject.
-func Infer(path, line string) (Inference, bool) {
+// Infer resolves the provider for an `auto` marker from its file path and
+// target line (lines[target]), reusing the dispatch routes: the first route
+// whose path and line match (ignoring its provider guard, which is the answer)
+// names the provider. It also reads the provider's parameters from the line -
+// the repository from a GitHub Actions pin, the registry and repository from a
+// container image reference - so a bare `provider=auto` needs no further keys.
+// The surrounding lines matter only to the Terraform route, whose source
+// address lives on a sibling line of its block. It returns ok=false when
+// nothing matches, leaving the marker for the caller to reject.
+func Infer(path string, lines []string, target int) (Inference, bool) {
+	if target < 0 || target >= len(lines) {
+		return Inference{}, false
+	}
+	line := lines[target]
 	for _, r := range routes {
 		c := r.when
 		if c.provider == "" {
@@ -73,6 +84,8 @@ func Infer(path, line string) (Inference, bool) {
 			inferred.Repository = miseGiteaTools[miseKey(line)]
 		case constant.ProviderHashicorp:
 			inferred.Product = hashicorpProduct(path, line)
+		case constant.ProviderTerraform:
+			inferred.Source = terraformSource(lines, target)
 		}
 		return inferred, true
 	}

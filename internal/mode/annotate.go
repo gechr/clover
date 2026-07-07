@@ -248,7 +248,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 
 	for i, line := range file.Lines {
 		if file.Ignored.Contains(i) {
-			if recognized(file.Path, line) {
+			if recognized(file.Path, file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "ignored"))
 			}
 			continue // a clover:ignore control opts this line out
@@ -257,12 +257,12 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		// live field, so it is never a target - inference reads raw line text and
 		// would otherwise match inside the comment.
 		if isComment(syntax, line) {
-			if recognized(file.Path, line) {
+			if recognized(file.Path, file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "commented out"))
 			}
 			continue
 		}
-		inf, ok := match.Infer(file.Path, line)
+		inf, ok := match.Infer(file.Path, file.Lines, i)
 		if !ok {
 			continue
 		}
@@ -308,10 +308,11 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	return annotated
 }
 
-// recognized reports whether line names a source annotate could infer. It is used
-// for opt-out diagnostics, so it stops before the heavier offline resolution gate.
-func recognized(path, line string) bool {
-	inf, ok := match.Infer(path, line)
+// recognized reports whether lines[i] names a source annotate could infer. It is
+// used for opt-out diagnostics, so it stops before the heavier offline
+// resolution gate.
+func recognized(path string, lines []string, i int) bool {
+	inf, ok := match.Infer(path, lines, i)
 	return ok && inf.Missing() == ""
 }
 
@@ -381,6 +382,9 @@ func inferredDirective(inf match.Inference) directive.Directive {
 	}
 	if inf.Product != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveProduct, Value: inf.Product})
+	}
+	if inf.Source != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveSource, Value: inf.Source})
 	}
 	if inf.TagPrefix != "" {
 		pairs = append(pairs, directive.KV{Key: constant.RuleTagPrefix, Value: inf.TagPrefix})
@@ -483,6 +487,8 @@ func inferenceOwns(key string, inf match.Inference) bool {
 		return inf.Host != ""
 	case constant.DirectiveProduct:
 		return inf.Product != ""
+	case constant.DirectiveSource:
+		return inf.Source != ""
 	case constant.RuleTagPrefix:
 		return inf.TagPrefix != ""
 	default:
@@ -622,7 +628,7 @@ func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
 	if !ok {
 		return match.Inference{}, "", false
 	}
-	inf, ok := match.Infer(syntheticInferencePath, syntheticLine)
+	inf, ok := match.Infer(syntheticInferencePath, []string{syntheticLine}, 0)
 	if !ok {
 		return match.Inference{}, "", false
 	}
@@ -820,11 +826,13 @@ func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 	registry, _ := existing.Get(constant.DirectiveRegistry)
 	host, _ := existing.Get(constant.DirectiveHost)
 	product, _ := existing.Get(constant.DirectiveProduct)
+	source, _ := existing.Get(constant.DirectiveSource)
 	tagPrefix, _ := existing.Get(constant.RuleTagPrefix)
 	return provider != inf.Provider || repository != inf.Repository ||
 		registry != inf.Registry ||
 		(inf.Host != "" && host != inf.Host) ||
 		(inf.Product != "" && product != inf.Product) ||
+		(inf.Source != "" && source != inf.Source) ||
 		(inf.TagPrefix != "" && tagPrefix != inf.TagPrefix)
 }
 
