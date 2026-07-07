@@ -405,6 +405,8 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		}
 	}
 
+	markers = filterProviders(markers, set.providerFilter)
+
 	results := make([]Result, len(markers))
 	for i, m := range markers {
 		results[i] = Result{Marker: m, NewLine: targetLine(lines, m)}
@@ -431,6 +433,50 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		verify:         set.verify,
 		workers:        set.workers,
 	}
+}
+
+// filterProviders drops markers whose resolved provider the filter excludes. A
+// follower is judged by the producer it ultimately follows, so a follower of an
+// excluded producer is excluded too; a follower whose source is missing is left
+// for resolution to report.
+func filterProviders(markers []Marker, filter provider.Filter) []Marker {
+	if filter.Empty() {
+		return markers
+	}
+	byID := make(map[string]Marker, len(markers))
+	for _, m := range markers {
+		if m.ID != "" {
+			byID[m.ID] = m
+		}
+	}
+	kept := make([]Marker, 0, len(markers))
+	for _, m := range markers {
+		if filter.Match(terminalProvider(m, byID)) {
+			kept = append(kept, m)
+		}
+	}
+	return kept
+}
+
+// terminalProvider walks a marker's follow chain to the producer that resolves
+// from an upstream provider, returning its provider name. A broken or cyclic
+// chain returns the follow pseudo-provider, which no enable/disable name
+// matches, so such a marker is dropped under --enable and kept under --disable
+// for resolution to report the missing source.
+func terminalProvider(m Marker, byID map[string]Marker) string {
+	seen := map[string]bool{}
+	for m.IsFollower() {
+		if m.From == "" || seen[m.From] {
+			return constant.ProviderFollow
+		}
+		seen[m.From] = true
+		src, ok := byID[m.From]
+		if !ok {
+			return constant.ProviderFollow
+		}
+		m = src
+	}
+	return m.Provider
 }
 
 // disabledState interprets a directive's disabled key: disabled=false (or absent)

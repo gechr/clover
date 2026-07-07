@@ -194,3 +194,16 @@ func tagFilter(tags []string) (tag.Filter, error) {
 	}
 	return filter, nil
 }
+
+// providerFilter builds the --enable/--disable provider selection, logging the
+// active filter once so a run records which providers it will touch.
+func providerFilter(enable, disable []string) (provider.Filter, error) {
+	filter, err := provider.NewFilter(enable, disable)
+	if err != nil {
+		return provider.Filter{}, err
+	}
+	if !filter.Empty() {
+		clog.Info().Symbol("🔌").Str(field.Provider, filter.String()).Msg("Filtering by provider")
+	}
+	return filter, nil
+}

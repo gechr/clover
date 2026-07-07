@@ -26,6 +26,7 @@ type settings struct {
 	noIgnore         bool
 	now              time.Time
 	prerelease       *bool
+	providerFilter   provider.Filter
 	reporter         progress.Reporter
 	requireDirective bool
 	infer            bool
@@ -92,6 +93,14 @@ func WithNow(t time.Time) Option { return func(s *settings) { s.now = t } }
 // directive's own setting in force.
 func WithPrerelease(allow *bool) Option {
 	return func(s *settings) { s.prerelease = allow }
+}
+
+// WithProviderFilter restricts the run to markers whose resolved provider the
+// filter selects: an --enable list runs only those providers, a --disable list
+// runs all but those. The manual provider always runs. The zero filter matches
+// every marker.
+func WithProviderFilter(f provider.Filter) Option {
+	return func(s *settings) { s.providerFilter = f }
 }
 
 // WithReporter sets the progress reporter that observes markers as they resolve.

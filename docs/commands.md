@@ -25,8 +25,10 @@ clover run [options] [<path>…]
 
 | Option                  | Description                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------- |
-| `-t, --tag <tag>`       | Only process directives matching these tags                                             |
 | `--infer`               | Also update lines [auto-detection](auto.md) recognizes, without requiring a directive   |
+| `--enable <provider>`   | Resolve only these providers, skipping all others                                       |
+| `--disable <provider>`  | Skip these providers, resolving all others                                              |
+| `-t, --tag <tag>`       | Only process directives matching these tags                                             |
 | `-n, --dry-run`         | Resolve and render but write nothing                                                    |
 | `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)         |
 | `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests)  |
@@ -44,6 +46,8 @@ clover run [options] [<path>…]
 With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
 
 `--infer` is the zero-annotation mode: every line [auto-detection](auto.md) recognizes is updated as if it carried a bare `provider=auto` directive, without writing any comments. Written directives keep priority on their own lines (their `constraint` and other rules apply as usual), a [`clover:ignore`](ignore.md) control still opts a line out, and a recognized line that would not resolve is skipped rather than failing the run. Use [`annotate`](#annotate) instead when you want the directives in the file, where they can carry selection rules and document intent.
+
+`--enable` and `--disable` narrow the run to a subset of providers, matched against the provider each marker resolves to (a `provider=auto` marker after inference, a follower after the producer it follows). `--enable` is authoritative, so `--enable=github,docker` resolves only GitHub and Docker markers and leaves every other line untouched. `--disable` is subtractive, so `--disable=node` resolves everything except Node markers. Both accept a comma-separated list or repeated flags, name any provider except `manual` (which owns its line and always runs), and cannot be combined. A skipped marker drops out of the run rather than reporting, exactly as an unmatched `--tag` would.
 
 ## `lint`
 
