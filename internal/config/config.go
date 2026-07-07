@@ -20,11 +20,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/x/human"
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/shell"
 	xstrings "github.com/gechr/x/strings"
@@ -78,6 +80,7 @@ type Run struct {
 	Deep       *bool        `yaml:"deep"`
 	Force      *bool        `yaml:"force"`
 	Cache      *bool        `yaml:"cache"`
+	Cooldown   *string      `yaml:"cooldown"`
 	Output     *output.Mode `yaml:"output"`
 }
 
@@ -142,6 +145,7 @@ func Merge(user, project *Config) *Config {
 	merged.Run.Deep = cmp.Or(project.Run.Deep, merged.Run.Deep)
 	merged.Run.Force = cmp.Or(project.Run.Force, merged.Run.Force)
 	merged.Run.Cache = cmp.Or(project.Run.Cache, merged.Run.Cache)
+	merged.Run.Cooldown = cmp.Or(project.Run.Cooldown, merged.Run.Cooldown)
 	merged.Run.Output = cmp.Or(project.Run.Output, merged.Run.Output)
 	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
 	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
@@ -217,6 +221,11 @@ func validateValues(cfg *Config) error {
 	}
 	if ptr.Deref(cfg.Annotate.Write) && ptr.Deref(cfg.Annotate.Check) {
 		return errors.New("annotate.write and annotate.check are mutually exclusive")
+	}
+	if v := cfg.run().Cooldown; v != nil {
+		if _, err := human.ParseDuration(*v); err != nil {
+			return fmt.Errorf("%q must be a duration like 2w3d, got %q", "run.cooldown", *v)
+		}
 	}
 	return nil
 }
@@ -304,6 +313,20 @@ func (c *Config) Downgrade() *bool { return c.run().Downgrade }
 
 // Deep returns the configured run.deep default (nil = unset).
 func (c *Config) Deep() *bool { return c.run().Deep }
+
+// Cooldown returns the configured run.cooldown default, zero when unset. It is
+// the fill-in for directives carrying no cooldown of their own - a written
+// cooldown is a deliberate per-line choice, so unlike the boolean defaults this
+// one never overrides a directive. The value is validated at load, so parsing
+// cannot fail here.
+func (c *Config) Cooldown() time.Duration {
+	v := c.run().Cooldown
+	if v == nil {
+		return 0
+	}
+	d, _ := human.ParseDuration(*v)
+	return d
+}
 
 // Force returns the configured run.force default (nil = unset). When true, a
 // followed digest is re-pinned even if the version it follows is unchanged.

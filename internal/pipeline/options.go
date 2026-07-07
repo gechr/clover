@@ -29,6 +29,7 @@ type settings struct {
 	reporter         progress.Reporter
 	requireDirective bool
 	infer            bool
+	cooldown         *time.Duration
 	scanLabel        string
 	truncationSink   func(provider.Truncation)
 	verify           *bool
@@ -97,6 +98,13 @@ func WithPrerelease(allow *bool) Option {
 // The default discards everything; the CLI supplies a live display.
 func WithReporter(r progress.Reporter) Option {
 	return func(s *settings) { s.reporter = r }
+}
+
+// WithCooldown sets the CLI cooldown override: non-nil replaces every
+// directive's own cooldown (zero disables cooldowns outright), nil leaves the
+// per-directive rule and the config default in force.
+func WithCooldown(d *time.Duration) Option {
+	return func(s *settings) { s.cooldown = d }
 }
 
 // WithInfer enables synthetic markers for lines auto-detection recognizes but

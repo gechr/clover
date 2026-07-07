@@ -339,6 +339,7 @@ type plan struct {
 	prerelease     *bool
 	registry       *registry.Registry
 	reporter       progress.Reporter
+	cooldown       *time.Duration
 	results        []Result
 	tasks          []progress.Task
 	truncationSink func(provider.Truncation)
@@ -416,6 +417,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		prerelease:     set.prerelease,
 		registry:       registry.New(),
 		reporter:       set.reporter,
+		cooldown:       set.cooldown,
 		results:        results,
 		truncationSink: set.truncationSink,
 		verify:         set.verify,
@@ -664,6 +666,9 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if prerelease := cmp.Or(p.prerelease, cfg.Prerelease()); prerelease != nil {
 		opts = append(opts, version.WithPrerelease(*prerelease))
 	}
+	if d, ok := p.cooldownFor(m, cfg); ok {
+		opts = append(opts, version.WithCooldown(d))
+	}
 	// Surface why each candidate was passed over, visible under --verbose. Only
 	// wire the observer when debug is on, so the common path does no work per
 	// rejected candidate.
@@ -790,6 +795,9 @@ func (p *plan) trackCooldown(
 	if err != nil {
 		return err
 	}
+	if d, ok := p.cooldownFor(m, p.configFor(m.File)); ok {
+		cooldown = d
+	}
 	if cooldown <= 0 {
 		return nil
 	}
@@ -803,6 +811,24 @@ func (p *plan) trackCooldown(
 		}
 	}
 	return nil
+}
+
+// cooldownFor resolves the cooldown override chain for a marker: an explicit
+// CLI --cooldown replaces even a directive's own value (zero disables), and the
+// config default fills in only when the directive is silent - a written
+// cooldown is a deliberate per-line choice, so unlike the boolean defaults the
+// config never overrides it. ok is false when neither source applies and the
+// directive's own rule (already compiled) stands.
+func (p *plan) cooldownFor(m Marker, cfg *config.Config) (time.Duration, bool) {
+	if p.cooldown != nil {
+		return *p.cooldown, true
+	}
+	if !m.Directive.Has(constant.RuleCooldown) {
+		if d := cfg.Cooldown(); d > 0 {
+			return d, true
+		}
+	}
+	return 0, false
 }
 
 // finalize publishes the resolved candidate (when the marker carries an id),

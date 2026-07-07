@@ -63,6 +63,10 @@
           "type": "boolean",
           "description": "Persist cacheable HTTP responses across runs and revalidate them with conditional requests (default true)."
         },
+        "cooldown": {
+          "type": "string",
+          "description": "Default minimum age before a version is eligible, for directives that set no cooldown of their own (e.g. 72h, 2w)."
+        },
         "output": {
           "$ref": "#/$defs/output"
         }

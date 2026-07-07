@@ -23,22 +23,23 @@ Resolve every annotation and rewrite its target line.
 clover run [options] [<path>…]
 ```
 
-| Option                  | Description                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| `-t, --tag <tag>`       | Only process directives matching these tags                                            |
-| `--infer`               | Also update lines [auto-detection](auto.md) recognizes, without requiring a directive  |
-| `-n, --dry-run`         | Resolve and render but write nothing                                                   |
-| `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)        |
-| `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests) |
-| `-y, --yes`             | Proceed without confirming a deep lookup                                               |
-| `--[no-]downgrade`      | Allow selecting versions older than the current one                                    |
-| `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                  |
-| `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged                 |
-| `--[no-]verify`         | Verify secure pins against upstream tags (implies `--deep`)                            |
-| `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                   |
-| `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded)     |
-| `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                      |
-| `--no-config`           | Do not load any `.clover.yaml` config                                                  |
+| Option                  | Description                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| `-t, --tag <tag>`       | Only process directives matching these tags                                             |
+| `--infer`               | Also update lines [auto-detection](auto.md) recognizes, without requiring a directive   |
+| `-n, --dry-run`         | Resolve and render but write nothing                                                    |
+| `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)         |
+| `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests)  |
+| `-y, --yes`             | Proceed without confirming a deep lookup                                                |
+| `--[no-]downgrade`      | Allow selecting versions older than the current one                                     |
+| `--cooldown <duration>` | Override every directive's [`cooldown`](cooldown.md), e.g. `72h` or `2w` (`0` disables) |
+| `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                   |
+| `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged                  |
+| `--[no-]verify`         | Verify secure pins against upstream tags (implies `--deep`)                             |
+| `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                    |
+| `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded)      |
+| `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                       |
+| `--no-config`           | Do not load any `.clover.yaml` config                                                   |
 
 With no paths, Clover scans the current directory. Pass files or directories to narrow the run. `--no-ignore` is also accepted by `lint` and `format`.
 

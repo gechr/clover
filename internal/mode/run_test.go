@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/model"
@@ -101,6 +103,93 @@ func write(t *testing.T, body string) string {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.txt"), []byte(body), 0o644))
 	return dir
+}
+
+// TestRunCooldownPrecedence covers the --cooldown override chain: the CLI
+// value replaces even a directive's own cooldown (zero disables it), the
+// config default fills in only when the directive is silent, and a written
+// cooldown stands otherwise.
+func TestRunCooldownPrecedence(t *testing.T) {
+	now := time.Date(2026, 7, 7, 0, 0, 0, 0, time.UTC)
+	fresh := candidate(t, "2.0.0")
+	fresh.PublishedAt = now.Add(-time.Hour)
+	provider.Register(fakeProvider{name: "cool", candidates: []model.Candidate{fresh}})
+
+	run := func(t *testing.T, body string, opts ...pipeline.Option) string {
+		t.Helper()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "app.txt")
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+		opts = append(opts, pipeline.WithNow(now))
+		_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers, opts...)
+		require.NoError(t, err)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		return string(got)
+	}
+	cooldown := func(d time.Duration) pipeline.Option {
+		return pipeline.WithCooldown(&d)
+	}
+
+	annotated := "# clover: provider=cool cooldown=72h\nversion: 1.0.0\n"
+	bare := "# clover: provider=cool\nversion: 1.0.0\n"
+
+	t.Run("directive cooldown holds a fresh candidate back", func(t *testing.T) {
+		require.Equal(t, annotated, run(t, annotated))
+	})
+	t.Run("cli zero disables a directive cooldown", func(t *testing.T) {
+		require.Equal(
+			t,
+			"# clover: provider=cool cooldown=72h\nversion: 2.0.0\n",
+			run(t, annotated, cooldown(0)),
+		)
+	})
+	t.Run("cli cooldown holds back a directive without one", func(t *testing.T) {
+		require.Equal(t, bare, run(t, bare, cooldown(72*time.Hour)))
+	})
+	t.Run("config default fills in only for a silent directive", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(
+			filepath.Join(dir, ".clover.yaml"),
+			[]byte("run:\n  cooldown: 72h\n"),
+			0o644,
+		))
+		path := filepath.Join(dir, "app.txt")
+		require.NoError(t, os.WriteFile(path, []byte(bare), 0o644))
+
+		_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+			pipeline.WithNow(now),
+			pipeline.WithConfig(config.NewResolver(nil, "", false)),
+		)
+		require.NoError(t, err)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, bare, string(got), "the config default holds the bare directive back")
+	})
+	t.Run("directive cooldown beats the config default", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(
+			filepath.Join(dir, ".clover.yaml"),
+			[]byte("run:\n  cooldown: 1m\n"),
+			0o644,
+		))
+		path := filepath.Join(dir, "app.txt")
+		require.NoError(t, os.WriteFile(path, []byte(annotated), 0o644))
+
+		_, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+			pipeline.WithNow(now),
+			pipeline.WithConfig(config.NewResolver(nil, "", false)),
+		)
+		require.NoError(t, err)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Equal(
+			t,
+			annotated,
+			string(got),
+			"the written 72h cooldown stands over the 1m default",
+		)
+	})
 }
 
 func TestRunWritesChanges(t *testing.T) {

@@ -41,6 +41,7 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `paths.exclude`    | [Doublestar](https://github.com/bmatcuk/doublestar) globs that are excluded from scanning. Everything else under the scanned paths is searched for annotations.                       |
 | `global.output`    | Default output detail (`text`, `wide`, or `github`) shared by `run` and `lint`                                                                                                        |
 | `run.verify`       | Verify secure pins against their upstream tags by default (implies a deep lookup)                                                                                                     |
+| `run.cooldown`     | Default minimum age before a version is eligible, for directives that set no [`cooldown`](cooldown.md) of their own (e.g. `72h`, `2w`)                                                |
 | `run.prerelease`   | Allow selecting prerelease versions by default                                                                                                                                        |
 | `run.downgrade`    | Allow selecting versions older than the current one by default                                                                                                                        |
 | `run.deep`         | Follow pagination to fetch every version by default (more accurate, but slower)                                                                                                       |
@@ -52,7 +53,7 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                      |
 | `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                                           |
 
-**Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive. Otherwise the config supplies the default, which a directive can still override.
+**Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive. Otherwise the config supplies the default, which a directive can still override. `run.cooldown` follows the latter model: a directive's own `cooldown` always wins over the config default, while the `--cooldown` flag overrides both.
 
 `annotate.write` and `annotate.check` are mutually exclusive.
 

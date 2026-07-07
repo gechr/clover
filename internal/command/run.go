@@ -24,6 +24,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/report"
 	"github.com/gechr/clover/internal/tui"
+	"github.com/gechr/x/human"
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
 	"github.com/gechr/x/shell"
@@ -33,19 +34,33 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string     `name:"path" help:"Files or directories to scan"                                                       arg:"" optional:"" clib:"terse='Paths to scan'"                               predictor:"path"`
+	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                                 predictor:"path"`
 	Infer      bool         "            help:\"Attempt to update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
-	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                                           clib:"terse='Filter by tags',group='Options/Selection/2'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
-	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                                   clib:"terse='Allow downgrades',group='Options/Selection/2'"                                                                negatable:""`
-	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                                   clib:"terse='Allow prereleases',group='Options/Selection/2'"                                                               negatable:""`
-	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                                clib:"terse='Force re-pin',group='Options/Selection/2'"                                                                    negatable:""`
-	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                               clib:"terse='HTTP cache',group='Options/Lookup'"                                                                         negatable:""`
-	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                                  clib:"terse='Deep lookup',group='Options/Lookup'"                                                                        negatable:""`
+	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',group='Options/Selection/2'"                     short:"t" aliases:"tags" placeholder:"<tag>"`
+	Cooldown   string       `            help:"Override every directive's cooldown, e.g. 72h or 2w (0 disables)"                          clib:"terse='Cooldown override',group='Options/Selection/2'"                                           placeholder:"<duration>"`
+	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection/2'"                                                                     negatable:""`
+	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection/2'"                                                                    negatable:""`
+	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection/2'"                                                                         negatable:""`
+	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                   clib:"terse='HTTP cache',group='Options/Lookup'"                                                                                negatable:""`
+	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup'"                                                                               negatable:""`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup'\""
-	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                              clib:"terse='Assume yes',group='Options/Lookup'"                            short:"y"`
-	DryRun     bool         `            help:"Resolve and render but write nothing"                                                                  clib:"terse='Dry run',group='Options/Dry Run'"                              short:"n" aliases:"dry"`
+	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                              short:"y"`
+	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                short:"n" aliases:"dry"`
 	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
+}
+
+// cooldownOverride parses the --cooldown flag, nil when unset. A zero duration
+// is a valid override that disables cooldowns outright.
+func cooldownOverride(raw string) (*time.Duration, error) {
+	if raw == "" {
+		return nil, nil //nolint:nilnil // nil means no override, distinct from a zero override
+	}
+	d, err := human.ParseDuration(raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid --cooldown: %q must be a duration like 2w3d", raw)
+	}
+	return &d, nil
 }
 
 // Help returns the detailed blurb shown in `clover run --help`.
@@ -74,6 +89,11 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 		return err
 	}
 
+	cooldown, err := cooldownOverride(c.Cooldown)
+	if err != nil {
+		return err
+	}
+
 	enableHTTPCache(c.Cache, configs, c.Paths)
 
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
@@ -94,6 +114,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	// gate) pass through here.
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun, int(workers),
 		pipeline.WithConfig(configs),
+		pipeline.WithCooldown(cooldown),
 		pipeline.WithDeep(c.Deep),
 		pipeline.WithInfer(c.Infer),
 		pipeline.WithRequireDirective(!c.Infer),

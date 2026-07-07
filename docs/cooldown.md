@@ -19,3 +19,7 @@ The value is a duration. Hours work, and longer units compose:
 A version that is newer than its cooldown is simply skipped, and Clover stays on the current value until the candidate ages in.
 
 Cooldown still applies when [tracking floating refs](tracking.md). A digest or commit that is too fresh is held back even though no version is being selected.
+
+## Precedence
+
+Three places can set a cooldown, and they resolve in a fixed order. The `--cooldown` flag on [`run`](commands.md#run) overrides every directive for that invocation, and `--cooldown=0` disables cooldowns outright, which is useful when a fix must ship now. A directive's own `cooldown` key is next, a deliberate per-line choice. The [`run.cooldown`](configuration.md) config default comes last, filling in only for directives that carry no cooldown of their own.
