@@ -290,6 +290,20 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// A mise tool released on Codeberg: zig = "0.15.2" tracks ziglang/zig on
+		// the gitea provider's default host.
+		when: conditions{
+			path: miseGlob,
+			lineMatch: mustPattern(
+				`/^\s*"?(` + toolAlternation(
+					slices.Collect(maps.Keys(miseGiteaTools)),
+				) + `)"?\s*=\s*"/`,
+			),
+			provider: constant.ProviderGitea,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// The go directive in go.mod: go 1.23.2. Go releases are tagged goX.Y.Z
 		// in golang/go, so the github provider tracks them under the go
 		// tag-prefix.
@@ -314,14 +328,18 @@ var routes = []route{
 	{rewriter: NewSmart()},
 }
 
-// miseToolAlternation joins every recognized mise tool name - curated and
-// generated - into the well-known-tool route's regex alternation, each name
-// quoted so a dot in a tool name stays literal.
+// miseToolAlternation joins every GitHub-released mise tool name - curated and
+// generated - into the well-known-tool route's regex alternation.
 func miseToolAlternation() string {
-	names := slices.Concat(
+	return toolAlternation(slices.Concat(
 		slices.Collect(maps.Keys(miseGithubTools)),
 		slices.Collect(maps.Keys(miseRegistryTools)),
-	)
+	))
+}
+
+// toolAlternation joins tool names into a route's regex alternation, each name
+// quoted so a dot in a tool name stays literal.
+func toolAlternation(names []string) string {
 	xslices.SortNatural(names)
 	names = xslices.Unique(names)
 	for i, name := range names {

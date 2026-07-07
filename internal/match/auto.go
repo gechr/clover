@@ -20,11 +20,14 @@ type Inference struct {
 
 // Missing reports why the inference cannot resolve - a route matched but the
 // line carries no usable reference - or "" when the inference is complete. The
-// docker, github, and gitlab providers need a repository, hashicorp needs a
-// product, and node needs nothing beyond the provider itself.
+// forge and image providers need a repository, hashicorp needs a product, and
+// node needs nothing beyond the provider itself.
 func (i Inference) Missing() string {
 	switch i.Provider {
-	case constant.ProviderDocker, constant.ProviderGithub, constant.ProviderGitlab:
+	case constant.ProviderDocker,
+		constant.ProviderGithub,
+		constant.ProviderGitea,
+		constant.ProviderGitlab:
 		if i.Repository == "" {
 			return "reference has no repository"
 		}
@@ -63,6 +66,8 @@ func Infer(path, line string) (Inference, bool) {
 			inferred.Registry, inferred.Repository = imageReference(line)
 		case constant.ProviderGitlab:
 			inferred.Host, inferred.Repository = componentReference(line)
+		case constant.ProviderGitea:
+			inferred.Repository = miseGiteaTools[miseKey(line)]
 		case constant.ProviderHashicorp:
 			inferred.Product = miseKey(line)
 		}
@@ -135,6 +140,22 @@ var miseGithubTools = map[string]githubTool{
 	"go":       goTool,
 	"opentofu": {repository: "opentofu/opentofu"},
 	"tofu":     {repository: "opentofu/opentofu"},
+	// Core mise runtimes (backends = ["core:..."]) whose upstream tags cleanly
+	// carry the pinned version. Runtimes with exotic tag schemes (ruby's v3_4_1,
+	// swift's swift-6.0-RELEASE, multi-vendor java) are deliberately absent.
+	"bun":    {repository: "oven-sh/bun", tagPrefix: "bun-"},
+	"deno":   {repository: "denoland/deno"},
+	"elixir": {repository: "elixir-lang/elixir"},
+	"erlang": {repository: "erlang/otp", tagPrefix: "OTP-"},
+	"python": {repository: "python/cpython"},
+	"rust":   {repository: "rust-lang/rust"},
+}
+
+// miseGiteaTools maps mise tool names to the Codeberg repository whose tags
+// carry their releases - the gitea provider's default host, so the inferred
+// directive needs no host key.
+var miseGiteaTools = map[string]string{
+	"zig": "ziglang/zig",
 }
 
 // githubReference extracts the repository a line tracks on GitHub, and the

@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/docker"
+	"github.com/gechr/clover/internal/provider/gitea"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/gechr/clover/internal/provider/hashicorp"
@@ -33,7 +34,14 @@ const testWorkers = 8
 // inferred resources against. Their Resource parsing is offline (only Discover
 // touches the network, which annotate never calls), so the tests stay hermetic.
 func TestMain(m *testing.M) {
-	provider.RegisterAll(docker.New(), github.New(), gitlab.New(), hashicorp.New(), node.New())
+	provider.RegisterAll(
+		docker.New(),
+		gitea.New(),
+		github.New(),
+		gitlab.New(),
+		hashicorp.New(),
+		node.New(),
+	)
 	os.Exit(m.Run())
 }
 
@@ -228,15 +236,16 @@ func TestAnnotateInsertsForMiseTools(t *testing.T) {
 			"tofu = \"1.8.5\"\n" +
 			"\"ubi:owner/tool\" = \"1.2.3\"\n" +
 			"go = \"1.23.2\"\n" +
-			"python = \"3.13.1\"\n",
+			"zig = \"0.15.2\"\n" +
+			"java = \"21.0.5\"\n",
 	})
 
 	summary := annotate(t, root, true, false)
 	require.Equal(
 		t,
-		5,
+		6,
 		summary.Added(),
-		"every recognized tool earns an annotation, python has no provider",
+		"every recognized tool earns an annotation, java has no provider",
 	)
 
 	require.Equal(
@@ -252,7 +261,9 @@ func TestAnnotateInsertsForMiseTools(t *testing.T) {
 			"\"ubi:owner/tool\" = \"1.2.3\"\n"+
 			"# clover: provider=auto\n"+
 			"go = \"1.23.2\"\n"+
-			"python = \"3.13.1\"\n",
+			"# clover: provider=auto\n"+
+			"zig = \"0.15.2\"\n"+
+			"java = \"21.0.5\"\n",
 		readFile(t, filepath.Join(root, ".mise.toml")),
 	)
 }

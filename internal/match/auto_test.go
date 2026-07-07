@@ -267,9 +267,34 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "mise unknown tool is not matched",
+			name: "mise core runtime",
 			path: ".mise.toml",
 			line: `python = "3.13.1"`,
+			want: match.Inference{Provider: "github", Repository: "python/cpython"},
+			ok:   true,
+		},
+		{
+			name: "mise core runtime with a tag prefix",
+			path: ".mise.toml",
+			line: `erlang = "27.2"`,
+			want: match.Inference{
+				Provider:   "github",
+				Repository: "erlang/otp",
+				TagPrefix:  "OTP-",
+			},
+			ok: true,
+		},
+		{
+			name: "mise codeberg runtime",
+			path: ".mise.toml",
+			line: `zig = "0.15.2"`,
+			want: match.Inference{Provider: "gitea", Repository: "ziglang/zig"},
+			ok:   true,
+		},
+		{
+			name: "mise unknown tool is not matched",
+			path: ".mise.toml",
+			line: `java = "21.0.5"`,
 			ok:   false,
 		},
 		{
