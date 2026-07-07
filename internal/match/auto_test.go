@@ -1,6 +1,7 @@
 package match_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/match"
@@ -110,6 +111,50 @@ func TestInfer(t *testing.T) {
 			path: "Containerfile",
 			line: "FROM ghcr.io/owner/img:1.2.0@sha256:abc",
 			want: match.Inference{Provider: "docker", Registry: "ghcr.io", Repository: "owner/img"},
+			ok:   true,
+		},
+		{
+			name: "digest-pinned floating tag infers track",
+			path: "Dockerfile",
+			line: "FROM gcr.io/distroless/static:nonroot@sha256:" + strings.Repeat("0", 64),
+			want: match.Inference{
+				Provider:   "docker",
+				Registry:   "gcr.io",
+				Repository: "distroless/static",
+				Track:      "nonroot",
+			},
+			ok: true,
+		},
+		{
+			name: "digest-pinned floating tag in an image mapping",
+			path: "k8s/deploy.yaml",
+			line: "        image: nginx:latest@sha256:" + strings.Repeat("0", 64),
+			want: match.Inference{Provider: "docker", Repository: "nginx", Track: "latest"},
+			ok:   true,
+		},
+		{
+			name: "tag-only floating tag infers no track",
+			path: "Dockerfile",
+			line: "FROM ubuntu:latest",
+			want: match.Inference{Provider: "docker", Repository: "ubuntu"},
+			ok:   true,
+		},
+		{
+			name: "digest-pinned tag with digits infers no track",
+			path: "Dockerfile",
+			line: "FROM mcr.microsoft.com/windows:ltsc2022@sha256:" + strings.Repeat("0", 64),
+			want: match.Inference{
+				Provider:   "docker",
+				Registry:   "mcr.microsoft.com",
+				Repository: "windows",
+			},
+			ok: true,
+		},
+		{
+			name: "digest-pinned tag with a trailing hyphen infers no track",
+			path: "Dockerfile",
+			line: "FROM example/img:beta-@sha256:" + strings.Repeat("0", 64),
+			want: match.Inference{Provider: "docker", Repository: "example/img"},
 			ok:   true,
 		},
 		{

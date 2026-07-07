@@ -1,6 +1,7 @@
 package match
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -16,6 +17,7 @@ type Inference struct {
 	Registry   string
 	Repository string
 	TagPrefix  string
+	Track      string
 }
 
 // Missing reports why the inference cannot resolve - a route matched but the
@@ -64,6 +66,7 @@ func Infer(path, line string) (Inference, bool) {
 			inferred.Repository, inferred.TagPrefix = githubReference(path, line)
 		case constant.ProviderDocker:
 			inferred.Registry, inferred.Repository = imageReference(line)
+			inferred.Track = trackedTag(imageToken(line))
 		case constant.ProviderGitlab:
 			inferred.Host, inferred.Repository = componentReference(line)
 		case constant.ProviderGitea:
@@ -246,6 +249,33 @@ func imageReference(line string) (string, string) {
 	}
 	return registry, remainder
 }
+
+// trackedTag returns the floating tag of a digest-pinned image reference
+// (nonroot, latest, stable), or "" when the reference is not digest-pinned,
+// carries no tag, or its tag is not a floating name. A digest pin on a floating
+// tag can only mean one thing: keep the digest fresh for that tag, which is
+// exactly what track does.
+func trackedTag(ref string) string {
+	before, _, pinned := strings.Cut(ref, "@")
+	if !pinned {
+		return ""
+	}
+	start, ok := imageTagStart(before)
+	if !ok {
+		return ""
+	}
+	tag := before[start:]
+	if !floatingTag.MatchString(tag) {
+		return ""
+	}
+	return tag
+}
+
+// floatingTag matches a floating tag name: lowercase letters and interior
+// hyphens only (root, nonroot, latest, stable-slim). A tag carrying digits is
+// either a version for selection to bump or too ambiguous to assume tracking
+// for, so it never infers track.
+var floatingTag = regexp.MustCompile(`^[a-z]+(-[a-z]+)*$`)
 
 // dockerScheme prefixes the image reference of a workflow container job:
 // uses: docker://<image>.

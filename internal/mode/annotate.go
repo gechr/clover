@@ -323,10 +323,14 @@ func skip(line int, reason string) AnnotateSkip {
 // unresolvedReason reports why the directive annotate would write for this line
 // fails the offline checks lint runs: the inferred provider must exist, build a
 // valid resource, and locate a trackable version. An empty reason means the
-// candidate is safe to annotate.
+// candidate is safe to annotate. An inferred track selects the docker-track
+// rewriter, mirroring the run pipeline's dispatch for track markers.
 func unresolvedReason(path string, inf match.Inference, line string) string {
 	return unresolved(inf.Provider, inferredDirective(inf), line,
 		func() (match.Rewriter, error) {
+			if inf.Track != "" {
+				return match.NewDockerTrack(), nil
+			}
 			return match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}), nil
 		})
 }
@@ -380,6 +384,9 @@ func inferredDirective(inf match.Inference) directive.Directive {
 	}
 	if inf.TagPrefix != "" {
 		pairs = append(pairs, directive.KV{Key: constant.RuleTagPrefix, Value: inf.TagPrefix})
+	}
+	if inf.Track != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveTrack, Value: inf.Track})
 	}
 	return directive.Directive{Pairs: pairs}
 }

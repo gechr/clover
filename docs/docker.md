@@ -51,7 +51,7 @@ Leave `platform` unset for the index digest. It is opt-in and never inferred fro
 
 ## Tracking a floating tag
 
-A tag like `latest` or `nonroot` does not change name, but the digest it points at drifts. Use [`track`](tracking.md) to keep the digest pin fresh while leaving the tag text alone, and [`value=sha256`](checksums.md) to render the digest.
+A tag like `latest` or `nonroot` does not change name, but the digest it points at drifts. Use [`track`](tracking.md) to keep the digest pin fresh while leaving the tag text alone, and [`value=sha256`](checksums.md) to render the digest. [Auto-detection](auto.md) infers `track` on its own for a digest-pinned image whose tag is a floating name, so a bare `provider=auto` covers this case too.
 
 <!-- clover-lint-skip -->
 

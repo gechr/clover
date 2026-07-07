@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
@@ -92,6 +93,7 @@ func TestMarkersAuto(t *testing.T) {
 		host       string
 		product    string
 		tagPrefix  string
+		track      string
 	}{
 		{
 			name: "infers github and repository from a workflow pin",
@@ -188,6 +190,19 @@ func TestMarkersAuto(t *testing.T) {
 			tagPrefix:  "go",
 		},
 		{
+			name: "infers track from a digest-pinned floating tag",
+			path: "Dockerfile",
+			lines: []string{
+				"# clover: provider=auto",
+				"FROM gcr.io/distroless/static:nonroot@sha256:" + strings.Repeat("0", 64),
+			},
+			directive:  auto,
+			provider:   "docker",
+			registry:   "gcr.io",
+			repository: "distroless/static",
+			track:      "nonroot",
+		},
+		{
 			name:       "stays auto when the target is not a recognised pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
@@ -221,6 +236,7 @@ func TestMarkersAuto(t *testing.T) {
 			require.Equal(t, tt.host, keyOf(markers[0], "host"))
 			require.Equal(t, tt.product, keyOf(markers[0], "product"))
 			require.Equal(t, tt.tagPrefix, keyOf(markers[0], "tag-prefix"))
+			require.Equal(t, tt.track, keyOf(markers[0], "track"))
 		})
 	}
 }

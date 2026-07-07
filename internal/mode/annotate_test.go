@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -283,6 +284,25 @@ func TestAnnotateInsertsForGoMod(t *testing.T) {
 		"module github.com/owner/repo\n\n// clover: provider=auto\ngo 1.23.2\n",
 		readFile(t, filepath.Join(root, "go.mod")),
 		"the go directive earns a slash-comment annotation",
+	)
+}
+
+func TestAnnotateInsertsForDigestPinnedFloatingTag(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("0", 64)
+	root := annotateTree(t, map[string]string{
+		"Dockerfile": "FROM gcr.io/distroless/static:nonroot@sha256:" + digest + "\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"# clover: provider=auto\nFROM gcr.io/distroless/static:nonroot@sha256:"+digest+"\n",
+		readFile(t, filepath.Join(root, "Dockerfile")),
+		"a digest pin on a floating tag earns an annotation, resolved as track",
 	)
 }
 
