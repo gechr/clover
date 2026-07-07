@@ -23,6 +23,7 @@
   - [HTTP](http.md)
   - [Manual](manual.md)
   - [Node.js](node.md)
+  - [Terraform / OpenTofu](terraform.md)
 
 - [Selecting versions]()
   - [Constraints](constraints.md)

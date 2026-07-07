@@ -16,6 +16,7 @@ import (
 	"github.com/gechr/clover/internal/provider/http"
 	"github.com/gechr/clover/internal/provider/manual"
 	"github.com/gechr/clover/internal/provider/node"
+	"github.com/gechr/clover/internal/provider/terraform"
 )
 
 // New constructs every built-in provider, in registration order. httpOpts
@@ -33,5 +34,7 @@ func New(httpOpts ...http.Option) []provider.Provider {
 		http.New(httpOpts...),
 		manual.New(),
 		node.New(),
+		terraform.New(terraform.Terraform),
+		terraform.New(terraform.OpenTofu),
 	}
 }

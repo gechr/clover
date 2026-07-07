@@ -19,4 +19,6 @@ const (
 	ProviderHelm      = "helm"
 	ProviderHTTP      = "http"
 	ProviderNode      = "node"
+	ProviderOpentofu  = "opentofu"
+	ProviderTerraform = "terraform"
 )
