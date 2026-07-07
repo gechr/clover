@@ -21,7 +21,7 @@ terraform_version: 1.9.8
 | [`prerelease`](prereleases.md) | Allow or exclude prerelease versions (alphas, betas, and release candidates)                               |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                                                         |
 
-The releases service is public, so the HashiCorp provider needs no authentication. It is selected explicitly with `provider=hashicorp`, since a bare version line carries no signal to [infer](auto.md) it from.
+The releases service is public, so the HashiCorp provider needs no authentication. It is selected explicitly with `provider=hashicorp`, or [inferred](auto.md) from a mise configuration file, where the tool name doubles as the `product`. Elsewhere a bare version line carries no signal to infer it from.
 
 ## Editions
 

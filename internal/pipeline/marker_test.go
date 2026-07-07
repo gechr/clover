@@ -89,6 +89,8 @@ func TestMarkersAuto(t *testing.T) {
 		provider   string
 		registry   string
 		repository string
+		host       string
+		product    string
 	}{
 		{
 			name: "infers github and repository from a workflow pin",
@@ -139,6 +141,40 @@ func TestMarkersAuto(t *testing.T) {
 			repository: "owner/api",
 		},
 		{
+			name: "infers gitlab host and repository from a component include",
+			path: ".gitlab-ci.yml",
+			lines: []string{
+				"  # clover: provider=auto",
+				"  - component: gitlab.example.com/org/proj/deploy@3.1.4",
+			},
+			directive:  auto,
+			provider:   "gitlab",
+			repository: "org/proj",
+			host:       "gitlab.example.com",
+		},
+		{
+			name: "infers hashicorp product from a mise tool",
+			path: ".mise.toml",
+			lines: []string{
+				"# clover: provider=auto",
+				`terraform = "1.9.8"`,
+			},
+			directive: auto,
+			provider:  "hashicorp",
+			product:   "terraform",
+		},
+		{
+			name: "infers github repository from a mise backend tool",
+			path: "mise.toml",
+			lines: []string{
+				"# clover: provider=auto",
+				`"ubi:owner/tool" = "1.2.3"`,
+			},
+			directive:  auto,
+			provider:   "github",
+			repository: "owner/tool",
+		},
+		{
 			name:       "stays auto when the target is not a recognised pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
@@ -169,6 +205,8 @@ func TestMarkersAuto(t *testing.T) {
 			require.Equal(t, tt.provider, markers[0].Provider)
 			require.Equal(t, tt.registry, keyOf(markers[0], "registry"))
 			require.Equal(t, tt.repository, keyOf(markers[0], "repository"))
+			require.Equal(t, tt.host, keyOf(markers[0], "host"))
+			require.Equal(t, tt.product, keyOf(markers[0], "product"))
 		})
 	}
 }

@@ -17,6 +17,8 @@ import (
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/provider/gitlab"
+	"github.com/gechr/clover/internal/provider/hashicorp"
+	"github.com/gechr/clover/internal/provider/node"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,12 +29,11 @@ const sha = "a0dfaeb072753c3d48cd4df5fdacfd035b2281bf"
 // must be identical and correctly ordered regardless of worker count.
 const testWorkers = 8
 
-// TestMain registers the real docker, github, and gitlab providers, which
-// annotate's verify gate validates inferred resources against. Their Resource
-// parsing is offline (only Discover touches the network, which annotate never
-// calls), so the tests stay hermetic.
+// TestMain registers the real providers annotate's verify gate validates
+// inferred resources against. Their Resource parsing is offline (only Discover
+// touches the network, which annotate never calls), so the tests stay hermetic.
 func TestMain(m *testing.M) {
-	provider.RegisterAll(docker.New(), github.New(), gitlab.New())
+	provider.RegisterAll(docker.New(), github.New(), gitlab.New(), hashicorp.New(), node.New())
 	os.Exit(m.Run())
 }
 
@@ -214,6 +215,42 @@ func TestAnnotateInsertsForGitLabComponent(t *testing.T) {
 		"include:\n  # clover: provider=auto\n  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1\n",
 		readFile(t, filepath.Join(root, ".gitlab-ci.yml")),
 		"a component include earns an annotation",
+	)
+}
+
+func TestAnnotateInsertsForMiseTools(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		".mise.toml": "[tools]\n" +
+			"terraform = \"1.9.8\"\n" +
+			"node = \"24.11.0\"\n" +
+			"tofu = \"1.8.5\"\n" +
+			"\"ubi:owner/tool\" = \"1.2.3\"\n" +
+			"go = \"1.23.2\"\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(
+		t,
+		4,
+		summary.Added(),
+		"every recognized tool earns an annotation, go has no provider",
+	)
+
+	require.Equal(
+		t,
+		"[tools]\n"+
+			"# clover: provider=auto\n"+
+			"terraform = \"1.9.8\"\n"+
+			"# clover: provider=auto\n"+
+			"node = \"24.11.0\"\n"+
+			"# clover: provider=auto\n"+
+			"tofu = \"1.8.5\"\n"+
+			"# clover: provider=auto\n"+
+			"\"ubi:owner/tool\" = \"1.2.3\"\n"+
+			"go = \"1.23.2\"\n",
+		readFile(t, filepath.Join(root, ".mise.toml")),
 	)
 }
 

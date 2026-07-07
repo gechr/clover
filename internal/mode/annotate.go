@@ -263,13 +263,14 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			continue
 		}
 		inf, ok := match.Infer(file.Path, line)
-		// Every auto route identifies its source by repository (github owner/name,
-		// docker image path); an empty one means the line matched a route shape but
-		// carries no usable reference, so a provider=auto there could not resolve.
-		if !ok || inf.Repository == "" {
-			if ok {
-				annotated.Skips = append(annotated.Skips, skip(i, "reference has no repository"))
-			}
+		if !ok {
+			continue
+		}
+		// An incomplete inference means the line matched a route shape but carries
+		// no usable reference (no repository, no product), so a provider=auto there
+		// could not resolve.
+		if reason := inf.Missing(); reason != "" {
+			annotated.Skips = append(annotated.Skips, skip(i, reason))
 			continue
 		}
 		// Verify before annotating: a recognized shape may still not actually resolve
@@ -311,7 +312,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 // for opt-out diagnostics, so it stops before the heavier offline resolution gate.
 func recognized(path, line string) bool {
 	inf, ok := match.Infer(path, line)
-	return ok && inf.Repository != ""
+	return ok && inf.Missing() == ""
 }
 
 // skip builds a target-line diagnostic.
@@ -373,6 +374,9 @@ func inferredDirective(inf match.Inference) directive.Directive {
 	}
 	if inf.Host != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
+	}
+	if inf.Product != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveProduct, Value: inf.Product})
 	}
 	return directive.Directive{Pairs: pairs}
 }
@@ -459,14 +463,16 @@ func canonicalDirective(d directive.Directive, inf match.Inference) directive.Di
 // inferenceOwns reports whether auto-detection supplies key for a line inf was
 // inferred from, so force can drop it and let resolution re-derive it. The
 // provider, repository, and registry are always inference's to supply; the host
-// only when the line itself names one, so an explicit host pointing a reference
-// at a self-managed instance survives the collapse.
+// and product only when the line itself names one, so an explicit host pointing
+// a reference at a self-managed instance survives the collapse.
 func inferenceOwns(key string, inf match.Inference) bool {
 	switch key {
 	case constant.DirectiveProvider, constant.DirectiveRepository, constant.DirectiveRegistry:
 		return true
 	case constant.DirectiveHost:
 		return inf.Host != ""
+	case constant.DirectiveProduct:
+		return inf.Product != ""
 	default:
 		return false
 	}
@@ -608,8 +614,8 @@ func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
 	if !ok {
 		return match.Inference{}, "", false
 	}
-	if inf.Repository == "" {
-		return match.Inference{}, "reference has no repository", false
+	if reason := inf.Missing(); reason != "" {
+		return match.Inference{}, reason, false
 	}
 	return inf, "", true
 }
@@ -789,16 +795,19 @@ func forceSidecar(
 }
 
 // sourceDrifted reports whether an existing entry's source keys disagree with what
-// the line now infers - the signal force should re-derive them. The host is
-// compared only when the line infers one, mirroring [inferenceOwns]: an explicit
-// host inference does not supply is deliberate, not drift.
+// the line now infers - the signal force should re-derive them. The host and
+// product are compared only when the line infers one, mirroring [inferenceOwns]:
+// an explicit value inference does not supply is deliberate, not drift.
 func sourceDrifted(existing directive.Directive, inf match.Inference) bool {
 	provider, _ := existing.Get(constant.DirectiveProvider)
 	repository, _ := existing.Get(constant.DirectiveRepository)
 	registry, _ := existing.Get(constant.DirectiveRegistry)
 	host, _ := existing.Get(constant.DirectiveHost)
+	product, _ := existing.Get(constant.DirectiveProduct)
 	return provider != inf.Provider || repository != inf.Repository ||
-		registry != inf.Registry || (inf.Host != "" && host != inf.Host)
+		registry != inf.Registry ||
+		(inf.Host != "" && host != inf.Host) ||
+		(inf.Product != "" && product != inf.Product)
 }
 
 // refreshSource re-derives an entry's source keys from the line while preserving

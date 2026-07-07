@@ -20,6 +20,7 @@ Auto-detection recognizes:
 - An `image:` mapping in YAML, tag-only or digest-pinned, resolved the same way.
 - A workflow container job's `uses: docker://` reference, tag-only or digest-pinned, resolved the same way.
 - A GitLab CI/CD component include (`component: gitlab.com/group/project/name@1.0.0`), resolved by the [GitLab](gitlab.md) provider with the inferred `repository`, and the inferred `host` when the component lives on a self-managed instance.
+- A tool version in a [mise](https://mise.jdx.dev) configuration file (`.mise.toml` or `mise.toml`). A HashiCorp product like `terraform = "1.9.8"` resolves with the [HashiCorp](hashicorp.md) provider and its inferred `product`, `node` resolves with the [Node.js](node.md) provider, and a `github:` or `ubi:` backend key (or a well-known tool released on GitHub, like `tofu`) resolves with the [GitHub](github.md) provider and its inferred `repository`.
 
 ## When to be explicit
 

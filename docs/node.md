@@ -18,7 +18,7 @@ node_version: 24.18.0
 | [`exclude`](filtering.md)      | Drop matching versions                                                           |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                               |
 
-The release index is public, so the Node.js provider needs no authentication. It is selected explicitly with `provider=node`, since a bare version line carries no signal to [infer](auto.md) it from.
+The release index is public, so the Node.js provider needs no authentication. It is selected explicitly with `provider=node`, or [inferred](auto.md) from a `node` entry in a mise configuration file. Elsewhere a bare version line carries no signal to infer it from.
 
 ## Release lines
 

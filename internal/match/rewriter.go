@@ -2,6 +2,9 @@ package match
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gechr/clover/internal/constant"
@@ -118,6 +121,23 @@ type route struct {
 	rewriter Rewriter
 }
 
+// miseGlob matches the mise configuration files whose [tools] entries pin the
+// versions the mise routes recognize.
+const miseGlob = "**/{.mise,mise}.toml"
+
+// hashicorpProducts are the mise tool names that double as HashiCorp product
+// slugs on releases.hashicorp.com, alternated into the mise route's pattern.
+var hashicorpProducts = []string{
+	"boundary",
+	"consul",
+	"nomad",
+	"packer",
+	"terraform",
+	"vagrant",
+	"vault",
+	"waypoint",
+}
+
 // routes is the ordered, first-match-wins dispatch table. Smart is the
 // empty-condition catch-all and must stay last. It is a curated built-in list,
 // not user configuration (yet).
@@ -219,6 +239,52 @@ var routes = []route{
 			path:      "**/*.{yml,yaml}",
 			lineMatch: mustPattern("* component: *@*"),
 			provider:  constant.ProviderGitlab,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise tool pinning a HashiCorp product: terraform = "1.9.8". The tool
+		// name doubles as the product slug on releases.hashicorp.com.
+		when: conditions{
+			path: miseGlob,
+			lineMatch: mustPattern(
+				`/^\s*"?(` + strings.Join(hashicorpProducts, "|") + `)"?\s*=\s*"/`,
+			),
+			provider: constant.ProviderHashicorp,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise Node.js runtime pin: node = "24.18.0".
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?node"?\s*=\s*"/`),
+			provider:  constant.ProviderNode,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise github: or ubi: backend tool: "github:owner/repo" = "v1.2.3".
+		// Both back onto GitHub releases, so the github provider tracks them.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"(github|ubi):[^"]+"\s*=\s*"/`),
+			provider:  constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A well-known mise tool released on GitHub: tofu = "1.8.5" tracks
+		// opentofu/opentofu. The key-to-repository map lives in miseGithubTools.
+		when: conditions{
+			path: miseGlob,
+			lineMatch: mustPattern(
+				`/^\s*"?(` + strings.Join(
+					slices.Sorted(maps.Keys(miseGithubTools)),
+					"|",
+				) + `)"?\s*=\s*"/`,
+			),
+			provider: constant.ProviderGithub,
 		},
 		rewriter: NewSmart(),
 	},

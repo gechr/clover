@@ -1,6 +1,7 @@
 package match
 
 import (
+	"cmp"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -11,9 +12,28 @@ import (
 // the line. Empty parameter fields mean the line did not carry that detail.
 type Inference struct {
 	Host       string
+	Product    string
 	Provider   string
 	Registry   string
 	Repository string
+}
+
+// Missing reports why the inference cannot resolve - a route matched but the
+// line carries no usable reference - or "" when the inference is complete. The
+// docker, github, and gitlab providers need a repository, hashicorp needs a
+// product, and node needs nothing beyond the provider itself.
+func (i Inference) Missing() string {
+	switch i.Provider {
+	case constant.ProviderDocker, constant.ProviderGithub, constant.ProviderGitlab:
+		if i.Repository == "" {
+			return "reference has no repository"
+		}
+	case constant.ProviderHashicorp:
+		if i.Product == "" {
+			return "line names no product"
+		}
+	}
+	return ""
 }
 
 // Infer resolves the provider for an `auto` marker from its file path and target
@@ -38,11 +58,13 @@ func Infer(path, line string) (Inference, bool) {
 		inferred := Inference{Provider: c.provider}
 		switch c.provider {
 		case constant.ProviderGithub:
-			inferred.Repository = actionRepository(line)
+			inferred.Repository = cmp.Or(actionRepository(line), miseRepository(line))
 		case constant.ProviderDocker:
 			inferred.Registry, inferred.Repository = imageReference(line)
 		case constant.ProviderGitlab:
 			inferred.Host, inferred.Repository = componentReference(line)
+		case constant.ProviderHashicorp:
+			inferred.Product = miseKey(line)
 		}
 		return inferred, true
 	}
@@ -78,6 +100,47 @@ func componentReference(line string) (string, string) {
 		host = ""
 	}
 	return host, strings.Join(segments[1:len(segments)-1], "/")
+}
+
+// miseKey extracts the tool name from a mise configuration line, the quoted or
+// bare TOML key before =, e.g. `terraform = "1.9.8"` -> "terraform".
+func miseKey(line string) string {
+	key, _, ok := strings.Cut(line, "=")
+	if !ok {
+		return ""
+	}
+	return strings.Trim(strings.TrimSpace(key), `"'`)
+}
+
+// miseGithubTools maps well-known mise tool names to the GitHub repository
+// whose releases they track, for tools that are neither a backend-qualified key
+// nor a HashiCorp product.
+var miseGithubTools = map[string]string{
+	"opentofu": "opentofu/opentofu",
+	"tofu":     "opentofu/opentofu",
+}
+
+// miseRepository extracts the owner/repo a mise tool key tracks: a well-known
+// tool name from [miseGithubTools], or a github: or ubi: backend key, e.g.
+// `"ubi:owner/tool" = "1.2.3"` -> "owner/tool", dropping a trailing [option]
+// qualifier. It returns "" when the key names no repository.
+func miseRepository(line string) string {
+	key := miseKey(line)
+	if repo, ok := miseGithubTools[key]; ok {
+		return repo
+	}
+	for _, scheme := range []string{"github:", "ubi:"} {
+		repo, ok := strings.CutPrefix(key, scheme)
+		if !ok {
+			continue
+		}
+		repo, _, _ = strings.Cut(repo, "[")
+		if strings.Count(repo, "/") != 1 {
+			return "" // a backend repository is exactly owner/repo
+		}
+		return repo
+	}
+	return ""
 }
 
 // actionRepository extracts the owner/repo from a GitHub Actions uses: pin,
