@@ -1,7 +1,7 @@
 module github.com/gechr/clover
 
-// clover: provider=github repository=golang/go constraint=major tag-prefix=go
-go 1.26.4
+// clover: provider=auto
+go 1.26.5
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
@@ -12,9 +12,9 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.6.3
+	github.com/gechr/clib v0.6.4
 	github.com/gechr/clog v0.12.6
-	github.com/gechr/conductor v0.0.14
+	github.com/gechr/conductor v0.0.15
 	github.com/gechr/x v0.2.14
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7

@@ -15,6 +15,7 @@ jobs:
   release:
     permissions:
       contents: write
+    # clover: provider=auto
     uses: gechr/actions/.github/workflows/release.yaml@9b9d051d433bfeb57bf7f88c65c41ae3cb23e000 # v0.2.7
     secrets:
       RELEASER_APP_PRIVATE_KEY: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
