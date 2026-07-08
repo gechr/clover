@@ -137,6 +137,11 @@ func (p *Provider) Name() string { return constant.ProviderGitlab }
 // no candidate while more pages remained.
 func (p *Provider) RecencyOrdered() {}
 
+// Dated marks the listing as date-bearing: tags and releases carry a creation
+// date. A lightweight tag with no creation date falls to the post-discovery date
+// check.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys GitLab accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

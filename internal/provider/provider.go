@@ -37,9 +37,9 @@ func KeyNames(p Provider) []string {
 //
 // Everything beyond this contract is an optional capability, expressed as a
 // further interface discovered by type assertion: [RecencyOrderer],
-// [Anchorer], [Digester], [Linker], [Committer], [BranchChecker], and
-// [Authenticator]. A provider implements only the capabilities its upstream
-// supports, and the pipeline degrades gracefully where one is absent.
+// [Anchorer], [Dater], [Digester], [Linker], [Committer], [BranchChecker],
+// and [Authenticator]. A provider implements only the capabilities its
+// upstream supports, and the pipeline degrades gracefully where one is absent.
 type Provider interface {
 	// Name is the provider's identifier, as written in a directive's provider=.
 	Name() string
@@ -77,6 +77,19 @@ type Anchorer interface {
 	// Anchor marks the provider as line-anchored; the method body is empty, its
 	// presence is the signal.
 	Anchor()
+}
+
+// Dater is an optional capability marking a provider whose listing can carry
+// publication dates for at least some resources, so a cooldown may apply. A
+// provider that never dates any candidate omits it, letting clover skip
+// discovery under an in-force cooldown rather than fetch a listing it could
+// never age. A provider that dates only some resources (github/gitea tags,
+// docker/helm OCI paths) still implements it and leans on the post-discovery
+// date check for the undated resources.
+type Dater interface {
+	// Dated marks the listing as potentially dated; the method body is empty,
+	// its presence is the signal.
+	Dated()
 }
 
 // Digester is an optional capability for providers that can resolve a version's

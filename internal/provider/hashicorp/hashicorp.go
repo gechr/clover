@@ -59,6 +59,10 @@ func (p *Provider) Name() string { return constant.ProviderHashicorp }
 // marker finds no candidate while more pages remained.
 func (p *Provider) RecencyOrdered() {}
 
+// Dated marks the listing as date-bearing: every release carries a creation
+// date, so cooldown applies.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys hashicorp accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

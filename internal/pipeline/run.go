@@ -700,6 +700,15 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		ctx = provider.WithVersionFloor(ctx, located.Semver().String())
 	}
 
+	// A provider whose listing never carries publication dates can never honor a
+	// cooldown, so skip the fetch and warn up front rather than discover a listing
+	// clover could only skip. Providers that date some resources are Daters and
+	// fall to the post-discovery date check below.
+	if _, ok := prov.(provider.Dater); !ok &&
+		p.effectiveCooldown(m, cfg) > 0 && !p.now.IsZero() {
+		return errCooldownUnsupported
+	}
+
 	candidates, err := prov.Discover(ctx, resource)
 	if err != nil {
 		return err

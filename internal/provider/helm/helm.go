@@ -70,6 +70,10 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderHelm }
 
+// Dated marks the listing as date-bearing: the classic index carries release
+// dates. OCI tags do not, and fall to the post-discovery date check.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys helm accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

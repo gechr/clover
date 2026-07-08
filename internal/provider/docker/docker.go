@@ -79,6 +79,10 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderDocker }
 
+// Dated marks the listing as date-bearing: Docker Hub tags carry a last-updated
+// date. Bare OCI registry tags do not, and fall to the post-discovery date check.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys docker accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

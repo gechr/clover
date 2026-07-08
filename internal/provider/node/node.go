@@ -51,6 +51,10 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderNode }
 
+// Dated marks the listing as date-bearing: every release carries a publication
+// date, so cooldown applies.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys node accepts, in canonical order.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{

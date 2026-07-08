@@ -47,6 +47,10 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderPython }
 
+// Dated marks the listing as date-bearing: every release carries a publication
+// date, so cooldown applies.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys the provider accepts. python.org needs none of
 // its own: the whole listing arrives in one fetch and it publishes no
 // per-platform options.

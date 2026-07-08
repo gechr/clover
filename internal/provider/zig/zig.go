@@ -47,6 +47,10 @@ func New(opts ...Option) *Provider {
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderZig }
 
+// Dated marks the listing as date-bearing: a tagged release carries a publication
+// date. An entry without one falls to the post-discovery date check.
+func (p *Provider) Dated() {}
+
 // Keys reports the directive keys the provider accepts. ziglang.org needs none of
 // its own: the whole index arrives in one fetch, and per-platform checksum
 // selection is a follower's job via its pattern, not a provider option.
