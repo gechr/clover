@@ -39,7 +39,7 @@ func (e *Entry) refreshed(now time.Time, update http.Header) *Entry {
 // revalidatable reports whether the entry carries a validator (ETag or
 // Last-Modified) usable for a conditional request.
 func (e *Entry) revalidatable() bool {
-	return e.Header.Get("ETag") != "" || e.Header.Get("Last-Modified") != ""
+	return xstrings.AnyNonEmpty(e.Header.Get("ETag"), e.Header.Get("Last-Modified"))
 }
 
 func (e *Entry) withFallbackFreshness(ttl time.Duration) *Entry {

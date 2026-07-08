@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // KeySource selects what a forge marker discovers; SourceTags and
@@ -24,7 +25,7 @@ func OwnerName(label string, d directive.Directive) (string, string, error) {
 		return "", "", fmt.Errorf("%s: %q is required", label, constant.DirectiveRepository)
 	}
 	owner, name, ok := strings.Cut(repo, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+	if !ok || xstrings.AnyEmpty(owner, name) || strings.Contains(name, "/") {
 		return "", "", fmt.Errorf(
 			"%s: %q must be owner/name, got %q",
 			label,

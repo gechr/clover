@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/version"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Smart is the default rewriter. It locates a version by shape - no provider
@@ -91,7 +92,7 @@ func restyle(current Token, resolved string) string {
 	var b strings.Builder
 	b.WriteString(current.Prefix)
 	b.WriteString(reprecision(candidate.Core, components(current.Core)))
-	if current.Prerelease != "" && candidate.Prerelease != "" {
+	if xstrings.AllNonEmpty(current.Prerelease, candidate.Prerelease) {
 		b.WriteByte(constant.VersionDash)
 		b.WriteString(candidate.Prerelease)
 	}

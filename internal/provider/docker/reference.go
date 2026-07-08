@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clover/internal/oci"
 	"github.com/gechr/x/set"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Registry hosts that all mean Docker Hub. Docker Hub is addressed by several
@@ -112,7 +113,7 @@ func validatePlatform(platform string) error {
 		return nil
 	}
 	os, arch, ok := strings.Cut(platform, "/")
-	if !ok || os == "" || arch == "" || strings.ContainsAny(platform, " \t") {
+	if !ok || xstrings.AnyEmpty(os, arch) || strings.ContainsAny(platform, " \t") {
 		return fmt.Errorf("docker: %q must be os/arch, got %q", keyPlatform, platform)
 	}
 	return nil

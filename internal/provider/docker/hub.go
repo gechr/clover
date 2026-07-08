@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // hubTags is the subset of the Docker Hub tags response clover reads. The Hub
@@ -99,7 +100,7 @@ func (p *Provider) hubToken(ctx context.Context) string {
 	switch {
 	case cfg != nil && cfg.RegistryToken != "":
 		p.hubJWT = cfg.RegistryToken
-	case cfg != nil && cfg.Username != "" && cfg.Password != "":
+	case cfg != nil && xstrings.AllNonEmpty(cfg.Username, cfg.Password):
 		jwt, err := p.hubLogin(ctx, cfg.Username, cfg.Password)
 		if err != nil {
 			return "" // transient: stay unresolved so a later live context retries

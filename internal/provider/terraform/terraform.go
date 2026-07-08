@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/provider"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Directive keys the registry provider accepts.
@@ -97,7 +98,7 @@ func (p *Provider) Keys() []provider.Key {
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	source, _ := d.Get(keySource)
 	namespace, name, ok := strings.Cut(source, "/")
-	if !ok || namespace == "" || name == "" || strings.Contains(name, "/") {
+	if !ok || xstrings.AnyEmpty(namespace, name) || strings.Contains(name, "/") {
 		return nil, fmt.Errorf(
 			"%s: %q must be namespace/name, got %q",
 			p.registry.name,
