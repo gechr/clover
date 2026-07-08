@@ -294,7 +294,7 @@ func gateVersions(
 				Path(field.Path, root).
 				Str(field.Required, requiredConstraint(cfg)).
 				Str(field.Version, cversion.RemovePrefix(current)).
-				Msg("Skipping repository - clover does not satisfy its `required-version`")
+				Msg("Skipping repository - your installed `clover` binary is older than its `required-version`")
 		}
 	}
 	if blocked.Len() == 0 {

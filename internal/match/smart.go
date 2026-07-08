@@ -7,14 +7,13 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/version"
-	xstrings "github.com/gechr/x/strings"
 )
 
 // Smart is the default rewriter. It locates a version by shape - no provider
 // anchor is needed for the v0.1.0 providers, which are weakly anchored - and
 // renders a new version that preserves the original's style: its v-prefix,
-// component precision, and variant suffix, trimming a prerelease only when the
-// original had none.
+// component precision, and variant suffix, carrying the resolved prerelease
+// through whenever the chosen version has one.
 type Smart struct{}
 
 // NewSmart returns the default smart rewriter. It takes no arguments today but
@@ -84,15 +83,18 @@ func (l smartLocated) Render(line string, candidate model.Candidate) (string, bo
 }
 
 // restyle produces the new version string: the resolved core at the current's
-// precision and prefix, the resolved prerelease only if the current carried
-// one, and the current's variant suffix re-applied exactly once.
+// precision and prefix, the resolved prerelease whenever the chosen version has
+// one, and the current's variant suffix re-applied exactly once. A prerelease is
+// only ever selected deliberately (the line already tracks one, or prerelease is
+// allowed), so it must be rendered - dropping it would write a stable version
+// that does not exist yet (e.g. 1.27.0 for a chosen 1.27.0-rc2).
 func restyle(current Token, resolved string) string {
 	candidate := decompose(resolved)
 
 	var b strings.Builder
 	b.WriteString(current.Prefix)
 	b.WriteString(reprecision(candidate.Core, components(current.Core)))
-	if xstrings.AllNonEmpty(current.Prerelease, candidate.Prerelease) {
+	if candidate.Prerelease != "" {
 		b.WriteByte(constant.VersionDash)
 		b.WriteString(candidate.Prerelease)
 	}

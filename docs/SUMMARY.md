@@ -18,6 +18,7 @@
   - [Gitea](gitea.md)
   - [GitHub](github.md)
   - [GitLab](gitlab.md)
+  - [Go](go.md)
   - [HashiCorp](hashicorp.md)
   - [Helm](helm.md)
   - [HTTP](http.md)

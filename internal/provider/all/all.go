@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/provider/gitea"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/provider/gitlab"
+	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/helm"
 	"github.com/gechr/clover/internal/provider/http"
@@ -29,6 +30,7 @@ func New(httpOpts ...http.Option) []provider.Provider {
 		gitea.New(),
 		github.New(),
 		gitlab.New(),
+		golang.New(),
 		hashicorp.New(),
 		helm.New(),
 		http.New(httpOpts...),

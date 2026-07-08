@@ -15,6 +15,7 @@ const (
 	ProviderGitea     = "gitea"
 	ProviderGithub    = "github"
 	ProviderGitlab    = "gitlab"
+	ProviderGo        = "go"
 	ProviderHashicorp = "hashicorp"
 	ProviderHelm      = "helm"
 	ProviderHTTP      = "http"

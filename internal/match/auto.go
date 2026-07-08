@@ -155,10 +155,6 @@ type githubTool struct {
 	tagPrefix  string
 }
 
-// goTool is the source of Go toolchain releases, referenced by both the mise
-// go tool and the go directive in go.mod.
-var goTool = githubTool{repository: "golang/go", tagPrefix: "go"}
-
 // tofuTool is the source of OpenTofu toolchain releases, referenced by both
 // the mise tofu tool and a .tofu file's required_version constraint.
 var tofuTool = githubTool{repository: "opentofu/opentofu"}
@@ -171,7 +167,6 @@ var tofuTool = githubTool{repository: "opentofu/opentofu"}
 //
 //go:generate go run ../tools/genmise
 var miseGithubTools = map[string]githubTool{
-	"go":       goTool,
 	"opentofu": tofuTool,
 	"tofu":     tofuTool,
 	// Core mise runtimes (backends = ["core:..."]) whose upstream tags cleanly
@@ -193,15 +188,11 @@ var miseGiteaTools = map[string]string{
 }
 
 // githubReference extracts the repository a line tracks on GitHub, and the
-// tag-prefix its upstream tags carry: a uses: action reference, the go
-// directive in go.mod, a .tofu file's required_version constraint, or a mise
-// tool key.
+// tag-prefix its upstream tags carry: a uses: action reference, a .tofu file's
+// required_version constraint, or a mise tool key.
 func githubReference(path, line string) (string, string) {
 	if repo := actionRepository(line); repo != "" {
 		return repo, ""
-	}
-	if matchPath(goModGlob, path) {
-		return goTool.repository, goTool.tagPrefix
 	}
 	if matchPath(tofuGlob, path) {
 		return tofuTool.repository, tofuTool.tagPrefix

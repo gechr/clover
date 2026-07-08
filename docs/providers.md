@@ -9,6 +9,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `gitea`     | Tags and releases of a Gitea/Forgejo repository (Codeberg)   | [Gitea](gitea.md)                    |
 | `github`    | Releases, tags, and branch commits of a GitHub repository    | [GitHub](github.md)                  |
 | `gitlab`    | Tags and releases of a GitLab project                        | [GitLab](gitlab.md)                  |
+| `go`        | Go toolchain releases from the go.dev download index         | [Go](go.md)                          |
 | `hashicorp` | Release versions of a HashiCorp tool (Terraform, Vault, ...) | [HashiCorp](hashicorp.md)            |
 | `helm`      | Chart versions from a classic or OCI repository              | [Helm](helm.md)                      |
 | `http`      | Versions extracted from an arbitrary HTTP endpoint           | [HTTP](http.md)                      |

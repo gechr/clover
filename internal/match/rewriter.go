@@ -278,6 +278,17 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// A mise Go toolchain pin: go = "1.26.5". The go provider resolves it
+		// from go.dev, so this precedes the general GitHub-tool route that would
+		// otherwise claim it.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?go"?\s*=\s*"/`),
+			provider:  constant.ProviderGo,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// A mise github: or ubi: backend tool: "github:owner/repo" = "v1.2.3".
 		// Both back onto GitHub releases, so the github provider tracks them.
 		when: conditions{
@@ -358,13 +369,13 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
-		// The go directive in go.mod: go 1.23.2. Go releases are tagged goX.Y.Z
-		// in golang/go, so the github provider tracks them under the go
-		// tag-prefix.
+		// The go directive in go.mod: go 1.23.2. The go provider resolves the
+		// toolchain from the go.dev download index, stripping the goX.Y.Z prefix
+		// to clean semver.
 		when: conditions{
 			path:      goModGlob,
 			lineMatch: mustPattern(`/^go\s+\d/`),
-			provider:  constant.ProviderGithub,
+			provider:  constant.ProviderGo,
 		},
 		rewriter: NewSmart(),
 	},

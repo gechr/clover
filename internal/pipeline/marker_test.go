@@ -186,10 +186,8 @@ func TestMarkersAuto(t *testing.T) {
 				"// clover: provider=auto",
 				"go 1.23.2",
 			},
-			directive:  auto,
-			provider:   "github",
-			repository: "golang/go",
-			tagPrefix:  "go",
+			directive: auto,
+			provider:  "go",
 		},
 		{
 			name: "infers track from a digest-pinned floating tag",

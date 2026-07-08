@@ -83,10 +83,13 @@ func TestSmartRender(t *testing.T) {
 			wantChanged: true,
 		},
 		{
-			name:        "prerelease trimmed when current clean",
+			// A prerelease is only ever selected deliberately (prerelease=true),
+			// so it must be rendered even onto a clean line; trimming it would
+			// write a stable version that does not exist yet.
+			name:        "prerelease kept when current clean",
 			line:        "app:1.2.3",
 			resolved:    "1.3.0-rc.1",
-			wantLine:    "app:1.3.0",
+			wantLine:    "app:1.3.0-rc.1",
 			wantChanged: true,
 		},
 		{
@@ -94,6 +97,15 @@ func TestSmartRender(t *testing.T) {
 			line:        "app:1.2.3-rc.1",
 			resolved:    "1.3.0-rc.2",
 			wantLine:    "app:1.3.0-rc.2",
+			wantChanged: true,
+		},
+		{
+			// The go provider's canonical dashless prerelease: a clean 3-part Go
+			// line with prerelease=true must render the rc, not a fake 1.27.0.
+			name:        "go prerelease onto clean toolchain line",
+			line:        "GO_VERSION=1.26.5",
+			resolved:    "1.27.0-rc2",
+			wantLine:    "GO_VERSION=1.27.0-rc2",
 			wantChanged: true,
 		},
 		{

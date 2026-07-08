@@ -287,23 +287,15 @@ func TestInfer(t *testing.T) {
 			name: "mise go toolchain",
 			path: ".mise.toml",
 			line: `go = "1.23.2"`,
-			want: match.Inference{
-				Provider:   "github",
-				Repository: "golang/go",
-				TagPrefix:  "go",
-			},
-			ok: true,
+			want: match.Inference{Provider: "go"},
+			ok:   true,
 		},
 		{
 			name: "go directive in go.mod",
 			path: "sub/go.mod",
 			line: "go 1.23.2",
-			want: match.Inference{
-				Provider:   "github",
-				Repository: "golang/go",
-				TagPrefix:  "go",
-			},
-			ok: true,
+			want: match.Inference{Provider: "go"},
+			ok:   true,
 		},
 		{
 			name: "go.mod module directive is not matched",

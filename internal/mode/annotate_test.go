@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/provider/gitea"
 	"github.com/gechr/clover/internal/provider/github"
 	"github.com/gechr/clover/internal/provider/gitlab"
+	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/provider/terraform"
@@ -45,6 +46,7 @@ func TestMain(m *testing.M) {
 		gitea.New(),
 		github.New(),
 		gitlab.New(),
+		golang.New(),
 		hashicorp.New(),
 		node.New(node.WithTransport(nodeIndex)),
 		terraform.New(terraform.Terraform),
