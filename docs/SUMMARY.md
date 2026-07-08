@@ -24,6 +24,7 @@
   - [HTTP](http.md)
   - [Manual](manual.md)
   - [Node.js](node.md)
+  - [Python](python.md)
   - [Terraform / OpenTofu](terraform.md)
 
 - [Selecting versions]()

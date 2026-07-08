@@ -50,7 +50,7 @@ func (Hash) Locate(line string) (Location, error) {
 			span:     spans[0],
 		}, nil
 	default:
-		return nil, errors.New("multiple hashes on the line; target is ambiguous")
+		return nil, errors.New("multiple hashes on the line, so the target is ambiguous")
 	}
 }
 

@@ -62,7 +62,7 @@ func TestHashLocateErrors(t *testing.T) {
 
 	twoHashes := "a=" + strings.Repeat("a", 64) + " b=" + strings.Repeat("b", 64)
 	_, err = rw.Locate(twoHashes)
-	require.EqualError(t, err, "multiple hashes on the line; target is ambiguous")
+	require.EqualError(t, err, "multiple hashes on the line, so the target is ambiguous")
 }
 
 func TestForRoutesFollowerHashes(t *testing.T) {

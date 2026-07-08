@@ -1,0 +1,72 @@
+package python
+
+import (
+	"net/http"
+
+	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/httpcache"
+	"github.com/gechr/clover/internal/provider"
+)
+
+// Provider resolves CPython versions from python.org's public, unauthenticated
+// downloads API. The API is a single JSON array of every release, so the
+// provider fetches it once and lets the framework own selection; it lists
+// candidates and tags each with the publication date the API returns for free,
+// which cooldown consumes.
+type Provider struct {
+	transport http.RoundTripper // overridable for tests; nil uses the cached default
+
+	client *http.Client
+}
+
+// Option configures a [Provider].
+type Option func(*Provider)
+
+// WithTransport overrides the HTTP transport, for tests.
+func WithTransport(rt http.RoundTripper) Option {
+	return func(p *Provider) { p.transport = rt }
+}
+
+// New returns the Python provider. The downloads API is public and publishes no
+// rate-limit headers, so the client is a plain cached one with no ratelimit
+// wrapper or credentials.
+func New(opts ...Option) *Provider {
+	p := &Provider{}
+	for _, opt := range opts {
+		opt(p)
+	}
+	var cacheOpts []httpcache.Option
+	if p.transport != nil {
+		cacheOpts = append(cacheOpts, httpcache.WithTransport(p.transport))
+	}
+	p.client = httpcache.New(cacheOpts...)
+	return p
+}
+
+// Name identifies the provider.
+func (p *Provider) Name() string { return constant.ProviderPython }
+
+// Keys reports the directive keys the provider accepts. python.org needs none of
+// its own: the whole listing arrives in one fetch and it publishes no
+// per-platform options.
+func (p *Provider) Keys() []provider.Key { return nil }
+
+// Resource validates a directive into a Python resource. python.org takes no
+// provider-specific keys, so every directive resolves to the same descriptor.
+func (p *Provider) Resource(_ directive.Directive) (provider.Resource, error) {
+	return resource{}, nil
+}
+
+// Describe returns a human-readable label for a resource.
+func (p *Provider) Describe(r provider.Resource) string {
+	if _, ok := r.(resource); !ok {
+		return constant.ProviderPython
+	}
+	return host
+}
+
+// resource is the validated Python descriptor. It carries no fields today: the
+// downloads API has one shape and no scoping options, but the type keeps
+// discovery's contract uniform with the other providers.
+type resource struct{}

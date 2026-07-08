@@ -24,6 +24,7 @@ import (
 	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/node"
+	"github.com/gechr/clover/internal/provider/python"
 	"github.com/gechr/clover/internal/provider/terraform"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +50,7 @@ func TestMain(m *testing.M) {
 		golang.New(),
 		hashicorp.New(),
 		node.New(node.WithTransport(nodeIndex)),
+		python.New(),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),
 	)
@@ -310,6 +312,31 @@ func TestAnnotateInsertsForGoMod(t *testing.T) {
 		"module github.com/owner/repo\n\n// clover: provider=auto\ngo 1.23.2\n",
 		readFile(t, filepath.Join(root, "go.mod")),
 		"the go directive earns a slash-comment annotation",
+	)
+}
+
+func TestAnnotateInsertsForPyproject(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"pyproject.toml": "[project]\n" +
+			"requires-python = \">=3.13\"\n\n" +
+			"[tool.ruff]\n" +
+			"target-version = \"py313\"\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"[project]\n"+
+			"requires-python = \">=3.13\"\n\n"+
+			"[tool.ruff]\n"+
+			"# clover: provider=auto\n"+
+			"target-version = \"py313\"\n",
+		readFile(t, filepath.Join(root, "pyproject.toml")),
+		"the compact target-version earns an annotation; requires-python (a minimum) is left alone",
 	)
 }
 

@@ -176,7 +176,6 @@ var miseGithubTools = map[string]githubTool{
 	"deno":   {repository: "denoland/deno"},
 	"elixir": {repository: "elixir-lang/elixir"},
 	"erlang": {repository: "erlang/otp", tagPrefix: "OTP-"},
-	"python": {repository: "python/cpython"},
 	"rust":   {repository: "rust-lang/rust"},
 }
 

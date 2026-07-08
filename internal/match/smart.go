@@ -34,7 +34,7 @@ func (Smart) Locate(line string) (Location, error) {
 	case 1:
 		return locatedToken(line, tokens[0]), nil
 	default:
-		return nil, errors.New("multiple version-shaped tokens; target is ambiguous")
+		return nil, errors.New("multiple version-shaped tokens, so the target is ambiguous")
 	}
 }
 

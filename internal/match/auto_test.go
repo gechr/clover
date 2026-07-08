@@ -298,6 +298,28 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "mise python runtime",
+			path: ".mise.toml",
+			line: `python = "3.14.5"`,
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			name: "target-version in pyproject.toml",
+			path: "pyproject.toml",
+			line: `target-version = "py314"`,
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			// A requires-python floor declares a minimum, not the tracked
+			// interpreter, so it is deliberately not inferred.
+			name: "requires-python in pyproject.toml is not matched",
+			path: "pyproject.toml",
+			line: `requires-python = ">=3.14"`,
+			ok:   false,
+		},
+		{
 			name: "go.mod module directive is not matched",
 			path: "go.mod",
 			line: "module github.com/owner/repo",
@@ -326,8 +348,8 @@ func TestInfer(t *testing.T) {
 		{
 			name: "mise core runtime",
 			path: ".mise.toml",
-			line: `python = "3.13.1"`,
-			want: match.Inference{Provider: "github", Repository: "python/cpython"},
+			line: `rust = "1.83.0"`,
+			want: match.Inference{Provider: "github", Repository: "rust-lang/rust"},
 			ok:   true,
 		},
 		{

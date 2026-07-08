@@ -21,5 +21,6 @@ const (
 	ProviderHTTP      = "http"
 	ProviderNode      = "node"
 	ProviderOpentofu  = "opentofu"
+	ProviderPython    = "python"
 	ProviderTerraform = "terraform"
 )

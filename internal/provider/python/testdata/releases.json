@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Python 3.13.14",
+    "slug": "python-31314",
+    "version": 3,
+    "is_published": true,
+    "is_latest": false,
+    "release_date": "2026-06-10T16:00:00Z",
+    "pre_release": false,
+    "release_page": null,
+    "release_notes_url": "https://docs.python.org/release/3.13.14/whatsnew/changelog.html",
+    "show_on_download_page": true,
+    "resource_uri": "https://www.python.org/api/v2/downloads/release/1111/"
+  },
+  {
+    "name": "Python 3.14.6",
+    "slug": "python-3146",
+    "version": 3,
+    "is_published": true,
+    "is_latest": true,
+    "release_date": "2026-06-10T13:13:18Z",
+    "pre_release": false,
+    "release_page": null,
+    "release_notes_url": "https://docs.python.org/release/3.14.6/whatsnew/changelog.html",
+    "show_on_download_page": true,
+    "resource_uri": "https://www.python.org/api/v2/downloads/release/1110/"
+  },
+  {
+    "name": "Python 3.15.0b3",
+    "slug": "python-3150b3",
+    "version": 3,
+    "is_published": true,
+    "is_latest": false,
+    "release_date": "2026-06-23T13:25:25Z",
+    "pre_release": true,
+    "release_page": null,
+    "release_notes_url": "https://docs.python.org/3.15/whatsnew/3.15.html",
+    "show_on_download_page": false,
+    "resource_uri": "https://www.python.org/api/v2/downloads/release/1112/"
+  },
+  {
+    "name": "Python install manager 25.0",
+    "slug": "pymanager-250",
+    "version": 100,
+    "is_published": true,
+    "is_latest": false,
+    "release_date": "2025-10-08T13:59:14Z",
+    "pre_release": false,
+    "release_page": null,
+    "release_notes_url": "",
+    "show_on_download_page": false,
+    "resource_uri": "https://www.python.org/api/v2/downloads/release/1067/"
+  }
+]
