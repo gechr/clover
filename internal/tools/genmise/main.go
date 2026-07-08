@@ -119,11 +119,22 @@ func run(ctx context.Context, src, ref, out string) error {
 	if err != nil {
 		return err
 	}
+	if old, err := os.ReadFile(out); err == nil && bytes.Equal(body(old), body(source)) {
+		log.Printf("skipped %s: only the mise ref changed (%d tools)", out, len(tools))
+		return nil
+	}
 	if err := os.WriteFile(out, source, 0o600); err != nil {
 		return err
 	}
 	log.Printf("wrote %d tools to %s (mise %s)", len(tools), out, ref)
 	return nil
+}
+
+// body returns the source with its header comment line dropped, so a rewrite
+// that only bumped the recorded mise ref compares equal to the file on disk.
+func body(source []byte) []byte {
+	_, rest, _ := bytes.Cut(source, []byte("\n"))
+	return rest
 }
 
 // cloneMise fetches the mise repository at ref into a temporary directory with
