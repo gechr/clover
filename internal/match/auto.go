@@ -29,7 +29,6 @@ func (i Inference) Missing() string {
 	switch i.Provider {
 	case constant.ProviderDocker,
 		constant.ProviderGithub,
-		constant.ProviderGitea,
 		constant.ProviderGitlab:
 		if i.Repository == "" {
 			return "reference has no repository"
@@ -80,8 +79,6 @@ func Infer(path string, lines []string, target int) (Inference, bool) {
 			inferred.Track = trackedTag(imageToken(line))
 		case constant.ProviderGitlab:
 			inferred.Host, inferred.Repository = componentReference(line)
-		case constant.ProviderGitea:
-			inferred.Repository = miseGiteaTools[miseKey(line)]
 		case constant.ProviderHashicorp:
 			inferred.Product = hashicorpProduct(path, line)
 		case constant.ProviderTerraform, constant.ProviderOpentofu:
@@ -177,13 +174,6 @@ var miseGithubTools = map[string]githubTool{
 	"elixir": {repository: "elixir-lang/elixir"},
 	"erlang": {repository: "erlang/otp", tagPrefix: "OTP-"},
 	"rust":   {repository: "rust-lang/rust"},
-}
-
-// miseGiteaTools maps mise tool names to the Codeberg repository whose tags
-// carry their releases - the gitea provider's default host, so the inferred
-// directive needs no host key.
-var miseGiteaTools = map[string]string{
-	"zig": "ziglang/zig",
 }
 
 // githubReference extracts the repository a line tracks on GitHub, and the

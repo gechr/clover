@@ -364,10 +364,10 @@ func TestInfer(t *testing.T) {
 			ok: true,
 		},
 		{
-			name: "mise codeberg runtime",
+			name: "mise zig runtime",
 			path: ".mise.toml",
 			line: `zig = "0.15.2"`,
-			want: match.Inference{Provider: "gitea", Repository: "ziglang/zig"},
+			want: match.Inference{Provider: "zig"},
 			ok:   true,
 		},
 		{

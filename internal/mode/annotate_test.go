@@ -26,6 +26,7 @@ import (
 	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/provider/python"
 	"github.com/gechr/clover/internal/provider/terraform"
+	"github.com/gechr/clover/internal/provider/zig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 		python.New(),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),
+		zig.New(),
 	)
 	os.Exit(m.Run())
 }

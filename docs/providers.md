@@ -18,5 +18,6 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `opentofu`  | Terraform provider versions from the OpenTofu registry       | [Terraform / OpenTofu](terraform.md) |
 | `python`    | CPython interpreter releases from python.org                 | [Python](python.md)                  |
 | `terraform` | Terraform provider versions from a provider registry         | [Terraform / OpenTofu](terraform.md) |
+| `zig`       | Zig toolchain releases from the ziglang.org download index   | [Zig](zig.md)                        |
 
 A directive with no `provider` and a `from` key is a **follower**, which reads a value resolved elsewhere instead of contacting an upstream. See [Following values](following.md).

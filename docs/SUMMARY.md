@@ -26,6 +26,7 @@
   - [Node.js](node.md)
   - [Python](python.md)
   - [Terraform / OpenTofu](terraform.md)
+  - [Zig](zig.md)
 
 - [Selecting versions]()
   - [Constraints](constraints.md)

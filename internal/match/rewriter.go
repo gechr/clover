@@ -304,6 +304,16 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// A mise Zig toolchain pin: zig = "0.15.2". The zig provider resolves it
+		// from ziglang.org, so this precedes the general GitHub-tool route.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?zig"?\s*=\s*"/`),
+			provider:  constant.ProviderZig,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// A compact Python target in pyproject.toml: target-version = "py314"
 		// (ruff, black, mypy). The pyXY form is not version-shaped, so a dedicated
 		// rewriter parses and re-renders it. requires-python is deliberately not
@@ -335,20 +345,6 @@ var routes = []route{
 			path:      miseGlob,
 			lineMatch: mustPattern(`/^\s*"?(` + miseToolAlternation() + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderGithub,
-		},
-		rewriter: NewSmart(),
-	},
-	{
-		// A mise tool released on Codeberg: zig = "0.15.2" tracks ziglang/zig on
-		// the gitea provider's default host.
-		when: conditions{
-			path: miseGlob,
-			lineMatch: mustPattern(
-				`/^\s*"?(` + toolAlternation(
-					slices.Collect(maps.Keys(miseGiteaTools)),
-				) + `)"?\s*=\s*"/`,
-			),
-			provider: constant.ProviderGitea,
 		},
 		rewriter: NewSmart(),
 	},
