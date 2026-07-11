@@ -2,10 +2,12 @@ package scan
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -64,7 +66,9 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	// add the sidecar as its own root. Re-merge so naming both the target and its
 	// sidecar does not walk the sidecar twice. Directory roots already see siblings.
 	roots = xfilepath.Merge(append(roots, sidecarRootsFor(roots)...))
-	warnMissingRoots(roots)
+	if err := checkRoots(roots); err != nil {
+		return nil, 0, err
+	}
 
 	jobs := make(chan scanJob)
 	var walkErr error
@@ -109,15 +113,27 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 	return files, int(scanned.Load()), nil
 }
 
-// warnMissingRoots warns about any root that does not exist, so a typo'd path is
-// visible rather than silently scanning nothing. The path is then left to the
-// walk, which skips it - a missing root warns but does not fail the run.
-func warnMissingRoots(roots []string) {
+// checkRoots surfaces roots that do not exist, so a typo'd path is visible
+// rather than silently scanning nothing. A missing root alongside existing ones
+// warns and is left to the walk, which skips it - the run still scans the rest.
+// When no root exists there is nothing to scan at all, so that is a hard error.
+func checkRoots(roots []string) error {
+	var missing []string
 	for _, root := range roots {
 		if exists, _ := xos.Exists(root); !exists {
-			clog.Warn().Path(field.Path, root).Msg("Path does not exist")
+			missing = append(missing, root)
 		}
 	}
+	if len(missing) > 0 && len(missing) == len(roots) {
+		if len(missing) == 1 {
+			return fmt.Errorf("path does not exist: %s", missing[0])
+		}
+		return fmt.Errorf("no paths exist: %s", strings.Join(missing, ", "))
+	}
+	for _, root := range missing {
+		clog.Warn().Path(field.Path, root).Msg("Path does not exist")
+	}
+	return nil
 }
 
 // walk traverses root, sending scannable file paths to paths. Unreadable entries

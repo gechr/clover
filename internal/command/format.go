@@ -35,7 +35,7 @@ func (c *cmdFormat) Help() string {
 // the paths. Both --check and --dry-run suppress writing; only --check escalates
 // pending changes to a non-zero exit.
 func (c *cmdFormat) Run(configs *config.Resolver, workers parallelism) error {
-	launch()
+	launch(false)
 	ctx := context.Background()
 
 	dry := c.Check || c.DryRun

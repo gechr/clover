@@ -84,7 +84,8 @@ func TestLaunch(t *testing.T) {
 	t.Parallel()
 
 	// The version-omitted branch runs in the test binary (clive.Current() empty).
-	require.NotPanics(t, func() { command.Launch() })
+	require.NotPanics(t, func() { command.Launch(false) })
+	require.NotPanics(t, func() { command.Launch(true) })
 }
 
 // TestCompletionHandler exercises the dynamic completion dispatch: a provider

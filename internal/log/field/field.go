@@ -20,6 +20,7 @@ const (
 	Key         = "key"
 	Line        = "line"
 	Location    = "location"
+	Offline     = "offline"
 	Path        = "path"
 	Progress    = "progress"
 	Provider    = "provider"

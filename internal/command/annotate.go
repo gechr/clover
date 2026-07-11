@@ -43,7 +43,7 @@ func (c *cmdAnnotate) Help() string {
 // --check previews without writing and exits non-zero when annotate found work,
 // making it suitable as a CI gate.
 func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
-	launch()
+	launch(false)
 	ctx := context.Background()
 	cfg, err := configs.PrimaryForPaths(roots(c.Paths))
 	if err != nil {

@@ -40,13 +40,13 @@ type cmdRun struct {
 	Disable    []string     `            help:"Skip these providers, resolving all others"                                                clib:"terse='Disable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                  placeholder:"<provider>"`
 	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',complete='predictor=tag,comma',group='Options/Selection/3'"                          placeholder:"<tag>"      short:"t" aliases:"tags"`
 	To         string       "            help:\"Pin matched markers to this exact version (implies `--downgrade --force`)\"                clib:\"terse='Pin version',group='Options/Selection/3'\"                                                          placeholder:\"<version>\""
-	Cooldown   string       `            help:"Override every directive's cooldown, e.g. 72h or 2w (0 to disable)"                        clib:"terse='Cooldown override',group='Options/Selection/3'"                                                      placeholder:"<duration>"`
+	Cooldown   string       `            help:"Override every directive's cooldown (0 to disable)"                                        clib:"terse='Cooldown override',group='Options/Selection/3'"                                                      placeholder:"<duration>"`
 	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection/3'"                                                                                                         negatable:""`
 	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection/3'"                                                                                                        negatable:""`
 	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection/3'"                                                                                                             negatable:""`
 	Cache      *bool        `            help:"Reuse cached HTTP responses across runs"                                                   clib:"terse='HTTP cache',group='Options/Lookup'"                                                                                                                    negatable:""`
 	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup'"                                                                                                                   negatable:""`
-	Offline    bool         `            help:"Resolve from the HTTP cache alone (no network requests)"                             clib:"terse='Offline',group='Options/Lookup'"`
+	Offline    bool         `            help:"Resolve from the HTTP cache alone (no network requests)"                                   clib:"terse='Offline',group='Options/Lookup'"`
 	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup'\""
 	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                                                                                           short:"y"`
 	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                                                                             short:"n" aliases:"dry"`
@@ -77,7 +77,7 @@ func (c *cmdRun) applyOffline() {
 	}
 	c.Cache = cmp.Or(c.Cache, new(true))
 	httpcache.SetOffline(true)
-	clog.Info().Symbol("📴").Msg("Offline, resolving from the HTTP cache alone")
+	clog.Debug().Symbol("📴").Msg("Offline - resolving from the HTTP cache alone")
 }
 
 // cooldownOverride parses the --cooldown flag, nil when unset. A zero duration
@@ -109,7 +109,7 @@ func (c *cmdRun) Help() string {
 
 // Run resolves the markers under the given paths and reports a summary.
 func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
-	launch()
+	launch(c.Offline)
 	start := time.Now()
 	ctx := context.Background()
 	reporter := console.New(ctx, clog.Default, console.WithInfer(c.Infer))

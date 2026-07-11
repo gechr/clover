@@ -163,13 +163,16 @@ func newResolver(r root) (*config.Resolver, error) {
 
 // launch logs the startup banner naming Clover's version, so a run records up
 // front what version produced it. The version field is omitted when unknown
-// rather than logged empty.
-func launch() {
+// rather than logged empty. An offline run is flagged on the banner, so the
+// record shows it resolved from the HTTP cache alone.
+func launch(offline bool) {
 	event := clog.Info().Symbol("🍀")
 	if v := version.RemovePrefix(clive.Current()); v != "" {
 		event = event.Link(field.Version, clive.Info{Module: module}.VersionURL(v), v)
 	}
-	event.Msg("Launching Clover")
+	event.When(offline, func(e *clog.Event) {
+		e.Bool(field.Offline, true)
+	}).Msg("Launching Clover")
 }
 
 // roots returns the paths to scan, defaulting to the current directory when none

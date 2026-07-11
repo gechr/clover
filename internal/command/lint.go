@@ -30,7 +30,7 @@ func (c *cmdLint) Help() string {
 
 // Run validates the markers under the given paths and fails when any did not.
 func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
-	launch()
+	launch(false)
 	ctx := context.Background()
 
 	filter, err := tagFilter(c.Tags)

@@ -169,6 +169,26 @@ func TestScanSkipsMissingRoot(t *testing.T) {
 	require.Len(t, files, 1, "the valid root is still scanned")
 }
 
+func TestScanFailsWhenOnlyRootIsMissing(t *testing.T) {
+	t.Parallel()
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+
+	_, _, err := scan.Scan(t.Context(), []string{missing})
+	require.EqualError(t, err, "path does not exist: "+missing)
+}
+
+func TestScanFailsWhenEveryRootIsMissing(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	first := filepath.Join(dir, "one")
+	second := filepath.Join(dir, "two")
+
+	_, _, err := scan.Scan(t.Context(), []string{first, second})
+	require.EqualError(t, err, "no paths exist: "+first+", "+second)
+}
+
 func TestScanDoesNotFollowSymlinks(t *testing.T) {
 	t.Parallel()
 
