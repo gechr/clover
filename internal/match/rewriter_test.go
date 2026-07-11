@@ -20,6 +20,32 @@ func TestForFallsBackToSmart(t *testing.T) {
 	require.IsType(t, match.Smart{}, rw)
 }
 
+// TestMiseFile confirms both file shapes mise reads tool pins from count as
+// mise files, so a bare single-number pin gets major precision in either.
+func TestMiseFile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: ".mise.toml", want: true},
+		{path: "sub/mise.toml", want: true},
+		{path: ".tool-versions", want: true},
+		{path: "sub/.tool-versions", want: true},
+		{path: "Cargo.toml", want: false},
+		{path: "tool-versions", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, match.MiseFile(tt.path))
+		})
+	}
+}
+
 // TestForContainerJobUses confirms a workflow container job's uses: docker://
 // reference routes to the docker rewriters, not the action ones: digest-pinned
 // to docker-pin, tag-only to docker-tag.

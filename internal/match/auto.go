@@ -131,6 +131,19 @@ func hashicorpProduct(path, line string) string {
 	if matchPath(terraformGlob, path) {
 		return terraformProduct
 	}
+	return toolKey(path, line)
+}
+
+// toolKey extracts the tool name from a line mise reads: the first
+// whitespace-separated field in a .tool-versions file, else the mise TOML key.
+func toolKey(path, line string) string {
+	if matchPath(toolVersionsGlob, path) {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			return ""
+		}
+		return fields[0]
+	}
 	return miseKey(line)
 }
 
@@ -186,7 +199,7 @@ func githubReference(path, line string) (string, string) {
 	if matchPath(tofuGlob, path) {
 		return tofuTool.repository, tofuTool.tagPrefix
 	}
-	return miseTool(line)
+	return miseTool(path, line)
 }
 
 // miseTool extracts the GitHub source a mise tool key tracks: a curated tool
@@ -194,8 +207,8 @@ func githubReference(path, line string) (string, string) {
 // miseRegistryTools, or a github: or ubi: backend key, e.g.
 // `"ubi:owner/tool" = "1.2.3"` -> "owner/tool", dropping a trailing [option]
 // qualifier. It returns empty strings when the key names no repository.
-func miseTool(line string) (string, string) {
-	key := miseKey(line)
+func miseTool(path, line string) (string, string) {
+	key := toolKey(path, line)
 	if tool, ok := miseGithubTools[key]; ok {
 		return tool.repository, tool.tagPrefix
 	}

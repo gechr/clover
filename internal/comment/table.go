@@ -105,6 +105,7 @@ var byName = map[string]Syntax{
 	".gitattributes": hash,
 	".gitignore":     hash,
 	".profile":       hash,
+	".tool-versions": hash,
 	".zshrc":         hash,
 	"GNUmakefile":    hash,
 	"Makefile":       hash,

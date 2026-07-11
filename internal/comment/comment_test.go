@@ -20,6 +20,7 @@ func TestFor(t *testing.T) {
 		{name: "dockerfile by name", path: "Dockerfile", wantLine: []string{"#"}},
 		{name: "dockerfile suffixed", path: "deploy/Dockerfile.prod", wantLine: []string{"#"}},
 		{name: "makefile by name", path: "Makefile", wantLine: []string{"#"}},
+		{name: "tool-versions by name", path: "sub/.tool-versions", wantLine: []string{"#"}},
 		{name: "go is slash", path: "internal/main.go", wantLine: []string{"//"}},
 		{name: "terraform is hcl", path: "main.tf", wantLine: []string{"#", "//"}},
 		{name: "html is block only", path: "index.html", wantLine: nil},

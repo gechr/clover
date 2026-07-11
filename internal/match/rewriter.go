@@ -127,14 +127,21 @@ type route struct {
 // versions the mise routes recognize.
 const miseGlob = "**/{.mise,mise}.toml"
 
+// toolVersionsGlob matches asdf's .tool-versions files, which mise reads with
+// the same tool names as its own configuration.
+const toolVersionsGlob = "**/.tool-versions"
+
 // dockerfileGlob matches both the prefix naming convention (Dockerfile,
 // Dockerfile.dev, Containerfile) and the suffix convention (app.Dockerfile).
 const dockerfileGlob = "**/{Dockerfile,Containerfile,*.Dockerfile,*.Containerfile}*"
 
-// MiseFile reports whether path is a mise configuration file, where a bare
-// single-number pin (node = "24") means major precision rather than a calendar
-// tag, so selection may relax its scheme guard.
-func MiseFile(path string) bool { return matchPath(miseGlob, path) }
+// MiseFile reports whether path is a file mise reads tool pins from (its own
+// configuration or asdf's .tool-versions), where a bare single-number pin
+// (node = "24") means major precision rather than a calendar tag, so selection
+// may relax its scheme guard.
+func MiseFile(path string) bool {
+	return matchPath(miseGlob, path) || matchPath(toolVersionsGlob, path)
+}
 
 // goModGlob matches Go module files, whose go directive pins the toolchain.
 const goModGlob = "**/go.mod"
@@ -282,10 +289,31 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
-		// A mise Node.js runtime pin: node = "24.18.0".
+		// The same HashiCorp product pinned in .tool-versions: terraform 1.9.8.
+		when: conditions{
+			path: toolVersionsGlob,
+			lineMatch: mustPattern(
+				`/^\s*(` + strings.Join(hashicorpProducts, "|") + `)\s+\S/`,
+			),
+			provider: constant.ProviderHashicorp,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise Node.js runtime pin: node = "24.18.0". nodejs is mise's builtin
+		// alias for the asdf plugin name.
 		when: conditions{
 			path:      miseGlob,
-			lineMatch: mustPattern(`/^\s*"?node"?\s*=\s*"/`),
+			lineMatch: mustPattern(`/^\s*"?(node|nodejs)"?\s*=\s*"/`),
+			provider:  constant.ProviderNode,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same runtime pinned in .tool-versions: nodejs 24.18.0.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(node|nodejs)\s+\S/`),
 			provider:  constant.ProviderNode,
 		},
 		rewriter: NewSmart(),
@@ -293,10 +321,20 @@ var routes = []route{
 	{
 		// A mise Go toolchain pin: go = "1.26.5". The go provider resolves it
 		// from go.dev, so this precedes the general GitHub-tool route that would
-		// otherwise claim it.
+		// otherwise claim it. golang is mise's builtin alias for the asdf plugin
+		// name.
 		when: conditions{
 			path:      miseGlob,
-			lineMatch: mustPattern(`/^\s*"?go"?\s*=\s*"/`),
+			lineMatch: mustPattern(`/^\s*"?(go|golang)"?\s*=\s*"/`),
+			provider:  constant.ProviderGo,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same toolchain pinned in .tool-versions: golang 1.26.5.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(go|golang)\s+\S/`),
 			provider:  constant.ProviderGo,
 		},
 		rewriter: NewSmart(),
@@ -313,11 +351,29 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// The same runtime pinned in .tool-versions: python 3.14.5.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*python\s+\S/`),
+			provider:  constant.ProviderPython,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// A mise Zig toolchain pin: zig = "0.15.2". The zig provider resolves it
 		// from ziglang.org, so this precedes the general GitHub-tool route.
 		when: conditions{
 			path:      miseGlob,
 			lineMatch: mustPattern(`/^\s*"?zig"?\s*=\s*"/`),
+			provider:  constant.ProviderZig,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same toolchain pinned in .tool-versions: zig 0.15.2.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*zig\s+\S/`),
 			provider:  constant.ProviderZig,
 		},
 		rewriter: NewSmart(),
@@ -347,12 +403,31 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// The same backend tool pinned in .tool-versions, unquoted:
+		// ubi:owner/repo 1.2.3.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(github|ubi):\S+\s+\S/`),
+			provider:  constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
 		// A well-known mise tool released on GitHub: tofu = "1.8.5" tracks
 		// opentofu/opentofu. The names come from the curated miseGithubTools map
 		// and the generated mise registry map.
 		when: conditions{
 			path:      miseGlob,
 			lineMatch: mustPattern(`/^\s*"?(` + miseToolAlternation() + `)"?\s*=\s*"/`),
+			provider:  constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same well-known tool pinned in .tool-versions: tofu 1.8.5.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(` + miseToolAlternation() + `)\s+\S/`),
 			provider:  constant.ProviderGithub,
 		},
 		rewriter: NewSmart(),
