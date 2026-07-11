@@ -592,6 +592,32 @@ func TestRunPlainTagDoesNotPickVariant(t *testing.T) {
 		"plain line stays plain over a newer variant, with the plain tag's digest")
 }
 
+// A rogue upstream tag that is not version-shaped (norwoodj/helm-docs once
+// published a 19.0614) parses and orders above every real version, but restyle
+// cannot write it faithfully: it would pad the tag to 19.0614.0 - a version
+// that exists nowhere - and the next run's Locate would reject the line.
+// Regression test that selection passes over it to the real latest.
+func TestRunSkipsUnshapedTag(t *testing.T) {
+	provider.Register(fakeProvider{
+		name: "rogue",
+		candidates: []model.Candidate{
+			candidate(t, "19.0614"),
+			candidate(t, "1.14.3"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=rogue repository=x/y\nhelm-docs 1.14.2\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Err)
+	require.Equal(t, "helm-docs 1.14.3", r.NewLine,
+		"the unshaped 19.0614 tag is passed over for the real latest")
+}
+
 // When an explicit include forces a variant the plain line lacks, restyle still
 // renders the plain tag - so the digest must be resolved for that rendered tag,
 // not the raw selected candidate. Regression test that the pinned digest always

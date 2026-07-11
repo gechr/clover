@@ -797,6 +797,15 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if prefix != "" {
 		extract = prefixedAttrs(prefix)
 	}
+	// A restyling rewriter re-dresses the winner onto the current token's shape,
+	// and a tag the shape scanner rejects (a leading-zero 19.0614, a
+	// four-component 1.2.3.4) has no shape to re-dress - rendering it would put
+	// a version on the line that does not exist upstream and that a later
+	// Locate cannot re-read. Dropping its parse leaves it unorderable, so
+	// selection passes over it.
+	if _, ok := located.(match.Renderer); ok {
+		extract = shapedAttrs(extract)
+	}
 
 	chosen, reason, ok := version.SelectReason(located.Semver(), candidates, extract, opts...)
 	if !ok {
@@ -1581,6 +1590,21 @@ func prefixedAttrs(prefix string) func(model.Candidate) version.Attrs {
 			Prerelease:  c.Prerelease,
 			PublishedAt: c.PublishedAt,
 		}
+	}
+}
+
+// shapedAttrs wraps an extractor to drop the parse of a candidate whose tag is
+// not version-shaped, so a restyling rewriter never selects a version it cannot
+// write faithfully (see the wiring above [version.SelectReason] for the
+// rationale). A nil Semver is unorderable, the same fate as any other
+// unparsable tag.
+func shapedAttrs(inner func(model.Candidate) version.Attrs) func(model.Candidate) version.Attrs {
+	return func(c model.Candidate) version.Attrs {
+		a := inner(c)
+		if a.Semver != nil && !match.Shaped(a.Tag) {
+			a.Semver = nil
+		}
+		return a
 	}
 }
 

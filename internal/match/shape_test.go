@@ -123,6 +123,33 @@ func TestFindMultiple(t *testing.T) {
 	require.Equal(t, "1.3.0", got[1].Core)
 }
 
+func TestShaped(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{value: "1.14.2", want: true},
+		{value: "v1.14.2", want: true},
+		{value: "1.27-alpine", want: true},
+		{value: "2.0.0-rc.1", want: true},
+		{value: "20260127", want: true}, // a bare calendar tag is one clean component
+		{value: "19.0614", want: false}, // a leading-zero component (rogue helm-docs tag)
+		{value: "2024.01.15", want: false},
+		{value: "1.2.3.4", want: false},
+		{value: "latest", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, match.Shaped(tt.value))
+		})
+	}
+}
+
 func TestFindFourPartNoSubMatch(t *testing.T) {
 	t.Parallel()
 

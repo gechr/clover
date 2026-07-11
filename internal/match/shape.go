@@ -46,6 +46,14 @@ func Find(line string) []Token {
 	return tokens
 }
 
+// Shaped reports whether s carries a version-shaped token, i.e. [Find] locates
+// one. A restyling rewriter re-dresses a resolved version onto the current
+// token's shape, and a value with no version-shaped token (a leading-zero
+// component like 19.0614, a four-component core) has no shape to re-dress -
+// rendering it would fabricate a version, so such a candidate must not be
+// selected.
+func Shaped(s string) bool { return len(Find(s)) > 0 }
+
 // canStart reports whether a token may begin at i: the previous byte must not
 // continue a token (an alphanumeric or dot, which would mean we are mid-word or
 // mid-number), and i must begin a v-prefix or a digit.

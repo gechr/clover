@@ -55,7 +55,9 @@ type SecurePin interface {
 // version text it will write for a candidate, which may differ from the
 // candidate's raw version once restyled (a stripped variant, a re-precisioned or
 // re-prefixed core). The pipeline resolves a digest for this text rather than the
-// raw candidate, so a pinned image's digest always describes the tag written.
+// raw candidate, so a pinned image's digest always describes the tag written. It
+// also marks the target as restyling, so selection drops any candidate that is
+// not version-shaped (see [Shaped]) - restyling cannot write one faithfully.
 type Renderer interface {
 	Rendered(candidate model.Candidate) string
 }
