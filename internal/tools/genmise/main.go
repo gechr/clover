@@ -1,13 +1,15 @@
 // Command genmise generates the mise tool-name to GitHub repository map the
 // match package's auto-detection uses for mise configuration files. It reads
 // the registry directory of a mise checkout (github.com/jdx/mise), keeps every
-// tool whose default (first) backend names a GitHub repository - an aqua:,
-// github:, or ubi: backend - and emits the sorted map to the output file.
+// tool that lists a backend naming a GitHub repository - an aqua:, github:, or
+// ubi: backend, in any position - and emits the sorted map to the output file.
 //
-// Tools whose default backend is another ecosystem (npm:, pipx:, cargo:,
-// core:, ...) are skipped rather than mapped through a fallback backend, since
-// the versions a user pins for them follow that ecosystem's scheme, not the
-// GitHub tags. Tools the match package already maps by hand (HashiCorp
+// A tool's backends are interchangeable installers for the same pinned
+// version, so a listed GitHub backend proves the repository's tags carry the
+// tool's versions even when mise prefers another ecosystem for installation.
+// Tools backed only by other ecosystems (npm:, pipx:, cargo:, core:, ...) are
+// skipped, since the versions a user pins for them follow that ecosystem's
+// scheme, not GitHub tags. Tools the match package already maps by hand (HashiCorp
 // products, the Go toolchain, the Node.js runtime) are skipped too, so the
 // curated mappings stay authoritative.
 //
@@ -126,7 +128,7 @@ func run(ctx context.Context, src, ref, out string) error {
 	if err := os.WriteFile(out, source, 0o600); err != nil {
 		return err
 	}
-	log.Printf("wrote %d tools to %s (mise %s)", len(tools), out, ref)
+	log.Printf("wrote %d tools to %s", len(tools), out)
 	return nil
 }
 
@@ -217,30 +219,25 @@ func read(dir string) (map[string]string, error) {
 	return tools, nil
 }
 
-// repository returns the owner/repo of the tool's default backend, ok=false
-// when that backend is not GitHub-shaped or its spec is not a clean two-segment
-// path (a monorepo sub-path pins versions under tags the bare repository
-// lookup would misread, so it is skipped).
+// repository returns the owner/repo of the tool's first GitHub-shaped backend
+// in list order, ok=false when no backend is GitHub-shaped with a clean
+// two-segment spec (a monorepo sub-path pins versions under tags the bare
+// repository lookup would misread, so it is skipped).
 func repository(backends []any) (string, bool) {
-	if len(backends) == 0 {
-		return "", false
-	}
-	spec := ""
-	for _, scheme := range githubBackends {
-		if rest, ok := strings.CutPrefix(backendSpec(backends[0]), scheme); ok {
-			spec = rest
-			break
+	for _, backend := range backends {
+		for _, scheme := range githubBackends {
+			spec, ok := strings.CutPrefix(backendSpec(backend), scheme)
+			if !ok {
+				continue
+			}
+			spec, _, _ = strings.Cut(spec, "[") // drop a [option] qualifier
+			own, repo, ok := strings.Cut(spec, "/")
+			if ok && owner.MatchString(own) && segment.MatchString(repo) {
+				return own + "/" + repo, true
+			}
 		}
 	}
-	if spec == "" {
-		return "", false
-	}
-	spec, _, _ = strings.Cut(spec, "[") // drop a [option] qualifier
-	own, repo, ok := strings.Cut(spec, "/")
-	if !ok || !owner.MatchString(own) || !segment.MatchString(repo) {
-		return "", false
-	}
-	return own + "/" + repo, true
+	return "", false
 }
 
 // render emits the generated Go source for the tool map, gofmt-formatted.
