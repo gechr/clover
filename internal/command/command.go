@@ -128,7 +128,7 @@ func reportExit(err error) {
 		return
 	}
 	if failures, ok := errors.AsType[failuresError](err); ok {
-		clog.Error().Symbol("💥").Int(field.Failed, int(failures)).Msg("Experienced failures")
+		clog.Error().Symbol("💥").Int(field.Total, int(failures)).Msg("Experienced failures")
 		return
 	}
 	clog.Error().Err(err).Msg("Failed")

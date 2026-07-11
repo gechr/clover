@@ -103,87 +103,6 @@ func (r Reason) Detail() string {
 	}
 }
 
-// Option configures [Select].
-type Option func(*query)
-
-type query struct {
-	constraint *Constraint
-	includes   []Predicate
-	excludes   []Predicate
-	assets     []Predicate
-	cooldown   time.Duration
-	now        time.Time
-	behind     int
-	prerelease bool
-	downgrade  bool
-	observe    func(tag string, reason Reason)
-
-	// currentArity is the count of dotted numeric components in the version on
-	// the line (3 for 3.18.0, 1 for a bare calendar tag like 20260127), or 0
-	// when there is no current version. It anchors the scheme guard, computed
-	// once in [SelectReason] rather than per candidate.
-	currentArity int
-
-	// qualifier is the trailing suffix on the line (the "ent" in 1.15.0-ent), or
-	// "". A candidate sharing it is exempt from the prerelease gate, so a line
-	// pinned to a vendor track keeps that track without the suffix counting as a
-	// prerelease.
-	qualifier string
-}
-
-// WithConstraint limits selection to versions the constraint allows.
-func WithConstraint(c *Constraint) Option { return func(q *query) { q.constraint = c } }
-
-// WithInclude keeps only candidates matching at least one predicate. With no
-// include predicates every candidate is eligible.
-func WithInclude(preds ...Predicate) Option {
-	return func(q *query) { q.includes = append(q.includes, preds...) }
-}
-
-// WithExclude drops candidates matching any predicate.
-func WithExclude(preds ...Predicate) Option {
-	return func(q *query) { q.excludes = append(q.excludes, preds...) }
-}
-
-// WithAsset keeps only candidates publishing an asset whose filename matches at
-// least one predicate. With no asset predicates every candidate is eligible.
-func WithAsset(preds ...Predicate) Option {
-	return func(q *query) { q.assets = append(q.assets, preds...) }
-}
-
-// WithPrerelease allows prerelease versions, which are otherwise excluded.
-func WithPrerelease(allow bool) Option { return func(q *query) { q.prerelease = allow } }
-
-// WithCooldown requires a candidate to be at least d old, measured against the
-// time set by [WithNow]. Without an injected now, or for a candidate with no
-// publish time, cooldown does not apply.
-func WithCooldown(d time.Duration) Option { return func(q *query) { q.cooldown = d } }
-
-// WithNow injects the reference time for cooldown, keeping selection free of a
-// hidden clock and so deterministic.
-func WithNow(t time.Time) Option { return func(q *query) { q.now = t } }
-
-// WithBehind selects the nth candidate behind the newest after all filtering (0
-// = newest).
-func WithBehind(n int) Option { return func(q *query) { q.behind = n } }
-
-// WithDowngrade permits selecting a version older than current.
-func WithDowngrade(allow bool) Option { return func(q *query) { q.downgrade = allow } }
-
-// WithQualifier exempts candidates carrying the same trailing suffix as the line
-// (e.g. "ent" for a 1.15.0-ent pin) from the prerelease gate, so a vendor track
-// that semver reads as a prerelease stays selectable without opening every
-// prerelease. Empty disables the exemption.
-func WithQualifier(q string) Option { return func(query *query) { query.qualifier = q } }
-
-// WithObserver reports each candidate the chain rejects, together with the
-// [Reason]. It fires only for skipped candidates, letting a caller surface why a
-// version was passed over (e.g. at debug level) without this package taking on a
-// logging dependency.
-func WithObserver(fn func(tag string, reason Reason)) Option {
-	return func(q *query) { q.observe = fn }
-}
-
 // scored pairs a candidate with the fields the chain sorts and tie-breaks on,
 // so the extractor runs once per candidate rather than once per comparison.
 type scored[T any] struct {
@@ -318,9 +237,10 @@ func (q *query) qualifierExempt(tag string) bool {
 // scheme-level distinction only - 2- vs 3-part precision is deliberately not
 // locked - so it catches the calendar-tag-beats-semver footgun without
 // rejecting an ordinary patch or major bump. Inert when the line has no current
-// version (currentArity 0) or the candidate has no numeric core.
+// version (currentArity 0), the candidate has no numeric core, or [WithBareMajor]
+// declares a single-number line a major pin.
 func (q *query) schemeMismatch(tag string) bool {
-	if q.currentArity == 0 {
+	if q.currentArity == 0 || (q.bareMajor && q.currentArity == 1) {
 		return false
 	}
 	if n := numericArity(tag); n != 0 {

@@ -52,6 +52,33 @@ func TestRunInferUpdatesUnannotatedLines(t *testing.T) {
 	)
 }
 
+// TestRunInferBumpsBareMajorMisePin covers a major-only mise pin: node = "24"
+// is a major-precision pin, so the dotted upstream versions stay eligible and
+// the line is bumped at its own precision rather than rejected as a different
+// version scheme.
+func TestRunInferBumpsBareMajorMisePin(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".mise.toml")
+	body := "[tools]\nnode = \"24\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	summary, err := mode.Run(context.Background(), []string{dir}, false, testWorkers,
+		pipeline.WithInfer(true),
+		pipeline.WithRequireDirective(false),
+	)
+	require.NoError(t, err)
+	require.Len(t, summary.Outcomes, 1)
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"[tools]\nnode = \"26\"\n",
+		string(got),
+		"the bare-major pin bumps to the newest major, keeping its precision",
+	)
+}
+
 // TestRunWithoutInferIgnoresUnannotatedLines locks the default in: the same
 // tree resolves nothing when --infer is off, since no directive exists.
 func TestRunWithoutInferIgnoresUnannotatedLines(t *testing.T) {

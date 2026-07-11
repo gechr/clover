@@ -40,14 +40,6 @@ func (e *Error) Error() string {
 	return "rate limit exceeded; resets at " + e.Reset.UTC().Format(time.RFC3339)
 }
 
-// Option configures a [Transport].
-type Option func(*Transport)
-
-// WithClock overrides the time source, for tests.
-func WithClock(now func() time.Time) Option {
-	return func(t *Transport) { t.now = now }
-}
-
 // Transport is a rate-limit-aware http.RoundTripper. It reads the configured
 // [Headers] from each response and, once the quota is spent, refuses further
 // requests until the reset time rather than hammering the limit.

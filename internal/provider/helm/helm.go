@@ -37,19 +37,6 @@ type Provider struct {
 	client *oci.Client
 }
 
-// Option configures a [Provider].
-type Option func(*Provider)
-
-// WithTransport overrides the HTTP transport, for tests.
-func WithTransport(rt http.RoundTripper) Option {
-	return func(p *Provider) { p.transport = rt }
-}
-
-// WithKeychain overrides the credential keychain, for tests.
-func WithKeychain(kc authn.Keychain) Option {
-	return func(p *Provider) { p.keychain = kc }
-}
-
 // New returns the Helm provider, defaulting to the keychain that reads the
 // user's existing docker/helm login so clover piggybacks on credentials already
 // stored for OCI chart registries.

@@ -734,6 +734,11 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// (1.15.0-ent) the include above already scoped to stays selectable.
 	opts = append(opts, version.WithQualifier(version.Qualifier(located.Current())))
 	opts = append(opts, version.WithNow(p.now))
+	// A bare single-number pin in a mise file (node = "24") is a major-precision
+	// pin, not a calendar tag, so dotted candidates stay eligible against it.
+	if match.MiseFile(m.File) {
+		opts = append(opts, version.WithBareMajor(true))
+	}
 	// A CLI override wins over the root's config default, which wins over the
 	// directive's own rule; appended after the directive options so a set value
 	// takes precedence. nil at both levels leaves the per-directive rule in force.

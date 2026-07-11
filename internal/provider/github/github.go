@@ -86,29 +86,6 @@ type tokenStore interface {
 	Get(host string) (string, bool)
 }
 
-// Option configures a [Provider].
-type Option func(*Provider)
-
-// WithTransport overrides the HTTP transport, for tests. It also pins credential
-// resolution to the explicit store (see credential), so a test never reaches the
-// network and its auth path - GraphQL vs anonymous REST - is fully deterministic.
-func WithTransport(rt http.RoundTripper) Option {
-	return func(p *Provider) { p.transport = rt }
-}
-
-// WithToken injects a host-bound PAT credential directly, for tests exercising
-// the authenticated path (and the exfil guard) without reading the machine's
-// environment.
-func WithToken(tok string) Option {
-	return func(p *Provider) { p.tokenOpt = tok }
-}
-
-// WithStore sets the token store the credential chain reads the clover-minted
-// token from, for tests.
-func WithStore(s tokenStore) Option {
-	return func(p *Provider) { p.store = s }
-}
-
 // New returns the GitHub provider, wiring the token store the credential chain
 // reads from. A store that cannot be located (no config dir) is left nil, so the
 // chain simply skips that rung. The default keychain store is wired only on the

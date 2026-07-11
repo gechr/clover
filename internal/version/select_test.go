@@ -195,6 +195,23 @@ func TestSelectSchemeGuard(t *testing.T) {
 	got, ok = version.Select(cur, candidates("7.4.9"), attrsOf)
 	require.True(t, ok)
 	require.Equal(t, "7.4.9", got.tag, "precision difference is not a scheme mismatch")
+
+	// WithBareMajor declares a single-number line a major pin (a mise
+	// node = "24"), so dotted candidates stay eligible and the newest wins.
+	cur = mustParse(t, "24")
+	got, ok = version.Select(
+		cur,
+		candidates("24.4.1", "25.1.0"),
+		attrsOf,
+		version.WithBareMajor(true),
+	)
+	require.True(t, ok)
+	require.Equal(t, "25.1.0", got.tag, "a bare-major pin selects dotted versions")
+
+	// Without the option the same line keeps the calendar-tag guard.
+	_, reason, ok = version.SelectReason(cur, candidates("24.4.1", "25.1.0"), attrsOf)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonScheme, reason)
 }
 
 func TestSelectQualifierExempt(t *testing.T) {

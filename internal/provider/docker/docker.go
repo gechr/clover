@@ -46,19 +46,6 @@ type Provider struct {
 	hubResolved bool // true once the Hub token is settled, so a transient login failure can retry
 }
 
-// Option configures a [Provider].
-type Option func(*Provider)
-
-// WithTransport overrides the HTTP transport, for tests.
-func WithTransport(rt http.RoundTripper) Option {
-	return func(p *Provider) { p.transport = rt }
-}
-
-// WithKeychain overrides the credential keychain, for tests.
-func WithKeychain(kc authn.Keychain) Option {
-	return func(p *Provider) { p.keychain = kc }
-}
-
 // New returns the Docker provider, defaulting to the keychain that reads the
 // user's existing docker login (config.json plus any docker-credential-*
 // helper), so clover piggybacks on credentials docker already stores.

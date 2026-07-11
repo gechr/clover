@@ -27,22 +27,6 @@ type Matcher struct {
 	cache map[string][]pattern
 }
 
-// Option configures a [Matcher].
-type Option func(*Matcher)
-
-// WithFiles sets the ignore file names read in each directory, lowest priority
-// first (default: .gitignore). This is the seam for a future .cloverignore.
-func WithFiles(names ...string) Option {
-	return func(m *Matcher) { m.files = names }
-}
-
-// WithDisabled turns the matcher into a no-op that ignores nothing, for
-// --no-ignore. VCS directories are pruned by the walker, not here, so they stay
-// excluded regardless.
-func WithDisabled() Option {
-	return func(m *Matcher) { m.disabled = true }
-}
-
 // New returns a matcher that resolves repository roots through resolver.
 func New(resolver *vcs.Resolver, opts ...Option) *Matcher {
 	m := &Matcher{resolver: resolver, files: defaultFiles, cache: make(map[string][]pattern)}

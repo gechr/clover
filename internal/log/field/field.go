@@ -34,6 +34,7 @@ const (
 	Skipped     = "skipped"
 	Tags        = "tags"
 	To          = "to"
+	Total       = "total"
 	Updated     = "updated"
 	Version     = "version"
 )

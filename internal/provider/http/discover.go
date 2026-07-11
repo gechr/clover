@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/itchyny/gojq"
 )
 
@@ -167,13 +168,12 @@ func pick(m []string, g int) string {
 // de-duplicated in first-seen order. A non-semver string keeps a nil Semver and
 // is ordered out by selection, like any unparseable version elsewhere.
 func candidates(versions []string) []model.Candidate {
-	seen := make(map[string]bool, len(versions))
-	out := make([]model.Candidate, 0, len(versions))
-	for _, v := range versions {
-		if v == "" || seen[v] {
+	unique := xslices.Unique(versions)
+	out := make([]model.Candidate, 0, len(unique))
+	for _, v := range unique {
+		if v == "" {
 			continue
 		}
-		seen[v] = true
 		semver, _ := version.Parse(v)
 		out = append(out, model.Candidate{Version: v, Semver: semver})
 	}

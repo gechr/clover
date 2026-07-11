@@ -27,14 +27,6 @@ type Provider struct {
 	client *http.Client
 }
 
-// Option configures a [Provider].
-type Option func(*Provider)
-
-// WithTransport overrides the HTTP transport, for tests.
-func WithTransport(rt http.RoundTripper) Option {
-	return func(p *Provider) { p.transport = rt }
-}
-
 // New returns the HashiCorp provider. The releases service is public and
 // publishes no rate-limit headers, so the client is a plain cached one with no
 // ratelimit wrapper or credentials.

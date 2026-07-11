@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	xos "github.com/gechr/x/os"
+	"github.com/gechr/x/shell"
 	"github.com/zalando/go-keyring"
 )
 
@@ -38,19 +39,11 @@ type cachedToken struct {
 	ok    bool
 }
 
-// Option configures a [Store].
-type Option func(*Store)
-
-// WithDir overrides the file-fallback directory, for tests.
-func WithDir(dir string) Option {
-	return func(s *Store) { s.dir = dir }
-}
-
 // New returns a Store whose file fallback lives under the user config directory
 // (e.g. ~/.config/clover/hosts). The directory is created lazily on the first
 // write that needs it.
 func New(opts ...Option) (*Store, error) {
-	dir, err := os.UserConfigDir()
+	dir, err := shell.ConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("token: locate config dir: %w", err)
 	}

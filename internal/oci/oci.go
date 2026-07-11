@@ -72,38 +72,6 @@ type Client struct {
 	digests  map[digestKey]string
 }
 
-// Option configures a [Client].
-type Option func(*Client)
-
-// WithTransport overrides the HTTP transport, for tests. A nil transport leaves
-// the cached, rate-limited default in place.
-func WithTransport(rt http.RoundTripper) Option {
-	return func(c *Client) {
-		if rt != nil {
-			c.transport = rt
-		}
-	}
-}
-
-// WithKeychain overrides the credential keychain.
-func WithKeychain(kc authn.Keychain) Option { return func(c *Client) { c.keychain = kc } }
-
-// WithTokenEnv names the environment variable that, when set, supplies a ready
-// bearer token overriding every other credential source.
-func WithTokenEnv(env string) Option { return func(c *Client) { c.tokenEnv = env } }
-
-// WithRateHeaders overrides the rate-limit header names.
-func WithRateHeaders(h ratelimit.Headers) Option { return func(c *Client) { c.rateHeaders = h } }
-
-// WithErrorContext sets the prefix for the client's errors and the hint appended
-// to auth and rate-limit failures, so guidance lands in the consumer's voice.
-func WithErrorContext(label, hint string) Option {
-	return func(c *Client) {
-		c.label = label
-		c.authHint = hint
-	}
-}
-
 // New returns a registry client, defaulting to the keychain that reads the
 // user's existing docker login so clover piggybacks on credentials docker
 // already stores.

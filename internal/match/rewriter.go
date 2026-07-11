@@ -127,6 +127,11 @@ type route struct {
 // versions the mise routes recognize.
 const miseGlob = "**/{.mise,mise}.toml"
 
+// MiseFile reports whether path is a mise configuration file, where a bare
+// single-number pin (node = "24") means major precision rather than a calendar
+// tag, so selection may relax its scheme guard.
+func MiseFile(path string) bool { return matchPath(miseGlob, path) }
+
 // goModGlob matches Go module files, whose go directive pins the toolchain.
 const goModGlob = "**/go.mod"
 
