@@ -31,9 +31,20 @@ func TestMiseFile(t *testing.T) {
 	}{
 		{path: ".mise.toml", want: true},
 		{path: "sub/mise.toml", want: true},
+		{path: "mise.local.toml", want: true},
+		{path: ".mise.local.toml", want: true},
+		{path: "mise.dev.toml", want: true},
+		{path: "mise.dev.local.toml", want: true},
+		{path: "mise/config.toml", want: true},
+		{path: "sub/.mise/config.toml", want: true},
+		{path: ".config/mise.toml", want: true},
+		{path: ".config/mise/config.toml", want: true},
+		{path: ".config/mise/conf.d/extra.toml", want: true},
 		{path: ".tool-versions", want: true},
 		{path: "sub/.tool-versions", want: true},
 		{path: "Cargo.toml", want: false},
+		{path: "mise.lock", want: false},
+		{path: "premise.toml", want: false},
 		{path: "tool-versions", want: false},
 	}
 

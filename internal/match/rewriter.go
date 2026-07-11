@@ -124,8 +124,11 @@ type route struct {
 }
 
 // miseGlob matches the mise configuration files whose [tools] entries pin the
-// versions the mise routes recognize.
-const miseGlob = "**/{.mise,mise}.toml"
+// versions the mise routes recognize: mise.toml and .mise.toml, their .local
+// and environment variants (mise.local.toml, mise.<env>.toml), the directory
+// forms (mise/config.toml, .mise/config.toml, .config/mise/config.toml,
+// .config/mise.toml), and .config/mise/conf.d fragments.
+const miseGlob = "**/{{.mise,mise}{,.*}.toml,{.mise,mise}/config.toml,.config/mise/conf.d/*.toml}"
 
 // toolVersionsGlob matches asdf's .tool-versions files, which mise reads with
 // the same tool names as its own configuration.
