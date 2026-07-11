@@ -7,6 +7,8 @@ import (
 
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/pipeline"
+	"github.com/gechr/clover/internal/scan"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,10 +52,7 @@ func TestScanNoIgnoreScansGitignored(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	bases := make([]string, len(files))
-	for i, f := range files {
-		bases[i] = filepath.Base(f.Path)
-	}
+	bases := xslices.Map(files, func(f scan.File) string { return filepath.Base(f.Path) })
 	require.ElementsMatch(t, []string{"keep.yaml", "drop.yaml"}, bases)
 }
 

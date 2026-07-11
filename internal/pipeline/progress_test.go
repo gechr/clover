@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,10 +49,9 @@ func (r *captureReporter) Begin(names []string) ([]progress.Task, func()) {
 	r.names = names
 	r.mu.Unlock()
 
-	tasks := make([]progress.Task, len(names))
-	for i, name := range names {
-		tasks[i] = &captureTask{reporter: r, name: name}
-	}
+	tasks := xslices.Map(names, func(name string) progress.Task {
+		return &captureTask{reporter: r, name: name}
+	})
 	return tasks, func() {
 		r.mu.Lock()
 		r.waited = true

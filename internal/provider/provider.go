@@ -5,6 +5,7 @@ import (
 
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
+	xslices "github.com/gechr/x/slices"
 )
 
 // Resource is a provider-specific, validated descriptor built from a directive.
@@ -23,12 +24,9 @@ type Key struct {
 // KeyNames returns the names of the directive keys a provider accepts, in its
 // canonical order.
 func KeyNames(p Provider) []string {
-	keys := p.Keys()
-	names := make([]string, len(keys))
-	for i, key := range keys {
-		names[i] = key.Name
-	}
-	return names
+	return xslices.Map(p.Keys(), func(key Key) string {
+		return key.Name
+	})
 }
 
 // Provider adapts one upstream source of versions. Resource validates a

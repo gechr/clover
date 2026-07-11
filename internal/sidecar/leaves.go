@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	xslices "github.com/gechr/x/slices"
 )
 
 // Leaf is a string-valued scalar in a JSON document, the unit annotate proposes
@@ -78,10 +80,7 @@ func Leaves(source []byte) ([]Leaf, error) {
 	}
 	slices.SortFunc(kept, func(a, b keptLeaf) int { return cmp.Compare(a.off, b.off) })
 
-	leaves := make([]Leaf, len(kept))
-	for i, k := range kept {
-		leaves[i] = k.leaf
-	}
+	leaves := xslices.Map(kept, func(k keptLeaf) Leaf { return k.leaf })
 	return leaves, nil
 }
 

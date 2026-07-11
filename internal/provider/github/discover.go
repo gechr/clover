@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	xhttp "github.com/gechr/x/http"
+	xslices "github.com/gechr/x/slices"
 )
 
 // perPage is the page size, GitHub's ceiling for both the REST tags endpoint and
@@ -146,11 +147,9 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 
 // candidatesFromTags projects discovered tags into candidates.
 func candidatesFromTags(tags []tag) []model.Candidate {
-	candidates := make([]model.Candidate, 0, len(tags))
-	for _, t := range tags {
-		candidates = append(candidates, candidate(t.Name, t.Commit.SHA, false, time.Time{}, nil))
-	}
-	return candidates
+	return xslices.Map(tags, func(t tag) model.Candidate {
+		return candidate(t.Name, t.Commit.SHA, false, time.Time{}, nil)
+	})
 }
 
 // anyParsable reports whether any candidate carries a parsable version - the

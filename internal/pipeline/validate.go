@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clover/internal/exec"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/rule"
+	xslices "github.com/gechr/x/slices"
 	xsync "github.com/gechr/x/sync"
 )
 
@@ -24,16 +25,15 @@ func (p *plan) validate(ctx context.Context) {
 		p.results[i].Err = p.check(i)
 	})
 
-	tasks := make([]exec.Task, len(p.markers))
-	for i, m := range p.markers {
-		tasks[i] = exec.Task{
+	tasks := xslices.Map(p.markers, func(m Marker) exec.Task {
+		return exec.Task{
 			ID:        m.ID,
 			From:      m.From,
 			Label:     bareID(m.ID),
 			FromLabel: bareID(m.From),
 			Run:       func(context.Context) error { return nil },
 		}
-	}
+	})
 	for i, r := range exec.Execute(ctx, tasks, p.workers) {
 		if r.Skipped && p.results[i].Err == nil {
 			p.results[i].Skipped = true

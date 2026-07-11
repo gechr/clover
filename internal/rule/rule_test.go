@@ -6,6 +6,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/rule"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,11 +22,7 @@ func directiveOf(pairs ...directive.KV) directive.Directive {
 }
 
 func candidates(tags ...string) []cand {
-	cands := make([]cand, len(tags))
-	for i, tag := range tags {
-		cands[i] = cand{tag: tag}
-	}
-	return cands
+	return xslices.Map(tags, func(tag string) cand { return cand{tag: tag} })
 }
 
 // selected compiles d's rule, runs version.Select, and returns the chosen tag.

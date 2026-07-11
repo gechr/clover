@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,19 +46,12 @@ func newProvider(body string) *golang.Provider {
 
 // versions extracts the version strings from candidates, in order.
 func versions(candidates []model.Candidate) []string {
-	out := make([]string, len(candidates))
-	for i, c := range candidates {
-		out[i] = c.Version
-	}
-	return out
+	return xslices.Map(candidates, func(c model.Candidate) string { return c.Version })
 }
 
 // attrs adapts a candidate for version selection, mirroring the pipeline.
 func attrs(c model.Candidate) version.Attrs {
-	names := make([]string, len(c.Assets))
-	for i, a := range c.Assets {
-		names[i] = a.Name
-	}
+	names := xslices.Map(c.Assets, func(a model.Asset) string { return a.Name })
 	return version.Attrs{Tag: c.Version, Semver: c.Semver, Assets: names}
 }
 

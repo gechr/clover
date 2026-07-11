@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,9 +55,5 @@ func TestFilterProviders(t *testing.T) {
 }
 
 func providers(markers []Marker) []string {
-	names := make([]string, len(markers))
-	for i, m := range markers {
-		names[i] = m.Provider
-	}
-	return names
+	return xslices.Map(markers, func(m Marker) string { return m.Provider })
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,10 +66,7 @@ func TestReorder(t *testing.T) {
 			require.True(t, found)
 
 			got := directive.Reorder(d, tc.providerKeys)
-			keys := make([]string, len(got.Pairs))
-			for i, kv := range got.Pairs {
-				keys[i] = kv.Key
-			}
+			keys := xslices.Map(got.Pairs, func(kv directive.KV) string { return kv.Key })
 			require.Equal(t, tc.want, keys)
 		})
 	}
@@ -85,10 +83,7 @@ func TestReorderLocatorZone(t *testing.T) {
 	require.True(t, found)
 
 	got := directive.Reorder(d, []string{"repository"})
-	keys := make([]string, len(got.Pairs))
-	for i, kv := range got.Pairs {
-		keys[i] = kv.Key
-	}
+	keys := xslices.Map(got.Pairs, func(kv directive.KV) string { return kv.Key })
 	require.Equal(
 		t,
 		[]string{"provider", "repository", "jq", "find", "replace", "constraint"},

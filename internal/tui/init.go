@@ -6,6 +6,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/gechr/x/set"
+	xslices "github.com/gechr/x/slices"
 )
 
 // SelectProviders asks which upstream providers the project will use, with every
@@ -14,10 +15,9 @@ func SelectProviders(names []string) ([]string, error) {
 	selected := make([]string, len(names))
 	copy(selected, names)
 
-	options := make([]huh.Option[string], len(names))
-	for i, name := range names {
-		options[i] = huh.NewOption(name, name).Selected(true)
-	}
+	options := xslices.Map(names, func(name string) huh.Option[string] {
+		return huh.NewOption(name, name).Selected(true)
+	})
 
 	field := huh.NewMultiSelect[string]().
 		Title("Which providers will this project use?").
@@ -70,10 +70,9 @@ func Configure(in ConfigureInput) (Settings, error) {
 	settings := Settings{RequiredVersion: in.DefaultVersion, Write: true}
 
 	preselected := set.New(in.DefaultExcludes...)
-	excludeOptions := make([]huh.Option[string], len(in.ExcludeOptions))
-	for i, glob := range in.ExcludeOptions {
-		excludeOptions[i] = huh.NewOption(glob, glob).Selected(preselected.Contains(glob))
-	}
+	excludeOptions := xslices.Map(in.ExcludeOptions, func(glob string) huh.Option[string] {
+		return huh.NewOption(glob, glob).Selected(preselected.Contains(glob))
+	})
 
 	confirmTitle := fmt.Sprintf("Write %s?", in.Path)
 	if in.Exists {

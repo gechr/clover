@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	xslices "github.com/gechr/x/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,11 +16,10 @@ import (
 // depends on the provider registry. It is the writer annotate generates new
 // sidecars with - and the canonical form format re-emits toward.
 func Render(entries []directive.Directive, keysFor func(provider string) []string) ([]byte, error) {
-	nodes := make([]*yaml.Node, len(entries))
-	for i, d := range entries {
+	nodes := xslices.Map(entries, func(d directive.Directive) *yaml.Node {
 		name, _ := d.Get(constant.DirectiveProvider)
-		nodes[i] = directive.RenderYAML(d, keysFor(name))
-	}
+		return directive.RenderYAML(d, keysFor(name))
+	})
 	return directive.RenderYAMLList(nodes)
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
+	xslices "github.com/gechr/x/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,11 +53,9 @@ func (p *Provider) discoverIndex(ctx context.Context, ref reference) ([]model.Ca
 		return nil, fmt.Errorf("helm: chart %q not found in %s", ref.chart, ref.baseURL)
 	}
 
-	candidates := make([]model.Candidate, 0, len(entries))
-	for _, e := range entries {
-		candidates = append(candidates, indexCandidate(ref, e))
-	}
-	return candidates, nil
+	return xslices.Map(entries, func(e indexEntry) model.Candidate {
+		return indexCandidate(ref, e)
+	}), nil
 }
 
 // indexCandidate builds a candidate from an index entry, attaching the chart

@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/tag"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,10 +131,9 @@ func TestUsedProviders(t *testing.T) {
 	t.Parallel()
 
 	summary := func(names ...string) mode.Summary {
-		results := make([]pipeline.Result, len(names))
-		for i, n := range names {
-			results[i] = pipeline.Result{Marker: pipeline.Marker{Provider: n}}
-		}
+		results := xslices.Map(names, func(n string) pipeline.Result {
+			return pipeline.Result{Marker: pipeline.Marker{Provider: n}}
+		})
 		return mode.Summary{Outcomes: []mode.Outcome{{
 			FileResult: pipeline.FileResult{Results: results},
 		}}}

@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider/terraform"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,11 +49,9 @@ func fixtureProvider(t *testing.T, reg terraform.Registry) *terraform.Provider {
 }
 
 func versions(candidates []model.Candidate) []string {
-	out := make([]string, len(candidates))
-	for i, c := range candidates {
-		out[i] = c.Version
-	}
-	return out
+	return xslices.Map(candidates, func(c model.Candidate) string {
+		return c.Version
+	})
 }
 
 // TestFixtureDiscover covers the full path: service discovery resolves the

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -18,11 +19,7 @@ func mappingKeys(node *yaml.Node) []string {
 }
 
 func pairKeys(pairs []directive.KV) []string {
-	keys := make([]string, len(pairs))
-	for i, kv := range pairs {
-		keys[i] = kv.Key
-	}
-	return keys
+	return xslices.Map(pairs, func(kv directive.KV) string { return kv.Key })
 }
 
 // TestRenderYAMLMatchesTextOrder is the cross-codec guarantee: a directive

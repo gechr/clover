@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 )
 
 // perPage is the page size, GitLab's ceiling for the list endpoints. A shallow
@@ -107,10 +108,9 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 		provider.NoteTruncated(ctx, p.Describe(res), webURL(res)+"/-/tags")
 	}
 
-	candidates := make([]model.Candidate, 0, len(tags))
-	for _, t := range tags {
-		candidates = append(candidates, candidate(t.Name, t.Commit.ID, t.CreatedAt.Time, nil))
-	}
+	candidates := xslices.Map(tags, func(t tag) model.Candidate {
+		return candidate(t.Name, t.Commit.ID, t.CreatedAt.Time, nil)
+	})
 	return candidates, nil
 }
 

@@ -125,11 +125,9 @@ func patternVersions(p *pattern.Pattern, body string) []string {
 	re := p.Regexp()
 	g := versionGroup(p.Tokens())
 	matches := re.FindAllStringSubmatch(body, -1)
-	out := make([]string, 0, len(matches))
-	for _, m := range matches {
-		out = append(out, pick(m, g))
-	}
-	return out
+	return xslices.Map(matches, func(m []string) string {
+		return pick(m, g)
+	})
 }
 
 // versionGroup is the 1-based capture index of the first version-family token, or

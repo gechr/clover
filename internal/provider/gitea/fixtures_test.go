@@ -9,6 +9,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider/gitea"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,9 +68,5 @@ func TestFixtureReleases(t *testing.T) {
 }
 
 func assetNames(assets []model.Asset) []string {
-	out := make([]string, len(assets))
-	for i, a := range assets {
-		out[i] = a.Name
-	}
-	return out
+	return xslices.Map(assets, func(a model.Asset) string { return a.Name })
 }

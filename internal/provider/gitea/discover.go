@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	xhttp "github.com/gechr/x/http"
+	xslices "github.com/gechr/x/slices"
 )
 
 // perPage is the page size, Gitea's ceiling for the list endpoints. A shallow
@@ -80,10 +81,9 @@ func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Cand
 		provider.NoteTruncated(ctx, p.Describe(res), webURL(res)+"/tags")
 	}
 
-	candidates := make([]model.Candidate, 0, len(tags))
-	for _, t := range tags {
-		candidates = append(candidates, candidate(t.Name, t.Commit.SHA, false, time.Time{}, nil))
-	}
+	candidates := xslices.Map(tags, func(t tag) model.Candidate {
+		return candidate(t.Name, t.Commit.SHA, false, time.Time{}, nil)
+	})
 	return candidates, nil
 }
 

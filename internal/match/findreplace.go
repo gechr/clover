@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 )
 
 // FindReplace is the explicit find/replace rewriter. find locates the region to
@@ -203,9 +204,5 @@ func segments(v *version.Version) []string {
 		return nil
 	}
 	seg := v.Segments() // go-version pads to three: major, minor, patch
-	out := make([]string, len(seg))
-	for i, s := range seg {
-		out[i] = strconv.Itoa(s)
-	}
-	return out
+	return xslices.Map(seg, strconv.Itoa)
 }

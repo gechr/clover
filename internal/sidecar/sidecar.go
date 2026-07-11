@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/pattern"
+	xslices "github.com/gechr/x/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -48,11 +49,9 @@ func Target(name string) (string, bool) {
 // order (.yaml before .yml), so a caller can probe for an existing sidecar or
 // resolve which one wins when both are present.
 func Names(target string) []string {
-	names := make([]string, len(suffixes))
-	for i, suffix := range suffixes {
-		names[i] = target + suffix
-	}
-	return names
+	return xslices.Map(suffixes, func(suffix string) string {
+		return target + suffix
+	})
 }
 
 // Entries decodes a sidecar document into one entry per top-level list item. The
@@ -78,11 +77,10 @@ func Entries(data []byte) ([]Entry, error) {
 		return nil, errors.New("sidecar must be a YAML list of entries")
 	}
 
-	entries := make([]Entry, 0, len(root.Content))
-	for _, item := range root.Content {
+	entries := xslices.Map(root.Content, func(item *yaml.Node) Entry {
 		d, err := directive.ParseYAML(item)
-		entries = append(entries, Entry{Directive: d, Line: item.Line, Err: err})
-	}
+		return Entry{Directive: d, Line: item.Line, Err: err}
+	})
 	return entries, nil
 }
 

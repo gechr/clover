@@ -21,6 +21,7 @@ import (
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/gechr/x/set"
+	xslices "github.com/gechr/x/slices"
 	xsync "github.com/gechr/x/sync"
 )
 
@@ -688,10 +689,9 @@ func forceSidecar(
 		return refreshSource(existing, inf), true
 	}
 
-	directives := make([]directive.Directive, len(fresh))
-	for i, e := range fresh {
-		directives[i] = e.directive
-	}
+	directives := xslices.Map(fresh, func(e sidecarEntry) directive.Directive {
+		return e.directive
+	})
 	content, err := sidecar.Refresh(data, file.Lines, providerKeys, refresh, directives)
 	if err != nil || (len(updated) == 0 && len(fresh) == 0) {
 		if err != nil {
@@ -748,19 +748,17 @@ func refreshSource(existing directive.Directive, inf match.Inference) directive.
 
 // renderEntries serializes sidecar entries to canonical YAML list bytes.
 func renderEntries(entries []sidecarEntry) ([]byte, error) {
-	directives := make([]directive.Directive, len(entries))
-	for i, e := range entries {
-		directives[i] = e.directive
-	}
+	directives := xslices.Map(entries, func(e sidecarEntry) directive.Directive {
+		return e.directive
+	})
 	return sidecar.Render(directives, providerKeys)
 }
 
 // entryChanges builds a fresh-entry change record per entry.
 func entryChanges(entries []sidecarEntry) []SidecarEntryChange {
-	changes := make([]SidecarEntryChange, len(entries))
-	for i, e := range entries {
-		changes[i] = SidecarEntryChange{Target: e.target, Existing: false}
-	}
+	changes := xslices.Map(entries, func(e sidecarEntry) SidecarEntryChange {
+		return SidecarEntryChange{Target: e.target, Existing: false}
+	})
 	return changes
 }
 

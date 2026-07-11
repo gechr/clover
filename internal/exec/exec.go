@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	xslices "github.com/gechr/x/slices"
 	xsync "github.com/gechr/x/sync"
 )
 
@@ -46,10 +47,7 @@ type Result struct {
 // or lies on a cycle is skipped rather than aborting the run, so one bad marker
 // never sinks the rest. Results are returned in input order.
 func Execute(ctx context.Context, tasks []Task, workers int) []Result {
-	results := make([]Result, len(tasks))
-	for i := range tasks {
-		results[i] = Result{ID: tasks[i].ID}
-	}
+	results := xslices.Map(tasks, func(t Task) Result { return Result{ID: t.ID} })
 	if len(tasks) == 0 {
 		return results
 	}

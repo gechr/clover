@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/scan"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,11 +25,7 @@ func writeTree(t *testing.T, files map[string]string) string {
 }
 
 func basenames(files []scan.File) []string {
-	names := make([]string, len(files))
-	for i, f := range files {
-		names[i] = filepath.Base(f.Path)
-	}
-	return names
+	return xslices.Map(files, func(f scan.File) string { return filepath.Base(f.Path) })
 }
 
 func TestWithProgress(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/gitea"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,11 +75,7 @@ func newProvider(tagsBody, releasesBody string) *gitea.Provider {
 
 // versions extracts the version strings from candidates, in order.
 func versions(candidates []model.Candidate) []string {
-	out := make([]string, len(candidates))
-	for i, c := range candidates {
-		out[i] = c.Version
-	}
-	return out
+	return xslices.Map(candidates, func(c model.Candidate) string { return c.Version })
 }
 
 // TestDiscoverTags covers a tag listing: every tag surfaces in the API's order,

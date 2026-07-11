@@ -35,6 +35,7 @@ import (
 	"github.com/gechr/clover/internal/version"
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
+	xslices "github.com/gechr/x/slices"
 )
 
 // errCooldownUnsupported marks a producer skipped, not failed: its cooldown
@@ -408,10 +409,9 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 
 	markers = filterProviders(markers, set.providerFilter)
 
-	results := make([]Result, len(markers))
-	for i, m := range markers {
-		results[i] = Result{Marker: m, NewLine: targetLine(lines, m)}
-	}
+	results := xslices.Map(markers, func(m Marker) Result {
+		return Result{Marker: m, NewLine: targetLine(lines, m)}
+	})
 
 	checksumClient := httpcache.New()
 	return &plan{
@@ -536,10 +536,7 @@ func lineAt(lines []string, i int) string {
 func (p *plan) resolve(ctx context.Context) {
 	ctx = provider.WithTruncationSink(ctx, p.truncationSink)
 
-	names := make([]string, len(p.markers))
-	for i, m := range p.markers {
-		names[i] = label(m)
-	}
+	names := xslices.Map(p.markers, label)
 	tasks, wait := p.reporter.Begin(names)
 	defer wait()
 	p.tasks = tasks
@@ -1560,10 +1557,7 @@ func targetLine(lines map[string][]string, m Marker) string {
 
 // attrs maps a discovered candidate onto the slice the selection chain reads.
 func attrs(c model.Candidate) version.Attrs {
-	names := make([]string, len(c.Assets))
-	for i, a := range c.Assets {
-		names[i] = a.Name
-	}
+	names := xslices.Map(c.Assets, func(a model.Asset) string { return a.Name })
 	return version.Attrs{
 		Tag:         c.Version,
 		Semver:      c.Semver,

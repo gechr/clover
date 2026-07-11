@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/python"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,11 +45,9 @@ func newProvider(body string) *python.Provider {
 
 // versions extracts the version strings from candidates, in order.
 func versions(candidates []model.Candidate) []string {
-	out := make([]string, len(candidates))
-	for i, c := range candidates {
-		out[i] = c.Version
-	}
-	return out
+	return xslices.Map(candidates, func(c model.Candidate) string {
+		return c.Version
+	})
 }
 
 // attrs adapts a candidate for version selection, mirroring the pipeline.

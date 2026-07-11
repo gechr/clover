@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gechr/clover/internal/pipeline"
+	xslices "github.com/gechr/x/slices"
 )
 
 // Lint validates every marker under roots offline - no network, no writes -
@@ -15,10 +16,9 @@ func Lint(ctx context.Context, roots []string, opts ...pipeline.Option) (Summary
 		return Summary{}, err
 	}
 
-	outcomes := make([]Outcome, 0, len(files))
-	for _, file := range files {
-		outcomes = append(outcomes, Outcome{FileResult: file})
-	}
+	outcomes := xslices.Map(files, func(file pipeline.FileResult) Outcome {
+		return Outcome{FileResult: file}
+	})
 	return Summary{Outcomes: outcomes}, nil
 }
 

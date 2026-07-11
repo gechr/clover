@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/vcs"
+	xslices "github.com/gechr/x/slices"
 )
 
 // bareID returns the user-written id from a namespaced key (root + nsSep + id),
@@ -53,11 +54,9 @@ func (m Marker) IsFollower() bool { return m.Provider == constant.ProviderFollow
 // and namespaces its id and from by the file's repository root.
 func Markers(file scan.File, resolver *vcs.Resolver) []Marker {
 	root := resolver.Root(file.Path)
-	markers := make([]Marker, 0, len(file.Found))
-	for _, found := range file.Found {
-		markers = append(markers, bind(file, root, found))
-	}
-	return markers
+	return xslices.Map(file.Found, func(found scan.Located) Marker {
+		return bind(file, root, found)
+	})
 }
 
 // bind turns a located directive into a Marker. The target is the next line, a

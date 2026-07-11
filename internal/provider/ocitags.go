@@ -5,6 +5,7 @@ import (
 
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/oci"
+	xslices "github.com/gechr/x/slices"
 )
 
 // DiscoverOCITags lists an OCI repository's tags as candidates via the shared
@@ -25,9 +26,5 @@ func DiscoverOCITags(
 	if truncated {
 		NoteTruncated(ctx, describe, url)
 	}
-	candidates := make([]model.Candidate, 0, len(tags))
-	for _, t := range tags {
-		candidates = append(candidates, model.NewVariantCandidate(t))
-	}
-	return candidates, nil
+	return xslices.Map(tags, model.NewVariantCandidate), nil
 }

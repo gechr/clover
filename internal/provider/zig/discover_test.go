@@ -48,10 +48,9 @@ func newProvider(body string) *zig.Provider {
 // sortedVersions extracts the candidate version strings and sorts them, since the
 // index is a map and Discover returns candidates in nondeterministic order.
 func sortedVersions(candidates []model.Candidate) []string {
-	out := make([]string, len(candidates))
-	for i, c := range candidates {
-		out[i] = c.Version
-	}
+	out := xslices.Map(candidates, func(c model.Candidate) string {
+		return c.Version
+	})
 	xslices.SortNatural(out)
 	return out
 }

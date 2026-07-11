@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,11 +31,7 @@ func attrsOf(c cand) version.Attrs {
 }
 
 func candidates(tags ...string) []cand {
-	cands := make([]cand, len(tags))
-	for i, tag := range tags {
-		cands[i] = cand{tag: tag}
-	}
-	return cands
+	return xslices.Map(tags, func(tag string) cand { return cand{tag: tag} })
 }
 
 // contains is an include/exclude predicate matching tags containing sub.
