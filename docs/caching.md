@@ -25,6 +25,10 @@ The in-run tier is always on. It holds for the lifetime of one command and needs
 
 The disk tier is best-effort. If the cache directory can't be opened, Clover warns and runs with the in-memory tier alone, so a broken cache never breaks a run.
 
+## Offline runs
+
+`clover run --offline` makes no network requests at all and answers every lookup from the cache alone. Freshness stops mattering, because a stale entry is still the best answer available without the origin, and revalidation is skipped for the same reason. A lookup with no cached response fails its marker with an offline error, so a recent online run over the same tree is what stocks the cache an offline run draws from. The flag implies `--cache`, overriding a `run.cache: false` config, though an explicit `--no-cache` still wins and leaves only whatever the current run has already fetched.
+
 ## Turning it off
 
 The cross-run cache is on by default. Three switches disable it, each level winning over the next:

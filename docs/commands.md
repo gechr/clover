@@ -4,16 +4,16 @@
 clover <command>
 ```
 
-| Command    | Alias | Description                                                        |
-| ---------- | ----- | ------------------------------------------------------------------ |
-| `init`     |       | Create a starter [`.clover.yaml`](configuration.md) interactively  |
-| `run`      |       | Resolve version references and update them in place                |
-| `lint`     |       | Check every directive resolves, offline and without writing        |
-| `format`   | `fmt` | Canonicalize directive comments                                    |
-| `annotate` |       | Add `provider=auto` directives to recognized version lines         |
-| `login`    |       | Authenticate Clover with a provider (GitHub, GitLab, Gitea)        |
-| `update`   | `up`  | Update Clover to the latest release via Homebrew                   |
-| `version`  |       | Print version information                                          |
+| Command    | Alias | Description                                                       |
+| ---------- | ----- | ----------------------------------------------------------------- |
+| `init`     |       | Create a starter [`.clover.yaml`](configuration.md) interactively |
+| `run`      |       | Resolve version references and update them in place               |
+| `lint`     |       | Check every directive resolves, offline and without writing       |
+| `format`   | `fmt` | Canonicalize directive comments                                   |
+| `annotate` |       | Add `provider=auto` directives to recognized version lines        |
+| `login`    |       | Authenticate Clover with a provider (GitHub, GitLab, Gitea)       |
+| `update`   | `up`  | Update Clover to the latest release via Homebrew                  |
+| `version`  |       | Print version information                                         |
 
 ## `run`
 
@@ -34,6 +34,7 @@ clover run [options] [<path>…]
 | `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)         |
 | `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests)  |
 | `-y, --yes`             | Proceed without confirming a deep lookup                                                |
+| `--offline`             | Resolve from the [HTTP cache](caching.md) alone, making no network requests             |
 | `--[no-]downgrade`      | Allow selecting versions older than the current one                                     |
 | `--cooldown <duration>` | Override every directive's [`cooldown`](cooldown.md), e.g. `72h` or `2w` (`0` disables) |
 | `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                   |
@@ -49,6 +50,8 @@ With no paths, Clover scans the current directory. Pass files or directories to 
 `--infer` is the zero-annotation mode: every line [auto-detection](auto.md) recognizes is updated as if it carried a bare `provider=auto` directive, without writing any comments. Written directives keep priority on their own lines (their `constraint` and other rules apply as usual), a [`clover:ignore`](ignore.md) control still opts a line out, and a recognized line that would not resolve is skipped rather than failing the run. Use [`annotate`](#annotate) instead when you want the directives in the file, where they can carry selection rules and document intent.
 
 `--enable` and `--disable` narrow the run to a subset of providers, matched against the provider each marker resolves to (a `provider=auto` marker after inference, a follower after the producer it follows). `--enable` is authoritative, so `--enable=github,docker` resolves only GitHub and Docker markers and leaves every other line untouched. `--disable` is subtractive, so `--disable=node` resolves everything except Node markers. Both accept a comma-separated list or repeated flags, name any provider except `manual` (which owns its line and always runs), and cannot be combined. A skipped marker drops out of the run rather than reporting, exactly as an unmatched `--tag` would.
+
+`--offline` answers every lookup from the [HTTP cache](caching.md) without touching the network. Cached responses are served even when their freshness has lapsed, since revalidating would need the origin, and a marker whose lookup is not cached fails with an offline error. It implies `--cache`, so the cross-run disk tier is read even where a config disables it, and a recent online run against the same tree is what makes an offline run useful.
 
 `--to` rewrites every matched marker to one explicit version instead of the newest allowed, which makes it the rollback tool. The version is picked from the upstream listing, so digests and checksums still resolve for a release that really exists, and a version the upstream does not publish fails the marker. The pin bypasses each directive's own selection rules ([`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `behind`) and implies `--downgrade` and `--force`, though an explicit flag such as `--no-force` still wins. Every matched marker receives the same version, so combine it with paths, `-t`, or `--enable` to scope the pin. Markers that follow a floating ref (`track=`) or own their line (`manual`) resolve as usual.
 

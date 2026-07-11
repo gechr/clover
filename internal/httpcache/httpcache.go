@@ -97,6 +97,9 @@ type failure struct {
 
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if Offline() {
+		return t.offlineRoundTrip(req)
+	}
 	policy := policy(req.Context())
 	if req.Method != http.MethodGet && !policy.cacheable {
 		counters.requests.Add(1)
