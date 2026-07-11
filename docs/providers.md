@@ -19,6 +19,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `opentofu`  | Terraform provider versions from the [OpenTofu registry](https://registry.opentofu.org/) | [Terraform / OpenTofu](terraform.md) |
 | `pypi`      | Python package versions from [pypi.org](https://pypi.org/)                               | [PyPI](pypi.md)                      |
 | `python`    | CPython interpreter releases from [python.org](https://www.python.org/)                  | [Python](python.md)                  |
+| `rust`      | Rust toolchain releases from static.rust-lang.org                                        | [Rust](rust.md)                      |
 | `terraform` | Terraform provider versions from a provider registry                                     | [Terraform / OpenTofu](terraform.md) |
 | `zig`       | Zig toolchain releases from the [ziglang.org](https://ziglang.org/) download index       | [Zig](zig.md)                        |
 

@@ -20,6 +20,7 @@ import (
 	"github.com/gechr/clover/internal/provider/npm"
 	"github.com/gechr/clover/internal/provider/pypi"
 	"github.com/gechr/clover/internal/provider/python"
+	"github.com/gechr/clover/internal/provider/rust"
 	"github.com/gechr/clover/internal/provider/terraform"
 	"github.com/gechr/clover/internal/provider/zig"
 )
@@ -43,6 +44,7 @@ func New(httpOpts ...http.Option) []provider.Provider {
 		npm.New(),
 		pypi.New(),
 		python.New(),
+		rust.New(),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),
 		zig.New(),

@@ -66,6 +66,10 @@
         "type": "string",
         "description": "Package name, scoped npm names included (npm, pypi)."
       },
+      "channel": {
+        "type": "string",
+        "description": "Release channel to track: stable (default) or beta (rust)."
+      },
       "url": {
         "type": "string",
         "description": "Endpoint the http provider GETs."

@@ -55,6 +55,7 @@ const TrackInfer = "*"
 // injects them and the relevant providers read them.
 const (
 	DirectiveBuild      = "build"      // hashicorp build-metadata flavor, e.g. ent.hsm.fips1403 (hashicorp)
+	DirectiveChannel    = "channel"    // release channel to track: stable (default) or beta (rust)
 	DirectiveChart      = "chart"      // helm chart name (helm)
 	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
 	DirectiveHost       = "host"       // forge host for a self-managed instance (gitea); defaults to codeberg.org

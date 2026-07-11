@@ -62,6 +62,7 @@ Clover resolves versions from a range of upstream sources:
 - **`npm`** - package versions from [registry.npmjs.org](https://registry.npmjs.org/)
 - **`pypi`** - Python package versions from [pypi.org](https://pypi.org/)
 - **`python`** - Python runtime versions from [python.org](https://www.python.org/)
+- **`rust`** - Rust toolchain versions, stable or beta channel
 - **`zig`** - Zig toolchain versions from [ziglang.org](https://ziglang.org/)
 - **`http`** - any endpoint, read with [`jq`](https://jqlang.org/) or a regular expression
 - **`manual`** - a hand-maintained value for other directives to follow

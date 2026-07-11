@@ -404,8 +404,15 @@ func TestInfer(t *testing.T) {
 		{
 			name: "mise core runtime",
 			path: ".mise.toml",
-			line: `rust = "1.83.0"`,
-			want: match.Inference{Provider: "github", Repository: "rust-lang/rust"},
+			line: `deno = "2.1.4"`,
+			want: match.Inference{Provider: "github", Repository: "denoland/deno"},
+			ok:   true,
+		},
+		{
+			name: "mise rust runtime",
+			path: ".mise.toml",
+			line: `rust = "1.97.0"`,
+			want: match.Inference{Provider: "rust"},
 			ok:   true,
 		},
 		{
@@ -594,6 +601,12 @@ func TestLookupTool(t *testing.T) {
 		},
 		{
 			name:       "curated core runtime",
+			tool:       "deno",
+			repository: "denoland/deno",
+			ok:         true,
+		},
+		{
+			name:       "graduated tool keeps its github mapping",
 			tool:       "rust",
 			repository: "rust-lang/rust",
 			ok:         true,

@@ -152,6 +152,15 @@ const goModGlob = "**/go.mod"
 // interpreter a tool targets.
 const pyprojectGlob = "**/pyproject.toml"
 
+// rustToolchainGlob matches rust-toolchain.toml files, whose channel key pins
+// the toolchain. The legacy bare rust-toolchain file holds only the version
+// itself, with no room for a comment to carry a marker.
+const rustToolchainGlob = "**/rust-toolchain.toml"
+
+// cargoGlob matches Cargo manifests, whose rust-version key floors the
+// toolchain a crate requires.
+const cargoGlob = "**/Cargo.toml"
+
 // terraformGlob matches Terraform configuration files, whose required_version
 // constraint pins the toolchain.
 const terraformGlob = "**/*.tf"
@@ -377,6 +386,49 @@ var routes = []route{
 			path:      toolVersionsGlob,
 			lineMatch: mustPattern(`/^\s*zig\s+\S/`),
 			provider:  constant.ProviderZig,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise Rust toolchain pin: rust = "1.97.0". The rust provider resolves
+		// it from static.rust-lang.org, so this precedes the general GitHub-tool
+		// route that would otherwise claim it.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?rust"?\s*=\s*"/`),
+			provider:  constant.ProviderRust,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same toolchain pinned in .tool-versions: rust 1.97.0.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*rust\s+\S/`),
+			provider:  constant.ProviderRust,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A pinned toolchain channel in rust-toolchain.toml: channel = "1.97.0".
+		// Only a version-shaped pin routes here - a named channel (stable, beta,
+		// nightly-2026-07-11) has no version on the line to track.
+		when: conditions{
+			path:      rustToolchainGlob,
+			lineMatch: mustPattern(`/^\s*channel\s*=\s*["']\d/`),
+			provider:  constant.ProviderRust,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A rust-version floor in Cargo.toml: rust-version = "1.70". Like a
+		// requires-python floor, the smart rewriter bumps the version in place,
+		// preserving its precision - "1.70" advances only when a new minor line
+		// ships.
+		when: conditions{
+			path:      cargoGlob,
+			lineMatch: mustPattern(`/^\s*rust-version\s*=\s*['"]/`),
+			provider:  constant.ProviderRust,
 		},
 		rewriter: NewSmart(),
 	},

@@ -208,7 +208,10 @@ var miseGithubTools = map[string]githubTool{
 	"deno":   {repository: "denoland/deno"},
 	"elixir": {repository: "elixir-lang/elixir"},
 	"erlang": {repository: "erlang/otp", tagPrefix: "OTP-"},
-	"rust":   {repository: "rust-lang/rust"},
+	// rust has a native provider, which the dedicated mise route infers first;
+	// the mapping remains so an explicit provider=github tool=rust keeps
+	// resolving against the repository's tags.
+	"rust": {repository: "rust-lang/rust"},
 }
 
 // githubReference extracts the repository a line tracks on GitHub, and the

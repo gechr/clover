@@ -27,6 +27,7 @@
   - [npm](npm.md)
   - [PyPI](pypi.md)
   - [Python](python.md)
+  - [Rust](rust.md)
   - [Terraform / OpenTofu](terraform.md)
   - [Zig](zig.md)
 
