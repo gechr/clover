@@ -43,10 +43,10 @@ const (
 type root struct {
 	clib.CompletionFlags
 
-	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file',group='Global Options/Configuration'\""
-	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config',group='Global Options/Configuration'\""
-	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Global Options/Execution'"  short:"P" default:"10" placeholder:"<n>"`
-	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Global Options/Diagnostics'"`
+	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file',group='Globals/Configuration'\""
+	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config',group='Globals/Configuration'\""
+	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Globals/Execution'"  short:"P" default:"10" placeholder:"<n>"`
+	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Globals/Diagnostics'"`
 
 	Annotate cmdAnnotate "help:\"Add `provider=auto` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
 	Format   cmdFormat   `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
