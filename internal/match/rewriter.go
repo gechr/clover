@@ -127,6 +127,10 @@ type route struct {
 // versions the mise routes recognize.
 const miseGlob = "**/{.mise,mise}.toml"
 
+// dockerfileGlob matches both the prefix naming convention (Dockerfile,
+// Dockerfile.dev, Containerfile) and the suffix convention (app.Dockerfile).
+const dockerfileGlob = "**/{Dockerfile,Containerfile,*.Dockerfile,*.Containerfile}*"
+
 // MiseFile reports whether path is a mise configuration file, where a bare
 // single-number pin (node = "24") means major precision rather than a calendar
 // tag, so selection may relax its scheme guard.
@@ -218,7 +222,7 @@ var routes = []route{
 		// so the docker-pin rewriter updates tag and digest together. Must
 		// precede the tag-only FROM route.
 		when: conditions{
-			path:      "**/{Dockerfile,Containerfile}*",
+			path:      dockerfileGlob,
 			lineMatch: mustPattern("FROM *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
@@ -238,7 +242,7 @@ var routes = []route{
 		// anchors on the image reference so a registry :port or account id is
 		// never mistaken for the version.
 		when: conditions{
-			path:      "**/{Dockerfile,Containerfile}*",
+			path:      dockerfileGlob,
 			lineMatch: mustPattern("FROM *"),
 			provider:  constant.ProviderDocker,
 		},

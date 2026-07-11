@@ -107,6 +107,20 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "suffix-style dockerfile FROM a hub image",
+			path: "app.Dockerfile",
+			line: "FROM nginx:1.27",
+			want: match.Inference{Provider: "docker", Repository: "nginx"},
+			ok:   true,
+		},
+		{
+			name: "suffix-style containerfile FROM a hub image",
+			path: "app.Containerfile",
+			line: "FROM nginx:1.27",
+			want: match.Inference{Provider: "docker", Repository: "nginx"},
+			ok:   true,
+		},
+		{
 			name: "dockerfile FROM a registry-qualified image with digest",
 			path: "Containerfile",
 			line: "FROM ghcr.io/owner/img:1.2.0@sha256:abc",
