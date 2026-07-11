@@ -49,13 +49,15 @@ func strictJSON(path string) bool {
 }
 
 // AnnotateChange is one comment line annotate would write: At is the 0-based
-// line index it acts on, Line the comment text. Existing distinguishes the two
-// shapes - a fresh insertion above a recognized line (Existing false), or a
-// rewrite of an existing directive comment at At into its canonical minimal form
-// (Existing true, only under --force).
+// line index it acts on, Line the comment text, Provider the provider the line
+// was inferred to track (for reporting). Existing distinguishes the two shapes -
+// a fresh insertion above a recognized line (Existing false), or a rewrite of an
+// existing directive comment at At into its canonical minimal form (Existing
+// true, only under --force).
 type AnnotateChange struct {
 	At       int
 	Line     string
+	Provider string
 	Existing bool
 }
 
@@ -93,10 +95,12 @@ type AnnotateSidecar struct {
 }
 
 // SidecarEntryChange is one sidecar entry annotate would add or, under --force,
-// rewrite: the 0-based target line in the target file it governs, and whether it
-// replaces an existing entry rather than introducing a new one.
+// rewrite: the 0-based target line in the target file it governs, the provider
+// the entry tracks (for reporting), and whether it replaces an existing entry
+// rather than introducing a new one.
 type SidecarEntryChange struct {
 	Target   int
+	Provider string
 	Existing bool
 }
 
@@ -171,7 +175,7 @@ func Annotate(
 	// large tree; a transient line keeps it from looking hung. Its size is known,
 	// so it shows a fraction; it is erased on return, so the discovery log
 	// supplants it.
-	verify := reporter.Track("Verifying annotate candidates", field.Progress, len(files))
+	verify := reporter.Track("Verifying annotation candidates", field.Progress, len(files))
 	defer verify.Stop()
 
 	// Each file is annotated independently - the per-file work only reads immutable
@@ -293,7 +297,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		if governed.Contains(i) {
 			continue
 		}
-		if change, ok := insert(syntax, i, line); ok {
+		if change, ok := insert(syntax, i, line, inf.Provider); ok {
 			annotated.Changes = append(annotated.Changes, change)
 		} else {
 			annotated.Skips = append(annotated.Skips, skip(i, "comment syntax unavailable"))
@@ -325,13 +329,13 @@ func forceEligible(d directive.Directive, inferred string) bool {
 // insert builds the fresh annotation for a recognized, unannotated line: a
 // `clover: provider=auto` comment indented to match the line. ok is false when
 // the file's syntax exposes no comment delimiter.
-func insert(syntax comment.Syntax, i int, line string) (AnnotateChange, bool) {
+func insert(syntax comment.Syntax, i int, line, provider string) (AnnotateChange, bool) {
 	body := directive.Render(canonicalDirective(directive.Directive{}, match.Inference{}))
 	comment, ok := syntax.Comment(leadingWhitespace(line), body)
 	if !ok {
 		return AnnotateChange{}, false
 	}
-	return AnnotateChange{At: i, Line: comment}, true
+	return AnnotateChange{At: i, Line: comment, Provider: provider}, true
 }
 
 // rewrite canonicalizes an existing directive comment into its minimal form,
@@ -348,7 +352,12 @@ func rewrite(
 	if !ok || rendered == line {
 		return AnnotateChange{}, false
 	}
-	return AnnotateChange{At: loc.Line, Line: rendered, Existing: true}, true
+	return AnnotateChange{
+		At:       loc.Line,
+		Line:     rendered,
+		Provider: inf.Provider,
+		Existing: true,
+	}, true
 }
 
 // canonicalDirective returns the minimal directive annotate writes for a
@@ -675,7 +684,7 @@ func forceSidecar(
 		byLine[leaf.Line] = leaf
 	}
 
-	var updated []int
+	var updated []SidecarEntryChange
 	refresh := func(line int, existing directive.Directive) (directive.Directive, bool) {
 		leaf, ok := byLine[line]
 		if !ok {
@@ -685,7 +694,10 @@ func forceSidecar(
 		if !ok || !sourceDrifted(existing, inf) {
 			return directive.Directive{}, false
 		}
-		updated = append(updated, line)
+		updated = append(
+			updated,
+			SidecarEntryChange{Target: line, Provider: inf.Provider, Existing: true},
+		)
 		return refreshSource(existing, inf), true
 	}
 
@@ -700,13 +712,7 @@ func forceSidecar(
 		return nil, ""
 	}
 
-	changes := make([]SidecarEntryChange, 0, len(updated)+len(fresh))
-	for _, line := range updated {
-		changes = append(changes, SidecarEntryChange{Target: line, Existing: true})
-	}
-	for _, e := range fresh {
-		changes = append(changes, SidecarEntryChange{Target: e.target, Existing: false})
-	}
+	changes := slices.Concat(updated, entryChanges(fresh))
 	return &AnnotateSidecar{Path: path, Content: string(content), Entries: changes}, ""
 }
 
@@ -757,7 +763,8 @@ func renderEntries(entries []sidecarEntry) ([]byte, error) {
 // entryChanges builds a fresh-entry change record per entry.
 func entryChanges(entries []sidecarEntry) []SidecarEntryChange {
 	changes := xslices.Map(entries, func(e sidecarEntry) SidecarEntryChange {
-		return SidecarEntryChange{Target: e.target, Existing: false}
+		provider, _ := e.directive.Get(constant.DirectiveProvider)
+		return SidecarEntryChange{Target: e.target, Provider: provider, Existing: false}
 	})
 	return changes
 }

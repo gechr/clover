@@ -9,7 +9,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/all"
 	"github.com/gechr/clover/internal/sidecar"
-	xslices "github.com/gechr/x/slices"
+	xmaps "github.com/gechr/x/maps"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -45,7 +45,7 @@ func TestSchemaCoversEveryDirectiveKey(t *testing.T) {
 	got := schemaProperties(t)
 	require.ElementsMatch(
 		t,
-		keysOf(want),
+		xmaps.KeysNatural(want),
 		got,
 		"sidecar schema properties must match the directive vocabulary (common + provider keys + jq)",
 	)
@@ -89,7 +89,7 @@ func schemaProperties(t *testing.T) []string {
 		} `json:"items"`
 	}
 	require.NoError(t, json.Unmarshal(sidecar.Schema(), &doc))
-	return keysOf(doc.Items.Properties)
+	return xmaps.KeysNatural(doc.Items.Properties)
 }
 
 // compileSchema compiles the embedded sidecar schema for validation.
@@ -112,14 +112,4 @@ func yamlToAny(t *testing.T, doc string) any {
 	var v any
 	require.NoError(t, yaml.Unmarshal([]byte(doc), &v))
 	return v
-}
-
-// keysOf returns the keys of a map, sorted, for set comparison.
-func keysOf[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	xslices.SortNatural(keys)
-	return keys
 }

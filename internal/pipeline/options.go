@@ -16,12 +16,14 @@ const defaultScanLabel = "Scanning files"
 
 type settings struct {
 	configs          *config.Resolver
+	cooldown         *time.Duration
 	current          string
 	deep             *bool
 	downgrade        *bool
 	filter           tag.Filter
 	force            *bool
 	ignoreFiles      []string
+	infer            bool
 	maxSize          int64
 	noIgnore         bool
 	now              time.Time
@@ -29,8 +31,6 @@ type settings struct {
 	providerFilter   provider.Filter
 	reporter         progress.Reporter
 	requireDirective bool
-	infer            bool
-	cooldown         *time.Duration
 	scanLabel        string
 	to               string
 	truncationSink   func(provider.Truncation)

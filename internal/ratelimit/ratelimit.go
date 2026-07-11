@@ -49,8 +49,8 @@ type Transport struct {
 	now     func() time.Time
 
 	mu        sync.Mutex
-	reset     time.Time
 	remaining int
+	reset     time.Time
 	known     bool
 }
 

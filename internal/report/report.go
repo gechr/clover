@@ -197,7 +197,9 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 	dry := !write
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
-			event := summarize(logger, dry).Line(field.Location, file.Path, change.At+1)
+			event := summarize(logger, dry).
+				Str(field.Provider, change.Provider).
+				Line(field.Location, file.Path, change.At+1)
 			if write {
 				event = event.Symbol(annotateSymbol(change.Existing))
 			}
@@ -208,6 +210,7 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 		if file.Sidecar != nil {
 			for _, entry := range file.Sidecar.Entries {
 				event := summarize(logger, dry).
+					Str(field.Provider, entry.Provider).
 					Line(field.Location, file.Path, entry.Target+1).
 					Path(field.Sidecar, file.Sidecar.Path)
 				if write {

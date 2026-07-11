@@ -29,7 +29,8 @@ const (
 // aggregated into the one counter for now; a richer per-marker view can be added
 // later without changing the seam.
 type Reporter struct {
-	ctx    context.Context //nolint:containedctx // the reporter drives a background render loop bound to this ctx
+	ctx context.Context //nolint:containedctx // the reporter drives a background render loop bound to this ctx
+
 	logger *clog.Logger
 	infer  bool
 }

@@ -1,6 +1,6 @@
 package provider
 
-import xslices "github.com/gechr/x/slices"
+import xmaps "github.com/gechr/x/maps"
 
 // registry is the compiled-in set of providers. It is populated explicitly at
 // startup via [RegisterAll] from the composition root, not by import side
@@ -30,10 +30,5 @@ func Get(name string) (Provider, bool) {
 
 // Names returns the registered provider names, sorted for stable output.
 func Names() []string {
-	names := make([]string, 0, len(registry))
-	for name := range registry {
-		names = append(names, name)
-	}
-	xslices.SortNatural(names)
-	return names
+	return xmaps.KeysNatural(registry)
 }

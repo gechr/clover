@@ -169,7 +169,7 @@ func TestAnnotateReportsVerifyProgress(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, summary.Files)
 
-	require.Equal(t, "Verifying annotate candidates", reporter.label)
+	require.Equal(t, "Verifying annotation candidates", reporter.label)
 	require.Equal(t, "progress", reporter.field)
 	require.Positive(t, reporter.total, "the verify line shows a fraction over the file count")
 	require.Equal(t, reporter.total, reporter.last, "every file advances the tracker")

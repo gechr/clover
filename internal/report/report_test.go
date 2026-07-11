@@ -69,8 +69,8 @@ func TestAnnotatePreview(t *testing.T) {
 	s := mode.AnnotateSummary{Files: []mode.AnnotateFile{{
 		Path: "Dockerfile",
 		Changes: []mode.AnnotateChange{
-			{At: 0},
-			{At: 4, Existing: true},
+			{At: 0, Provider: "docker"},
+			{At: 4, Provider: "docker", Existing: true},
 		},
 	}}}
 
@@ -78,8 +78,8 @@ func TestAnnotatePreview(t *testing.T) {
 	report.Annotate(clog.NewWriter(&buf), s, false)
 
 	require.Equal(t,
-		"DRY 🚧 Would annotate location=Dockerfile:1\n"+
-			"DRY 🚧 Would reannotate location=Dockerfile:5\n"+
+		"DRY 🚧 Would annotate provider=docker location=Dockerfile:1\n"+
+			"DRY 🚧 Would reannotate provider=docker location=Dockerfile:5\n"+
 			"DRY 🏁 Annotate complete added=1 updated=1\n",
 		buf.String(),
 	)
@@ -89,14 +89,14 @@ func TestAnnotateWrites(t *testing.T) {
 	s := mode.AnnotateSummary{Files: []mode.AnnotateFile{{
 		Path:    "Dockerfile",
 		Written: true,
-		Changes: []mode.AnnotateChange{{At: 0}},
+		Changes: []mode.AnnotateChange{{At: 0, Provider: "docker"}},
 	}}}
 
 	var buf bytes.Buffer
 	report.Annotate(clog.NewWriter(&buf), s, true)
 
 	require.Equal(t,
-		"INF 🌱 Annotated location=Dockerfile:1\n"+
+		"INF 🌱 Annotated provider=docker location=Dockerfile:1\n"+
 			"INF 🏁 Annotate complete added=1\n",
 		buf.String(),
 	)

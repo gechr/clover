@@ -221,8 +221,8 @@ func LookupTool(name string) (string, string, bool) {
 // so a mistyped name can be met with a suggestion.
 func ToolNames() []string {
 	names := xslices.Union(
-		xmaps.KeysSlice(miseGithubTools),
-		xmaps.KeysSlice(miseRegistryTools),
+		xmaps.Keys(miseGithubTools),
+		xmaps.Keys(miseRegistryTools),
 	)
 	xslices.SortNatural(names)
 	return names

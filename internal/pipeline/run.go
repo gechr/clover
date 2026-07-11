@@ -335,11 +335,12 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 // own slot, so the slice needs no lock - the same discipline the executor uses
 // internally.
 type plan struct {
-	configs        *config.Resolver
-	downgrade      *bool
 	checksumSource *checksum.Resolver
+	configs        *config.Resolver
+	cooldown       *time.Duration
 	deep           *bool
 	disabled       []Result
+	downgrade      *bool
 	force          *bool
 	lines          map[string][]string
 	markers        []Marker
@@ -348,7 +349,6 @@ type plan struct {
 	prerelease     *bool
 	registry       *registry.Registry
 	reporter       progress.Reporter
-	cooldown       *time.Duration
 	results        []Result
 	tasks          []progress.Task
 	to             string
