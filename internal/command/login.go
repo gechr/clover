@@ -46,7 +46,7 @@ type cmdLogin struct {
 // Help returns the detailed blurb shown in `clover login --help`.
 func (c *cmdLogin) Help() string {
 	return "Authenticates Clover with a provider and stores the minted token in your system keychain, so later runs read it from the credential chain instead of falling back to rate-limited anonymous access.\n\n" +
-		"GitHub and GitLab use an OAuth device flow (you authorize a one-time code in the browser); Gitea uses a browser-based loopback flow.\n\n" +
+		"GitHub and GitLab use an OAuth device flow (you authorize a one-time code in the browser). Gitea uses a browser-based loopback flow.\n\n" +
 		"Pass `--host` to authenticate against a GitHub Enterprise Server, self-managed GitLab, or self-hosted Gitea instance. Such an instance runs its own OAuth app, so `--host` requires a matching `--client-id` (the public hosts use Clover's embedded app)."
 }
 

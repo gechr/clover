@@ -41,7 +41,7 @@ const defaultHost = "codeberg.org"
 // errAnonymous reports that no Gitea credentials were found, so requests fall
 // back to anonymous (rate-limited) access. It is informational, not fatal: public
 // reads still work.
-var errAnonymous = errors.New("no Gitea credentials; using anonymous access")
+var errAnonymous = errors.New("no Gitea credentials, using anonymous access")
 
 // Directive keys the provider accepts beyond the forge-shared source key.
 const (

@@ -171,7 +171,7 @@ func TestScanSidecarFindAmbiguous(t *testing.T) {
 	require.Len(t, diag.Errors, 1)
 	require.True(t, diag.Errors[0].Sidecar)
 	require.EqualError(t, diag.Errors[0].Err,
-		"entry at line 1: find matched 2 lines; make it more specific")
+		"entry at line 1: find matched 2 lines - make it more specific")
 }
 
 func TestScanSidecarMissingLocator(t *testing.T) {

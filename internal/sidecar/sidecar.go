@@ -150,6 +150,6 @@ func locateFind(lines []string, find string) (int, error) {
 	case 1:
 		return match, nil
 	default:
-		return 0, fmt.Errorf("find matched %d lines; make it more specific", count)
+		return 0, fmt.Errorf("find matched %d lines - make it more specific", count)
 	}
 }

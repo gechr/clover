@@ -35,7 +35,7 @@ type cmdAnnotate struct {
 func (c *cmdAnnotate) Help() string {
 	return "Adds `clover: provider=auto` above lines Clover can already track. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. This is the inverse of the auto-detection that later resolves them. " +
 		"Every annotation is verified offline first. Unresolvable lines are left untouched.\n\n" +
-		"It previews by default, listing what it would add; pass `--dry-run` to request that mode explicitly, `--write` to apply, or `--check` to fail when anything would be annotated.\n\n" +
+		"It previews by default, listing what it would add. Pass `--dry-run` to request that mode explicitly, `--write` to apply, or `--check` to fail when anything would be annotated.\n\n" +
 		"Existing annotations are untouched unless `--force`, which collapses an inferable one back to `provider=auto` (preserving every selection rule) and leaves a deliberately explicit directive alone."
 }
 

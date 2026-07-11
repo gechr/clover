@@ -75,7 +75,7 @@ func TestLocateJQAmbiguous(t *testing.T) {
 	t.Parallel()
 
 	_, err := jqLocate(t, depsJSON, ".versions[]")
-	require.EqualError(t, err, "jq matched 2 values; narrow it")
+	require.EqualError(t, err, "jq matched 2 values - narrow it")
 }
 
 func TestLocateJQNoMatch(t *testing.T) {
@@ -86,13 +86,12 @@ func TestLocateJQNoMatch(t *testing.T) {
 }
 
 // A computed (non-path) expression cannot be a locator; gojq reports it at run
-// time. The exact wording is gojq's, so only the locator framing is asserted.
+// time.
 func TestLocateJQNonPath(t *testing.T) {
 	t.Parallel()
 
 	_, err := jqLocate(t, depsJSON, ".name | ascii_upcase")
-	require.Error(t, err)
-	require.ErrorContains(t, err, `"jq" locator`)
+	require.EqualError(t, err, `"jq" locator: invalid path against: string ("APP")`)
 }
 
 func TestLocateJQNonJSON(t *testing.T) {

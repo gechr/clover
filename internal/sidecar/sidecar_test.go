@@ -125,7 +125,7 @@ func TestLocateFindAmbiguous(t *testing.T) {
 	lines := []string{`"v": "1.0.0"`, `"w": "2.0.0"`}
 	d := directive.Directive{Pairs: []directive.KV{{Key: "find", Value: `<version>`}}}
 	_, err := sidecar.Locate(lines, d)
-	require.EqualError(t, err, "find matched 2 lines; make it more specific")
+	require.EqualError(t, err, "find matched 2 lines - make it more specific")
 }
 
 func TestLocateMissingLocator(t *testing.T) {

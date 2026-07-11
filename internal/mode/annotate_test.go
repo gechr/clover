@@ -608,8 +608,12 @@ func TestAnnotateRecordsSkippedCandidates(t *testing.T) {
 			reasons[filepath.Base(file.Path)] = file.Skips[0].Reason
 		}
 	}
-	require.Contains(t, reasons["Dockerfile"], "image has no tag")
-	require.Contains(t, reasons["compose.yaml"], "must not contain whitespace")
+	require.Equal(t, "image has no tag to anchor the version", reasons["Dockerfile"])
+	require.Equal(
+		t,
+		`docker: "repository" must not contain whitespace, got "bad repo"`,
+		reasons["compose.yaml"],
+	)
 }
 
 // TestAnnotateSkipsProseExamples guards the file-level route scope: a uses: pin

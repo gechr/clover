@@ -59,7 +59,7 @@ func Parse(values []string) (Filter, error) {
 		hasAnd := strings.Contains(value, andSeparator)
 		if hasOr && hasAnd {
 			return Filter{}, fmt.Errorf(
-				"tag filter %q mixes %q (and) with %q (or); use one per --tag value",
+				"tag filter %q mixes %q (and) with %q (or) - use one per --tag value",
 				value, andSeparator, orSeparator,
 			)
 		}

@@ -53,7 +53,7 @@ func resolveJQLine(source []byte, expr string) (int, error) {
 		return 0, errors.New("jq matched nothing")
 	case 1:
 	default:
-		return 0, fmt.Errorf("jq matched %d values; narrow it", len(paths))
+		return 0, fmt.Errorf("jq matched %d values - narrow it", len(paths))
 	}
 
 	off, err := valueOffset(source, paths[0])

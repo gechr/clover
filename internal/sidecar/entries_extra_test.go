@@ -34,5 +34,9 @@ func TestLocateFindInvalidRegex(t *testing.T) {
 
 	d := directive.Directive{Pairs: []directive.KV{{Key: "find", Value: "/[/"}}}
 	_, err := sidecar.Locate([]string{"a", "b"}, d)
-	require.ErrorContains(t, err, `"find"`)
+	require.EqualError(
+		t,
+		err,
+		"\"find\": compile regex pattern \"/[/\": error parsing regexp: missing closing ]: `[`",
+	)
 }

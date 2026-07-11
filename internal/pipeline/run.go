@@ -621,7 +621,7 @@ func lookupProvider(name string) (provider.Provider, error) {
 	}
 	if name == constant.ProviderAuto {
 		return nil, fmt.Errorf(
-			"could not infer a provider for the target line; set %q explicitly",
+			"could not infer a provider for the target line - set %q explicitly",
 			constant.DirectiveProvider,
 		)
 	}

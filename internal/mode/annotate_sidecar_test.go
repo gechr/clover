@@ -197,7 +197,7 @@ func TestAnnotateSidecarSkipsMalformedPinnedReferences(t *testing.T) {
 	require.True(t, summary.OK(), "a malformed pin is not annotated")
 	require.Len(t, summary.Files, 1)
 	require.Len(t, summary.Files[0].Skips, 1)
-	require.Contains(t, summary.Files[0].Skips[0].Reason, "full sha256 digest")
+	require.Equal(t, "image pin requires a full sha256 digest", summary.Files[0].Skips[0].Reason)
 	require.NoFileExists(t, filepath.Join(root, "k8s.json.clover.yaml"))
 }
 

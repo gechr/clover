@@ -37,7 +37,7 @@ func (e *Error) Error() string {
 	if e.Reset.IsZero() {
 		return "rate limit exceeded"
 	}
-	return "rate limit exceeded; resets at " + e.Reset.UTC().Format(time.RFC3339)
+	return "rate limit exceeded, resets at " + e.Reset.UTC().Format(time.RFC3339)
 }
 
 // Transport is a rate-limit-aware http.RoundTripper. It reads the configured

@@ -42,7 +42,7 @@ const defaultHost = "github.com"
 // errAnonymous reports that no GitHub credentials were found, so requests fall
 // back to anonymous (rate-limited) access. It is informational, not fatal:
 // public reads still work.
-var errAnonymous = errors.New("no GitHub credentials; using anonymous access")
+var errAnonymous = errors.New("no GitHub credentials, using anonymous access")
 
 // Directive keys the provider accepts beyond the forge-shared source key.
 const (

@@ -46,8 +46,7 @@ func TestTokenEndpointError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "token endpoint")
-	require.ErrorContains(t, err, "500")
+	require.EqualError(t, err, "oci: token endpoint auth.example.com: 500 Internal Server Error")
 }
 
 func TestTokenDecodeError(t *testing.T) {
@@ -68,7 +67,7 @@ func TestTokenDecodeError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "decode token")
+	require.EqualError(t, err, "oci: decode token: unexpected EOF")
 }
 
 func TestTokenRealmParseError(t *testing.T) {
@@ -93,7 +92,7 @@ func TestTokenRealmParseError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "parse token realm")
+	require.EqualError(t, err, `oci: parse token realm: parse "://bad": missing protocol scheme`)
 }
 
 func TestTokenBasicChallengeRetriesUnauthenticated(t *testing.T) {
@@ -289,7 +288,11 @@ func TestTagsTransportError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "dial refused")
+	require.EqualError(
+		t,
+		err,
+		`oci: GET https://registry.example.com/v2/team/img/tags/list?n=100: Get "https://registry.example.com/v2/team/img/tags/list?n=100": dial refused`,
+	)
 }
 
 func TestTagsListStatusError(t *testing.T) {
@@ -319,8 +322,7 @@ func TestTagsListStatusError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "list tags for team/img")
-	require.ErrorContains(t, err, "500")
+	require.EqualError(t, err, "oci: list tags for team/img: 500 Internal Server Error")
 }
 
 func TestTagsDecodeError(t *testing.T) {
@@ -344,7 +346,7 @@ func TestTagsDecodeError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		false,
 	)
-	require.ErrorContains(t, err, "decode tags")
+	require.EqualError(t, err, "oci: decode tags: unexpected EOF")
 }
 
 func TestDigestNoDigestHeader(t *testing.T) {
@@ -373,7 +375,7 @@ func TestDigestNoDigestHeader(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img"},
 		"1.0.0",
 	)
-	require.ErrorContains(t, err, "registry returned no digest")
+	require.EqualError(t, err, "oci: registry returned no digest for 1.0.0")
 }
 
 func TestDigestForPlatformInvalidJSON(t *testing.T) {
@@ -397,7 +399,7 @@ func TestDigestForPlatformInvalidJSON(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/amd64"},
 		"1.0.0",
 	)
-	require.ErrorContains(t, err, "parse manifest")
+	require.EqualError(t, err, "oci: parse manifest for 1.0.0: unexpected end of JSON input")
 }
 
 func TestDigestForPlatformStatusError(t *testing.T) {
@@ -427,8 +429,7 @@ func TestDigestForPlatformStatusError(t *testing.T) {
 		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/amd64"},
 		"1.0.0",
 	)
-	require.ErrorContains(t, err, "get manifest for 1.0.0")
-	require.ErrorContains(t, err, "404")
+	require.EqualError(t, err, "oci: get manifest for 1.0.0: 404 Not Found")
 }
 
 func TestNextLinkMalformedRequestURL(t *testing.T) {

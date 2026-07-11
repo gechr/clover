@@ -40,5 +40,5 @@ func TestGuardedRejectsDriftedLine(t *testing.T) {
 
 	_, err = rw.Locate(`"image": "other/app:1.0.0` + constant.DockerDigestMarker +
 		strings.Repeat("a", 64) + `"`)
-	require.ErrorContains(t, err, "find pattern did not match")
+	require.EqualError(t, err, "find pattern did not match the target line")
 }

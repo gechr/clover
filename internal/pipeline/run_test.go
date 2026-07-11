@@ -1443,7 +1443,7 @@ func TestRunUnresolvedAutoErrors(t *testing.T) {
 	require.EqualError(
 		t,
 		files[0].Results[0].Err,
-		`could not infer a provider for the target line; set "provider" explicitly`,
+		`could not infer a provider for the target line - set "provider" explicitly`,
 	)
 	require.False(t, files[0].Results[0].Changed)
 }

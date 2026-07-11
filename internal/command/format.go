@@ -27,7 +27,7 @@ type cmdFormat struct {
 
 // Help returns the detailed blurb shown in `clover format --help`.
 func (c *cmdFormat) Help() string {
-	return "Rewrites `clover:` directive comments into their canonical form - normalizing key order and spacing - so annotations stay consistent across the codebase. With `--check` it reports which directives need formatting and exits non-zero without writing; " +
+	return "Rewrites `clover:` directive comments into their canonical form - normalizing key order and spacing - so annotations stay consistent across the codebase. With `--check` it reports which directives need formatting and exits non-zero without writing. " +
 		"`--dry-run` previews the same rewrites but exits zero. An unknown key fails the run unless `--prune` removes it."
 }
 

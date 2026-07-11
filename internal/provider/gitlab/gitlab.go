@@ -43,7 +43,7 @@ const defaultHost = "gitlab.com"
 // errAnonymous reports that no GitLab credentials were found, so requests fall
 // back to anonymous (rate-limited) access. It is informational, not fatal:
 // public reads still work.
-var errAnonymous = errors.New("no GitLab credentials; using anonymous access")
+var errAnonymous = errors.New("no GitLab credentials, using anonymous access")
 
 // Directive keys the provider accepts beyond the forge-shared source key.
 const (

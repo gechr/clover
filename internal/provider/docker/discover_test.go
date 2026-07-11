@@ -116,8 +116,7 @@ func TestDiscoverHubRequestsNewestFirst(t *testing.T) {
 	require.NoError(t, err)
 
 	// The Hub API returns newest-first for the bare field; -last_updated is oldest.
-	require.Contains(t, gotQuery, "ordering=last_updated")
-	require.NotContains(t, gotQuery, "ordering=-last_updated")
+	require.Equal(t, "page_size=100&ordering=last_updated", gotQuery)
 }
 
 func TestDiscoverHubQualifierFiltersServerSide(t *testing.T) {
