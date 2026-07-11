@@ -328,17 +328,42 @@ func TestAnnotateInsertsForPyproject(t *testing.T) {
 	})
 
 	summary := annotate(t, root, true, false)
-	require.Equal(t, 1, summary.Added())
+	require.Equal(t, 2, summary.Added())
 
 	require.Equal(
 		t,
 		"[project]\n"+
+			"# clover: provider=auto\n"+
 			"requires-python = \">=3.13\"\n\n"+
 			"[tool.ruff]\n"+
 			"# clover: provider=auto\n"+
 			"target-version = \"py313\"\n",
 		readFile(t, filepath.Join(root, "pyproject.toml")),
-		"the compact target-version earns an annotation; requires-python (a minimum) is left alone",
+		"the requires-python floor and the compact target-version both earn annotations",
+	)
+}
+
+// TestAnnotateSkipsRequiresPythonRange guards the offline gate on the
+// requires-python route: a range constraint carries two version tokens, so the
+// smart rewriter cannot say which bound to bump and the line is skipped with
+// the reason recorded.
+func TestAnnotateSkipsRequiresPythonRange(t *testing.T) {
+	t.Parallel()
+
+	original := "[project]\nrequires-python = \">=3.10,<4\"\n"
+	root := annotateTree(t, map[string]string{"pyproject.toml": original})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 0, summary.Added())
+	require.Equal(t, original, readFile(t, filepath.Join(root, "pyproject.toml")),
+		"an ambiguous range stays unannotated")
+
+	require.Len(t, summary.Files, 1)
+	require.Len(t, summary.Files[0].Skips, 1)
+	require.Equal(
+		t,
+		"multiple version-shaped tokens, so the target is ambiguous",
+		summary.Files[0].Skips[0].Reason,
 	)
 }
 

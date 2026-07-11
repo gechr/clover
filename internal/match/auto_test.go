@@ -326,10 +326,15 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
-			// A requires-python floor declares a minimum, not the tracked
-			// interpreter, so it is deliberately not inferred.
-			name: "requires-python in pyproject.toml is not matched",
+			name: "requires-python floor in pyproject.toml",
 			path: "pyproject.toml",
+			line: `requires-python = ">=3.14"`,
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			name: "requires-python outside pyproject.toml is not matched",
+			path: "notes.txt",
 			line: `requires-python = ">=3.14"`,
 			ok:   false,
 		},

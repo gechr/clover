@@ -383,16 +383,27 @@ var routes = []route{
 	{
 		// A compact Python target in pyproject.toml: target-version = "py314"
 		// (ruff, black, mypy). The pyXY form is not version-shaped, so a dedicated
-		// rewriter parses and re-renders it. requires-python is deliberately not
-		// auto-detected: it declares a minimum supported version, not the
-		// interpreter to track to latest, and its common ">=3.10,<4" range carries
-		// two version tokens the smart rewriter cannot disambiguate.
+		// rewriter parses and re-renders it.
 		when: conditions{
 			path:      pyprojectGlob,
 			lineMatch: mustPattern(`/target-version\s*=\s*['"]py\d/`),
 			provider:  constant.ProviderPython,
 		},
 		rewriter: NewPythonTag(),
+	},
+	{
+		// A requires-python floor in pyproject.toml: requires-python = ">=3.14".
+		// The version inside the constraint is the only version-shaped token, so
+		// the smart rewriter bumps it in place, preserving the operator and
+		// precision - ">=3.14" advances only when a new minor line ships. A range
+		// like ">=3.10,<4" carries two tokens, so the offline gate rejects it as
+		// ambiguous rather than guessing which bound to bump.
+		when: conditions{
+			path:      pyprojectGlob,
+			lineMatch: mustPattern(`/^\s*requires-python\s*=\s*['"]/`),
+			provider:  constant.ProviderPython,
+		},
+		rewriter: NewSmart(),
 	},
 	{
 		// A mise github: or ubi: backend tool: "github:owner/repo" = "v1.2.3".
