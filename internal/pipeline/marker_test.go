@@ -92,6 +92,7 @@ func TestMarkersAuto(t *testing.T) {
 		registry   string
 		repository string
 		host       string
+		pkg        string
 		product    string
 		source     string
 		tagPrefix  string
@@ -222,6 +223,17 @@ func TestMarkersAuto(t *testing.T) {
 			source:    "hashicorp/aws",
 		},
 		{
+			name: "infers the pypi package from a pyproject dependency specifier",
+			path: "pyproject.toml",
+			lines: []string{
+				"# clover: provider=auto",
+				`requires = ["uv_build>=0.8.24"]`,
+			},
+			directive: auto,
+			provider:  "pypi",
+			pkg:       "uv_build",
+		},
+		{
 			name:       "stays auto when the target is not a recognised pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
@@ -253,6 +265,7 @@ func TestMarkersAuto(t *testing.T) {
 			require.Equal(t, tt.registry, keyOf(markers[0], "registry"))
 			require.Equal(t, tt.repository, keyOf(markers[0], "repository"))
 			require.Equal(t, tt.host, keyOf(markers[0], "host"))
+			require.Equal(t, tt.pkg, keyOf(markers[0], "package"))
 			require.Equal(t, tt.product, keyOf(markers[0], "product"))
 			require.Equal(t, tt.source, keyOf(markers[0], "source"))
 			require.Equal(t, tt.tagPrefix, keyOf(markers[0], "tag-prefix"))

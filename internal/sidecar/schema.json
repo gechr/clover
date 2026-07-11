@@ -64,7 +64,7 @@
       },
       "package": {
         "type": "string",
-        "description": "npm package name, scoped names included (npm)."
+        "description": "Package name, scoped npm names included (npm, pypi)."
       },
       "url": {
         "type": "string",

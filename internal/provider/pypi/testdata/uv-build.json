@@ -1,0 +1,206 @@
+{
+  "info": {
+    "name": "uv-build",
+    "version": "0.11.28"
+  },
+  "releases": {
+    "0.5.30rc1": [
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "e19d5bce368371cfdbd8ea52da932d1b9d67a3f2e0ad1abc666d72f78c25cb25"
+        },
+        "digests": {
+          "blake2b_256": "4e1df9dfc727d1dfa7e42e5acb6c42ca85e2b8c771290c97bcae304ffd3ee022",
+          "md5": "c860f1de6e95579390c92cf41f458263",
+          "sha256": "0d5edd17c64b93ed1e661d404174c1d0d8f25797860c80aa2411c7b3b47b3190"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.5.30rc1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "has_sig": false,
+        "md5_digest": "c860f1de6e95579390c92cf41f458263",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1667701,
+        "upload_time": "2025-02-12T09:36:49",
+        "upload_time_iso_8601": "2025-02-12T09:36:49.608295Z",
+        "url": "https://files.pythonhosted.org/packages/4e/1d/f9dfc727d1dfa7e42e5acb6c42ca85e2b8c771290c97bcae304ffd3ee022/uv_build-0.5.30rc1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "yanked": false,
+        "yanked_reason": null
+      },
+      {
+        "comment_text": null,
+        "core-metadata": false,
+        "digests": {
+          "blake2b_256": "9547cad4aa09b5226f82796ddce21c932dbad1329402ba93604e58238f5398d2",
+          "md5": "711b6cdcf8dc7def4d8e76524c7381f8",
+          "sha256": "aced33740a7778ef1dcb40607e9fc3eb840044faddb266baf158d11dffb6d47b"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.5.30rc1.tar.gz",
+        "has_sig": false,
+        "md5_digest": "711b6cdcf8dc7def4d8e76524c7381f8",
+        "packagetype": "sdist",
+        "python_version": "source",
+        "requires_python": ">=3.8",
+        "size": 327401,
+        "upload_time": "2025-02-12T09:36:52",
+        "upload_time_iso_8601": "2025-02-12T09:36:52.833695Z",
+        "url": "https://files.pythonhosted.org/packages/95/47/cad4aa09b5226f82796ddce21c932dbad1329402ba93604e58238f5398d2/uv_build-0.5.30rc1.tar.gz",
+        "yanked": false,
+        "yanked_reason": null
+      }
+    ],
+    "0.10.0": [
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "bc376117232455abe53565b8baab1965de6d155aa2cfc5d1851435ac0515e95f"
+        },
+        "digests": {
+          "blake2b_256": "245a83c30c77106a8c3506bde1db4eb2059df1b2fc4376645e01b5c0c475e196",
+          "md5": "8b7c6cad77fe0cd930ed76cd944f0f33",
+          "sha256": "18069519cf00a42aad661cc051b99c118beeecf7df1de1fe088e9353e769a1e3"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.10.0-py3-none-linux_armv6l.whl",
+        "has_sig": false,
+        "md5_digest": "8b7c6cad77fe0cd930ed76cd944f0f33",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1479860,
+        "upload_time": "2026-02-05T20:57:15",
+        "upload_time_iso_8601": "2026-02-05T20:57:15.935943Z",
+        "url": "https://files.pythonhosted.org/packages/24/5a/83c30c77106a8c3506bde1db4eb2059df1b2fc4376645e01b5c0c475e196/uv_build-0.10.0-py3-none-linux_armv6l.whl",
+        "yanked": false,
+        "yanked_reason": null
+      },
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "bc376117232455abe53565b8baab1965de6d155aa2cfc5d1851435ac0515e95f"
+        },
+        "digests": {
+          "blake2b_256": "4d873afb530d6180fa0fcc77876016cb550f204ea13ddfa0b02049b0546cf7e8",
+          "md5": "356d55e2eeca6d9c8b85bf0172fc6ca0",
+          "sha256": "674eaed586e6630aedbb2800fdedd9fec1f841099dba060977654de11c273bfd"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.10.0-py3-none-macosx_10_12_x86_64.whl",
+        "has_sig": false,
+        "md5_digest": "356d55e2eeca6d9c8b85bf0172fc6ca0",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1436365,
+        "upload_time": "2026-02-05T20:56:53",
+        "upload_time_iso_8601": "2026-02-05T20:56:53.865241Z",
+        "url": "https://files.pythonhosted.org/packages/4d/87/3afb530d6180fa0fcc77876016cb550f204ea13ddfa0b02049b0546cf7e8/uv_build-0.10.0-py3-none-macosx_10_12_x86_64.whl",
+        "yanked": false,
+        "yanked_reason": null
+      }
+    ],
+    "0.11.16": [
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "2180aeb393538340906fca9d4767038eee7e1f4120bb569816b2fbd595c2e941"
+        },
+        "digests": {
+          "blake2b_256": "e47c1bc45a2b1b30daca729ce2fc69d34c62ff58c0e72824d402c5ee799abcf1",
+          "md5": "813cc91eb173b0879c6720a42a570955",
+          "sha256": "5ff1c2f0c9f2eb54cfef8733c18f88cb7c14c1162c774afffd42365d9056d5b6"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.11.16-py3-none-linux_armv6l.whl",
+        "has_sig": false,
+        "md5_digest": "813cc91eb173b0879c6720a42a570955",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1530251,
+        "upload_time": "2026-05-21T22:10:13",
+        "upload_time_iso_8601": "2026-05-21T22:10:13.623196Z",
+        "url": "https://files.pythonhosted.org/packages/e4/7c/1bc45a2b1b30daca729ce2fc69d34c62ff58c0e72824d402c5ee799abcf1/uv_build-0.11.16-py3-none-linux_armv6l.whl",
+        "yanked": false,
+        "yanked_reason": null
+      },
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "2180aeb393538340906fca9d4767038eee7e1f4120bb569816b2fbd595c2e941"
+        },
+        "digests": {
+          "blake2b_256": "1fcd5e29d664b4e99fac6be87c11bc1f45f3619f563a9311dea6b1ddc399feb2",
+          "md5": "d02667ceb28b877333534f9e50d26c66",
+          "sha256": "0430666fcb3724c0b3969c385a88f5a4ca0f6611bef8360688c46a422a774d21"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.11.16-py3-none-macosx_10_12_x86_64.whl",
+        "has_sig": false,
+        "md5_digest": "d02667ceb28b877333534f9e50d26c66",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1484350,
+        "upload_time": "2026-05-21T22:10:09",
+        "upload_time_iso_8601": "2026-05-21T22:10:09.173939Z",
+        "url": "https://files.pythonhosted.org/packages/1f/cd/5e29d664b4e99fac6be87c11bc1f45f3619f563a9311dea6b1ddc399feb2/uv_build-0.11.16-py3-none-macosx_10_12_x86_64.whl",
+        "yanked": false,
+        "yanked_reason": null
+      }
+    ],
+    "0.11.28": [
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "178dbd83732c8b819145d5b2a62d8a9e30d57f622ca622939486fac3c44187b1"
+        },
+        "digests": {
+          "blake2b_256": "59955745516ff06d9245ba286732d90437aa8f6d4d493ee65c867acf8c676a22",
+          "md5": "6156c3980be345f84d776ce9cde5aea6",
+          "sha256": "fb10719142d431087f5e177d43c83f304391084a28ea52e1588542fe0f113f91"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.11.28-py3-none-linux_armv6l.whl",
+        "has_sig": false,
+        "md5_digest": "6156c3980be345f84d776ce9cde5aea6",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1541974,
+        "upload_time": "2026-07-07T23:11:52",
+        "upload_time_iso_8601": "2026-07-07T23:11:52.639934Z",
+        "url": "https://files.pythonhosted.org/packages/59/95/5745516ff06d9245ba286732d90437aa8f6d4d493ee65c867acf8c676a22/uv_build-0.11.28-py3-none-linux_armv6l.whl",
+        "yanked": false,
+        "yanked_reason": null
+      },
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "178dbd83732c8b819145d5b2a62d8a9e30d57f622ca622939486fac3c44187b1"
+        },
+        "digests": {
+          "blake2b_256": "47a23859648b141b4ce7adccf6f8e905afdaf002af306243e4905dd898cfdaef",
+          "md5": "b441a880a5faccc69a78e83438fbbedf",
+          "sha256": "384a352d6b00df4824dcb56baa070498666795c3fd1b6d7377368649b695f864"
+        },
+        "downloads": -1,
+        "filename": "uv_build-0.11.28-py3-none-macosx_10_12_x86_64.whl",
+        "has_sig": false,
+        "md5_digest": "b441a880a5faccc69a78e83438fbbedf",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 1477083,
+        "upload_time": "2026-07-07T23:11:54",
+        "upload_time_iso_8601": "2026-07-07T23:11:54.059257Z",
+        "url": "https://files.pythonhosted.org/packages/47/a2/3859648b141b4ce7adccf6f8e905afdaf002af306243e4905dd898cfdaef/uv_build-0.11.28-py3-none-macosx_10_12_x86_64.whl",
+        "yanked": false,
+        "yanked_reason": null
+      }
+    ]
+  }
+}

@@ -24,6 +24,7 @@ import (
 	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/provider/hashicorp"
 	"github.com/gechr/clover/internal/provider/node"
+	"github.com/gechr/clover/internal/provider/pypi"
 	"github.com/gechr/clover/internal/provider/python"
 	"github.com/gechr/clover/internal/provider/terraform"
 	"github.com/gechr/clover/internal/provider/zig"
@@ -51,6 +52,7 @@ func TestMain(m *testing.M) {
 		golang.New(),
 		hashicorp.New(),
 		node.New(node.WithTransport(nodeIndex)),
+		pypi.New(),
 		python.New(),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),
@@ -340,6 +342,56 @@ func TestAnnotateInsertsForPyproject(t *testing.T) {
 			"target-version = \"py313\"\n",
 		readFile(t, filepath.Join(root, "pyproject.toml")),
 		"the requires-python floor and the compact target-version both earn annotations",
+	)
+}
+
+// TestAnnotateInsertsForPyprojectDependencies covers the pypi inference: each
+// dependency specifier on its own line earns an annotation - a [project]
+// dependency, a spaced specifier with a dotted name, and a [build-system]
+// requires entry - while a single-line group listing several specifiers is
+// skipped as ambiguous.
+func TestAnnotateInsertsForPyprojectDependencies(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"pyproject.toml": "[project]\n" +
+			"dependencies = [\n" +
+			"  \"pydantic>=2.12.5\",\n" +
+			"  \"ruamel.yaml >= 0.19.1\",\n" +
+			"]\n\n" +
+			"[dependency-groups]\n" +
+			"dev = [\"ruff>=0.15.2\", \"pytest>=9.0.3\"]\n\n" +
+			"[build-system]\n" +
+			"requires = [\"uv_build>=0.8.24\"]\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 3, summary.Added())
+
+	require.Equal(
+		t,
+		"[project]\n"+
+			"dependencies = [\n"+
+			"  # clover: provider=auto\n"+
+			"  \"pydantic>=2.12.5\",\n"+
+			"  # clover: provider=auto\n"+
+			"  \"ruamel.yaml >= 0.19.1\",\n"+
+			"]\n\n"+
+			"[dependency-groups]\n"+
+			"dev = [\"ruff>=0.15.2\", \"pytest>=9.0.3\"]\n\n"+
+			"[build-system]\n"+
+			"# clover: provider=auto\n"+
+			"requires = [\"uv_build>=0.8.24\"]\n",
+		readFile(t, filepath.Join(root, "pyproject.toml")),
+		"each single-specifier line earns an annotation, the multi-specifier group is left alone",
+	)
+
+	require.Len(t, summary.Files, 1)
+	require.Len(t, summary.Files[0].Skips, 1)
+	require.Equal(
+		t,
+		"multiple dependency specifiers, so it is ambiguous which to track",
+		summary.Files[0].Skips[0].Reason,
 	)
 }
 

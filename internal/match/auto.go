@@ -14,6 +14,7 @@ import (
 // the line. Empty parameter fields mean the line did not carry that detail.
 type Inference struct {
 	Host       string
+	Package    string
 	Product    string
 	Provider   string
 	Registry   string
@@ -38,6 +39,10 @@ func (i Inference) Missing() string {
 	case constant.ProviderHashicorp:
 		if i.Product == "" {
 			return "line names no product"
+		}
+	case constant.ProviderPypi:
+		if i.Package == "" {
+			return "line names no package"
 		}
 	case constant.ProviderTerraform, constant.ProviderOpentofu:
 		if i.Source == "" {
@@ -83,6 +88,8 @@ func Infer(path string, lines []string, target int) (Inference, bool) {
 			inferred.Host, inferred.Repository = componentReference(line)
 		case constant.ProviderHashicorp:
 			inferred.Product = hashicorpProduct(path, line)
+		case constant.ProviderPypi:
+			inferred.Package = pypiPackage(line)
 		case constant.ProviderTerraform, constant.ProviderOpentofu:
 			inferred.Source = terraformSource(lines, target)
 		}
@@ -157,6 +164,19 @@ func miseKey(line string) string {
 		return ""
 	}
 	return strings.Trim(strings.TrimSpace(key), `"'`)
+}
+
+// pypiPackage extracts the package name from the first dependency specifier
+// on the line, as the project spells it - the provider normalizes it per
+// PEP 503. The requirement rewriter demands exactly one specifier, so when the
+// marker resolves, the first is the only one and the name always belongs to
+// the version bumped.
+func pypiPackage(line string) string {
+	specs := requirementSpecs(line)
+	if len(specs) == 0 {
+		return ""
+	}
+	return specs[0].name
 }
 
 // githubTool is the GitHub source a well-known tool name maps to: the

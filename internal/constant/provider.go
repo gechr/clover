@@ -22,6 +22,7 @@ const (
 	ProviderNode      = "node"
 	ProviderNpm       = "npm"
 	ProviderOpentofu  = "opentofu"
+	ProviderPypi      = "pypi"
 	ProviderPython    = "python"
 	ProviderTerraform = "terraform"
 	ProviderZig       = "zig"

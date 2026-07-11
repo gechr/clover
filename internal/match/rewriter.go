@@ -406,6 +406,24 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// A quoted PEP 508 dependency specifier in pyproject.toml - an entry of
+		// a dependencies, requires, or dependency-group array, e.g.
+		// "uv_build>=0.8.24". The requirement rewriter anchors on the
+		// specifier's own pinned version, tolerating an environment marker
+		// after it, and rejects what it cannot bump faithfully: a line listing
+		// several specifiers, a range, a local +tag. Only pin and floor
+		// comparators route here - bumping an exclusion (!=) or a cap (<, <=,
+		// >) would invert its meaning, so those lines are never claimed.
+		when: conditions{
+			path: pyprojectGlob,
+			lineMatch: mustPattern(
+				`/["'][A-Za-z0-9][A-Za-z0-9._-]*\s*(\[[^\]]*\])?\s*(===|==|~=|>=)/`,
+			),
+			provider: constant.ProviderPypi,
+		},
+		rewriter: NewRequirement(),
+	},
+	{
 		// A mise github: or ubi: backend tool: "github:owner/repo" = "v1.2.3".
 		// Both back onto GitHub releases, so the github provider tracks them.
 		when: conditions{

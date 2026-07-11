@@ -52,17 +52,18 @@ Clover resolves versions from a range of upstream sources:
 
 - **`github`** - releases and tags, with checksum and commit-SHA pinning
 - **`gitlab`** - project tags and releases
-- **`gitea`** - Gitea and Forgejo forges, defaulting to Codeberg
+- **`gitea`** - Gitea and Forgejo forges, defaulting to [Codeberg](https://codeberg.org/)
 - **`docker`** - image tags and digests from any OCI registry
 - **`helm`** - chart versions from HTTP or OCI repositories
-- **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools
+- **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools from [releases.hashicorp.com](https://releases.hashicorp.com/)
 - **`terraform`** / **`opentofu`** - provider plugins from a registry
-- **`go`** - Go toolchain versions
-- **`node`** - Node.js runtime versions
-- **`npm`** - package versions from the npm registry
-- **`python`** - Python runtime versions
-- **`zig`** - Zig toolchain versions
-- **`http`** - any endpoint, read with `jq` or a regular expression
+- **`go`** - Go toolchain versions from [go.dev](https://go.dev/)
+- **`node`** - Node.js runtime versions from [nodejs.org](https://nodejs.org/)
+- **`npm`** - package versions from [registry.npmjs.org](https://registry.npmjs.org/)
+- **`pypi`** - Python package versions from [pypi.org](https://pypi.org/)
+- **`python`** - Python runtime versions from [python.org](https://www.python.org/)
+- **`zig`** - Zig toolchain versions from [ziglang.org](https://ziglang.org/)
+- **`http`** - any endpoint, read with [`jq`](https://jqlang.org/) or a regular expression
 - **`manual`** - a hand-maintained value for other directives to follow
 
 Setting `provider=auto` infers the right provider from the line itself, so common cases such as GitHub Actions, `FROM` images, `go.mod`, and Terraform blocks need no provider at all.

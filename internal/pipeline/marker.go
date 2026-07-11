@@ -119,6 +119,7 @@ func inferParams(file scan.File, target int, d directive.Directive) (string, dir
 	d = appendParam(d, constant.DirectiveRegistry, inferred.Registry)
 	d = appendParam(d, constant.DirectiveRepository, inferred.Repository)
 	d = appendParam(d, constant.DirectiveHost, inferred.Host)
+	d = appendParam(d, constant.DirectivePackage, inferred.Package)
 	d = appendParam(d, constant.DirectiveProduct, inferred.Product)
 	d = appendParam(d, constant.DirectiveSource, inferred.Source)
 	d = appendParam(d, constant.RuleTagPrefix, inferred.TagPrefix)

@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "requests",
+    "version": "2.34.2"
+  },
+  "releases": {
+    "0.0.1": [],
+    "2.32.1": [
+      {
+        "comment_text": "",
+        "core-metadata": {
+          "sha256": "fb63dbf07b1df083380afbf2982e4b7d252835fb815f8e3cb072eda7dfc70598"
+        },
+        "digests": {
+          "blake2b_256": "9ca6b9bf71eeb6dc835311b5c47a7c90df57b08061091161639611252257768d",
+          "md5": "2aa71699f8ad45c3b91f09b6e72919e8",
+          "sha256": "21ac9465cdf8c1650fe1ecde8a71669a93d4e6f147550483a2967d08396a56a5"
+        },
+        "downloads": -1,
+        "filename": "requests-2.32.1-py3-none-any.whl",
+        "has_sig": false,
+        "md5_digest": "2aa71699f8ad45c3b91f09b6e72919e8",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.8",
+        "size": 63711,
+        "upload_time": "2024-05-20T22:08:45",
+        "upload_time_iso_8601": "2024-05-20T22:08:45.850542Z",
+        "url": "https://files.pythonhosted.org/packages/9c/a6/b9bf71eeb6dc835311b5c47a7c90df57b08061091161639611252257768d/requests-2.32.1-py3-none-any.whl",
+        "yanked": true,
+        "yanked_reason": "Yanked due to conflicts with CVE-2024-35195 mitigation "
+      },
+      {
+        "comment_text": "",
+        "core-metadata": false,
+        "digests": {
+          "blake2b_256": "d8c1f32fb7c02e7620928ef14756ff4840cae3b8ef1d62f7e596bc5413300a16",
+          "md5": "fc1a60231a0f2aa61dd84d74ac36eb35",
+          "sha256": "eb97e87e64c79e64e5b8ac75cee9dd1f97f49e289b083ee6be96268930725685"
+        },
+        "downloads": -1,
+        "filename": "requests-2.32.1.tar.gz",
+        "has_sig": false,
+        "md5_digest": "fc1a60231a0f2aa61dd84d74ac36eb35",
+        "packagetype": "sdist",
+        "python_version": "source",
+        "requires_python": ">=3.8",
+        "size": 129920,
+        "upload_time": "2024-05-20T22:08:48",
+        "upload_time_iso_8601": "2024-05-20T22:08:48.995460Z",
+        "url": "https://files.pythonhosted.org/packages/d8/c1/f32fb7c02e7620928ef14756ff4840cae3b8ef1d62f7e596bc5413300a16/requests-2.32.1.tar.gz",
+        "yanked": true,
+        "yanked_reason": "Yanked due to conflicts with CVE-2024-35195 mitigation "
+      }
+    ],
+    "2.32.5": [
+      {
+        "comment_text": null,
+        "core-metadata": {
+          "sha256": "65b5a08da81f4915513e760965ff14b7518f65b7bb3efe0dab364bbcc4d40cb0"
+        },
+        "digests": {
+          "blake2b_256": "1edb4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3",
+          "md5": "bd126794a95616a0da6192b288f9bb88",
+          "sha256": "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"
+        },
+        "downloads": -1,
+        "filename": "requests-2.32.5-py3-none-any.whl",
+        "has_sig": false,
+        "md5_digest": "bd126794a95616a0da6192b288f9bb88",
+        "packagetype": "bdist_wheel",
+        "python_version": "py3",
+        "requires_python": ">=3.9",
+        "size": 64738,
+        "upload_time": "2025-08-18T20:46:00",
+        "upload_time_iso_8601": "2025-08-18T20:46:00.542304Z",
+        "url": "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl",
+        "yanked": false,
+        "yanked_reason": null
+      },
+      {
+        "comment_text": null,
+        "core-metadata": false,
+        "digests": {
+          "blake2b_256": "c974b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4",
+          "md5": "cb3d3c58f07cf23f12c345f2c96a6f12",
+          "sha256": "dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf"
+        },
+        "downloads": -1,
+        "filename": "requests-2.32.5.tar.gz",
+        "has_sig": false,
+        "md5_digest": "cb3d3c58f07cf23f12c345f2c96a6f12",
+        "packagetype": "sdist",
+        "python_version": "source",
+        "requires_python": ">=3.9",
+        "size": 134517,
+        "upload_time": "2025-08-18T20:46:02",
+        "upload_time_iso_8601": "2025-08-18T20:46:02.573425Z",
+        "url": "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz",
+        "yanked": false,
+        "yanked_reason": null
+      }
+    ]
+  }
+}

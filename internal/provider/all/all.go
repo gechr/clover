@@ -18,6 +18,7 @@ import (
 	"github.com/gechr/clover/internal/provider/manual"
 	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/provider/npm"
+	"github.com/gechr/clover/internal/provider/pypi"
 	"github.com/gechr/clover/internal/provider/python"
 	"github.com/gechr/clover/internal/provider/terraform"
 	"github.com/gechr/clover/internal/provider/zig"
@@ -40,6 +41,7 @@ func New(httpOpts ...http.Option) []provider.Provider {
 		manual.New(),
 		node.New(),
 		npm.New(),
+		pypi.New(),
 		python.New(),
 		terraform.New(terraform.Terraform),
 		terraform.New(terraform.OpenTofu),

@@ -28,6 +28,7 @@ func TestDaterCoversDatedProviders(t *testing.T) {
 		constant.ProviderNode:      true,
 		constant.ProviderNpm:       true,
 		constant.ProviderOpentofu:  false,
+		constant.ProviderPypi:      true,
 		constant.ProviderPython:    true,
 		constant.ProviderTerraform: false,
 		constant.ProviderZig:       true,

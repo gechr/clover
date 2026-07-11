@@ -95,6 +95,9 @@ func Directive(inf match.Inference) directive.Directive {
 	if inf.Host != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveHost, Value: inf.Host})
 	}
+	if inf.Package != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectivePackage, Value: inf.Package})
+	}
 	if inf.Product != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveProduct, Value: inf.Product})
 	}

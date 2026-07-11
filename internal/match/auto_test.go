@@ -339,6 +339,43 @@ func TestInfer(t *testing.T) {
 			ok:   false,
 		},
 		{
+			name: "build-system requires in pyproject.toml",
+			path: "pyproject.toml",
+			line: `requires = ["uv_build>=0.8.24"]`,
+			want: match.Inference{Provider: "pypi", Package: "uv_build"},
+			ok:   true,
+		},
+		{
+			name: "dependency specifier with extras and spaces",
+			path: "sub/pyproject.toml",
+			line: `  "uvicorn[standard] >= 0.30.0",`,
+			want: match.Inference{Provider: "pypi", Package: "uvicorn"},
+			ok:   true,
+		},
+		{
+			name: "dependency specifier with a dotted name",
+			path: "pyproject.toml",
+			line: `  "ruamel.yaml>=0.19.1",`,
+			want: match.Inference{Provider: "pypi", Package: "ruamel.yaml"},
+			ok:   true,
+		},
+		{
+			// The route matches on the comparison shape, but the name ends in a
+			// separator PEP 508 forbids, so no package is read and Missing
+			// reports the incomplete reference.
+			name: "dependency specifier with an invalid name infers no package",
+			path: "pyproject.toml",
+			line: `  "uv_>=0.8.24",`,
+			want: match.Inference{Provider: "pypi"},
+			ok:   true,
+		},
+		{
+			name: "dependency specifier outside pyproject.toml is not matched",
+			path: "notes.txt",
+			line: `  "uv_build>=0.8.24",`,
+			ok:   false,
+		},
+		{
 			name: "go.mod module directive is not matched",
 			path: "go.mod",
 			line: "module github.com/owner/repo",
