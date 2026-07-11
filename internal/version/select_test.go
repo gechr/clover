@@ -134,6 +134,45 @@ func TestSelectAssetAndsWithExclude(t *testing.T) {
 	require.Equal(t, "1.2.0", got.tag)
 }
 
+// TestSelectExactPin confirms WithExact overrides the whole chain: the pinned
+// version is chosen past the exclude, prerelease, downgrade, and behind rules
+// that would each have rejected it.
+func TestSelectExactPin(t *testing.T) {
+	t.Parallel()
+
+	cur := mustParse(t, "1.5.0")
+	cands := candidates("v1.0.0", "1.5.0", "2.0.0-rc.1")
+
+	got, ok := version.Select(cur, cands, attrsOf,
+		version.WithExact("1.0.0"),
+		version.WithExclude(contains("1.0")),
+		version.WithBehind(1))
+	require.True(t, ok)
+	require.Equal(t, "v1.0.0", got.tag, "parsed equality ignores the v prefix and every other rule")
+
+	got, ok = version.Select(cur, cands, attrsOf, version.WithExact("2.0.0-rc.1"))
+	require.True(t, ok)
+	require.Equal(t, "2.0.0-rc.1", got.tag, "a pinned prerelease needs no prerelease opt-in")
+
+	got, ok = version.Select(nil, candidates("v1.21.0"), attrsOf, version.WithExact("1.21"))
+	require.True(t, ok)
+	require.Equal(t, "v1.21.0", got.tag, "precision differences do not defeat the pin")
+}
+
+func TestSelectExactPinMissing(t *testing.T) {
+	t.Parallel()
+
+	_, reason, ok := version.SelectReason(
+		nil,
+		candidates("1.0.0", "2.0.0"),
+		attrsOf,
+		version.WithExact("9.9.9"),
+	)
+	require.False(t, ok)
+	require.Equal(t, version.ReasonExact, reason)
+	require.Equal(t, "the requested version is not in the upstream listing", reason.Detail())
+}
+
 func TestSelectReasonReportsBinding(t *testing.T) {
 	t.Parallel()
 

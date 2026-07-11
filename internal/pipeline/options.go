@@ -32,6 +32,7 @@ type settings struct {
 	infer            bool
 	cooldown         *time.Duration
 	scanLabel        string
+	to               string
 	truncationSink   func(provider.Truncation)
 	verify           *bool
 	workers          int
@@ -144,6 +145,12 @@ func WithScanLabel(label string) Option {
 func WithTagFilter(filter tag.Filter) Option {
 	return func(s *settings) { s.filter = filter }
 }
+
+// WithTo pins every version-selected marker to the one version named,
+// bypassing each directive's selection rules - the targeted-pin mode behind
+// `run --to`. Markers that do not select a version (manual anchors, track=
+// refs, followers) resolve as usual. Empty leaves normal selection in force.
+func WithTo(v string) Option { return func(s *settings) { s.to = v } }
 
 // WithTruncationSink sets a callback invoked with a truncated resource (its
 // label and upstream page) when a shallow lookup stopped with more results

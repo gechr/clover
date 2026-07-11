@@ -24,6 +24,13 @@ type query struct {
 	// once in [SelectReason] rather than per candidate.
 	currentArity int
 
+	// exact is the version an explicit pin demands, or "". When set, only a
+	// candidate equal to it survives and every other filter is bypassed.
+	// exactVersion is its parse, computed once in [SelectReason]; nil when the
+	// pin does not parse, leaving raw tag equality.
+	exact        string
+	exactVersion *Version
+
 	// qualifier is the trailing suffix on the line (the "ent" in 1.15.0-ent), or
 	// "". A candidate sharing it is exempt from the prerelease gate, so a line
 	// pinned to a vendor track keeps that track without the suffix counting as a
@@ -58,6 +65,13 @@ func WithCooldown(d time.Duration) Option { return func(q *query) { q.cooldown =
 
 // WithDowngrade permits selecting a version older than current.
 func WithDowngrade(allow bool) Option { return func(q *query) { q.downgrade = allow } }
+
+// WithExact pins selection to the one version named: only a candidate whose
+// parsed version equals target (or whose raw tag equals it, ignoring a leading
+// v) survives, and the include/exclude, scheme, asset, prerelease, cooldown,
+// constraint, downgrade, and behind rules are all bypassed - an explicit pin is
+// the user overriding the rules. Empty disables it.
+func WithExact(target string) Option { return func(q *query) { q.exact = target } }
 
 // WithExclude drops candidates matching any predicate.
 func WithExclude(preds ...Predicate) Option {

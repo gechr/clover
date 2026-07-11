@@ -27,6 +27,15 @@ var (
 // assert its formatting directly.
 type FailuresError = failuresError
 
+// ApplyTo drives (*cmdRun).applyTo from a black-box test: cmdRun is unexported,
+// so tests cannot build it directly. It returns the cooldown, downgrade, and
+// force fields after the --to implications are applied.
+func ApplyTo(to, cooldown string, downgrade, force *bool) (string, *bool, *bool) {
+	c := &cmdRun{To: to, Cooldown: cooldown, Downgrade: downgrade, Force: force}
+	c.applyTo()
+	return c.Cooldown, c.Downgrade, c.Force
+}
+
 // AnnotateMode drives (*cmdAnnotate).mode from a black-box test: cmdAnnotate is
 // unexported, so tests cannot build it directly.
 func AnnotateMode(check, dryRun, write *bool, cfg *config.Config) (bool, bool) {

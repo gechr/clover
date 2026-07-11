@@ -35,6 +35,7 @@ FROM redis:7.2.0
 Then resolve and update every annotation in place:
 
 ```console
+clover init        # create a starter .clover.yaml interactively
 clover run         # resolve references and update them in place
 clover run -n      # dry-run: resolve and preview, write nothing
 clover lint        # check every directive resolves, offline, no writes
@@ -43,20 +44,23 @@ clover annotate    # preview provider=auto directives for recognized lines
 clover annotate -w # write those annotations
 ```
 
-Lines without a `clover:` comment are never touched.
+By default, lines without a `clover:` comment are never touched.
 
 ## Providers
 
 Clover resolves versions from a range of upstream sources:
 
-- **`github`** - releases, tags, and branch commits, with checksum and commit-SHA pinning
+- **`github`** - releases and tags, with checksum and commit-SHA pinning
 - **`gitlab`** - project tags and releases
 - **`gitea`** - Gitea and Forgejo forges, defaulting to Codeberg
 - **`docker`** - image tags and digests from any OCI registry
 - **`helm`** - chart versions from HTTP or OCI repositories
 - **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools
 - **`terraform`** / **`opentofu`** - provider plugins from a registry
+- **`go`** - Go toolchain versions
 - **`node`** - Node.js runtime versions
+- **`python`** - Python runtime versions
+- **`zig`** - Zig toolchain versions
 - **`http`** - any endpoint, read with `jq` or a regular expression
 - **`manual`** - a hand-maintained value for other directives to follow
 

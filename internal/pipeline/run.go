@@ -350,6 +350,7 @@ type plan struct {
 	cooldown       *time.Duration
 	results        []Result
 	tasks          []progress.Task
+	to             string
 	truncationSink func(provider.Truncation)
 	verify         *bool
 	workers        int
@@ -429,6 +430,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		reporter:       set.reporter,
 		cooldown:       set.cooldown,
 		results:        results,
+		to:             set.to,
 		truncationSink: set.truncationSink,
 		verify:         set.verify,
 		workers:        set.workers,
@@ -710,7 +712,9 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	downgrade := cmp.Or(p.downgrade, cfg.DowngradeFor(scope))
 	downgradeOff := downgrade != nil && !*downgrade ||
 		downgrade == nil && !m.Directive.Has(constant.RuleDowngrade)
-	if located.Semver() != nil && prefix == "" && downgradeOff {
+	// An explicit --to pin may sit below the current version, so it also
+	// suppresses the floor: the provider must page far enough to find it.
+	if located.Semver() != nil && prefix == "" && downgradeOff && p.to == "" {
 		ctx = provider.WithVersionFloor(ctx, located.Semver().String())
 	}
 
@@ -777,6 +781,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 				Str(field.Reason, r.String()).
 				Msg("Skipped candidate")
 		}))
+	}
+
+	// An explicit --to pin overrides the directive's whole selection chain: the
+	// compiled rules stay wired for the observer, but WithExact bypasses them.
+	if p.to != "" {
+		opts = append(opts, version.WithExact(p.to))
 	}
 
 	// A monorepo tag-prefix scopes selection to one component's tags

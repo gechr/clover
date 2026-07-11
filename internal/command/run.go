@@ -39,6 +39,7 @@ type cmdRun struct {
 	Enable     []string     `            help:"Resolve only these providers, skipping all others"                                         clib:"terse='Enable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                   placeholder:"<provider>"`
 	Disable    []string     `            help:"Skip these providers, resolving all others"                                                clib:"terse='Disable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                  placeholder:"<provider>"`
 	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',complete='predictor=tag,comma',group='Options/Selection/3'"                          placeholder:"<tag>"      short:"t" aliases:"tags"`
+	To         string       "            help:\"Pin matched markers to this exact version (implies `--downgrade`, `--force`)\"                clib:\"terse='Pin version',group='Options/Selection/3'\"                                                          placeholder:\"<version>\""
 	Cooldown   string       `            help:"Override every directive's cooldown, e.g. 72h or 2w (0 to disable)"                        clib:"terse='Cooldown override',group='Options/Selection/3'"                                                      placeholder:"<duration>"`
 	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection/3'"                                                                                                         negatable:""`
 	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection/3'"                                                                                                        negatable:""`
@@ -50,6 +51,32 @@ type cmdRun struct {
 	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                                                                             short:"n" aliases:"dry"`
 	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
+}
+
+// applyTo wires the implications of --to: pinning to one exact version means
+// accepting it even when older, re-pinning a followed digest whose version is
+// unchanged, and ignoring cooldowns. An explicit flag still decides each for
+// itself, so --to with --no-force pins the version but holds the digest.
+func (c *cmdRun) applyTo() {
+	if c.To == "" {
+		return
+	}
+	c.Downgrade = cmp.Or(c.Downgrade, new(true))
+	c.Force = cmp.Or(c.Force, new(true))
+	c.Cooldown = cmp.Or(c.Cooldown, "0")
+}
+
+// applyOffline wires the implications of --offline: serving from the cache
+// needs the cross-run disk tier, so the cache switches on (an explicit
+// --no-cache still wins and leaves only in-run memory), and every HTTP client
+// flips to cache-only round trips.
+func (c *cmdRun) applyOffline() {
+	if !c.Offline {
+		return
+	}
+	c.Cache = cmp.Or(c.Cache, new(true))
+	httpcache.SetOffline(true)
+	clog.Info().Symbol("📴").Msg("Offline, resolving from the HTTP cache alone")
 }
 
 // cooldownOverride parses the --cooldown flag, nil when unset. A zero duration
@@ -96,6 +123,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 		return err
 	}
 
+	c.applyTo()
 	cooldown, err := cooldownOverride(c.Cooldown)
 	if err != nil {
 		return err
@@ -133,6 +161,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 		pipeline.WithReporter(reporter),
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithTagFilter(filter),
+		pipeline.WithTo(c.To),
 		pipeline.WithTruncationSink(func(t provider.Truncation) {
 			mu.Lock()
 			defer mu.Unlock()

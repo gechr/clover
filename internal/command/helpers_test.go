@@ -68,6 +68,27 @@ func TestCooldownOverride(t *testing.T) {
 	}
 }
 
+// TestApplyTo confirms the --to implications: downgrade, force, and a zero
+// cooldown switch on with the pin, unless an explicit flag already decides one.
+func TestApplyTo(t *testing.T) {
+	t.Parallel()
+
+	cooldown, downgrade, force := command.ApplyTo("", "", nil, nil)
+	require.Empty(t, cooldown, "no pin leaves every flag untouched")
+	require.Nil(t, downgrade)
+	require.Nil(t, force)
+
+	cooldown, downgrade, force = command.ApplyTo("1.2.3", "", nil, nil)
+	require.Equal(t, "0", cooldown)
+	require.Equal(t, new(true), downgrade)
+	require.Equal(t, new(true), force)
+
+	cooldown, downgrade, force = command.ApplyTo("1.2.3", "2w", new(false), new(false))
+	require.Equal(t, "2w", cooldown, "an explicit flag still decides for itself")
+	require.Equal(t, new(false), downgrade)
+	require.Equal(t, new(false), force)
+}
+
 func TestFailuresErrorMessage(t *testing.T) {
 	t.Parallel()
 

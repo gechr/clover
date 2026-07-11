@@ -48,6 +48,7 @@ const (
 	ReasonCooldown                 // younger than the cooldown
 	ReasonConstraint               // outside the constraint
 	ReasonDowngrade                // older than current, downgrades disallowed
+	ReasonExact                    // not the version an explicit pin demands
 	reasonCount                    // count of reasons, for tallying the binding one
 )
 
@@ -72,6 +73,8 @@ func (r Reason) String() string {
 		return "constraint"
 	case ReasonDowngrade:
 		return "downgrade"
+	case ReasonExact:
+		return "exact"
 	default:
 		return "unknown"
 	}
@@ -98,6 +101,8 @@ func (r Reason) Detail() string {
 		return "no version satisfies the constraint"
 	case ReasonDowngrade:
 		return "every version is older than the current one"
+	case ReasonExact:
+		return "the requested version is not in the upstream listing"
 	default:
 		return ""
 	}
@@ -142,6 +147,13 @@ func SelectReason[T any](
 	}
 	if current != nil {
 		q.currentArity = numericArity(current.Original())
+	}
+	if q.exact != "" {
+		// A parse failure leaves exactVersion nil, so matching falls back to raw
+		// tag equality. An explicit pin also neutralizes behind: the pin names one
+		// version, not an offset from it.
+		q.exactVersion, _ = Parse(q.exact)
+		q.behind = 0
 	}
 
 	kept := make([]scored[T], 0, len(cands))
@@ -200,9 +212,18 @@ func bindingReason(rejected [reasonCount]int) Reason {
 // when it survives every filter. The order of the checks fixes the reported
 // reason when more than one would apply.
 func (q *query) eligible(current *Version, a Attrs) Reason {
-	switch {
-	case a.Semver == nil:
+	if a.Semver == nil {
 		return ReasonUnparsable
+	}
+	// An explicit pin replaces the whole chain: the one named version is
+	// eligible and everything else is not, whatever the other rules say.
+	if q.exact != "" {
+		if q.matchesExact(a) {
+			return ReasonEligible
+		}
+		return ReasonExact
+	}
+	switch {
 	case !q.included(a.Tag) || q.excluded(a.Tag):
 		return ReasonFiltered
 	case q.schemeMismatch(a.Tag):
@@ -220,6 +241,16 @@ func (q *query) eligible(current *Version, a Attrs) Reason {
 	default:
 		return ReasonEligible
 	}
+}
+
+// matchesExact reports whether a candidate is the pinned version: parsed
+// equality when the pin parses (so 1.21 matches v1.21.0), else raw tag
+// equality ignoring a leading v.
+func (q *query) matchesExact(a Attrs) bool {
+	if q.exactVersion != nil {
+		return Compare(a.Semver, q.exactVersion) == 0
+	}
+	return strings.TrimPrefix(a.Tag, "v") == strings.TrimPrefix(q.exact, "v")
 }
 
 // qualifierExempt reports whether a candidate shares the line's trailing

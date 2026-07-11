@@ -1350,6 +1350,39 @@ func TestRunFollower(t *testing.T) {
 	require.Equal(t, "follower: 2.0.0", files[1].Results[0].NewLine)
 }
 
+// TestRunToPinsExactVersion confirms WithTo rewrites the marker to the named
+// version even when it is older than the current one and the directive's rules
+// would have rejected it, and that a pin missing upstream fails with the
+// listing detail.
+func TestRunToPinsExactVersion(t *testing.T) {
+	provider.Register(fakeProvider{
+		name: "pinned",
+		candidates: []model.Candidate{
+			candidate(t, "1.0.0"),
+			candidate(t, "1.5.0"),
+			candidate(t, "2.0.0"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=pinned repository=x/y constraint=patch\nversion: 1.5.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithTo("1.0.0"))
+	require.NoError(t, err)
+	require.NoError(t, files[0].Results[0].Err)
+	require.Equal(t, "1.0.0", files[0].Results[0].Resolved)
+	require.Equal(t, "version: 1.0.0", files[0].Results[0].NewLine)
+
+	files, err = pipeline.Run(context.Background(), []string{dir}, pipeline.WithTo("3.0.0"))
+	require.NoError(t, err)
+	require.EqualError(
+		t,
+		files[0].Results[0].Err,
+		"no candidate satisfies the rule: the requested version is not in the upstream listing",
+	)
+}
+
 // TestRunScopedRules confirms a run.rules entry applies its defaults only to
 // the markers its selectors match: the rule's prerelease opt-in frees the
 // matching provider's marker while the other file's marker stays on stable.
