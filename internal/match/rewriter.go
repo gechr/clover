@@ -2,9 +2,7 @@ package match
 
 import (
 	"fmt"
-	"maps"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -12,7 +10,6 @@ import (
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/gechr/clover/internal/version"
-	xslices "github.com/gechr/x/slices"
 )
 
 // Rewriter locates the version a target line carries. Implementations range from
@@ -506,19 +503,10 @@ var routes = []route{
 }
 
 // miseToolAlternation joins every GitHub-released mise tool name - curated and
-// generated - into the well-known-tool route's regex alternation.
-func miseToolAlternation() string {
-	return toolAlternation(slices.Concat(
-		slices.Collect(maps.Keys(miseGithubTools)),
-		slices.Collect(maps.Keys(miseRegistryTools)),
-	))
-}
-
-// toolAlternation joins tool names into a route's regex alternation, each name
+// generated - into the well-known-tool route's regex alternation, each name
 // quoted so a dot in a tool name stays literal.
-func toolAlternation(names []string) string {
-	xslices.SortNatural(names)
-	names = xslices.Unique(names)
+func miseToolAlternation() string {
+	names := ToolNames()
 	for i, name := range names {
 		names[i] = regexp.QuoteMeta(name)
 	}

@@ -530,6 +530,54 @@ func TestInfer(t *testing.T) {
 // TestInferTerraformProviders covers the one context-aware inference: a
 // required_providers version line whose source address lives on a sibling line
 // of its HCL block.
+// TestLookupTool pins the tool-name resolution the github provider's tool key
+// and auto-detection share: curated names carry their tag prefix, generated
+// registry names resolve bare.
+func TestLookupTool(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		tool       string
+		repository string
+		tagPrefix  string
+		ok         bool
+	}{
+		{
+			name:       "curated name with a tag prefix",
+			tool:       "erlang",
+			repository: "erlang/otp",
+			tagPrefix:  "OTP-",
+			ok:         true,
+		},
+		{
+			name:       "curated core runtime",
+			tool:       "rust",
+			repository: "rust-lang/rust",
+			ok:         true,
+		},
+		{
+			name:       "generated registry name",
+			tool:       "ripgrep",
+			repository: "BurntSushi/ripgrep",
+			ok:         true,
+		},
+		{name: "unknown name", tool: "java"},
+		{name: "empty name", tool: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			repository, tagPrefix, ok := match.LookupTool(tt.tool)
+			require.Equal(t, tt.repository, repository)
+			require.Equal(t, tt.tagPrefix, tagPrefix)
+			require.Equal(t, tt.ok, ok)
+		})
+	}
+}
+
 func TestInferTerraformProviders(t *testing.T) {
 	t.Parallel()
 

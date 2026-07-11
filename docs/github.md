@@ -13,6 +13,7 @@ FROM redis:7.2.0
 | -------------------------------------------- | ------------------------------------------------------------------------- |
 | `provider`                                   | `github`                                                                  |
 | `repository`                                 | The `owner/name` of the repository to track                               |
+| `tool`                                       | A mise registry tool name, instead of `repository` (see below)            |
 | `host`                                       | The host, defaulting to `github.com`                                      |
 | `source`                                     | What to list: `tags` (default) or `releases` (required for `asset`)       |
 | [`constraint`](constraints.md)               | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
@@ -27,6 +28,17 @@ FROM redis:7.2.0
 ## Tags and releases
 
 `source` chooses what to list. `tags` (the default) reads the repository's tags; `releases` reads its published releases. The difference matters for [`cooldown`](cooldown.md): a GitHub tag carries no publication date of its own, only its target commit's, so Clover cannot age a tag without guessing from a commit that may long predate it. Rather than silently update past a cooldown it cannot check, a `cooldown` on `source=tags` **skips the marker with a warning** and holds the line. A release carries its own `published_at`, so set `source=releases` to have cooldown apply.
+
+## Tracking a tool by name
+
+`tool` names a tool from the [mise registry](https://mise.jdx.dev/registry.html) instead of spelling out its repository. Clover resolves the name through the same tool-to-repository map [auto-detection](auto.md) uses, so any registry tool released on GitHub works by name alone, wherever the version lives:
+
+```bash
+# clover: provider=github tool=ripgrep constraint=minor
+RIPGREP_VERSION=14.1.0
+```
+
+The map also records the tag prefix a curated tool's upstream tags wear, so `tool=erlang` selects among `OTP-` tags without a [`tag-prefix`](filtering.md#tag-prefix) rule of its own. A mistyped name fails validation with the closest known tool as a suggestion. `tool` and `repository` are mutually exclusive, and since the registry maps names to GitHub.com repositories, `tool` cannot combine with `host`.
 
 ## Selecting by asset
 

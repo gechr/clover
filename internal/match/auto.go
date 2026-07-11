@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
+	xmaps "github.com/gechr/x/maps"
+	xslices "github.com/gechr/x/slices"
 )
 
 // Inference is what auto-detection resolved for a `provider=auto` marker from
@@ -202,6 +204,30 @@ func githubReference(path, line string) (string, string) {
 	return miseTool(path, line)
 }
 
+// LookupTool resolves a mise tool name to the GitHub repository whose tags
+// carry its releases and the tag prefix those tags wear, consulting the
+// curated [miseGithubTools] map then the generated registry map.
+func LookupTool(name string) (string, string, bool) {
+	if tool, found := miseGithubTools[name]; found {
+		return tool.repository, tool.tagPrefix, true
+	}
+	if repo, found := miseRegistryTools[name]; found {
+		return repo, "", true
+	}
+	return "", "", false
+}
+
+// ToolNames returns every tool name [LookupTool] resolves, naturally sorted,
+// so a mistyped name can be met with a suggestion.
+func ToolNames() []string {
+	names := xslices.Union(
+		xmaps.KeysSlice(miseGithubTools),
+		xmaps.KeysSlice(miseRegistryTools),
+	)
+	xslices.SortNatural(names)
+	return names
+}
+
 // miseTool extracts the GitHub source a mise tool key tracks: a curated tool
 // name from [miseGithubTools], a registry tool name from the generated
 // miseRegistryTools, or a github: or ubi: backend key, e.g.
@@ -209,11 +235,8 @@ func githubReference(path, line string) (string, string) {
 // qualifier. It returns empty strings when the key names no repository.
 func miseTool(path, line string) (string, string) {
 	key := toolKey(path, line)
-	if tool, ok := miseGithubTools[key]; ok {
-		return tool.repository, tool.tagPrefix
-	}
-	if repo, ok := miseRegistryTools[key]; ok {
-		return repo, ""
+	if repo, prefix, ok := LookupTool(key); ok {
+		return repo, prefix
 	}
 	for _, scheme := range []string{"github:", "ubi:"} {
 		repo, ok := strings.CutPrefix(key, scheme)

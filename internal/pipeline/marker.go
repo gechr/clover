@@ -80,6 +80,15 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		provider, d = inferParams(file, target, d)
 	}
 
+	// A tool key's upstream tags may carry a prefix (erlang tags OTP-27.2), so
+	// bind appends the rule the tool map records, unless the directive pins its
+	// own. The provider itself only resolves the repository.
+	if provider == constant.ProviderGithub {
+		if _, prefix, ok := match.LookupTool(value(d, constant.DirectiveTool)); ok {
+			d = appendParam(d, constant.RuleTagPrefix, prefix)
+		}
+	}
+
 	return Marker{
 		File:      file.Path,
 		Line:      found.Line,

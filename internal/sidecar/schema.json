@@ -22,6 +22,10 @@
         "type": "string",
         "description": "Repository path, e.g. owner/name (github/gitlab/gitea, docker)."
       },
+      "tool": {
+        "type": "string",
+        "description": "A mise registry tool name, resolved to the GitHub repository it tracks (github)."
+      },
       "registry": {
         "type": "string",
         "description": "Container registry host (docker); chart repository URL or oci:// base (helm)."

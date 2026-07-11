@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -15,9 +16,11 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/httpcache"
+	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/ratelimit"
 	"github.com/gechr/clover/internal/token"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // tokenEnv is the namespaced environment variable that overrides every other
@@ -44,6 +47,7 @@ var errAnonymous = errors.New("no GitHub credentials; using anonymous access")
 // Directive keys the provider accepts beyond the forge-shared source key.
 const (
 	keyRepository = constant.DirectiveRepository
+	keyTool       = constant.DirectiveTool
 	keyHost       = constant.DirectiveHost
 )
 
@@ -111,10 +115,12 @@ func (p *Provider) Name() string { return constant.ProviderGithub }
 // Bare tags do not, and fall to the post-discovery date check.
 func (p *Provider) Dated() {}
 
-// Keys reports the directive keys GitHub accepts, in canonical order.
+// Keys reports the directive keys GitHub accepts, in canonical order. Exactly
+// one of repository and tool is required, which Resource enforces.
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
-		{Name: keyRepository, Required: true},
+		{Name: keyRepository},
+		{Name: keyTool},
 		{Name: keyHost},
 		{Name: forge.KeySource},
 	}
@@ -122,7 +128,7 @@ func (p *Provider) Keys() []provider.Key {
 
 // Resource validates a directive into a GitHub resource.
 func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
-	owner, name, err := forge.OwnerName(constant.ProviderGithub, d)
+	owner, name, err := ownerName(d)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +136,13 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	host, err := forge.Host(constant.ProviderGithub, d, defaultHost)
 	if err != nil {
 		return nil, err
+	}
+	if d.Has(keyTool) && host != defaultHost {
+		return nil, fmt.Errorf(
+			"github: %q resolves a github.com repository, remove %q",
+			keyTool,
+			keyHost,
+		)
 	}
 
 	source, err := forge.Source(constant.ProviderGithub, d)
@@ -142,6 +155,45 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	}
 
 	return resource{host: host, owner: owner, name: name, source: source}, nil
+}
+
+// ownerName resolves the tracked repository from the repository key or the
+// tool key, which names a mise registry tool released on GitHub. Exactly one
+// of the two must be set.
+func ownerName(d directive.Directive) (string, string, error) {
+	tool, hasTool := d.Get(keyTool)
+	switch {
+	case hasTool && d.Has(keyRepository):
+		return "", "", fmt.Errorf(
+			"github: %q and %q are mutually exclusive",
+			keyRepository,
+			keyTool,
+		)
+	case hasTool:
+		repo, _, ok := match.LookupTool(tool)
+		if !ok {
+			return "", "", unknownTool(tool)
+		}
+		owner, name, _ := strings.Cut(repo, "/")
+		return owner, name, nil
+	case d.Has(keyRepository):
+		return forge.OwnerName(constant.ProviderGithub, d)
+	default:
+		return "", "", fmt.Errorf(
+			"github: %q or %q is required",
+			keyRepository,
+			keyTool,
+		)
+	}
+}
+
+// unknownTool reports an unrecognized tool name, suggesting the closest known
+// one when the name looks like a typo.
+func unknownTool(tool string) error {
+	if near := xstrings.Closest(tool, match.ToolNames()); near != "" {
+		return fmt.Errorf("github: unknown tool %q, did you mean %q?", tool, near)
+	}
+	return fmt.Errorf("github: unknown tool %q", tool)
 }
 
 // Describe returns a human-readable label for a resource.

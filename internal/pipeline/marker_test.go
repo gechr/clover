@@ -261,6 +261,67 @@ func TestMarkersAuto(t *testing.T) {
 	}
 }
 
+// TestMarkersToolTagPrefix confirms bind appends the tag-prefix rule the tool
+// map records for a tool key, and that an explicit rule always wins.
+func TestMarkersToolTagPrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		directive directive.Directive
+		tagPrefix string
+	}{
+		{
+			name: "tool with a prefixed upstream appends the rule",
+			directive: directiveOf(
+				directive.KV{Key: "provider", Value: "github"},
+				directive.KV{Key: "tool", Value: "erlang"},
+			),
+			tagPrefix: "OTP-",
+		},
+		{
+			name: "explicit tag-prefix wins over the map",
+			directive: directiveOf(
+				directive.KV{Key: "provider", Value: "github"},
+				directive.KV{Key: "tool", Value: "erlang"},
+				directive.KV{Key: "tag-prefix", Value: "v"},
+			),
+			tagPrefix: "v",
+		},
+		{
+			name: "tool without a prefixed upstream appends nothing",
+			directive: directiveOf(
+				directive.KV{Key: "provider", Value: "github"},
+				directive.KV{Key: "tool", Value: "ripgrep"},
+			),
+			tagPrefix: "",
+		},
+		{
+			name: "repository marker appends nothing",
+			directive: directiveOf(
+				directive.KV{Key: "provider", Value: "github"},
+				directive.KV{Key: "repository", Value: "owner/name"},
+			),
+			tagPrefix: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			file := scan.File{
+				Path:  "versions.txt",
+				Lines: []string{"# marker comment", "version: 27.2"},
+				Found: []scan.Located{{Line: 0, Directive: tt.directive}},
+			}
+			markers := pipeline.Markers(file, vcs.NewResolver())
+			require.Len(t, markers, 1)
+			prefix, _ := markers[0].Directive.Get("tag-prefix")
+			require.Equal(t, tt.tagPrefix, prefix)
+		})
+	}
+}
+
 func TestMarkersNamespaceIsolatesRepos(t *testing.T) {
 	t.Parallel()
 

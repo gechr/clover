@@ -63,5 +63,6 @@ const (
 	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)
 	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
 	DirectiveSource     = "source"     // provider source address namespace/name (terraform, opentofu)
+	DirectiveTool       = "tool"       // mise registry tool name, resolved to the repository it tracks (github)
 	DirectiveRepository = "repository" // repository path (github, docker)
 )

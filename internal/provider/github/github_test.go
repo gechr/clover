@@ -94,6 +94,24 @@ func TestResource(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:         "tool resolves a registry name",
+			pairs:        []directive.KV{{Key: "tool", Value: "ripgrep"}},
+			wantDescribe: "github.com/BurntSushi/ripgrep (tags)",
+		},
+		{
+			name:         "tool resolves a curated name",
+			pairs:        []directive.KV{{Key: "tool", Value: "erlang"}},
+			wantDescribe: "github.com/erlang/otp (tags)",
+		},
+		{
+			name: "tool with releases",
+			pairs: []directive.KV{
+				{Key: "tool", Value: "ripgrep"},
+				{Key: "source", Value: "releases"},
+			},
+			wantDescribe: "github.com/BurntSushi/ripgrep (releases)",
+		},
 	}
 
 	provider := github.New()
@@ -112,14 +130,70 @@ func TestResource(t *testing.T) {
 	}
 }
 
+// TestResourceToolErrors pins the exact messages the tool key's validation
+// reports, including the typo suggestion.
+func TestResourceToolErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		pairs   []directive.KV
+		wantErr string
+	}{
+		{
+			name: "tool and repository are mutually exclusive",
+			pairs: []directive.KV{
+				{Key: "tool", Value: "ripgrep"},
+				{Key: "repository", Value: "owner/name"},
+			},
+			wantErr: `github: "repository" and "tool" are mutually exclusive`,
+		},
+		{
+			name:    "neither tool nor repository",
+			pairs:   nil,
+			wantErr: `github: "repository" or "tool" is required`,
+		},
+		{
+			name:    "unknown tool suggests the closest name",
+			pairs:   []directive.KV{{Key: "tool", Value: "riprep"}},
+			wantErr: `github: unknown tool "riprep", did you mean "ripgrep"?`,
+		},
+		{
+			name:    "unknown tool without a near name",
+			pairs:   []directive.KV{{Key: "tool", Value: "xqzv"}},
+			wantErr: `github: unknown tool "xqzv"`,
+		},
+		{
+			name: "tool cannot combine with host",
+			pairs: []directive.KV{
+				{Key: "tool", Value: "ripgrep"},
+				{Key: "host", Value: "ghe.example.com"},
+			},
+			wantErr: `github: "tool" resolves a github.com repository, remove "host"`,
+		},
+	}
+
+	provider := github.New()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := provider.Resource(directiveOf(tt.pairs...))
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestKeys(t *testing.T) {
 	t.Parallel()
 
 	keys := github.New().Keys()
 	require.Equal(t, "repository", keys[0].Name)
-	require.True(t, keys[0].Required)
-	require.Equal(t, "host", keys[1].Name)
+	require.False(t, keys[0].Required)
+	require.Equal(t, "tool", keys[1].Name)
 	require.False(t, keys[1].Required)
-	require.Equal(t, "source", keys[2].Name)
+	require.Equal(t, "host", keys[2].Name)
 	require.False(t, keys[2].Required)
+	require.Equal(t, "source", keys[3].Name)
+	require.False(t, keys[3].Required)
 }
