@@ -50,6 +50,18 @@ run:
   cache: true
   # Output detail for run; overrides global.output.
   output: text
+  # Scoped defaults. Each rule applies its settings (verify, prerelease,
+  # downgrade, deep, force, cooldown) to the markers matched by its selectors
+  # (paths, providers, tags). For each setting, the first matching rule that
+  # sets it wins, falling back to the run defaults above. A directive's own
+  # cooldown still wins over a rule's, and an explicit CLI flag wins over
+  # everything.
+  rules: []
+    # - providers: [docker]
+    #   cooldown: 1w
+    # - paths: [vendor/**]
+    #   tags: [experimental]
+    #   prerelease: true
 
 # Defaults for `clover lint`.
 lint:

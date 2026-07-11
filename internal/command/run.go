@@ -35,7 +35,7 @@ import (
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
 	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                                                                     predictor:"path"`
-	Infer      bool         "            help:\"Attempt to update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
+	Infer      bool         "            help:\"Update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
 	Enable     []string     `            help:"Resolve only these providers, skipping all others"                                         clib:"terse='Enable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                   placeholder:"<provider>"`
 	Disable    []string     `            help:"Skip these providers, resolving all others"                                                clib:"terse='Disable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                  placeholder:"<provider>"`
 	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',complete='predictor=tag,comma',group='Options/Selection/3'"                          placeholder:"<tag>"      short:"t" aliases:"tags"`

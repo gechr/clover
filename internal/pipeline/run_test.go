@@ -1350,6 +1350,35 @@ func TestRunFollower(t *testing.T) {
 	require.Equal(t, "follower: 2.0.0", files[1].Results[0].NewLine)
 }
 
+// TestRunScopedRules confirms a run.rules entry applies its defaults only to
+// the markers its selectors match: the rule's prerelease opt-in frees the
+// matching provider's marker while the other file's marker stays on stable.
+func TestRunScopedRules(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "ruled",
+		candidates: []model.Candidate{candidate(t, "1.0.0"), candidate(t, "2.0.0-rc.1")},
+	})
+	provider.Register(fakeProvider{
+		name:       "unruled",
+		candidates: []model.Candidate{candidate(t, "1.0.0"), candidate(t, "2.0.0-rc.1")},
+	})
+
+	dir := writeRepo(t,
+		"run:\n  rules:\n    - providers: [ruled]\n      prerelease: true\n",
+		map[string]string{
+			"a.txt": "# clover: provider=ruled repository=x/y\nversion: 1.0.0\n",
+			"b.txt": "# clover: provider=unruled repository=x/y\nversion: 1.0.0\n",
+		})
+
+	files, err := pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)))
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+
+	require.Equal(t, "2.0.0-rc.1", files[0].Results[0].Resolved)
+	require.Equal(t, "1.0.0", files[1].Results[0].Resolved)
+}
+
 // TestRunDowngradeOverride confirms the run-level flag overrides the
 // per-directive downgrade rule: nil leaves the directive in force, true
 // forces a downgrade the directive did not permit, and false blocks one it did.

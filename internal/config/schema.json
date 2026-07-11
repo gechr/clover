@@ -69,6 +69,13 @@
         },
         "output": {
           "$ref": "#/$defs/output"
+        },
+        "rules": {
+          "type": "array",
+          "description": "Scoped defaults. Each rule applies its settings to the markers its selectors match. For each setting, the first matching rule that sets it wins, falling back to the run defaults above.",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
         }
       }
     },
@@ -107,6 +114,60 @@
     }
   },
   "$defs": {
+    "rule": {
+      "type": "object",
+      "description": "One scoped default: selectors (paths, providers, tags) choose the markers it governs, and the remaining keys supply their defaults. At least one selector and one setting are required.",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "description": "Doublestar globs matched against the marker file's path relative to its repository root (e.g. \"vendor/**\"). Any match selects the marker.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "providers": {
+          "type": "array",
+          "description": "Provider names the rule applies to (e.g. \"docker\", \"github\"). Any match selects the marker.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags the marker must all carry (its directive's tags= value).",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verify": {
+          "type": "boolean",
+          "description": "Verify secure pins against their upstream tags (implies a deep lookup)."
+        },
+        "prerelease": {
+          "type": "boolean",
+          "description": "Allow selecting prerelease versions."
+        },
+        "downgrade": {
+          "type": "boolean",
+          "description": "Allow selecting versions older than the current one."
+        },
+        "deep": {
+          "type": "boolean",
+          "description": "Follow pagination to fetch every version (more accurate, but slower)."
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Re-pin a followed digest even when the version it follows is unchanged."
+        },
+        "cooldown": {
+          "type": "string",
+          "description": "Minimum age before a version is eligible, for directives that set no cooldown of their own (e.g. 72h, 2w)."
+        }
+      }
+    },
     "output": {
       "type": "string",
       "enum": [

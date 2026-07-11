@@ -606,8 +606,21 @@ func (p *plan) configFor(file string) *config.Config {
 // the complete history).
 func (p *plan) deepFor(m Marker) bool {
 	cfg := p.configFor(m.File)
-	verify := cmp.Or(p.verify, cfg.Verify())
-	return ptr.Deref(cmp.Or(p.deep, cfg.Deep())) || ptr.Deref(verify)
+	scope := p.scopeFor(m)
+	verify := cmp.Or(p.verify, cfg.VerifyFor(scope))
+	return ptr.Deref(cmp.Or(p.deep, cfg.DeepFor(scope))) || ptr.Deref(verify)
+}
+
+// scopeFor describes marker m for the config's scoped run.rules: its path
+// relative to the repository root in slash form, its provider, and its tags.
+func (p *plan) scopeFor(m Marker) config.Marker {
+	scope := config.Marker{Provider: m.Provider, Tags: m.Tags}
+	if p.configs == nil {
+		scope.Path = filepath.ToSlash(m.File)
+		return scope
+	}
+	scope.Path = relTo(p.configs.Root(filepath.Dir(m.File)), m.File)
+	return scope
 }
 
 // resolveProducer locates the current token, selects the newest allowed
@@ -693,7 +706,8 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// tag-prefix suppresses the floor - the provider sees raw tags whose
 	// version-ordering the prefix may break.
 	cfg := p.configFor(m.File)
-	downgrade := cmp.Or(p.downgrade, cfg.Downgrade())
+	scope := p.scopeFor(m)
+	downgrade := cmp.Or(p.downgrade, cfg.DowngradeFor(scope))
 	downgradeOff := downgrade != nil && !*downgrade ||
 		downgrade == nil && !m.Directive.Has(constant.RuleDowngrade)
 	if located.Semver() != nil && prefix == "" && downgradeOff {
@@ -745,7 +759,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	if downgrade != nil {
 		opts = append(opts, version.WithDowngrade(*downgrade))
 	}
-	if prerelease := cmp.Or(p.prerelease, cfg.Prerelease()); prerelease != nil {
+	if prerelease := cmp.Or(p.prerelease, cfg.PrereleaseFor(scope)); prerelease != nil {
 		opts = append(opts, version.WithPrerelease(*prerelease))
 	}
 	if d, ok := p.cooldownFor(m, cfg); ok {
@@ -906,7 +920,7 @@ func (p *plan) cooldownFor(m Marker, cfg *config.Config) (time.Duration, bool) {
 		return *p.cooldown, true
 	}
 	if !m.Directive.Has(constant.RuleCooldown) {
-		if d := cfg.Cooldown(); d > 0 {
+		if d := cfg.CooldownFor(p.scopeFor(m)); d > 0 {
 			return d, true
 		}
 	}
@@ -1005,7 +1019,7 @@ func (p *plan) anchor(i int, m Marker, line string, located match.Location) erro
 // --verify override wins, then the root's run.verify default, else the marker's
 // own verify=/verify-branch=.
 func (p *plan) deepVerify(m Marker) bool {
-	if verify := cmp.Or(p.verify, p.configFor(m.File).Verify()); verify != nil {
+	if verify := cmp.Or(p.verify, p.configFor(m.File).VerifyFor(p.scopeFor(m))); verify != nil {
 		return *verify
 	}
 	on, _ := m.Directive.Bool(constant.DirectiveVerify)
@@ -1324,7 +1338,7 @@ func (p *plan) markerByID(id string) (Marker, bool) {
 // their version is unchanged: the --force override wins, else the root's
 // run.force. The default holds an unchanged version's digest.
 func (p *plan) forceFor(m Marker) bool {
-	return ptr.Deref(cmp.Or(p.force, p.configFor(m.File).Force()))
+	return ptr.Deref(cmp.Or(p.force, p.configFor(m.File).ForceFor(p.scopeFor(m))))
 }
 
 // followerCandidate wraps a follower's resolved value in a Candidate typed by the

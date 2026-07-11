@@ -53,13 +53,13 @@ const keyRequiredVersion = "required-version"
 // key was absent (so a lower-precedence layer or built-in default applies),
 // distinct from an explicit false/zero that overrides it.
 type Config struct {
-	RequiredVersion *string  `yaml:"required-version"`
-	Paths           Paths    `yaml:"paths"`
-	Global          Global   `yaml:"global"`
-	Run             Run      `yaml:"run"`
-	Lint            Lint     `yaml:"lint"`
-	Format          Format   `yaml:"fmt"`
 	Annotate        Annotate `yaml:"annotate"`
+	Format          Format   `yaml:"fmt"`
+	Global          Global   `yaml:"global"`
+	Lint            Lint     `yaml:"lint"`
+	Paths           Paths    `yaml:"paths"`
+	RequiredVersion *string  `yaml:"required-version"`
+	Run             Run      `yaml:"run"`
 }
 
 // Paths controls which files clover scans.
@@ -74,14 +74,15 @@ type Global struct {
 
 // Run holds defaults for `clover run`.
 type Run struct {
-	Verify     *bool        `yaml:"verify"`
-	Prerelease *bool        `yaml:"prerelease"`
-	Downgrade  *bool        `yaml:"downgrade"`
-	Deep       *bool        `yaml:"deep"`
-	Force      *bool        `yaml:"force"`
 	Cache      *bool        `yaml:"cache"`
 	Cooldown   *string      `yaml:"cooldown"`
+	Deep       *bool        `yaml:"deep"`
+	Downgrade  *bool        `yaml:"downgrade"`
+	Force      *bool        `yaml:"force"`
 	Output     *output.Mode `yaml:"output"`
+	Prerelease *bool        `yaml:"prerelease"`
+	Rules      []Rule       `yaml:"rules"`
+	Verify     *bool        `yaml:"verify"`
 }
 
 // Lint holds defaults for `clover lint`.
@@ -96,8 +97,8 @@ type Format struct {
 
 // Annotate holds defaults for `clover annotate`.
 type Annotate struct {
-	Write *bool `yaml:"write"`
 	Check *bool `yaml:"check"`
+	Write *bool `yaml:"write"`
 }
 
 // Load reads the project config from path, or - when path is empty - the first
@@ -139,18 +140,21 @@ func Merge(user, project *Config) *Config {
 		merged.Paths.Exclude = project.Paths.Exclude
 	}
 	merged.Global.Output = cmp.Or(project.Global.Output, merged.Global.Output)
-	merged.Run.Verify = cmp.Or(project.Run.Verify, merged.Run.Verify)
-	merged.Run.Prerelease = cmp.Or(project.Run.Prerelease, merged.Run.Prerelease)
-	merged.Run.Downgrade = cmp.Or(project.Run.Downgrade, merged.Run.Downgrade)
-	merged.Run.Deep = cmp.Or(project.Run.Deep, merged.Run.Deep)
-	merged.Run.Force = cmp.Or(project.Run.Force, merged.Run.Force)
 	merged.Run.Cache = cmp.Or(project.Run.Cache, merged.Run.Cache)
 	merged.Run.Cooldown = cmp.Or(project.Run.Cooldown, merged.Run.Cooldown)
+	merged.Run.Deep = cmp.Or(project.Run.Deep, merged.Run.Deep)
+	merged.Run.Downgrade = cmp.Or(project.Run.Downgrade, merged.Run.Downgrade)
+	merged.Run.Force = cmp.Or(project.Run.Force, merged.Run.Force)
 	merged.Run.Output = cmp.Or(project.Run.Output, merged.Run.Output)
-	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
-	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
-	merged.Annotate.Write = cmp.Or(project.Annotate.Write, merged.Annotate.Write)
+	merged.Run.Prerelease = cmp.Or(project.Run.Prerelease, merged.Run.Prerelease)
+	merged.Run.Verify = cmp.Or(project.Run.Verify, merged.Run.Verify)
+	if project.Run.Rules != nil {
+		merged.Run.Rules = project.Run.Rules
+	}
 	merged.Annotate.Check = cmp.Or(project.Annotate.Check, merged.Annotate.Check)
+	merged.Annotate.Write = cmp.Or(project.Annotate.Write, merged.Annotate.Write)
+	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
+	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
 	return &merged
 }
 
@@ -227,6 +231,11 @@ func validateValues(cfg *Config) error {
 			return fmt.Errorf("%q must be a duration like 2w3d, got %q", "run.cooldown", *v)
 		}
 	}
+	for i, r := range cfg.run().Rules {
+		if err := r.validate(i); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -258,7 +267,7 @@ func configKeys(t reflect.Type) []string {
 		}
 		keys = append(keys, name)
 		ft := f.Type
-		if ft.Kind() == reflect.Pointer {
+		for ft.Kind() == reflect.Pointer || ft.Kind() == reflect.Slice {
 			ft = ft.Elem()
 		}
 		if ft.Kind() == reflect.Struct {

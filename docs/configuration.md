@@ -48,6 +48,7 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `run.force`        | Re-pin followed digests by default, even when the version they follow is unchanged                                                                                                    |
 | `run.cache`        | Persist cacheable HTTP responses across runs and revalidate them with conditional requests (see [Caching](caching.md)). On by default. Set `false` to fetch everything fresh each run |
 | `run.output`       | Output detail for `clover run` (overrides `global.output`)                                                                                                                            |
+| `run.rules`        | Scoped defaults that apply only to matching markers (see [Scoped rules](#scoped-rules))                                                                                               |
 | `lint.output`      | Output detail for `clover lint` (overrides `global.output`)                                                                                                                           |
 | `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                                                  |
 | `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                      |
@@ -58,6 +59,23 @@ Settings are grouped by the command they configure, with a `global` block for cr
 `annotate.write` and `annotate.check` are mutually exclusive.
 
 An unknown key is reported as a warning (with a "did you mean?" hint for a likely typo) and otherwise ignored, so a config written for a newer Clover still loads on an older one. Values are validated against the schema and a malformed one is rejected.
+
+## Scoped rules
+
+`run.rules` narrows the `run` defaults to just the markers you choose, so one project can hold Docker images back for a week while everything else updates freely. Each rule pairs selectors with settings. The selectors are `paths` ([Doublestar](https://github.com/bmatcuk/doublestar) globs matched against the file's path relative to its repository root), `providers` (provider names), and `tags` (tags the marker's directive must all carry). A rule needs at least one selector, and a marker must satisfy every selector the rule sets.
+
+```yaml
+run:
+  cooldown: 3d
+  rules:
+    - providers: [docker]
+      cooldown: 1w
+    - paths: [experiments/**]
+      tags: [canary]
+      prerelease: true
+```
+
+A rule can scope `verify`, `prerelease`, `downgrade`, `deep`, `force`, and `cooldown`. For each setting, the first matching rule that sets it wins, and markers no rule matches fall back to the plain `run` defaults. Rules slot into the usual precedence between the CLI and the `run` block: an explicit flag still overrides every rule, and a directive's own `cooldown` still wins over any configured default.
 
 ## Environment variables
 
