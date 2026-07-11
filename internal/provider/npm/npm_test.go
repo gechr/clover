@@ -1,0 +1,127 @@
+package npm_test
+
+import (
+	"net/http"
+	"testing"
+
+	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/npm"
+	"github.com/stretchr/testify/require"
+)
+
+func directiveOf(pairs ...directive.KV) directive.Directive {
+	return directive.Directive{Pairs: pairs}
+}
+
+// roundTripFunc adapts a function to an http.RoundTripper.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestNameAndKeys(t *testing.T) {
+	t.Parallel()
+
+	p := npm.New()
+	require.Equal(t, "npm", p.Name())
+
+	keys := p.Keys()
+	require.Len(t, keys, 1)
+	require.Equal(t, "package", keys[0].Name)
+	require.True(t, keys[0].Required)
+}
+
+func TestResource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		pairs        []directive.KV
+		wantErr      string
+		wantDescribe string
+	}{
+		{
+			name:         "package names the package",
+			pairs:        []directive.KV{{Key: "package", Value: "left-pad"}},
+			wantDescribe: "npmjs.com/left-pad",
+		},
+		{
+			name:         "scoped package keeps its scope",
+			pairs:        []directive.KV{{Key: "package", Value: "@vue/reactivity"}},
+			wantDescribe: "npmjs.com/@vue/reactivity",
+		},
+		{
+			name:    "missing package",
+			pairs:   nil,
+			wantErr: `npm: "package" is required`,
+		},
+		{
+			name:    "empty package",
+			pairs:   []directive.KV{{Key: "package", Value: ""}},
+			wantErr: `npm: "package" is required`,
+		},
+	}
+
+	p := npm.New()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := p.Resource(directiveOf(tt.pairs...))
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantDescribe, p.Describe(res))
+		})
+	}
+}
+
+func TestDescribeInvalidResource(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "npm", npm.New().Describe("not-a-resource"))
+}
+
+func TestURL(t *testing.T) {
+	t.Parallel()
+
+	p := npm.New()
+	res := resourceFor(t, p, directive.KV{Key: "package", Value: "left-pad"})
+
+	require.Equal(t,
+		"https://www.npmjs.com/package/left-pad/v/1.3.0",
+		p.URL(res, model.Candidate{Version: "1.3.0"}),
+	)
+	// The current-version candidate carries the on-line value in Version and the
+	// reconstructed upstream form in Ref; npm publishes bare semver, so the two
+	// agree and either path links the same page.
+	require.Equal(t,
+		"https://www.npmjs.com/package/left-pad/v/1.3.0",
+		p.URL(res, model.Candidate{Version: "1.3.0", Ref: "1.3.0"}),
+	)
+
+	// A scoped name keeps its literal slash on the web path.
+	scoped := resourceFor(t, p, directive.KV{Key: "package", Value: "@vue/reactivity"})
+	require.Equal(t,
+		"https://www.npmjs.com/package/@vue/reactivity/v/3.5.39",
+		p.URL(scoped, model.Candidate{Version: "3.5.39"}),
+	)
+
+	require.Empty(t, p.URL(res, model.Candidate{}))
+	require.Empty(t, p.URL("not-a-resource", model.Candidate{Version: "1.3.0"}))
+}
+
+// TestNotRecencyOrderer locks the leaner design: the packument returns the whole
+// version history in one response, so nothing is ever truncated and the provider
+// does not claim the recency-ordered capability that only routes a truncation
+// signal. The versions map is keyed in publish order anyway, which selection
+// never relies on.
+func TestNotRecencyOrderer(t *testing.T) {
+	t.Parallel()
+
+	_, ok := any(npm.New()).(provider.RecencyOrderer)
+	require.False(t, ok)
+}

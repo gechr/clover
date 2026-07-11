@@ -26,6 +26,7 @@ func TestDaterCoversDatedProviders(t *testing.T) {
 		constant.ProviderHTTP:      false,
 		constant.ProviderManual:    false,
 		constant.ProviderNode:      true,
+		constant.ProviderNpm:       true,
 		constant.ProviderOpentofu:  false,
 		constant.ProviderPython:    true,
 		constant.ProviderTerraform: false,

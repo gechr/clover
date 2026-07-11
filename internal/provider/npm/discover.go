@@ -1,0 +1,140 @@
+package npm
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"path"
+
+	"github.com/gechr/clover/internal/dates"
+	"github.com/gechr/clover/internal/model"
+	"github.com/gechr/clover/internal/provider"
+)
+
+const (
+	// host is the web origin for npm, used as the Describe label and the Linker
+	// URL root.
+	host = "npmjs.com"
+	// registryURL is the public npm registry: one packument per package, holding
+	// every published version and its publication date.
+	registryURL = "https://registry.npmjs.org"
+)
+
+// packument is the subset of a registry packument the provider reads. Versions
+// holds one entry per published version; Time dates each version and also
+// carries the non-version created/modified keys, which are never looked up. An
+// unpublished version lingers in Time but leaves Versions, so Versions drives
+// the listing.
+type packument struct {
+	Versions map[string]versionEntry `json:"versions"`
+	Time     timeMap                 `json:"time"`
+}
+
+// timeMap is the packument's time map, decoded tolerantly: the registry mixes
+// per-version date strings with the non-version created/modified keys and, for
+// a fully unpublished package, an "unpublished" object. A value that is not a
+// date string is dropped rather than failing the whole decode, leaving that
+// version undated - cooldown then goes inert for it, which beats a
+// wrong-but-present date.
+type timeMap map[string]dates.ReleaseTime
+
+// UnmarshalJSON decodes the map value by value, keeping only the entries that
+// parse as dates.
+func (m *timeMap) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*m = make(timeMap, len(raw))
+	for k, v := range raw {
+		var rt dates.ReleaseTime
+		if err := json.Unmarshal(v, &rt); err != nil {
+			continue
+		}
+		(*m)[k] = rt
+	}
+	return nil
+}
+
+// versionEntry is one published version's record; only the artifact block is
+// read.
+type versionEntry struct {
+	Dist dist `json:"dist"`
+}
+
+// dist is a version's artifact record; only the tarball URL is read, backing
+// the candidate's sole asset. The registry's own digests are sha1 and sha512,
+// which clover does not consume.
+type dist struct {
+	Tarball string `json:"tarball"`
+}
+
+// Discover lists candidate versions of a package, reading its packument in one
+// fetch. The packument holds the whole version history in a single response -
+// keyed in publish order, not version order - so there is no pagination,
+// nothing is ever left unread, and --deep has no work to do here.
+func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.Candidate, error) {
+	res, ok := r.(resource)
+	if !ok {
+		return nil, fmt.Errorf("npm: invalid resource %T", r)
+	}
+
+	pkg, err := p.fetch(ctx, res.pkg)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates := make([]model.Candidate, 0, len(pkg.Versions))
+	for v, entry := range pkg.Versions {
+		if v == "" {
+			continue
+		}
+		candidates = append(candidates, candidate(v, entry, pkg.Time[v]))
+	}
+	return candidates, nil
+}
+
+// fetch downloads and decodes a package's packument. The name is path-escaped
+// whole, yielding the @scope%2Fname form the registry documents for scoped
+// packages.
+func (p *Provider) fetch(ctx context.Context, name string) (packument, error) {
+	endpoint := registryURL + "/" + url.PathEscape(name)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return packument{}, fmt.Errorf("npm: build request: %w", err)
+	}
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return packument{}, fmt.Errorf("npm: fetch packument: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return packument{}, provider.StatusError("npm: get package "+name, resp)
+	}
+
+	var pkg packument
+	if err := json.NewDecoder(resp.Body).Decode(&pkg); err != nil {
+		return packument{}, fmt.Errorf("npm: decode packument: %w", err)
+	}
+	return pkg, nil
+}
+
+// candidate builds a model.Candidate from a version, its packument entry, and
+// its publication time. npm versions are bare semver, so Version and Ref carry
+// the same string; the tarball is the version's sole asset, letting a sha256
+// follower download and hash it. A version missing from the time map leaves
+// PublishedAt zero, so cooldown goes inert rather than trusting a wrong date.
+func candidate(v string, entry versionEntry, published dates.ReleaseTime) model.Candidate {
+	c := model.NewCandidate(v)
+	c.PublishedAt = published.Time
+	if entry.Dist.Tarball != "" {
+		c.Assets = []model.Asset{{
+			Name: path.Base(entry.Dist.Tarball),
+			URL:  entry.Dist.Tarball,
+		}}
+	}
+	return c
+}

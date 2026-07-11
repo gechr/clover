@@ -24,6 +24,7 @@
   - [HTTP](http.md)
   - [Manual](manual.md)
   - [Node.js](node.md)
+  - [npm](npm.md)
   - [Python](python.md)
   - [Terraform / OpenTofu](terraform.md)
   - [Zig](zig.md)

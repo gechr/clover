@@ -15,6 +15,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `http`      | Versions extracted from an arbitrary HTTP endpoint           | [HTTP](http.md)                      |
 | `manual`    | A value you maintain by hand, published for followers        | [Manual](manual.md)                  |
 | `node`      | Node.js runtime versions from nodejs.org                     | [Node.js](node.md)                   |
+| `npm`       | Package versions from the npm registry                       | [npm](npm.md)                        |
 | `opentofu`  | Terraform provider versions from the OpenTofu registry       | [Terraform / OpenTofu](terraform.md) |
 | `python`    | CPython interpreter releases from python.org                 | [Python](python.md)                  |
 | `terraform` | Terraform provider versions from a provider registry         | [Terraform / OpenTofu](terraform.md) |

@@ -62,6 +62,10 @@
         "type": ["string", "boolean"],
         "description": "Restrict to LTS release lines (node)."
       },
+      "package": {
+        "type": "string",
+        "description": "npm package name, scoped names included (npm)."
+      },
       "url": {
         "type": "string",
         "description": "Endpoint the http provider GETs."

@@ -20,6 +20,7 @@ const (
 	ProviderHelm      = "helm"
 	ProviderHTTP      = "http"
 	ProviderNode      = "node"
+	ProviderNpm       = "npm"
 	ProviderOpentofu  = "opentofu"
 	ProviderPython    = "python"
 	ProviderTerraform = "terraform"

@@ -59,6 +59,7 @@ Clover resolves versions from a range of upstream sources:
 - **`terraform`** / **`opentofu`** - provider plugins from a registry
 - **`go`** - Go toolchain versions
 - **`node`** - Node.js runtime versions
+- **`npm`** - package versions from the npm registry
 - **`python`** - Python runtime versions
 - **`zig`** - Zig toolchain versions
 - **`http`** - any endpoint, read with `jq` or a regular expression
