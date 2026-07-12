@@ -66,6 +66,37 @@ func TestMarkers(t *testing.T) {
 	require.Equal(t, "old", follower.Select)
 }
 
+// TestMarkersCanonicalizesAliases covers alias resolution at bind: a provider
+// value alias (golang) binds to its canonical provider (go), and a key alias
+// (flavour) is carried under its canonical key (flavor), so run and lint accept
+// an alias without the file being rewritten.
+func TestMarkersCanonicalizesAliases(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
+	file := scan.File{
+		Path: filepath.Join(root, "go.mod"),
+		Found: []scan.Located{
+			{Line: 0, Directive: directiveOf(
+				directive.KV{Key: "provider", Value: "golang"},
+				directive.KV{Key: "flavour", Value: "codeberg"},
+			)},
+		},
+	}
+
+	markers := pipeline.Markers(file, vcs.NewResolver())
+	require.Len(t, markers, 1)
+	require.Equal(t, "go", markers[0].Provider, "provider=golang binds to the go provider")
+
+	flavor, ok := markers[0].Directive.Get("flavor")
+	require.True(t, ok, "flavour is carried under its canonical key")
+	require.Equal(t, "codeberg", flavor)
+
+	_, aliasKept := markers[0].Directive.Get("flavour")
+	require.False(t, aliasKept, "the alias key is gone after canonicalization")
+}
+
 // TestMarkersAuto covers provider=auto: a GitHub Actions pin resolves to the
 // github provider with the repository inferred from the uses: line, while a
 // marker whose target the inference does not recognize stays auto so resolution

@@ -1,6 +1,6 @@
 # Gitea
 
-The Gitea provider tracks the tags and releases of a repository on a Gitea or Forgejo forge. One provider serves every instance of the API, whether [Codeberg](https://codeberg.org) (the default), [forgejo.org](https://forgejo.org), or a self-managed Gitea/Forgejo, selected with the `host` key.
+The Gitea provider tracks the tags and releases of a repository on a Gitea or Forgejo forge. One provider serves every instance of the API. The `flavor` key selects which public forge to target: `codeberg` (the default, on [codeberg.org](https://codeberg.org)), `forgejo` (on code.forgejo.org), or `gitea` (on gitea.com).
 
 ```dockerfile
 # clover: provider=gitea repository=forgejo/forgejo constraint=minor
@@ -13,7 +13,7 @@ FROM codeberg.org/forgejo/forgejo:15.0.3
 | ------------------------------------ | ------------------------------------------------------------------------- |
 | `provider`                           | `gitea`                                                                   |
 | `repository`                         | The repository as `owner/name`                                            |
-| `host`                               | The forge host, defaulting to `codeberg.org`                              |
+| `flavor`                             | Which forge to target: `codeberg` (default), `forgejo`, or `gitea`        |
 | `source`                             | What to list: `tags` (default) or `releases`                              |
 | `asset`                              | Keep only releases publishing a matching asset (needs `source=releases`)  |
 | [`constraint`](constraints.md)       | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
@@ -23,7 +23,7 @@ FROM codeberg.org/forgejo/forgejo:15.0.3
 | [`cooldown`](cooldown.md)            | Require a minimum age before a version is eligible                        |
 | [`verify[-branch]`](verification.md) | Deep-verify a secure pin against upstream                                 |
 
-A repository is a flat `owner/name`, since Gitea and Forgejo organize repositories under a single owner with no nested subgroups. Point `host` at a private instance, such as `host=git.example.com`, to track it the same way.
+A repository is a flat `owner/name`, since Gitea and Forgejo organize repositories under a single owner with no nested subgroups. Each flavor names one fixed host, so `flavor=gitea` tracks `gitea.com/owner/name` and `flavor=forgejo` tracks `code.forgejo.org/owner/name`.
 
 ## Tags and releases
 
@@ -40,10 +40,10 @@ A release carries its publication date, used by [`cooldown`](cooldown.md), and a
 Anonymous requests work but are rate-limited, and private repositories need a token. Authenticate once with a browser login:
 
 ```bash
-clover login gitea                       # Codeberg
-clover login gitea --host git.example.com
+clover login gitea                   # Codeberg (the default flavor)
+clover login gitea --host gitea.com  # another flavor's host
 ```
 
 This opens the host's authorization page, captures the result on a local loopback port, and stores a read-only token in your system keychain under that host (refreshed automatically as it expires). It uses Gitea's built-in `tea` OAuth application, so no app registration is needed on a stock instance. Pass `--client-id` if the instance disabled its built-in applications. Because it drives a local browser and loopback, run it on your own machine, and over SSH use a token instead.
 
-Alternatively, set `CLOVER_GITEA_TOKEN` (or the ecosystem-standard `GITEA_TOKEN`) to a [personal access token](https://docs.gitea.com/development/api-usage#authentication) with read access. The environment variable takes precedence, suiting CI and headless runs. For safety it is sent only to one host, `codeberg.org` by default or the host named by `CLOVER_GITEA_HOST`, so a marker that names a different `host` never receives the token. To use a token against a self-managed instance, set `CLOVER_GITEA_HOST=git.example.com`.
+Alternatively, set `CLOVER_GITEA_TOKEN` (or the ecosystem-standard `GITEA_TOKEN`) to a [personal access token](https://docs.gitea.com/development/api-usage#authentication) with read access. The environment variable takes precedence, suiting CI and headless runs. For safety it is sent only to Codeberg, the default flavor's host, so a marker that names a different `flavor` never receives the token. To authenticate against another flavor, log in with `clover login gitea --host` instead.

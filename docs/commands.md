@@ -113,12 +113,12 @@ Existing annotations are never touched without `--force`. With it, an annotation
 
 Authenticate with a provider (for higher rate limits or private sources). GitHub and GitLab use an OAuth device flow, while Gitea uses a browser-based loopback flow.
 
-Pass `--host` to authenticate against a GitHub Enterprise Server, self-managed GitLab, or self-hosted Gitea instance. Such an instance runs its own OAuth application, so `--host` requires a matching `--client-id` (the public hosts use Clover's embedded app).
+Pass `--host` to authenticate against a GitHub Enterprise Server, self-managed GitLab, or a non-default Gitea flavor such as `gitea.com`. A self-managed GitHub or GitLab instance runs its own OAuth application, so `--host` there requires a matching `--client-id`, while the public hosts use their built-in app.
 
 ```bash
 clover login                                              # GitHub (default)
 clover login gitlab
-clover login gitea --host git.example.com
+clover login gitea --host gitea.com
 clover login github --host ghe.example.com --client-id <id>
 ```
 

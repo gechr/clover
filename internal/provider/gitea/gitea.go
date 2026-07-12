@@ -28,16 +28,26 @@ const tokenEnv = "CLOVER_GITEA_TOKEN" //nolint:gosec // env var name, not a cred
 // fallbackEnv is the ecosystem-standard token variable, consulted last.
 const fallbackEnv = "GITEA_TOKEN"
 
-// hostEnv binds the host-independent PAT to a single host. Because a PAT is sent
-// to whichever host a marker names, a marker-controlled host= could otherwise
-// redirect the token to an attacker; the PAT is attached only when the marker's
-// host matches this (default codeberg.org).
-const hostEnv = "CLOVER_GITEA_HOST"
+// Flavor names select the public forge a marker targets. Each maps to one fixed
+// host, so the flavor is a closed enum rather than an arbitrary host - a marker
+// cannot point the provider, or a bound credential, at an unlisted instance.
+const (
+	flavorCodeberg = "codeberg"
+	flavorForgejo  = "forgejo"
+	flavorGitea    = "gitea"
+)
 
-// defaultHost is the forge the provider targets when host is omitted. Codeberg is
-// the flagship public Forgejo instance, so it is the natural default for a
-// provider whose whole point is forge-agnostic discovery.
-const defaultHost = "codeberg.org"
+// defaultFlavor is the flavor a marker targets when flavor is omitted. Codeberg
+// is the flagship public Forgejo instance, the natural default for a provider
+// whose whole point is forge-agnostic discovery.
+const defaultFlavor = flavorCodeberg
+
+// flavorHosts maps each flavor to the forge host it names.
+var flavorHosts = map[string]string{
+	flavorCodeberg: "codeberg.org",
+	flavorForgejo:  "code.forgejo.org",
+	flavorGitea:    "gitea.com",
+}
 
 // errAnonymous reports that no Gitea credentials were found, so requests fall
 // back to anonymous (rate-limited) access. It is informational, not fatal: public
@@ -47,7 +57,7 @@ var errAnonymous = errors.New("no Gitea credentials, using anonymous access")
 // Directive keys the provider accepts beyond the forge-shared source key.
 const (
 	keyRepository = constant.DirectiveRepository
-	keyHost       = constant.DirectiveHost
+	keyFlavor     = constant.DirectiveFlavor
 )
 
 // Provider resolves versions from a Gitea/Forgejo project's tags or releases over
@@ -112,7 +122,7 @@ func (p *Provider) Dated() {}
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyRepository, Required: true},
-		{Name: keyHost},
+		{Name: keyFlavor},
 		{Name: forge.KeySource},
 	}
 }
@@ -126,7 +136,7 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 		return nil, err
 	}
 
-	host, err := forge.Host(constant.ProviderGitea, d, defaultHost)
+	host, err := flavorHost(d)
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +151,24 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	}
 
 	return resource{host: host, owner: owner, name: name, source: source}, nil
+}
+
+// flavorHost resolves the flavor key to the forge host it names, defaulting to
+// codeberg when omitted. The flavor is a closed enum - each value maps to one
+// fixed public host - so an unrecognized flavor is rejected up front.
+func flavorHost(d directive.Directive) (string, error) {
+	flavor, ok := d.Get(keyFlavor)
+	if !ok {
+		flavor = defaultFlavor
+	}
+	host, ok := flavorHosts[flavor]
+	if !ok {
+		return "", fmt.Errorf(
+			"gitea: %q must be %s, %s, or %s, got %q",
+			keyFlavor, flavorCodeberg, flavorForgejo, flavorGitea, flavor,
+		)
+	}
+	return host, nil
 }
 
 // Identify returns the owner/name repository and its landing page.
@@ -172,7 +200,7 @@ func (p *Provider) Authenticate(context.Context) error {
 		return nil
 	}
 	if p.store != nil {
-		if _, ok := p.store.Get(defaultHost); ok {
+		if _, ok := p.store.Get(flavorHosts[defaultFlavor]); ok {
 			return nil
 		}
 	}
@@ -266,10 +294,12 @@ func (p *Provider) hostLock(host string) *sync.Mutex {
 	return lock
 }
 
-// patHost is the single host a PAT may be sent to: CLOVER_GITEA_HOST, defaulting
-// to codeberg.org. A test transport pins it to the default, ignoring ambient env.
+// patHost is the single host a PAT may be sent to: the default flavor's host,
+// codeberg.org. A marker-controlled flavor= names a fixed host from a closed
+// enum, but the env-var PAT stays bound to codeberg, so a flavor= cannot redirect
+// it to another instance - authenticate those with `clover login`.
 func (p *Provider) patHost() string {
-	return forge.PATHost(hostEnv, defaultHost, p.transport != nil)
+	return flavorHosts[defaultFlavor]
 }
 
 // staticCredential resolves a host-independent PAT, first non-empty wins: an

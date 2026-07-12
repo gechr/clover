@@ -50,7 +50,7 @@ func Login(ctx context.Context, host, clientID string, prompt func(authURL strin
 
 // login drives the loopback flow against the injected client and store.
 func login(ctx context.Context, cfg loginConfig) error {
-	host, ok := forge.NormalizeHost(cmp.Or(cfg.host, defaultHost))
+	host, ok := forge.NormalizeHost(cmp.Or(cfg.host, flavorHosts[defaultFlavor]))
 	if !ok {
 		return fmt.Errorf("gitea: invalid host")
 	}

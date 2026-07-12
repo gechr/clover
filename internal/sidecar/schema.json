@@ -36,7 +36,12 @@
       },
       "host": {
         "type": "string",
-        "description": "Forge host for a self-managed instance (github/gitlab/gitea)."
+        "description": "Forge host for a self-managed instance (github/gitlab)."
+      },
+      "flavor": {
+        "type": "string",
+        "enum": ["codeberg", "forgejo", "gitea"],
+        "description": "Which public forge to target: codeberg (default), forgejo, or gitea (gitea)."
       },
       "source": {
         "type": "string",

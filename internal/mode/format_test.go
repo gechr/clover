@@ -449,3 +449,60 @@ func TestFormatFollowerReordersCommonKeys(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "# clover: from=app value=version\nv: 1.0.0\n", string(got))
 }
+
+// aliasProvider declares a flavor key so format's key-alias rewrite (flavour ->
+// flavor) can be exercised end to end.
+type aliasProvider struct{}
+
+func (aliasProvider) Name() string { return "fmtalias" }
+
+func (aliasProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
+
+func (aliasProvider) Keys() []provider.Key {
+	return []provider.Key{{Name: "repository", Required: true}, {Name: "flavor"}}
+}
+
+func (aliasProvider) Resource(directive.Directive) (provider.Resource, error) {
+	return "fmtalias", nil
+}
+
+func (aliasProvider) Describe(provider.Resource) string { return "fmtalias" }
+
+func (aliasProvider) Discover(context.Context, provider.Resource) ([]model.Candidate, error) {
+	panic("format must never call Discover")
+}
+
+// TestFormatNormalisesAliases covers format rewriting an aliased key or value to
+// its canonical form in place: a provider value alias (golang -> go) and a key
+// alias (flavour -> flavor).
+func TestFormatNormalisesAliases(t *testing.T) {
+	provider.Register(orderedProvider{name: "go"})
+	provider.Register(aliasProvider{})
+	dir, path := formatDir(t,
+		"# clover: provider=golang repository=a/b\n"+
+			"version: 1.0.0\n"+
+			"# clover: provider=fmtalias repository=c/d flavour=codeberg\n"+
+			"other: 2.0.0\n",
+	)
+
+	summary, err := mode.Format(
+		context.Background(),
+		[]string{dir},
+		false,
+		nil,
+		config.NewResolver(nil, "", false),
+		testWorkers,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 2, summary.Changed())
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t,
+		"# clover: provider=go repository=a/b\n"+
+			"version: 1.0.0\n"+
+			"# clover: provider=fmtalias repository=c/d flavor=codeberg\n"+
+			"other: 2.0.0\n",
+		string(got),
+	)
+}

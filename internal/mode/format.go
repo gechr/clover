@@ -259,7 +259,7 @@ func formatFile(file scan.File, prune bool) FormatFile {
 		if located.Sidecar {
 			continue // a sidecar directive has no inline text in this file to canonicalize
 		}
-		d := located.Directive
+		d := directive.CanonicalizeAliases(located.Directive)
 		name, _ := d.Get(constant.DirectiveProvider)
 		var pruned []string
 		if prune {

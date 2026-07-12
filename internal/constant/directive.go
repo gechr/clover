@@ -77,7 +77,8 @@ const (
 	DirectiveDeprecated = "deprecated" // keep deprecated versions eligible (npm)
 	DirectiveDistTag    = "dist-tag"   // registry dist-tag to track, e.g. beta (npm)
 	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
-	DirectiveHost       = "host"       // forge host for a self-managed instance (gitea); defaults to codeberg.org
+	DirectiveFlavor     = "flavor"     // gitea forge flavor: codeberg (default), forgejo, or gitea
+	DirectiveHost       = "host"       // forge host for a self-managed instance (github, gitlab)
 	DirectiveLTS        = "lts"        // restrict to LTS release lines (node)
 	DirectivePackage    = "package"    // package name, scoped npm names included (crates, npm, pypi)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)

@@ -65,7 +65,7 @@ func Markers(file scan.File, resolver *vcs.Resolver) []Marker {
 // marker follows another (provider= follow); provider=auto is resolved from the
 // target line.
 func bind(file scan.File, root string, found scan.Located) Marker {
-	d := found.Directive
+	d := directive.CanonicalizeAliases(found.Directive)
 	target, targetErr := found.Target(file.Lines)
 	if targetErr != nil {
 		target = -1 // no line to rewrite; validation reports targetErr

@@ -243,8 +243,8 @@ func TestAuthHeader(t *testing.T) {
 }
 
 // TestPATBoundToHost covers the exfiltration guard: a PAT is sent to the default
-// host but withheld from a marker that names a different host, so a
-// marker-controlled host= cannot redirect the token to an attacker.
+// flavor's host but withheld from a marker naming a different flavor, so a
+// marker-controlled flavor= cannot redirect the token to another instance.
 func TestPATBoundToHost(t *testing.T) {
 	t.Parallel()
 
@@ -257,14 +257,14 @@ func TestPATBoundToHost(t *testing.T) {
 	def := gitea.New(gitea.WithToken("secret"), gitea.WithTransport(capture))
 	_, err := def.Discover(t.Context(), resourceFor(t, def))
 	require.NoError(t, err)
-	require.Equal(t, "token secret", auth, "PAT is sent to the default host")
+	require.Equal(t, "token secret", auth, "PAT is sent to the default flavor's host")
 
 	auth = ""
 	foreign := gitea.New(gitea.WithToken("secret"), gitea.WithTransport(capture))
 	_, err = foreign.Discover(t.Context(),
-		resourceFor(t, foreign, directive.KV{Key: "host", Value: "git.example.com"}))
+		resourceFor(t, foreign, directive.KV{Key: "flavor", Value: "gitea"}))
 	require.NoError(t, err)
-	require.Empty(t, auth, "PAT must not be sent to a non-default host")
+	require.Empty(t, auth, "PAT must not be sent to a non-default flavor")
 }
 
 // TestDeepStopsAtForeignOrigin covers the pagination guard: a deep lookup does

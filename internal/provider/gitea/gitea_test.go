@@ -19,7 +19,7 @@ func TestNameAndKeys(t *testing.T) {
 	keys := p.Keys()
 	require.Equal(t, []provider.Key{
 		{Name: "repository", Required: true},
-		{Name: "host", Required: false},
+		{Name: "flavor", Required: false},
 		{Name: "source", Required: false},
 	}, keys)
 }
@@ -39,13 +39,21 @@ func TestResource(t *testing.T) {
 			wantDescribe: "codeberg.org/forgejo/forgejo (tags)",
 		},
 		{
-			name: "custom host and releases",
+			name: "gitea flavor and releases",
 			pairs: []directive.KV{
 				{Key: "repository", Value: "owner/tool"},
-				{Key: "host", Value: "https://git.example.com/"},
+				{Key: "flavor", Value: "gitea"},
 				{Key: "source", Value: "releases"},
 			},
-			wantDescribe: "git.example.com/owner/tool (releases)",
+			wantDescribe: "gitea.com/owner/tool (releases)",
+		},
+		{
+			name: "forgejo flavor",
+			pairs: []directive.KV{
+				{Key: "repository", Value: "owner/tool"},
+				{Key: "flavor", Value: "forgejo"},
+			},
+			wantDescribe: "code.forgejo.org/owner/tool (tags)",
 		},
 		{
 			name:    "missing repository",
@@ -63,10 +71,10 @@ func TestResource(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "empty host",
+			name: "invalid flavor",
 			pairs: []directive.KV{
 				{Key: "repository", Value: "owner/tool"},
-				{Key: "host", Value: "https://"},
+				{Key: "flavor", Value: "sourcehut"},
 			},
 			wantErr: true,
 		},
