@@ -230,9 +230,24 @@ func pathToJQ(path []any) string {
 // a key with a control character would otherwise yield a locator that cannot be
 // parsed back at apply time.
 func jqString(s string) string {
+	if plainJSONString(s) {
+		return `"` + s + `"`
+	}
 	var b strings.Builder
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(s) // a string never fails to encode; Encode appends a newline
 	return strings.TrimSuffix(b.String(), "\n")
+}
+
+// plainJSONString reports whether s encodes as itself inside JSON quotes -
+// printable ASCII with no quote or backslash - so the common key skips the
+// encoder round-trip.
+func plainJSONString(s string) bool {
+	for i := range len(s) {
+		if b := s[i]; b < 0x20 || b > 0x7e || b == '"' || b == '\\' {
+			return false
+		}
+	}
+	return true
 }

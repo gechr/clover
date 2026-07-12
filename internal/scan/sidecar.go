@@ -121,6 +121,7 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 	}
 
 	governed := governedLines(file.Found, file.Lines)
+	locator := sidecar.NewLocator(file.Lines)
 	var (
 		located []Located
 		errs    []LineError
@@ -137,7 +138,7 @@ func resolveSidecar(data []byte, file File) ([]Located, []LineError) {
 			fail(entry.Err)
 			continue
 		}
-		line, err := sidecar.Locate(file.Lines, entry.Directive)
+		line, err := locator.Locate(entry.Directive)
 		if err != nil {
 			fail(err)
 			continue

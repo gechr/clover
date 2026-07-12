@@ -15,16 +15,21 @@ import (
 var newline = []byte{'\n'}
 
 // resolveJQLine resolves a jq locator to the 0-based line of the value it
-// selects. gojq discards byte positions when it parses JSON, so it is used only
-// to compute a path: the user's expression is wrapped in path(...), run once, and
-// must yield exactly one path. An independent position-aware byte walk then
-// follows that path to the value's offset - the JSON is never re-serialized, so
-// formatting and key order are preserved. A non-JSON target, a non-path
-// expression, or zero/many matches are clear errors.
+// selects, re-parsing the document per call. It is the fallback [Locator] uses
+// for a document with a duplicated object key, where the shared offset index
+// cannot tell a shadowed member's descendants from live ones: the byte walk
+// follows the last matching member at each object level, so it agrees with
+// gojq's last-value-wins path even under duplication. gojq discards byte
+// positions when it parses JSON, so it is used only to compute a path: the
+// expression is wrapped in path(...), run once, and must yield exactly one
+// path. An independent position-aware byte walk then follows that path to the
+// value's offset - the JSON is never re-serialized, so formatting and key
+// order are preserved. A non-JSON target, a non-path expression, or zero/many
+// matches are clear errors.
 func resolveJQLine(source []byte, expr string) (int, error) {
 	var input any
 	if err := json.Unmarshal(source, &input); err != nil {
-		return 0, fmt.Errorf("%q locator requires a JSON target: %w", constant.DirectiveJQ, err)
+		return 0, jsonTargetError(err)
 	}
 
 	code, err := jq.Compile("path(" + expr + ")")
@@ -78,7 +83,10 @@ var errJQStructure = fmt.Errorf(
 // is the one gojq's path actually refers to. A negative array index counts from
 // the end, as in jq.
 func valueOffset(source []byte, path []any) (int, error) {
-	pos := 0
+	// Land on the root value's first byte, so the identity path (".") resolves
+	// to the value's own line - not line 0 - when whitespace precedes it,
+	// matching the offset index.
+	pos := skipToValue(source, 0)
 	for _, seg := range path {
 		next, err := childOffset(source, pos, seg)
 		if err != nil {

@@ -115,12 +115,13 @@ func Refresh(
 		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{root}}
 	}
 
+	locator := NewLocator(lines)
 	for i, item := range root.Content {
 		d, err := directive.ParseYAML(item)
 		if err != nil {
 			continue // a malformed entry is kept verbatim; lint owns its diagnostics
 		}
-		line, err := Locate(lines, d)
+		line, err := locator.Locate(d)
 		if err != nil {
 			continue // an unresolvable entry is kept verbatim, never silently dropped
 		}
