@@ -36,6 +36,7 @@ import (
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
+	xsync "github.com/gechr/x/sync"
 )
 
 // errCooldownUnsupported marks a producer skipped, not failed: its cooldown
@@ -367,9 +368,13 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		parseErrors []Result
 		disabled    []Result
 	)
-	for _, f := range files {
-		lines[f.Path] = f.Lines
-		parseErrors = append(parseErrors, parseErrorResults(f)...)
+	// Binding only reads the file and thread-safe shared state, and under
+	// --infer its per-line recognition dominates a large tree, so files fan out
+	// across the workers - each result kept at its own index. Classification
+	// below stays serial, preserving file order.
+	bound := make([][]Marker, len(files))
+	xsync.Parallel(set.workers, len(files), func(i int) {
+		f := files[i]
 		ms := Markers(f, resolver)
 		if set.infer {
 			// A written directive's target is governed; every other recognized
@@ -380,7 +385,13 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 			}
 			ms = append(ms, InferredMarkers(f, governed)...)
 		}
-		for _, m := range ms {
+		bound[i] = ms
+	})
+
+	for i, f := range files {
+		lines[f.Path] = f.Lines
+		parseErrors = append(parseErrors, parseErrorResults(f)...)
+		for _, m := range bound[i] {
 			if !set.filter.Match(m.Tags) {
 				continue
 			}
