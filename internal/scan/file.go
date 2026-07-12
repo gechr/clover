@@ -89,10 +89,15 @@ func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bo
 		return File{}, false
 	}
 
-	prefilter, reason := maybeTextWithDirective(path, requireDirective)
-	if !prefilter {
-		skipFile(path, reason).Msg("Skipping file")
-		return File{}, false
+	// The prefilter pays off only when most files will be rejected for carrying
+	// no directive; with requireDirective off every file is read wholesale
+	// anyway, so a prefilter pass would just read each file twice.
+	if requireDirective {
+		prefilter, reason := maybeTextWithDirective(path)
+		if !prefilter {
+			skipFile(path, reason).Msg("Skipping file")
+			return File{}, false
+		}
 	}
 
 	content, err := os.ReadFile(path)
@@ -177,11 +182,11 @@ func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bo
 }
 
 // maybeTextWithDirective rejects obvious misses before allocating a whole-file
-// buffer: binary files with a NUL byte always, and - when requireDirective is
-// set - files with no clover keyword. With requireDirective off the keyword gate
-// is dropped, so every non-binary file passes for annotate to inspect, while the
-// binary scan still rules out files clover must never read or write.
-func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
+// buffer: binary files with a NUL byte, and files with no clover keyword. It
+// returns as soon as the keyword is seen - the whole-file read that follows
+// re-checks for a NUL, so the unread remainder cannot smuggle a binary past
+// the gate.
+func maybeTextWithDirective(path string) (bool, string) {
 	file, err := os.Open(path)
 	if err != nil {
 		return false, "open failed"
@@ -190,7 +195,6 @@ func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
 
 	buf := make([]byte, prefilterChunkSize)
 	tail := make([]byte, 0, len(directiveStemBytes)-1)
-	foundKeyword := false
 	for {
 		n, err := file.Read(buf)
 		if n > 0 {
@@ -198,16 +202,13 @@ func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
 			if bytes.IndexByte(chunk, 0) >= 0 {
 				return false, "binary"
 			}
-			if requireDirective && !foundKeyword {
-				foundKeyword = containsKeyword(tail, chunk)
-				tail = carry(chunk)
+			if containsKeyword(tail, chunk) {
+				return true, ""
 			}
+			tail = carry(chunk)
 		}
 		if err == io.EOF {
-			if requireDirective && !foundKeyword {
-				return false, "no clover keyword"
-			}
-			return true, ""
+			return false, "no clover keyword"
 		}
 		if err != nil {
 			return false, "read failed"
