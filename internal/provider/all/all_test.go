@@ -16,6 +16,7 @@ import (
 // the pre-discovery skip honest.
 func TestDaterCoversDatedProviders(t *testing.T) {
 	dater := map[string]bool{
+		constant.ProviderCrates:    true,
 		constant.ProviderDocker:    true,
 		constant.ProviderGitea:     true,
 		constant.ProviderGithub:    true,
@@ -35,7 +36,7 @@ func TestDaterCoversDatedProviders(t *testing.T) {
 		constant.ProviderZig:       true,
 	}
 
-	for _, p := range all.New() {
+	for _, p := range all.New("") {
 		want, known := dater[p.Name()]
 		require.True(t, known, "provider %q missing from the Dater expectation map", p.Name())
 		_, isDater := p.(provider.Dater)

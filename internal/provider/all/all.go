@@ -7,6 +7,7 @@ package all
 
 import (
 	"github.com/gechr/clover/internal/provider"
+	"github.com/gechr/clover/internal/provider/crates"
 	"github.com/gechr/clover/internal/provider/docker"
 	"github.com/gechr/clover/internal/provider/gitea"
 	"github.com/gechr/clover/internal/provider/github"
@@ -25,12 +26,13 @@ import (
 	"github.com/gechr/clover/internal/provider/zig"
 )
 
-// New constructs every built-in provider, in registration order. httpOpts
-// configure the http provider alone - the binary passes its version, tests pass
-// none - so a caller that needs no http configuration gets the same http provider
-// the zero-option constructor builds.
-func New(httpOpts ...http.Option) []provider.Provider {
+// New constructs every built-in provider, in registration order. version is
+// the running binary's version, woven into the User-Agent of the providers
+// that identify themselves - the binary passes clive.Current(), tests pass an
+// empty string for the versionless fallback.
+func New(version string) []provider.Provider {
 	return []provider.Provider{
+		crates.New(crates.WithVersion(version)),
 		docker.New(),
 		gitea.New(),
 		github.New(),
@@ -38,7 +40,7 @@ func New(httpOpts ...http.Option) []provider.Provider {
 		golang.New(),
 		hashicorp.New(),
 		helm.New(),
-		http.New(httpOpts...),
+		http.New(http.WithVersion(version)),
 		manual.New(),
 		node.New(),
 		npm.New(),

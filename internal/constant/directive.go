@@ -78,7 +78,7 @@ const (
 	DirectiveEnterprise = "enterprise" // track enterprise-licensed builds (hashicorp)
 	DirectiveHost       = "host"       // forge host for a self-managed instance (gitea); defaults to codeberg.org
 	DirectiveLTS        = "lts"        // restrict to LTS release lines (node)
-	DirectivePackage    = "package"    // package name, scoped npm names included (npm, pypi)
+	DirectivePackage    = "package"    // package name, scoped npm names included (crates, npm, pypi)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
 	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)
 	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm); registry base URL (npm)

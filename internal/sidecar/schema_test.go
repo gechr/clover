@@ -16,7 +16,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	provider.RegisterAll(all.New()...)
+	provider.RegisterAll(all.New("")...)
 	m.Run()
 }
 

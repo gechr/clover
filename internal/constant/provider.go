@@ -10,6 +10,7 @@ const (
 	// the target line under an id for followers, contacting no upstream.
 	ProviderManual = "manual"
 
+	ProviderCrates    = "crates"
 	ProviderDocker    = "docker"
 	ProviderFollow    = "follow"
 	ProviderGitea     = "gitea"

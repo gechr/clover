@@ -17,7 +17,6 @@ import (
 	"github.com/gechr/clover/internal/logger"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/all"
-	"github.com/gechr/clover/internal/provider/http"
 	"github.com/gechr/clover/internal/tag"
 	"github.com/gechr/conductor"
 	cli "github.com/gechr/conductor/cli/kong"
@@ -79,7 +78,7 @@ func Run() int {
 		ConfigureLog: logger.Configure,
 	})
 
-	provider.RegisterAll(all.New(http.WithVersion(clive.Current()))...)
+	provider.RegisterAll(all.New(clive.Current())...)
 
 	var r root
 	prog, err := cli.New(app, &r, cli.WithCompletionHandler(completionHandler))
