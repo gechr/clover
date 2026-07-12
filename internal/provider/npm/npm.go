@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/provider"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Directive keys npm accepts.
@@ -128,7 +129,7 @@ func (p *Provider) Describe(r provider.Resource) string {
 	}
 	base := host
 	if res.registry != registryURL {
-		base = strings.TrimPrefix(strings.TrimPrefix(res.registry, "https://"), "http://")
+		base = xstrings.TrimPrefixes(res.registry, constant.SchemeHTTPS, constant.SchemeHTTP)
 	}
 	label := base + "/" + res.pkg
 	if res.distTag != "" {

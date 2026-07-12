@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"net/url"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
 )
@@ -20,7 +21,7 @@ func (p *Provider) URL(r provider.Resource, c model.Candidate) string {
 	if !ok || ref == "" || res.registry != registryURL {
 		return ""
 	}
-	link, err := url.JoinPath("https://www."+host, "package", res.pkg, "v", ref)
+	link, err := url.JoinPath(constant.SchemeHTTPS+"www."+host, "package", res.pkg, "v", ref)
 	if err != nil {
 		return ""
 	}

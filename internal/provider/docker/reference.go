@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/oci"
 	"github.com/gechr/x/set"
 	xstrings "github.com/gechr/x/strings"
@@ -63,7 +64,7 @@ func splitHost(repository string) (string, string) {
 // registry, an inline host on the repository (ghcr.io/owner/img) is split out, so
 // a `docker pull`-shaped reference works without a separate registry=.
 func newReference(registry, repository, platform string) (reference, error) {
-	registry = strings.TrimSuffix(strings.TrimPrefix(registry, "https://"), "/")
+	registry = strings.TrimSuffix(strings.TrimPrefix(registry, constant.SchemeHTTPS), "/")
 	repository = strings.Trim(repository, "/")
 	switch {
 	case repository == "":
@@ -133,11 +134,11 @@ func (r reference) String() string {
 func (r reference) url() string {
 	if r.dockerHub {
 		if name, ok := strings.CutPrefix(r.repository, hubDefaultNamespace); ok {
-			return "https://" + hubAPIHost + "/_/" + name
+			return constant.SchemeHTTPS + hubAPIHost + "/_/" + name
 		}
-		return "https://" + hubAPIHost + "/r/" + r.repository
+		return constant.SchemeHTTPS + hubAPIHost + "/r/" + r.repository
 	}
-	return "https://" + r.registry + "/" + r.repository
+	return constant.SchemeHTTPS + r.registry + "/" + r.repository
 }
 
 // registryV2Host is the OCI registry host that serves manifests for the

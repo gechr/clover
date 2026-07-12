@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/oci"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // reference is helm's validated descriptor. A chart is addressed either by a
@@ -91,14 +93,18 @@ func (r reference) String() string {
 	if r.isOCI {
 		return "oci://" + r.repo.Host + "/" + r.repo.Repository
 	}
-	return strings.TrimPrefix(strings.TrimPrefix(r.baseURL, "https://"), "http://") + "/" + r.chart
+	return xstrings.TrimPrefixes(
+		r.baseURL,
+		constant.SchemeHTTPS,
+		constant.SchemeHTTP,
+	) + "/" + r.chart
 }
 
 // url is the reference's upstream web page: an OCI registry's repository over
 // https, or a classic repository's chart under its base URL (scheme kept).
 func (r reference) url() string {
 	if r.isOCI {
-		return "https://" + r.repo.Host + "/" + r.repo.Repository
+		return constant.SchemeHTTPS + r.repo.Host + "/" + r.repo.Repository
 	}
 	return r.baseURL + "/" + r.chart
 }
