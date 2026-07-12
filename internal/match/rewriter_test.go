@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/match"
+	"github.com/gechr/clover/internal/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +19,44 @@ func TestForFallsBackToSmart(t *testing.T) {
 		Provider: "github",
 	})
 	require.IsType(t, match.Smart{}, rw)
+}
+
+// TestForGoModToolchain confirms a go.mod toolchain directive routes to the
+// find rewriter that anchors on the glued go prefix - the smart rewriter cannot
+// see a mid-word version - and that it renders both spellings: a stable bump in
+// place, and a dashless rc pin staying dashless.
+func TestForGoModToolchain(t *testing.T) {
+	t.Parallel()
+
+	rw := match.For(match.Context{
+		Path:     "go.mod",
+		Line:     "toolchain go1.26.4",
+		Provider: "go",
+	})
+	require.IsType(t, match.FindReplace{}, rw)
+
+	located, err := rw.Locate("toolchain go1.26.4")
+	require.NoError(t, err)
+	require.Equal(t, "1.26.4", located.Current())
+
+	line, changed, err := located.Render("toolchain go1.26.4", model.Candidate{Version: "1.26.5"})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "toolchain go1.26.5", line)
+
+	// A dashless rc pin round-trips: the capture grammar accepts the glued
+	// prerelease and restyle keeps the current spelling.
+	located, err = rw.Locate("toolchain go1.27rc1")
+	require.NoError(t, err)
+	require.Equal(t, "1.27rc1", located.Current())
+
+	line, changed, err = located.Render(
+		"toolchain go1.27rc1",
+		model.Candidate{Version: "1.27.0-rc2"},
+	)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "toolchain go1.27rc2", line)
 }
 
 // TestMiseFile confirms both file shapes mise reads tool pins from count as

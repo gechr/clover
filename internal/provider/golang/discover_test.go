@@ -169,6 +169,42 @@ const withRC = `[
 	{"version": "go1.26.4", "stable": true, "files": []}
 ]`
 
+// TestDiscoverSkipsUnstableStableShaped covers the stable-flag guard: an entry
+// the index marks unstable whose version parses as stable semver would slip past
+// the prerelease gate, so it is dropped. The dashless rc stays: its version
+// parses as a prerelease, which the gate already handles.
+func TestDiscoverSkipsUnstableStableShaped(t *testing.T) {
+	t.Parallel()
+
+	const body = `[
+		{"version": "go1.28", "stable": false, "files": []},
+		{"version": "go1.27rc1", "stable": false, "files": []},
+		{"version": "go1.26.5", "stable": true, "files": []}
+	]`
+
+	p := newProvider(body)
+	got, err := p.Discover(t.Context(), resourceFor(t, p))
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.27.0-rc1", "1.26.5"}, versions(got))
+}
+
+// TestDiscoverNoChecksumNoAssets covers a release whose files all lack a
+// checksum: no assets surface, rather than assets with empty digests.
+func TestDiscoverNoChecksumNoAssets(t *testing.T) {
+	t.Parallel()
+
+	const body = `[
+		{"version": "go1.26.5", "stable": true, "files": [
+			{"filename": "go1.26.5.linux-amd64.tar.gz", "sha256": ""}
+		]}
+	]`
+
+	p := newProvider(body)
+	got, err := p.Discover(t.Context(), resourceFor(t, p))
+	require.NoError(t, err)
+	require.Empty(t, got[0].Assets)
+}
+
 // TestDiscoverSkipsBlankVersions covers an index entry with no version: it is
 // dropped rather than surfaced as an empty candidate.
 func TestDiscoverSkipsBlankVersions(t *testing.T) {

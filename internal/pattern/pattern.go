@@ -43,7 +43,9 @@ type Tokens []Token
 type TokenMap map[Token]string
 
 // matchRegex maps a token to the regex it matches inside a glob. hex is
-// match-only (no rendered value); the rest can also render.
+// match-only (no rendered value); the rest can also render. version accepts a
+// prerelease in the dashed form or glued straight onto the core (1.27rc1,
+// 3.15.0b3), mirroring the shape scanner's dashless grammar.
 //
 //nolint:gosec // G101 false positive: a token name, not a hardcoded credential.
 var matchRegex = TokenMap{
@@ -55,7 +57,7 @@ var matchRegex = TokenMap{
 	TokenMinor:           `\d+`,
 	TokenPatch:           `\d+`,
 	TokenSHA256:          `[0-9a-fA-F]{64}`,
-	TokenVersion:         `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?(?:\+[0-9A-Za-z.-]+)?`,
+	TokenVersion:         `v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+|(?:rc|a|b|c)\d+)?(?:\+[0-9A-Za-z.-]+)?`,
 }
 
 // token matches a <placeholder>: dot-separated alphanumeric segments, so a dot

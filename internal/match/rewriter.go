@@ -594,6 +594,17 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// The toolchain directive in go.mod: toolchain go1.26.5. The version is
+		// glued to its go prefix, which the shape scanner rejects as mid-word, so
+		// a find pattern anchors on the literal prefix and captures the version.
+		when: conditions{
+			path:      goModGlob,
+			lineMatch: mustPattern(`/^toolchain\s+go\d/`),
+			provider:  constant.ProviderGo,
+		},
+		rewriter: mustFindReplace("go<version>"),
+	},
+	{
 		// A follower projecting a commit or sha256 onto its own line; the hash
 		// rewriter swaps the existing hex token. Followers carry provider=follow,
 		// so this never collides with the provider-gated routes above.
@@ -626,6 +637,17 @@ func mustPattern(raw string) *pattern.Pattern {
 		panic(fmt.Sprintf("match: invalid built-in route pattern %q: %v", raw, err))
 	}
 	return p
+}
+
+// mustFindReplace compiles a built-in route's match-only find rewriter,
+// panicking on a malformed pattern since the patterns are constant literals
+// that cannot fail at runtime.
+func mustFindReplace(find string) FindReplace {
+	fr, err := NewFindReplace(find, "")
+	if err != nil {
+		panic(fmt.Sprintf("match: invalid built-in route find %q: %v", find, err))
+	}
+	return fr
 }
 
 // For selects the rewriter for a target line, walking the routes first-match-wins

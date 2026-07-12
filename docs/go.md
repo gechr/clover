@@ -16,7 +16,7 @@ GO_VERSION: 1.26.5
 | [`include`](filtering.md)      | Keep only matching versions                                               |
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 
-The download index is public, so the Go provider needs no authentication. It is selected explicitly with `provider=go`, or [inferred](auto.md) from a `go` directive in a `go.mod` file or a `go` pin in a mise configuration.
+The download index is public, so the Go provider needs no authentication. It is selected explicitly with `provider=go`, or [inferred](auto.md) from a `go` or `toolchain` directive in a `go.mod` file or a `go` pin in a mise configuration.
 
 Every `go.dev` version carries a `go` prefix (`go1.26.5`). Clover strips it so the resolved value is clean semver (`1.26.5`), which matches a bare on-line reference and renders cleanly through [`<version>`](find-replace.md). The index serves the whole release history in one response, so Clover always sees every release and `--deep` has nothing extra to fetch. `go.dev` publishes no per-release dates, so [`cooldown`](cooldown.md) is unsupported here: setting it holds the line with a `cooldown not supported` warning rather than bumping past a cooldown that cannot be measured.
 
@@ -29,6 +29,8 @@ Go release candidates and betas are published with a dashless suffix (`go1.27rc1
 GO_VERSION: 1.27.0-rc1
 ```
 
+On the line, Clover keeps the spelling the pin already uses, so a dashless pin like `toolchain go1.27rc1` bumps to `go1.27rc2` rather than the dashed form. A line moving from a stable version to its first prerelease is written in the canonical dashed form, which a `go.mod` `toolchain` directive and `GOTOOLCHAIN` do not accept, so spell the first prerelease pin dashless by hand.
+
 ## Keeping the `go` prefix
 
 When the target line keeps the `go` prefix, as a `GOTOOLCHAIN` directive requires, anchor a [`find`](find-replace.md) pattern on it: the `<version>` token substitutes the resolved version in place while the literal `go` is preserved.
@@ -36,6 +38,15 @@ When the target line keeps the `go` prefix, as a `GOTOOLCHAIN` directive require
 ```yaml
 # clover: provider=go find=go<version>
 GOTOOLCHAIN: go1.26.5
+```
+
+A `go.mod` `toolchain` directive carries the same prefix but needs no `find`: Clover recognizes the directive and anchors on the literal `go` automatically.
+
+<!-- clover-lint-skip -->
+
+```text
+// clover: provider=go constraint=minor
+toolchain go1.26.5
 ```
 
 ## Checksums

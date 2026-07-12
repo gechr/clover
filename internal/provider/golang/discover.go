@@ -30,13 +30,10 @@ const (
 )
 
 // file is one downloadable artifact of a release, as returned by the download
-// index. os/arch are empty for the source archive.
+// index.
 type file struct {
 	Filename string `json:"filename"`
-	OS       string `json:"os"`
-	Arch     string `json:"arch"`
 	SHA256   string `json:"sha256"`
-	Kind     string `json:"kind"`
 }
 
 // release is the subset of a download-index entry the provider reads.
@@ -65,7 +62,14 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		if rel.Version == "" {
 			continue
 		}
-		candidates = append(candidates, candidate(rel))
+		c := candidate(rel)
+		// The index's stable flag is authoritative. An unstable release whose
+		// version parses as stable semver would slip past the prerelease gate and
+		// could be selected as newest, so it is dropped rather than trusted.
+		if !rel.Stable && c.Semver != nil && c.Semver.Prerelease() == "" {
+			continue
+		}
+		candidates = append(candidates, c)
 	}
 	return candidates, nil
 }

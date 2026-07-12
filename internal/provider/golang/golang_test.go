@@ -57,15 +57,16 @@ func TestURL(t *testing.T) {
 	res, err := p.Resource(directiveOf())
 	require.NoError(t, err)
 
-	require.Equal(t,
-		"https://go.dev/dl/#go1.26.5",
-		p.URL(res, model.Candidate{Version: "go1.26.5"}),
-	)
-	// The current-version candidate carries the bare on-line value in Version and
-	// the go-prefixed upstream form in Ref; the anchor must use the ref's prefix.
+	// A discovered candidate carries the go-prefixed upstream form in Ref.
 	require.Equal(t,
 		"https://go.dev/dl/#go1.26.5",
 		p.URL(res, model.Candidate{Version: "1.26.5", Ref: "go1.26.5"}),
+	)
+	// The synthesized current-version candidate arrives bare: the pipeline
+	// reconstructs only a v-style prefix, so URL re-applies the go prefix itself.
+	require.Equal(t,
+		"https://go.dev/dl/#go1.26.4",
+		p.URL(res, model.Candidate{Version: "1.26.4", Ref: "1.26.4"}),
 	)
 	require.Empty(t, p.URL(res, model.Candidate{}))
 	require.Empty(t, p.URL("not-a-resource", model.Candidate{Version: "go1.26.5"}))
