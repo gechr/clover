@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -77,6 +79,76 @@ func TestCommitPeelsAnnotatedTag(t *testing.T) {
 	sha, err := p.Commit(t.Context(), res, "v1.2.0")
 	require.NoError(t, err)
 	require.Equal(t, "abc123", sha)
+}
+
+// fixture returns the verbatim API capture stored under testdata.
+func fixture(t *testing.T, name string) string {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("testdata", name))
+	require.NoError(t, err)
+	return string(body)
+}
+
+// fixtureProvider serves each capture whose key is a substring of the request
+// path, so one provider answers the multi-request signature lookups.
+func fixtureProvider(t *testing.T, routes map[string]string) (*github.Provider, provider.Resource) {
+	t.Helper()
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		for key, name := range routes {
+			if strings.Contains(req.URL.Path, key) {
+				return jsonResponse(req, fixture(t, name)), nil
+			}
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL.Path)
+	})
+	p := github.New(github.WithTransport(transport))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+	return p, res
+}
+
+func TestSignedTagAnnotated(t *testing.T) {
+	t.Parallel()
+
+	// A signed annotated tag carries its own verification (gechr/clover v0.3.9).
+	p, res := fixtureProvider(t, map[string]string{
+		"/git/ref/tags/": "tag-ref-annotated.json",
+		"/git/tags/":     "tag-object-signed.json",
+	})
+	verified, reason, err := p.SignedTag(t.Context(), res, "v0.3.9")
+	require.NoError(t, err)
+	require.True(t, verified)
+	require.Equal(t, "valid", reason)
+}
+
+func TestSignedTagLightweight(t *testing.T) {
+	t.Parallel()
+
+	// A lightweight tag defers to the pointed-at commit's verification
+	// (actions/checkout v4.2.2).
+	p, res := fixtureProvider(t, map[string]string{
+		"/git/ref/tags/": "tag-ref-lightweight.json",
+		"/commits/":      "commit-verified.json",
+	})
+	verified, reason, err := p.SignedTag(t.Context(), res, "v4.2.2")
+	require.NoError(t, err)
+	require.True(t, verified)
+	require.Equal(t, "valid", reason)
+}
+
+func TestSignedTagUnsigned(t *testing.T) {
+	t.Parallel()
+
+	// An unsigned annotated tag reports the reason upstream gives
+	// (kubernetes/kubernetes v1.30.0).
+	p, res := fixtureProvider(t, map[string]string{
+		"/git/ref/tags/": "tag-ref-annotated.json",
+		"/git/tags/":     "tag-object-unsigned.json",
+	})
+	verified, reason, err := p.SignedTag(t.Context(), res, "v1.30.0")
+	require.NoError(t, err)
+	require.False(t, verified)
+	require.Equal(t, "unsigned", reason)
 }
 
 func TestReachableNoCommonHistory(t *testing.T) {

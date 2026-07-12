@@ -1058,6 +1058,9 @@ func (p *plan) finalize(
 			verify = p.verifyHistory(ctx, prov, resource, located, chosen)
 		}
 	}
+	if verify == nil {
+		verify = p.verifySigned(ctx, prov, resource, chosen, m)
+	}
 	if verify != nil {
 		p.results[i].Current = located.Current()
 		p.results[i].Resolved = chosen.Version
@@ -1223,6 +1226,35 @@ func (p *plan) verifyHistory(
 			"commit %s for %s is not reachable from any branch",
 			commit, chosen.Version,
 		)
+	}
+	return nil
+}
+
+// verifySigned enforces verify-signed=: the resolved tag's upstream signature
+// must have verified. It runs independently of the branch tiers for any marker
+// whose provider can check signatures, and fails closed.
+func (p *plan) verifySigned(
+	ctx context.Context,
+	prov provider.Provider,
+	resource provider.Resource,
+	chosen model.Candidate,
+	m Marker,
+) error {
+	on, _ := m.Directive.Bool(constant.DirectiveVerifySigned)
+	if !on {
+		return nil
+	}
+	checker, ok := prov.(provider.SignatureChecker)
+	if !ok {
+		return nil
+	}
+	tag := cmp.Or(chosen.Ref, chosen.Version)
+	verified, reason, err := checker.SignedTag(ctx, resource, tag)
+	if err != nil {
+		return incomplete(err)
+	}
+	if !verified {
+		return fmt.Errorf("tag %s signature verification failed: %s", tag, reason)
 	}
 	return nil
 }

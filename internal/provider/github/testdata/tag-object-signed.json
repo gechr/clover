@@ -1,0 +1,24 @@
+{
+  "node_id": "TA_kwDOTFdRQdoAKDRjZWRlNGYwODlmYzMwNjk1YjEzMTRkMzgwNTY5MDM3Mjk1MzFlYjY",
+  "sha": "4cede4f089fc30695b1314d38056903729531eb6",
+  "url": "https://api.github.com/repos/gechr/clover/git/tags/4cede4f089fc30695b1314d38056903729531eb6",
+  "tagger": {
+    "name": "George Christou",
+    "email": "gechrr@gmail.com",
+    "date": "2026-07-12T17:13:16Z"
+  },
+  "object": {
+    "sha": "f81b4f02c6d0ec8648a29f984f6c36fe35618d68",
+    "type": "commit",
+    "url": "https://api.github.com/repos/gechr/clover/git/commits/f81b4f02c6d0ec8648a29f984f6c36fe35618d68"
+  },
+  "tag": "v0.3.9",
+  "message": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCAAdFiEEZWKi++w8EyoPCjhVtipdcf5srJAFAmpTyywACgkQtipdcf5s\nrJBk1hAAxKJx+m2qiUybchzFsnhwi8hrp5vwY0Nusyv1Wk39rE6cezNEBx2HCkS8\n2LZZy5OjVeA9xlegxEM0a7X5GimsfL5SIxSnpDB2JRP2E4pM6uvtyguMHPbjuygl\n0pykqRtdG6q86JlO/HTRhuYekSRNIdLxKy3pxYBYspK0qSgqXlNPF0UsIQCtNvaa\nkUdV2Sds7EQA4KKKwvTDxMVrw1pmuGPTCghfW34sCgZutbtxnwO5NXBoOvK0Zmh1\nLfiIopuZYoSchHddxwmEWpmAYSkPlP0Ek63kFLnCqQtze99o0fQbdj47hDQJ67un\nJMLJby2Q9ooalcyAJU0tS9V7N7vF3HVwGQJRcAiaxrf6z64ZMmNAV9TuUT7PHQkb\nzEf1ewfQiaVqprwt9wQf0BkfNtkNnyM9QbdTb6uXX8AC1jqqfJwAC+FWIgMcooye\nJxgNmHw7/5wOPnrA2X4GHV2UDxNe8wM72bplzDpYq4anjiOkVzWQ57edzHjipRhI\nVbQfEBbhM3ZIgAVW14XWa2nxWAM8Wp54wS6Kkg3Oludkq0i3piE1sedslq6JtbUt\nejcLDux923O5nS0XF/j8UVpdLLvB3PAe/nzsllfESohXYporJAoDsbP8NDpEBnb6\nce0Yun2B9jsrnHnnKOb2d1PPn9qNvhOmRE7EyU15cepChvI2TBo=\n=baHV\n-----END PGP SIGNATURE-----\n",
+  "verification": {
+    "verified": true,
+    "reason": "valid",
+    "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCAAdFiEEZWKi++w8EyoPCjhVtipdcf5srJAFAmpTyywACgkQtipdcf5s\nrJBk1hAAxKJx+m2qiUybchzFsnhwi8hrp5vwY0Nusyv1Wk39rE6cezNEBx2HCkS8\n2LZZy5OjVeA9xlegxEM0a7X5GimsfL5SIxSnpDB2JRP2E4pM6uvtyguMHPbjuygl\n0pykqRtdG6q86JlO/HTRhuYekSRNIdLxKy3pxYBYspK0qSgqXlNPF0UsIQCtNvaa\nkUdV2Sds7EQA4KKKwvTDxMVrw1pmuGPTCghfW34sCgZutbtxnwO5NXBoOvK0Zmh1\nLfiIopuZYoSchHddxwmEWpmAYSkPlP0Ek63kFLnCqQtze99o0fQbdj47hDQJ67un\nJMLJby2Q9ooalcyAJU0tS9V7N7vF3HVwGQJRcAiaxrf6z64ZMmNAV9TuUT7PHQkb\nzEf1ewfQiaVqprwt9wQf0BkfNtkNnyM9QbdTb6uXX8AC1jqqfJwAC+FWIgMcooye\nJxgNmHw7/5wOPnrA2X4GHV2UDxNe8wM72bplzDpYq4anjiOkVzWQ57edzHjipRhI\nVbQfEBbhM3ZIgAVW14XWa2nxWAM8Wp54wS6Kkg3Oludkq0i3piE1sedslq6JtbUt\nejcLDux923O5nS0XF/j8UVpdLLvB3PAe/nzsllfESohXYporJAoDsbP8NDpEBnb6\nce0Yun2B9jsrnHnnKOb2d1PPn9qNvhOmRE7EyU15cepChvI2TBo=\n=baHV\n-----END PGP SIGNATURE-----\n",
+    "payload": "object f81b4f02c6d0ec8648a29f984f6c36fe35618d68\ntype commit\ntag v0.3.9\ntagger George Christou <gechrr@gmail.com> 1783876396 +0100\n\n",
+    "verified_at": "2026-07-12T23:23:15Z"
+  }
+}

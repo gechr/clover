@@ -10,6 +10,55 @@ import (
 	"github.com/gechr/clover/internal/provider"
 )
 
+// verification is the signature-verification state GitHub reports on an
+// annotated tag object or a commit.
+type verification struct {
+	Verified bool   `json:"verified"`
+	Reason   string `json:"reason"`
+}
+
+// SignedTag reports whether tag's upstream signature verified, satisfying
+// provider.SignatureChecker: an annotated tag carries its own signature, a
+// lightweight tag defers to the signature of the commit it points at.
+func (p *Provider) SignedTag(
+	ctx context.Context,
+	r provider.Resource,
+	tag string,
+) (bool, string, error) {
+	res, ok := r.(resource)
+	if !ok {
+		return false, "", fmt.Errorf("github: invalid resource %T", r)
+	}
+	typ, sha, err := p.tagRefObject(ctx, res, tag)
+	if err != nil {
+		return false, "", err
+	}
+	rest := p.client()
+	token := forge.Bearer(p.credential(res.host))
+
+	if typ == tagObjectType {
+		var tagObj struct {
+			Verification verification `json:"verification"`
+		}
+		url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/git/tags/%s", res.owner, res.name, sha))
+		if _, err := rest.DoWithContext(ctx, url, token, &tagObj); err != nil {
+			return false, "", fmt.Errorf("github: tag %s signature: %w", tag, err)
+		}
+		return tagObj.Verification.Verified, tagObj.Verification.Reason, nil
+	}
+
+	var commit struct {
+		Commit struct {
+			Verification verification `json:"verification"`
+		} `json:"commit"`
+	}
+	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, sha))
+	if _, err := rest.DoWithContext(ctx, url, token, &commit); err != nil {
+		return false, "", fmt.Errorf("github: commit %s signature: %w", sha, err)
+	}
+	return commit.Commit.Verification.Verified, commit.Commit.Verification.Reason, nil
+}
+
 // Credentialed reports whether a credential applies to the resource's host,
 // satisfying provider.CredentialChecker. It gates the default verification
 // tier.

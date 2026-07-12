@@ -1,0 +1,10 @@
+{
+  "ref": "refs/tags/v0.3.9",
+  "node_id": "REF_kwDOTFdRQbByZWZzL3RhZ3MvdjAuMy45",
+  "url": "https://api.github.com/repos/gechr/clover/git/refs/tags/v0.3.9",
+  "object": {
+    "sha": "4cede4f089fc30695b1314d38056903729531eb6",
+    "type": "tag",
+    "url": "https://api.github.com/repos/gechr/clover/git/tags/4cede4f089fc30695b1314d38056903729531eb6"
+  }
+}

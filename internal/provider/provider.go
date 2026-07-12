@@ -158,6 +158,14 @@ type BranchChecker interface {
 	Reachable(ctx context.Context, r Resource, branch, commit string) (bool, error)
 }
 
+// SignatureChecker is an optional capability for providers that can report
+// whether a tag's signature verified upstream: an annotated tag's own
+// signature, or the pointed-at commit's signature for a lightweight tag.
+// verify-signed= gates on it.
+type SignatureChecker interface {
+	SignedTag(ctx context.Context, r Resource, tag string) (verified bool, reason string, err error)
+}
+
 // CredentialChecker is an optional capability for providers that can report
 // whether a credential applies to a resource. The default verification tier
 // gates on it, so an anonymous rate limit is never spent on verification the

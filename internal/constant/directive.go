@@ -48,6 +48,7 @@ const (
 	DirectiveVerify   = "verify"   // deep-verify this marker's secure pin against upstream
 
 	DirectiveVerifyBranch = "verify-branch" // allowed source-branch glob or /regex/ for deep verify (default: the repo's default branch)
+	DirectiveVerifySigned = "verify-signed" // require the resolved tag's upstream signature to be verified
 
 	DirectivePattern      = "pattern"       // asset filename glob for value=sha256
 	DirectiveSha256Source = "sha256-source" // how to source a value=sha256 (see constant/value.go)

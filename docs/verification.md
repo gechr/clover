@@ -23,10 +23,15 @@ The strict tier confirms the commit belongs to a specific set of branches, not m
 | --------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `verify`        | Deep-verify this annotation's secure pin against upstream                                                        |
 | `verify-branch` | The allowed source-branch glob (or `/regex/`) for the verification. Defaults to the repository's default branch. |
+| `verify-signed` | Require the resolved tag's upstream signature to be verified                                                     |
 
 `verify-branch` is what lets Clover confirm that the commit a tag points at actually belongs to the branch you expect, which is useful when a tag is cut from a release branch rather than the default one.
 
 Verification pairs naturally with [`track`](tracking.md). Tracking keeps the pin fresh, and `verify` checks whether each freshly resolved pin is reachable from an allowed branch.
+
+## Signed tags (`verify-signed`)
+
+With `verify-signed=true`, the resolved tag's signature must be verified upstream. An annotated tag carries its own signature, and a lightweight tag defers to the signature of the commit it points at. The check runs independently of the branch tiers, so it composes with either, and it catches the case the branch check cannot. A compromised account can push a tag to a commit that genuinely sits on the default branch, but it cannot produce a signature GitHub verifies against the project's known keys. GitHub is the only provider that supports this key today.
 
 ## Failures block the update
 

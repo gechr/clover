@@ -45,9 +45,15 @@ type fakeProvider struct {
 	tagCommit    map[string]string // tag -> commit, for the Committer fallback
 	credentialed bool              // the CredentialChecker verdict, gating default verification
 	branchErr    error             // when set, every BranchChecker method fails with it
+	signed       bool              // the SignatureChecker verdict
+	signedReason string            // the reason paired with the SignatureChecker verdict
 }
 
 func (f fakeProvider) Credentialed(provider.Resource) bool { return f.credentialed }
+
+func (f fakeProvider) SignedTag(context.Context, provider.Resource, string) (bool, string, error) {
+	return f.signed, f.signedReason, nil
+}
 
 func (f fakeProvider) Digest(_ context.Context, _ provider.Resource, tag string) (string, error) {
 	if d, ok := f.digestByTag[tag]; ok {
@@ -1467,6 +1473,42 @@ func TestRunVerifyHistoryOptOut(t *testing.T) {
 	r := files[0].Results[0]
 	require.NoError(t, r.Verify)
 	require.True(t, r.Changed)
+}
+
+func TestRunVerifySigned(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	env := func(signed bool, reason string) string {
+		cand := candidate(t, "2.0.0")
+		cand.Commit = good
+		provider.Register(fakeProvider{
+			name:         "github",
+			candidates:   []model.Candidate{cand},
+			signed:       signed,
+			signedReason: reason,
+		})
+		return write(t, map[string]string{
+			".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-signed=true\n" +
+				"  - uses: x/y@" + old + " # v1.0.0\n",
+		})
+	}
+
+	t.Run("unsigned", func(t *testing.T) {
+		files, err := pipeline.Run(context.Background(), []string{env(false, "unsigned")})
+		require.NoError(t, err)
+		r := files[0].Results[0]
+		require.EqualError(t, r.Verify,
+			"tag 2.0.0 signature verification failed: unsigned")
+		require.False(t, r.Changed, "an unsigned tag blocks the update")
+	})
+
+	t.Run("signed", func(t *testing.T) {
+		files, err := pipeline.Run(context.Background(), []string{env(true, "valid")})
+		require.NoError(t, err)
+		r := files[0].Results[0]
+		require.NoError(t, r.Verify)
+		require.True(t, r.Changed)
+	})
 }
 
 func TestRunVerifyIncompleteOnAPIError(t *testing.T) {

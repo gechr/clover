@@ -40,6 +40,7 @@ var commonKeys = set.New(
 	constant.DirectiveValue,
 	constant.DirectiveVerify,
 	constant.DirectiveVerifyBranch,
+	constant.DirectiveVerifySigned,
 	constant.RuleAsset,
 	constant.RuleBehind,
 	constant.RuleConstraint,

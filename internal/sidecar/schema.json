@@ -152,6 +152,10 @@
         "type": "string",
         "description": "Allowed source-branch glob or /regex/ for deep verify; defaults to the repo's default branch."
       },
+      "verify-signed": {
+        "type": ["string", "boolean"],
+        "description": "Require the resolved tag's upstream signature to be verified."
+      },
       "id": {
         "type": "string",
         "description": "Publish this entry's result under this id for followers to read."

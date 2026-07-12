@@ -318,21 +318,12 @@ func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) 
 	if !ok {
 		return "", fmt.Errorf("github: invalid resource %T", r)
 	}
-	rest := p.client()
-	token := forge.Bearer(p.credential(res.host))
-
-	var ref struct {
-		Object struct {
-			Type string `json:"type"`
-			SHA  string `json:"sha"`
-		} `json:"object"`
+	typ, sha, err := p.tagRefObject(ctx, res, tag)
+	if err != nil {
+		return "", err
 	}
-	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/git/ref/tags/%s", res.owner, res.name, tag))
-	if _, err := rest.DoWithContext(ctx, url, token, &ref); err != nil {
-		return "", fmt.Errorf("github: resolve tag %s: %w", tag, err)
-	}
-	if ref.Object.Type != "tag" { // a lightweight tag points straight at the commit
-		return ref.Object.SHA, nil
+	if typ != tagObjectType { // a lightweight tag points straight at the commit
+		return sha, nil
 	}
 
 	var tagObj struct {
@@ -340,14 +331,39 @@ func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) 
 			SHA string `json:"sha"`
 		} `json:"object"`
 	}
-	url = apiURL(
-		res.host,
-		fmt.Sprintf("repos/%s/%s/git/tags/%s", res.owner, res.name, ref.Object.SHA),
-	)
-	if _, err := rest.DoWithContext(ctx, url, token, &tagObj); err != nil {
+	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/git/tags/%s", res.owner, res.name, sha))
+	if _, err := p.client().
+		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &tagObj); err != nil {
 		return "", fmt.Errorf("github: peel tag %s: %w", tag, err)
 	}
 	return tagObj.Object.SHA, nil
+}
+
+// tagObjectType is the git object type of an annotated tag: its ref points at a
+// tag object wrapping the commit, where a lightweight tag's ref points at the
+// commit directly.
+const tagObjectType = "tag"
+
+// tagRefObject resolves refs/tags/<tag> to its target object's type and SHA.
+// The lookup is namespace-explicit so a branch sharing the tag's name can never
+// be resolved in its place.
+func (p *Provider) tagRefObject(
+	ctx context.Context,
+	res resource,
+	tag string,
+) (string, string, error) {
+	var ref struct {
+		Object struct {
+			Type string `json:"type"`
+			SHA  string `json:"sha"`
+		} `json:"object"`
+	}
+	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/git/ref/tags/%s", res.owner, res.name, tag))
+	if _, err := p.client().
+		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &ref); err != nil {
+		return "", "", fmt.Errorf("github: resolve tag %s: %w", tag, err)
+	}
+	return ref.Object.Type, ref.Object.SHA, nil
 }
 
 // tagCommits maps tag name to its peeled commit SHA, for resolving the commit a
