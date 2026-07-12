@@ -16,13 +16,19 @@ var vcsMarkers = []string{".git", ".jj", ".hg", ".svn"}
 // resolves so an ancestor is checked at most once. Safe for concurrent use by
 // the scan workers.
 type Resolver struct {
+	cwd string
+
 	mu    sync.Mutex
 	cache map[string]string
 }
 
-// NewResolver returns an empty resolver.
+// NewResolver returns an empty resolver. It captures the working directory
+// once - a scan hands it relative paths, and filepath.Abs would otherwise
+// re-issue the getwd syscall for every lookup of a value that never changes
+// during a run.
 func NewResolver() *Resolver {
-	return &Resolver{cache: make(map[string]string)}
+	cwd, _ := os.Getwd()
+	return &Resolver{cwd: cwd, cache: make(map[string]string)}
 }
 
 // Root returns the absolute path of the repository the file at path belongs to -
@@ -30,7 +36,7 @@ func NewResolver() *Resolver {
 // - or "" when the file is not inside a repository. The result is the namespace
 // under which the file's id= is unique.
 func (r *Resolver) Root(path string) string {
-	return r.RootDir(filepath.Dir(abs(path)))
+	return r.RootDir(filepath.Dir(r.abs(path)))
 }
 
 // RootDir returns the absolute path of the repository containing the directory
@@ -41,11 +47,18 @@ func (r *Resolver) Root(path string) string {
 func (r *Resolver) RootDir(dir string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.resolve(abs(dir))
+	return r.resolve(r.abs(dir))
 }
 
-// abs returns path made absolute, or path unchanged when that is not possible.
-func abs(path string) string {
+// abs returns path made absolute against the captured working directory, or
+// path unchanged when that is not possible.
+func (r *Resolver) abs(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	if r.cwd != "" {
+		return filepath.Join(r.cwd, path)
+	}
 	if a, err := filepath.Abs(path); err == nil {
 		return a
 	}

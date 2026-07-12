@@ -112,3 +112,22 @@ func TestSameIDDistinctReposDoNotClash(t *testing.T) {
 	keyB := resolver.Root(filepath.Join(repoB, "Dockerfile")) + "\x00nginx-version"
 	require.NotEqual(t, keyA, keyB)
 }
+
+// A resolver created after a working-directory change anchors relative paths
+// on that directory: the cwd is captured per resolver, not per process, so a
+// caller that changed directory before constructing one is never poisoned by
+// an earlier capture.
+func TestRootRelativePaths(t *testing.T) {
+	repo := t.TempDir()
+	mkmarker(t, repo, ".git", false)
+	t.Chdir(repo)
+	// Getwd resolves symlinks (macOS /var -> /private/var), so the expected
+	// root comes from it rather than the TempDir literal.
+	want, err := os.Getwd()
+	require.NoError(t, err)
+
+	resolver := vcs.NewResolver()
+	require.Equal(t, want, resolver.RootDir("."))
+	require.Equal(t, want, resolver.RootDir(filepath.Join("deep", "nested")))
+	require.Equal(t, want, resolver.Root(filepath.Join("deep", "x.yaml")))
+}
