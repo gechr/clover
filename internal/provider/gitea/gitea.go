@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/color"
 	"net/http"
 	"os"
 	"sync"
@@ -97,6 +98,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderGitea }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#148068", "#2BC0A0")
+}
 
 // Dated marks the listing as date-bearing: releases carry a publication date.
 // Bare tags do not, and fall to the post-discovery date check.

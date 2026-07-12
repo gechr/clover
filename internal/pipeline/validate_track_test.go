@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"strings"
 	"testing"
 
@@ -18,6 +19,8 @@ import (
 type resourceErrProvider struct{ name string }
 
 func (p resourceErrProvider) Name() string { return p.name }
+
+func (p resourceErrProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (p resourceErrProvider) Keys() []provider.Key              { return []provider.Key{{Name: "repository"}} }
 func (p resourceErrProvider) Describe(provider.Resource) string { return p.name }

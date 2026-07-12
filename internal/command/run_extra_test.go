@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,6 +27,8 @@ type stubProvider struct {
 }
 
 func (p stubProvider) Name() string { return p.name }
+
+func (p stubProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (p stubProvider) Keys() []provider.Key {
 	if p.keys != nil {

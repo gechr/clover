@@ -18,7 +18,7 @@ type Span struct {
 
 // Token is a version reference located in a line: its byte span plus the parts
 // it decomposes into. Keeping the numeric Core separate from the Prefix,
-// Prerelease, variant Suffix, and Build means the rewriter can normalise on the
+// Prerelease, variant Suffix, and Build means the rewriter can normalize on the
 // core and re-apply each decoration exactly once when rendering a new version.
 type Token struct {
 	Span       Span
@@ -26,7 +26,7 @@ type Token struct {
 	Core       string // numeric core, 1-3 dotted components, e.g. "1.27"
 	Prerelease string // prerelease identifiers without the leading -, or ""
 	Dashless   bool   // prerelease glued to the core with no dash (3.15.0b3)
-	Suffix     string // recognised variant suffix without the leading -, or ""
+	Suffix     string // recognized variant suffix without the leading -, or ""
 	Build      string // build metadata without the leading +, or ""
 }
 

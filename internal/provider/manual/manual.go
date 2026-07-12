@@ -3,6 +3,7 @@ package manual
 import (
 	"context"
 	"fmt"
+	"image/color"
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
@@ -21,6 +22,11 @@ func New() *Provider { return &Provider{} }
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderManual }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#8A5A62", "#C098A0")
+}
 
 // Anchor marks the provider as line-anchored: clover reads its value from the
 // target line and skips discovery and selection.

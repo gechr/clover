@@ -41,7 +41,7 @@ type Result struct {
 	Reason  string
 }
 
-// Execute runs tasks honouring their from-edges: a task runs only after the task
+// Execute runs tasks honoring their from-edges: a task runs only after the task
 // it follows has succeeded. Independent tasks run first, up to workers at a
 // time; followers run in later waves. A task whose dependency fails, is unknown,
 // or lies on a cycle is skipped rather than aborting the run, so one bad marker

@@ -3,6 +3,7 @@ package mode_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,6 +19,8 @@ import (
 type offlineProvider struct{ name string }
 
 func (p offlineProvider) Name() string { return p.name }
+
+func (p offlineProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (p offlineProvider) Keys() []provider.Key {
 	return []provider.Key{{Name: "repository", Required: true}}

@@ -1,6 +1,7 @@
 package zig
 
 import (
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -38,6 +39,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderZig }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#B87400", "#EC9B12")
+}
 
 // Dated marks the listing as date-bearing: a tagged release carries a publication
 // date. An entry without one falls to the post-discovery date check.

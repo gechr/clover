@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A scan honours .gitignore by default: a directive in a gitignored directory is
+// A scan honors .gitignore by default: a directive in a gitignored directory is
 // pruned, while a sibling outside it is scanned. Regression test for the wiring
 // that previously passed an empty WithFiles, clobbering the .gitignore default.
 func TestScanHonorsGitignoreByDefault(t *testing.T) {

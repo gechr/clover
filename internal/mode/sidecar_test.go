@@ -3,6 +3,7 @@ package mode_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,6 +21,8 @@ import (
 type failingProvider struct{ name string }
 
 func (p failingProvider) Name() string { return p.name }
+
+func (p failingProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (p failingProvider) Keys() []provider.Key {
 	return []provider.Key{{Name: "repository", Required: false}}

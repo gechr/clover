@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"image/color"
 	"io"
 
 	"github.com/gechr/clover/internal/directive"
@@ -43,6 +44,10 @@ func KeyNames(p Provider) []string {
 type Provider interface {
 	// Name is the provider's identifier, as written in a directive's provider=.
 	Name() string
+	// Color is the provider's brand color, used to tint its provider= value in
+	// logs. dark selects the dark-terminal variant, chosen for legibility on that
+	// background - the light variant renders when the terminal is light.
+	Color(dark bool) color.Color
 	// Keys reports the directive keys the provider accepts, in canonical order.
 	Keys() []Key
 	// Resource builds and validates the provider's descriptor from a directive,

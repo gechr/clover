@@ -118,7 +118,7 @@ func TestAnnotateLogsResource(t *testing.T) {
 
 	require.Equal(
 		t,
-		"DRY 🚧 Would annotate provider=github resource=actions/checkout location=.github/workflows/ci.yaml:21\n"+
+		"DRY 🚧 Would annotate provider=github location=.github/workflows/ci.yaml:21 resource=actions/checkout\n"+
 			"DRY 🏁 Annotate complete added=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -266,7 +266,7 @@ func TestRunLogsResource(t *testing.T) {
 
 	require.Equal(
 		t,
-		"INF ⬆️ Update applied provider=github resource=actions/checkout location=ci.yml:1 from=1.0.0 to=2.0.0\n"+
+		"INF ⬆️ Update applied provider=github location=ci.yml:1 resource=actions/checkout from=1.0.0 to=2.0.0\n"+
 			"INF ⬆️ Update applied provider=github location=ci.yml:3 from=3.0.0 to=4.0.0\n"+
 			"INF 🏁 Run complete changed=2 elapsed=2s\n",
 		buf.String(),

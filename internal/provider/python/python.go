@@ -2,6 +2,7 @@ package python
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -39,6 +40,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderPython }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#647010", "#B2BE30")
+}
 
 // Dated marks the listing as date-bearing: every release carries a publication
 // date, so cooldown applies.

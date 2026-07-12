@@ -24,7 +24,7 @@ import (
 
 const (
 	name        = "clover"
-	description = "Keep version references synchronised with their upstream sources of truth."
+	description = "Keep version references synchronized with their upstream sources of truth."
 
 	exitSuccess = 0
 	exitFailure = 1
@@ -48,7 +48,7 @@ type root struct {
 	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Globals/Diagnostics'"`
 
 	Annotate cmdAnnotate "help:\"Add `@clover` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
-	Format   cmdFormat   `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
+	Format   cmdFormat   `help:"Canonicalize directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
 	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
 	Login    cmdLogin    `help:"Authenticate Clover with a provider"                         clib:"terse='Authenticate'"     cmd:""`
@@ -67,6 +67,11 @@ type parallelism int
 // Run parses the command line and dispatches to the chosen mode, returning the
 // process exit code.
 func Run() int {
+	// Register providers before building the app: conductor runs ConfigureLog
+	// inside New, and the log styling tints each provider= value from the
+	// registry, so the registry must already be populated.
+	provider.RegisterAll(all.New(clive.Current())...)
+
 	app := conductor.New(conductor.App{
 		Name:         name,
 		DisplayName:  "Clover",
@@ -77,8 +82,6 @@ func Run() int {
 		HelpLong:     "Print long help",
 		ConfigureLog: logger.Configure,
 	})
-
-	provider.RegisterAll(all.New(clive.Current())...)
 
 	var r root
 	prog, err := cli.New(app, &r, cli.WithCompletionHandler(completionHandler))

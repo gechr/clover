@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"image/color"
 	nethttp "net/http"
 	"net/url"
 
@@ -63,6 +64,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderHTTP }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#5C5C5C", "#9C9C9C")
+}
 
 // Keys reports the directive keys http accepts, in canonical order. The two
 // extraction keys are mutually exclusive; Resource enforces that exactly one is

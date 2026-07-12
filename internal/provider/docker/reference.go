@@ -57,7 +57,7 @@ func splitHost(repository string) (string, string) {
 	return "", repository
 }
 
-// newReference validates and normalises a registry host and repository path. An
+// newReference validates and normalizes a registry host and repository path. An
 // empty or Docker Hub registry routes to the Hub API; a bare single-segment
 // repository on Docker Hub gains the implicit library/ namespace
 // (nginx -> library/nginx), matching docker's own resolution. With no explicit

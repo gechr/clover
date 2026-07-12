@@ -64,7 +64,7 @@ func (l smartLocated) Rendered(candidate model.Candidate) string {
 }
 
 // Render rewrites the located token on line to the resolved candidate's version,
-// returning the new line and whether it changed. The version is normalised to
+// returning the new line and whether it changed. The version is normalized to
 // its numeric core and re-dressed in the current token's style, so the splice
 // touches only the token's span and is idempotent. It errors when the located
 // span no longer fits the line.

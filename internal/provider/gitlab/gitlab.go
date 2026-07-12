@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image/color"
 	"net/http"
 	"net/url"
 	"os"
@@ -108,6 +109,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderGitlab }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#E8590C", "#FB7A2C")
+}
 
 // RecencyOrdered marks the listing as newest-first, so a shallow lookup always
 // holds the latest version; --deep is hinted only when a constrained marker finds

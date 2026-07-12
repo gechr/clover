@@ -2,6 +2,7 @@ package crates
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 	"regexp"
 
@@ -60,6 +61,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderCrates }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#7A5410", "#AE7C3C")
+}
 
 // Dated marks the listing as date-bearing: every version carries its publish
 // time, so cooldown applies.

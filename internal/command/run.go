@@ -136,7 +136,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	// Only an explicit --deep triggers the confirmation; a configured run.deep or
 	// a verify-implied deep proceed without prompting, like --verify.
 	if ptr.Deref(c.Deep) && !confirmDeep(c.Yes) {
-		clog.Info().Symbol("🛑").Msg("Deep lookup cancelled")
+		clog.Info().Symbol("🛑").Msg("Deep lookup canceled")
 		return nil
 	}
 
@@ -179,7 +179,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	summary.Elapsed = time.Since(start)
 
 	// Output detail is per-invocation, resolved after the scan: a single-repo
-	// scan honours that repo's config, a multi-repo scan the user default.
+	// scan honors that repo's config, a multi-repo scan the user default.
 	detail := configs.Primary().RunOutput(c.Output)
 	// GitHub mode emits machine-parseable annotations only; the human hints would
 	// be noise in a CI log.

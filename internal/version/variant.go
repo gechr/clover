@@ -6,7 +6,7 @@ import (
 	"github.com/gechr/x/set"
 )
 
-// variants are the recognized image variant suffixes - distro flavours and
+// variants are the recognized image variant suffixes - distro flavors and
 // codenames that decorate a tag (nginx:1.27-alpine) and must be preserved, as
 // opposed to a semver prerelease (2.0.0-rc.1) which go-version also parses after
 // a dash. The set is curated; an unknown trailing segment is a prerelease.

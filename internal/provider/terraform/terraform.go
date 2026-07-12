@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 	"strings"
 
@@ -24,26 +25,32 @@ const (
 // The web page exists only on the public registry, so URL goes empty when host
 // points elsewhere.
 type Registry struct {
-	name string
-	host string
-	web  string // fmt format for (namespace, name, version)
+	name  string
+	host  string
+	web   string // fmt format for (namespace, name, version)
+	light string // brand color hex on a light terminal
+	dark  string // brand color hex on a dark terminal
 }
 
 var (
 	// Terraform is registered as provider=terraform, defaulting to HashiCorp's
 	// public registry.
 	Terraform = Registry{
-		name: constant.ProviderTerraform,
-		host: "registry.terraform.io",
-		web:  "https://registry.terraform.io/providers/%s/%s/%s",
+		name:  constant.ProviderTerraform,
+		host:  "registry.terraform.io",
+		web:   "https://registry.terraform.io/providers/%s/%s/%s",
+		light: "#90359C", // purple
+		dark:  "#C078E8",
 	}
 	// OpenTofu is registered as provider=opentofu, defaulting to the public
 	// OpenTofu registry. Its web pages live on the search UI and carry a
 	// v-prefixed version path.
 	OpenTofu = Registry{
-		name: constant.ProviderOpentofu,
-		host: "registry.opentofu.org",
-		web:  "https://search.opentofu.org/provider/%s/%s/v%s",
+		name:  constant.ProviderOpentofu,
+		host:  "registry.opentofu.org",
+		web:   "https://search.opentofu.org/provider/%s/%s/v%s",
+		light: "#9E8410", // yellow
+		dark:  "#F5E04A",
 	}
 )
 
@@ -75,6 +82,11 @@ func New(registry Registry, opts ...Option) *Provider {
 
 // Name identifies the provider by its registry's registered name.
 func (p *Provider) Name() string { return p.registry.name }
+
+// Color is the registry's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, p.registry.light, p.registry.dark)
+}
 
 // Keys reports the directive keys the registry provider accepts, in canonical
 // order.

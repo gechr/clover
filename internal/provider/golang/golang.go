@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -38,6 +39,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderGo }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#0E7C90", "#22C0D0")
+}
 
 // Keys reports the directive keys the provider accepts. go.dev needs none of its
 // own: the whole listing arrives in one fetch, and per-platform checksum

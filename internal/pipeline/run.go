@@ -161,7 +161,7 @@ func Validate(ctx context.Context, roots []string, opts ...Option) ([]FileResult
 	return p.group(files), nil
 }
 
-// Scan walks roots offline - honouring ignore files, never resolving - and
+// Scan walks roots offline - honoring ignore files, never resolving - and
 // returns the files that carry a directive, alongside the total number of files
 // examined. It is the front half Run and Validate build on, exposed for format
 // and annotate, which rewrite directive comments without ever binding markers or

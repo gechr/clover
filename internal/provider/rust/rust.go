@@ -2,6 +2,7 @@ package rust
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -51,6 +52,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderRust }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#8A3E18", "#B0562C")
+}
 
 // Dated marks the listing as date-bearing: every release carries the date its
 // manifest was published under, so cooldown applies.

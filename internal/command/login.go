@@ -111,7 +111,7 @@ func promptDeviceCode(userCode, verificationURL string) {
 	out := os.Stderr
 	interactive := terminal.Is(os.Stdin) && terminal.Is(out)
 
-	// bold emphasises the code and the key to press, but only on a terminal: a
+	// bold emphasizes the code and the key to press, but only on a terminal: a
 	// piped or redirected stream gets plain text rather than escape sequences.
 	bold := func(s string) string {
 		if !interactive {

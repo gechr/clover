@@ -1,5 +1,5 @@
 // Package ignore matches paths against the ignore files that apply to them, for
-// use as scan's ignore predicate. It is modelled on ripgrep's ignore handling
+// use as scan's ignore predicate. It is modeled on ripgrep's ignore handling
 // but owned in-repo - no vendored walker or matcher: a configurable set of
 // per-directory ignore files (default .gitignore; a .cloverignore can be added
 // via WithFiles) sharing gitignore syntax. For a path it consults every ignore

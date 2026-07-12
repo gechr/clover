@@ -45,7 +45,7 @@ func New(ctx context.Context, logger *clog.Logger, opts ...Option) *Reporter {
 	return r
 }
 
-// Track starts the transient progress line labelled label and returns a handle
+// Track starts the transient progress line labeled label and returns a handle
 // the work drives with its running count. On a TTY clog animates a spinner
 // carrying the live count - an open field=n when total is zero, a field=n/total
 // fraction (with the resolve line's gradient) when it is positive - erased when
@@ -158,7 +158,7 @@ func (r *Reporter) Discovered(scanned, files, comments int) {
 		Msg("Discovered Clover comments")
 }
 
-// Begin starts one progress line totalling len(names) and returns a task per
+// Begin starts one progress line totaling len(names) and returns a task per
 // name, every one advancing the same counter as it reaches a terminal state.
 // The returned wait blocks until the line has finished rendering.
 func (r *Reporter) Begin(names []string) ([]progress.Task, func()) {

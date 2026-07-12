@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"image/color"
 	"testing"
 
 	"github.com/gechr/clover/internal/constant"
@@ -16,7 +17,9 @@ import (
 // name; it never resolves anything.
 type filterStub struct{ name string }
 
-func (s filterStub) Name() string                      { return s.name }
+func (s filterStub) Name() string { return s.name }
+
+func (s filterStub) Color(bool) color.Color            { return color.Gray{Y: 0x80} }
 func (s filterStub) Keys() []provider.Key              { return nil }
 func (s filterStub) Describe(provider.Resource) string { return s.name }
 

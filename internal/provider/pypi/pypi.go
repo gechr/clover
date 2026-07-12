@@ -2,6 +2,7 @@ package pypi
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 	"regexp"
 	"strings"
@@ -50,6 +51,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderPypi }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#163060", "#3856A6")
+}
 
 // Dated marks the listing as date-bearing: every file carries an upload time,
 // so cooldown applies.

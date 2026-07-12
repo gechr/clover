@@ -2,6 +2,7 @@ package helm
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -56,6 +57,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderHelm }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#4444B8", "#7B84EE")
+}
 
 // Dated marks the listing as date-bearing: the classic index carries release
 // dates. OCI tags do not, and fall to the post-discovery date check.

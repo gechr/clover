@@ -2,6 +2,7 @@ package hashicorp
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -45,6 +46,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderHashicorp }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#C2367E", "#E070B0")
+}
 
 // RecencyOrdered marks the releases listing as newest-first, so a shallow lookup
 // always holds the latest release; --deep is hinted only when a constrained

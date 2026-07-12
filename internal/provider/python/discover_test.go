@@ -84,7 +84,7 @@ func TestDiscoverStripsPythonPrefix(t *testing.T) {
 	require.NotNil(t, got[0].Semver)
 }
 
-// TestDiscoverPrerelease covers the dashless prerelease: it is normalised to
+// TestDiscoverPrerelease covers the dashless prerelease: it is normalized to
 // canonical semver and flagged from the API's pre_release field.
 func TestDiscoverPrerelease(t *testing.T) {
 	t.Parallel()

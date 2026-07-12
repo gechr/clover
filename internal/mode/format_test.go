@@ -2,6 +2,7 @@ package mode_test
 
 import (
 	"context"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,6 +21,8 @@ import (
 type orderedProvider struct{ name string }
 
 func (p orderedProvider) Name() string { return p.name }
+
+func (p orderedProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (p orderedProvider) Keys() []provider.Key {
 	return []provider.Key{{Name: "repository", Required: true}, {Name: "source"}}

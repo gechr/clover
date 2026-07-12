@@ -1,4 +1,4 @@
-// Command clover keeps version references in a codebase synchronised with their
+// Command clover keeps version references in a codebase synchronized with their
 // upstream sources of truth.
 package main
 

@@ -2,6 +2,7 @@ package pipeline_test
 
 import (
 	"context"
+	"image/color"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -85,6 +86,8 @@ func (f fakeProvider) Reachable(
 }
 
 func (f fakeProvider) Name() string { return f.name }
+
+func (f fakeProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (f fakeProvider) Keys() []provider.Key {
 	return []provider.Key{{Name: "repository", Required: false}}

@@ -3,6 +3,7 @@ package infer_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"strings"
 	"testing"
 
@@ -24,6 +25,8 @@ type inferFake struct {
 }
 
 func (f inferFake) Name() string { return f.name }
+
+func (f inferFake) Color(bool) color.Color { return color.Gray{Y: 0x80} }
 
 func (f inferFake) Keys() []provider.Key              { return []provider.Key{{Name: "repository"}} }
 func (f inferFake) Describe(provider.Resource) string { return f.name }

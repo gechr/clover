@@ -108,7 +108,7 @@ func (r *Resolver) ForDir(dir string) (*Config, error) {
 // Primary returns the config to resolve per-invocation settings (output detail,
 // fmt.prune) from: the explicit --config when set; else the sole root's config
 // when the scan resolved to exactly one repository, so a single-tree run still
-// honours its project config; else the user config, so a multi-repository scan
+// honors its project config; else the user config, so a multi-repository scan
 // falls back to the user default. It is meaningful only after the scan has
 // driven ForDir over the scanned tree.
 func (r *Resolver) Primary() *Config {

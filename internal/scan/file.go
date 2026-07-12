@@ -55,7 +55,7 @@ type File struct {
 	Found []Located
 	// Ignored holds the line indices a clover:ignore control suppresses (the
 	// next-line target, or the lines inside an ignore-start/ignore-end block).
-	// It lets annotate honour the same opt-out the directive scan does; it is nil
+	// It lets annotate honor the same opt-out the directive scan does; it is nil
 	// when the file has no such control.
 	Ignored set.Set[int]
 	Errors  []LineError
@@ -221,7 +221,7 @@ func skipFile(path, reason string) *clog.Event {
 }
 
 // splitLines splits content losslessly so line numbers and content survive for
-// the rewrite, normalising CRLF to LF.
+// the rewrite, normalizing CRLF to LF.
 func splitLines(content []byte) []string {
 	return xstrings.SplitLinesRaw(string(content))
 }

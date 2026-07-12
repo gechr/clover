@@ -3,6 +3,7 @@ package command_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"testing"
 
 	"github.com/gechr/clover/internal/command"
@@ -68,7 +69,9 @@ type authedProvider struct {
 	err  error
 }
 
-func (p authedProvider) Name() string                      { return p.name }
+func (p authedProvider) Name() string { return p.name }
+
+func (p authedProvider) Color(bool) color.Color            { return color.Gray{Y: 0x80} }
 func (p authedProvider) Keys() []provider.Key              { return nil }
 func (p authedProvider) Describe(provider.Resource) string { return p.name }
 func (p authedProvider) Resource(directive.Directive) (provider.Resource, error) {

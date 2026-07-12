@@ -2,6 +2,7 @@ package npm
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -51,6 +52,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderNpm }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#C0332C", "#F0564E")
+}
 
 // Dated marks the listing as date-bearing: the packument's time map dates every
 // version, so cooldown applies.

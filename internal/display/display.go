@@ -8,7 +8,7 @@ package display
 import xstrings "github.com/gechr/x/strings"
 
 // width is the length an abbreviated hash is shortened to, including the marker;
-// it keeps enough of both ends to stay recognisable against the full value.
+// it keeps enough of both ends to stay recognizable against the full value.
 const width = 13
 
 // marker joins the head and tail of an abbreviated value.

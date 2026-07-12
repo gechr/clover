@@ -29,7 +29,7 @@ func TestConductorInitLoadsCloverHyperlinkFormat(t *testing.T) {
 	})
 
 	// The env prefix now comes from conductor (derived from the app name),
-	// with Clover's own customisations layered on via ConfigureLog.
+	// with Clover's own customizations layered on via ConfigureLog.
 	conductor.New(conductor.App{Name: "clover", ConfigureLog: logger.Configure})
 
 	formats := clog.Default.FieldFormats()

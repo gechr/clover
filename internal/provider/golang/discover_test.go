@@ -159,7 +159,7 @@ func TestSelectionPrereleaseOptIn(t *testing.T) {
 
 	chosen, ok := version.Select(current, got, attrs, version.WithPrerelease(true))
 	require.True(t, ok)
-	// The dashless go.dev prerelease is normalised to canonical semver.
+	// The dashless go.dev prerelease is normalized to canonical semver.
 	require.Equal(t, "1.27.0-rc1", chosen.Version)
 }
 

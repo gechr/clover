@@ -70,7 +70,7 @@ func WithDowngrade(allow *bool) Option {
 // version's digest, so a pin never moves on its own.
 func WithForce(force *bool) Option { return func(s *settings) { s.force = force } }
 
-// WithIgnoreFiles sets the ignore-file names honoured during the walk (default:
+// WithIgnoreFiles sets the ignore-file names honored during the walk (default:
 // .gitignore).
 func WithIgnoreFiles(names ...string) Option {
 	return func(s *settings) { s.ignoreFiles = names }

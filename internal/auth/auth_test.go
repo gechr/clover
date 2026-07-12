@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"image/color"
 	"testing"
 
 	"github.com/gechr/clover/internal/auth"
@@ -19,8 +20,10 @@ type authProvider struct {
 	err  error
 }
 
-func (p authProvider) Name() string         { return p.name }
-func (p authProvider) Keys() []provider.Key { return nil }
+func (p authProvider) Name() string { return p.name }
+
+func (p authProvider) Color(bool) color.Color { return color.Gray{Y: 0x80} }
+func (p authProvider) Keys() []provider.Key   { return nil }
 func (p authProvider) Resource(directive.Directive) (provider.Resource, error) {
 	return p.name, nil
 }
@@ -37,7 +40,9 @@ func (p authProvider) AuthHint() string                   { return "do the auth 
 // credentials.
 type plainProvider struct{ name string }
 
-func (p plainProvider) Name() string                      { return p.name }
+func (p plainProvider) Name() string { return p.name }
+
+func (p plainProvider) Color(bool) color.Color            { return color.Gray{Y: 0x80} }
 func (p plainProvider) Keys() []provider.Key              { return nil }
 func (p plainProvider) Describe(provider.Resource) string { return p.name }
 func (p plainProvider) Resource(directive.Directive) (provider.Resource, error) {

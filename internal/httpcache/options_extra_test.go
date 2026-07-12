@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// blockingTransport blocks until the request context is cancelled, so a client
+// blockingTransport blocks until the request context is canceled, so a client
 // timeout is the only thing that can end the round trip.
 type blockingTransport struct{}
 

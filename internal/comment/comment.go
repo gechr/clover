@@ -8,7 +8,7 @@ type Block struct {
 	Close string
 }
 
-// Syntax is the set of comment delimiters a file format recognises. A format
+// Syntax is the set of comment delimiters a file format recognizes. A format
 // may expose several line markers (HCL uses both # and //) and several block
 // pairs; [Syntax.Body] returns whichever comment starts earliest on the line.
 type Syntax struct {

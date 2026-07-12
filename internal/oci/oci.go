@@ -20,7 +20,7 @@ const pageSize = 100
 // defaultRateHeaders describes the standard registry rate-limit headers. The
 // windowed values some registries return (e.g. "100;w=21600") do not parse as a
 // bare integer, so the remaining count is simply treated as unknown; the
-// Retry-After on a 429 is still honoured.
+// Retry-After on a 429 is still honored.
 var defaultRateHeaders = ratelimit.Headers{
 	Remaining:  "RateLimit-Remaining",
 	Reset:      "RateLimit-Reset",

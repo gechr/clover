@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"context"
+	"image/color"
 	"testing"
 
 	"github.com/gechr/clover/internal/directive"
@@ -15,7 +16,9 @@ type stubProvider struct {
 	name string
 }
 
-func (s stubProvider) Name() string                      { return s.name }
+func (s stubProvider) Name() string { return s.name }
+
+func (s stubProvider) Color(bool) color.Color            { return color.Gray{Y: 0x80} }
 func (s stubProvider) Keys() []provider.Key              { return nil }
 func (s stubProvider) Describe(provider.Resource) string { return s.name }
 

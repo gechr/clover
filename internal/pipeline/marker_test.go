@@ -68,7 +68,7 @@ func TestMarkers(t *testing.T) {
 
 // TestMarkersAuto covers provider=auto: a GitHub Actions pin resolves to the
 // github provider with the repository inferred from the uses: line, while a
-// marker whose target the inference does not recognise stays auto so resolution
+// marker whose target the inference does not recognize stays auto so resolution
 // rejects it.
 func TestMarkersAuto(t *testing.T) {
 	t.Parallel()
@@ -234,7 +234,7 @@ func TestMarkersAuto(t *testing.T) {
 			pkg:       "uv_build",
 		},
 		{
-			name:       "stays auto when the target is not a recognised pin",
+			name:       "stays auto when the target is not a recognized pin",
 			path:       "README.md",
 			lines:      []string{"# clover: provider=auto", "version: 1.2.3"},
 			directive:  auto,

@@ -142,7 +142,7 @@ func parsePairs(rs []rune) ([]KV, error) {
 // just past it. The first character decides the form: a quote (' " `) starts a
 // matched span whose quotes are stripped; a leading / starts a regex whose
 // delimiters are kept (the pattern package needs them); anything else is a bare
-// value read to the next whitespace. Delimiting is recognised only at the start
+// value read to the next whitespace. Delimiting is recognized only at the start
 // of a value, so / and quotes inside a bare value (owner/repo, don't) stay
 // literal.
 func readValue(rs []rune, pos int) (string, int, error) {
@@ -200,7 +200,7 @@ func readRegex(rs []rune, pos int) (string, int, error) {
 	return b.String(), pos + 1, nil
 }
 
-// isQuote reports whether r is one of the recognised quote characters.
+// isQuote reports whether r is one of the recognized quote characters.
 func isQuote(r rune) bool {
 	return r == '\'' || r == '"' || r == '`'
 }

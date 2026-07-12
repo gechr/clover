@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"context"
+	"image/color"
 	"io"
 	"net/http"
 	"strings"
@@ -145,7 +146,9 @@ type keyedProvider struct {
 	keys []provider.Key
 }
 
-func (keyedProvider) Name() string                      { return "keyed" }
+func (keyedProvider) Name() string { return "keyed" }
+
+func (keyedProvider) Color(bool) color.Color            { return color.Gray{Y: 0x80} }
 func (p keyedProvider) Keys() []provider.Key            { return p.keys }
 func (keyedProvider) Describe(provider.Resource) string { return "keyed" }
 

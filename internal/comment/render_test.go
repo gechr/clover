@@ -33,7 +33,7 @@ func TestRender(t *testing.T) {
 			want: "    # clover: a=1 b=2",
 		},
 		{
-			name: "normalises spacing after marker",
+			name: "normalizes spacing after marker",
 			path: "x.py",
 			line: "#    clover: a=1",
 			body: "clover: a=1",
@@ -54,7 +54,7 @@ func TestRender(t *testing.T) {
 			want: "<!-- clover: a=1 b=2 -->",
 		},
 		{
-			name: "block comment normalises inner spacing",
+			name: "block comment normalizes inner spacing",
 			path: "index.html",
 			line: "<!--clover: a=1-->",
 			body: "clover: a=1",

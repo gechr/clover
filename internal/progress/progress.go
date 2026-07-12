@@ -7,7 +7,7 @@ package progress
 
 // Reporter renders the progress of a batch of work whose size is known up front.
 type Reporter interface {
-	// Track starts a transient progress line labelled label, reporting the running
+	// Track starts a transient progress line labeled label, reporting the running
 	// count through the named field. A total of zero shows an open counter, for
 	// work whose size is unknown up front (a directory walk); a positive total
 	// shows a fraction (N/total) with the same gradient the resolve line uses.

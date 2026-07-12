@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"image/color"
 	"net/http"
 	"sync"
 
@@ -65,6 +66,11 @@ func New(opts ...Option) *Provider {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return constant.ProviderDocker }
+
+// Color is the provider's brand color. See [provider.Provider.Color].
+func (p *Provider) Color(dark bool) color.Color {
+	return provider.Adapt(dark, "#2A7AD0", "#6AA6F5")
+}
 
 // Dated marks the listing as date-bearing: Docker Hub tags carry a last-updated
 // date. Bare OCI registry tags do not, and fall to the post-discovery date check.

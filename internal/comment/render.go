@@ -21,10 +21,10 @@ type match struct {
 }
 
 // Render returns line with the body of its earliest comment replaced by body,
-// preserving the text before the comment and the delimiters, and normalising
+// preserving the text before the comment and the delimiters, and normalizing
 // spacing to a single space after the opening marker (and before a block's
 // closing marker). ok is false when line carries no comment. It is the inverse
-// of [Syntax.Body], used by format mode to rewrite a canonicalised directive
+// of [Syntax.Body], used by format mode to rewrite a canonicalized directive
 // back onto its line.
 func (s Syntax) Render(line, body string) (string, bool) {
 	m, ok := s.locate(line)
