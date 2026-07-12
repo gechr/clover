@@ -78,9 +78,9 @@ func TestRequirementLocate(t *testing.T) {
 			wantErr: "the specifier pins no version-shaped version",
 		},
 		{
-			name:    "dashless prerelease pin is not version-shaped",
+			name:    "dashless prerelease pin",
 			line:    `  "ty>=0.0.0a1",`,
-			wantErr: "the specifier pins no version-shaped version",
+			wantRaw: "0.0.0a1",
 		},
 		{
 			name:    "post-release pin",

@@ -87,7 +87,9 @@ func (l smartLocated) Render(line string, candidate model.Candidate) (string, bo
 // one, and the current's variant suffix re-applied exactly once. A prerelease is
 // only ever selected deliberately (the line already tracks one, or prerelease is
 // allowed), so it must be rendered - dropping it would write a stable version
-// that does not exist yet (e.g. 1.27.0 for a chosen 1.27.0-rc2).
+// that does not exist yet (e.g. 1.27.0 for a chosen 1.27.0-rc2). It keeps the
+// current token's prerelease spelling: a dashless PEP 440 pin (3.15.0b3) stays
+// dashless, so the rendered value remains valid for the tools reading the line.
 func restyle(current Token, resolved string) string {
 	candidate := decompose(resolved)
 
@@ -95,7 +97,9 @@ func restyle(current Token, resolved string) string {
 	b.WriteString(current.Prefix)
 	b.WriteString(reprecision(candidate.Core, components(current.Core)))
 	if candidate.Prerelease != "" {
-		b.WriteByte(constant.VersionDash)
+		if !current.Dashless {
+			b.WriteByte(constant.VersionDash)
+		}
 		b.WriteString(candidate.Prerelease)
 	}
 	if current.Suffix != "" {

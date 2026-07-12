@@ -73,6 +73,26 @@ func TestFindSingleToken(t *testing.T) {
 			line: "1.2.3+build5",
 			want: match.Token{Span: match.Span{Start: 0, End: 12}, Core: "1.2.3", Build: "build5"},
 		},
+		{
+			name: "dashless beta",
+			line: `python = "3.15.0b3"`,
+			want: match.Token{
+				Span:       match.Span{Start: 10, End: 18},
+				Core:       "3.15.0",
+				Prerelease: "b3",
+				Dashless:   true,
+			},
+		},
+		{
+			name: "dashless release candidate",
+			line: "PYTHON_VERSION: 3.14.0rc1",
+			want: match.Token{
+				Span:       match.Span{Start: 16, End: 25},
+				Core:       "3.14.0",
+				Prerelease: "rc1",
+				Dashless:   true,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +120,9 @@ func TestFindRejects(t *testing.T) {
 		{name: "version in image name", line: "FROM eclipse-temurin:java25"},
 		{name: "commit sha", line: "pin 9e91cb1a2b here"},
 		{name: "digits run into letters", line: "value 1.2abc end"},
+		{name: "dashless letters without digits", line: "value 1.2b end"},
+		{name: "dashless tag outside the pep 440 set", line: "value 3.15.0beta1 end"},
+		{name: "dashless prerelease running into letters", line: "value 1.2rc1x end"},
 		{name: "no version", line: "FROM nginx:latest"},
 	}
 
@@ -134,6 +157,7 @@ func TestShaped(t *testing.T) {
 		{value: "v1.14.2", want: true},
 		{value: "1.27-alpine", want: true},
 		{value: "2.0.0-rc.1", want: true},
+		{value: "3.15.0b3", want: true}, // dashless PEP 440 prerelease
 		{value: "20260127", want: true}, // a bare calendar tag is one clean component
 		{value: "19.0614", want: false}, // a leading-zero component (rogue helm-docs tag)
 		{value: "2024.01.15", want: false},

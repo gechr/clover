@@ -69,9 +69,9 @@ func NewRequirement() Requirement { return Requirement{} }
 // Locate finds the single dependency specifier on the line and the version it
 // pins. It errors when the line carries no specifier or more than one (a
 // single-line group like dev = ["a>=1", "b>=2"] is ambiguous), when the pinned
-// version is not version-shaped (a four-component core, a dashless prerelease),
-// when it carries a local +tag the rewriter cannot re-render, or when the
-// constraint continues past it (a range, a .post suffix, trailing prose).
+// version is not version-shaped (a four-component core), when it carries a
+// local +tag the rewriter cannot re-render, or when the constraint continues
+// past it (a range, a .post suffix, trailing prose).
 func (Requirement) Locate(line string) (Location, error) {
 	specs := requirementSpecs(line)
 	switch len(specs) {

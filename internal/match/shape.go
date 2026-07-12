@@ -24,6 +24,7 @@ type Token struct {
 	Prefix     string // "v", or "" when bare
 	Core       string // numeric core, 1-3 dotted components, e.g. "1.27"
 	Prerelease string // prerelease identifiers without the leading -, or ""
+	Dashless   bool   // prerelease glued to the core with no dash (3.15.0b3)
 	Suffix     string // recognised variant suffix without the leading -, or ""
 	Build      string // build metadata without the leading +, or ""
 }
@@ -91,15 +92,16 @@ func scanToken(line string, start int) (Token, int, bool) {
 	}
 
 	var prerelease, suffix string
-	if i < len(line) && line[i] == constant.VersionDash {
-		if seg, end := scanSegment(line, i+1); seg != "" {
-			if version.IsVariant(seg) {
-				suffix = seg
-			} else {
-				prerelease = seg
-			}
-			i = end
+	var dashless bool
+	if seg, end, ok := scanDashedSegment(line, i); ok {
+		if version.IsVariant(seg) {
+			suffix = seg
+		} else {
+			prerelease = seg
 		}
+		i = end
+	} else if seg, end, ok := scanDashlessPre(line, i); ok {
+		prerelease, dashless, i = seg, true, end
 	}
 
 	var build string
@@ -120,9 +122,47 @@ func scanToken(line string, start int) (Token, int, bool) {
 		Prefix:     prefix,
 		Core:       core,
 		Prerelease: prerelease,
+		Dashless:   dashless,
 		Suffix:     suffix,
 		Build:      build,
 	}, i, true
+}
+
+// scanDashedSegment reads the -prefixed prerelease-or-suffix segment after the
+// core, when one is present.
+func scanDashedSegment(line string, start int) (string, int, bool) {
+	if start >= len(line) || line[start] != constant.VersionDash {
+		return "", start, false
+	}
+	seg, end := scanSegment(line, start+1)
+	if seg == "" {
+		return "", start, false
+	}
+	return seg, end, true
+}
+
+// scanDashlessPre reads a PEP 440-style prerelease glued straight onto the core
+// (3.15.0b3, 3.14.0rc1): one of a, b, c, or rc, then digits. Only that exact
+// grammar matches, so an arbitrary letter run (1.2abc) stays rejected by the
+// caller's boundary check.
+func scanDashlessPre(line string, start int) (string, int, bool) {
+	i := start
+	for i < len(line) && line[i] >= 'a' && line[i] <= 'z' {
+		i++
+	}
+	switch tag := line[start:i]; tag {
+	case "a", "b", "c", "rc":
+	default:
+		return "", start, false
+	}
+	j := i
+	for j < len(line) && isDigit(line[j]) {
+		j++
+	}
+	if j == i {
+		return "", start, false
+	}
+	return line[start:j], j, true
 }
 
 // scanCore reads 1 to maxComponents dot-separated numeric components and returns

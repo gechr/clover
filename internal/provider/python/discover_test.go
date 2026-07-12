@@ -61,14 +61,14 @@ func attrs(c model.Candidate) version.Attrs {
 }
 
 const twoStable = `[
-	{"name": "Python 3.14.6", "slug": "python-3146", "pre_release": false, "release_date": "2026-06-10T13:13:18Z"},
-	{"name": "Python 3.13.14", "slug": "python-31314", "pre_release": false, "release_date": "2025-01-01T00:00:00Z"}
+	{"name": "Python 3.14.6", "slug": "python-3146", "is_published": true, "pre_release": false, "release_date": "2026-06-10T13:13:18Z"},
+	{"name": "Python 3.13.14", "slug": "python-31314", "is_published": true, "pre_release": false, "release_date": "2025-01-01T00:00:00Z"}
 ]`
 
 const withPre = `[
-	{"name": "Python 3.15.0b3", "slug": "python-3150b3", "pre_release": true, "release_date": "2026-06-23T13:25:25Z"},
-	{"name": "Python 3.14.6", "slug": "python-3146", "pre_release": false, "release_date": "2026-06-10T13:13:18Z"},
-	{"name": "Python 3.14.5", "slug": "python-3145", "pre_release": false, "release_date": "2026-05-10T12:24:58Z"}
+	{"name": "Python 3.15.0b3", "slug": "python-3150b3", "is_published": true, "pre_release": true, "release_date": "2026-06-23T13:25:25Z"},
+	{"name": "Python 3.14.6", "slug": "python-3146", "is_published": true, "pre_release": false, "release_date": "2026-06-10T13:13:18Z"},
+	{"name": "Python 3.14.5", "slug": "python-3145", "is_published": true, "pre_release": false, "release_date": "2026-05-10T12:24:58Z"}
 ]`
 
 // TestDiscoverStripsPythonPrefix covers the core transform: the "Python " prefix
@@ -113,11 +113,44 @@ func TestDiscoverPublishedAt(t *testing.T) {
 func TestDiscoverNullDate(t *testing.T) {
 	t.Parallel()
 
-	const body = `[{"name": "Python 3.14.6", "slug": "python-3146", "pre_release": false, "release_date": null}]`
+	const body = `[{"name": "Python 3.14.6", "slug": "python-3146", "is_published": true, "pre_release": false, "release_date": null}]`
 	p := newProvider(body)
 	got, err := p.Discover(t.Context(), resourceFor(t, p))
 	require.NoError(t, err)
 	require.True(t, got[0].PublishedAt.IsZero())
+}
+
+// TestDiscoverSkipsUnpublished covers the belt-and-braces guard: the request URL
+// already filters on is_published, but a scheduled release must still be dropped
+// if the endpoint ever stops honoring the query param.
+func TestDiscoverSkipsUnpublished(t *testing.T) {
+	t.Parallel()
+
+	const body = `[
+		{"name": "Python 3.15.0", "slug": "python-3150", "is_published": false, "pre_release": false, "release_date": "2026-10-01T00:00:00Z"},
+		{"name": "Python 3.14.6", "slug": "python-3146", "is_published": true, "pre_release": false, "release_date": "2026-06-10T13:13:18Z"}
+	]`
+	p := newProvider(body)
+	got, err := p.Discover(t.Context(), resourceFor(t, p))
+	require.NoError(t, err)
+	require.Equal(t, []string{"3.14.6"}, versions(got))
+}
+
+// TestDiscoverRequestURL pins the endpoint, including the is_published filter -
+// a typo'd URL would otherwise pass every mocked test.
+func TestDiscoverRequestURL(t *testing.T) {
+	t.Parallel()
+
+	var got string
+	p := python.New(python.WithTransport(
+		roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			got = req.URL.String()
+			return jsonResponse(req, "[]"), nil
+		}),
+	))
+	_, err := p.Discover(t.Context(), resourceFor(t, p))
+	require.NoError(t, err)
+	require.Equal(t, "https://www.python.org/api/v2/downloads/release/?is_published=true", got)
 }
 
 // TestSelectionExcludesPrereleaseByDefault covers the prerelease gate.

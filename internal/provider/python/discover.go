@@ -30,9 +30,12 @@ const (
 // release is the subset of a downloads-API entry the provider reads. The version
 // lives in Name ("Python 3.14.6"); PreRelease flags an alpha/beta/rc build; Slug
 // backs the release-page link; ReleaseDate feeds cooldown and tolerates a null.
+// IsPublished re-checks the filter the request URL asks for, so a scheduled
+// release cannot leak in if the endpoint ever stops honoring the query param.
 type release struct {
 	Name        string            `json:"name"`
 	Slug        string            `json:"slug"`
+	IsPublished bool              `json:"is_published"`
 	PreRelease  bool              `json:"pre_release"`
 	ReleaseDate dates.ReleaseTime `json:"release_date"`
 }
@@ -53,6 +56,9 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 
 	candidates := make([]model.Candidate, 0, len(releases))
 	for _, rel := range releases {
+		if !rel.IsPublished {
+			continue // scheduled, not yet a real candidate
+		}
 		bare := strings.TrimPrefix(rel.Name, versionPrefix)
 		if bare == rel.Name || bare == "" {
 			continue // not a "Python <version>" release name

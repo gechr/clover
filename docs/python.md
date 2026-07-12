@@ -23,11 +23,11 @@ Each release name carries a `Python` prefix (`Python 3.14.6`). Clover parses out
 
 ## Prereleases
 
-Python alphas, betas, and release candidates are published with a dashless suffix (`3.15.0b3`, `3.14.0rc1`). Clover normalizes these to canonical semver (`3.15.0-b3`) and treats them as [prereleases](prereleases.md), excluded by default and selected only when prereleases are allowed:
+Python alphas, betas, and release candidates are published with a dashless suffix (`3.15.0b3`, `3.14.0rc1`). Clover normalizes these to canonical semver (`3.15.0-b3`) internally, so they order and gate like any other [prerelease](prereleases.md), excluded by default and selected only when prereleases are allowed. A bump keeps the spelling already on the line, so a dashless pin stays dashless and remains valid for the Python tools that read it:
 
 ```yaml
 # clover: provider=python prerelease=true
-PYTHON_VERSION: 3.15.0-b3
+PYTHON_VERSION: 3.15.0b3
 ```
 
 ## Compact target versions

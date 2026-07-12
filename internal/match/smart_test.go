@@ -109,6 +109,23 @@ func TestSmartRender(t *testing.T) {
 			wantChanged: true,
 		},
 		{
+			// A dashless PEP 440 pin keeps its spelling: the resolved canonical
+			// prerelease is re-glued without the dash, so the value stays valid
+			// for the Python tools reading the line.
+			name:        "dashless prerelease spelling preserved",
+			line:        `python = "3.15.0b3"`,
+			resolved:    "3.15.0-rc1",
+			wantLine:    `python = "3.15.0rc1"`,
+			wantChanged: true,
+		},
+		{
+			name:        "dashless prerelease to stable",
+			line:        "PYTHON_VERSION: 3.15.0b3",
+			resolved:    "3.15.1",
+			wantLine:    "PYTHON_VERSION: 3.15.1",
+			wantChanged: true,
+		},
+		{
 			name:        "trailing content preserved",
 			line:        "FROM nginx:1.27-alpine # pinned",
 			resolved:    "1.28-alpine",
