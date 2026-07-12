@@ -10,12 +10,14 @@ type IgnoreFunc func(path string, isDir bool) bool
 // goroutine-safe; it is the seam a live progress display plugs into.
 type ProgressFunc func(scanned int)
 
-// config is the resolved set of [Scan] options.
+// config is the resolved set of [Scan] options, plus the per-scan sibling
+// cache the workers share.
 type config struct {
 	workers          int
 	maxSize          int64
 	ignore           IgnoreFunc
 	progress         ProgressFunc
+	siblings         *siblingCache
 	requireDirective bool
 }
 

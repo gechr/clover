@@ -3,9 +3,11 @@ package scan
 import (
 	"cmp"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
@@ -29,7 +31,7 @@ func scanPath(job scanJob, cfg config) []File {
 	if !ok {
 		return nil
 	}
-	if hasSidecar(job.path) {
+	if hasSidecar(cfg.siblings, job.path) {
 		skipFile(job.path, "scanned via sidecar").Msg("Skipping file")
 		return nil
 	}
@@ -46,7 +48,7 @@ func scanSidecar(sidecarPath, targetName string, cfg config) []File {
 	dir := filepath.Dir(sidecarPath)
 	targetPath := filepath.Join(dir, targetName)
 
-	if supersededByYAML(sidecarPath, dir, targetName) {
+	if supersededByYAML(cfg.siblings, sidecarPath, dir, targetName) {
 		clog.Warn().
 			Path(field.Path, sidecarPath).
 			Msg("Sidecar ignored: a .yaml sibling takes precedence over .yml")
@@ -210,11 +212,56 @@ func sidecarRootsFor(roots []string) []string {
 	return extra
 }
 
+// siblingCache answers "does this directory hold this sidecar name" from one
+// ReadDir per directory, replacing the per-file stat probes for sidecar
+// siblings. It is goroutine-safe: the scan workers consult it concurrently
+// across many directories.
+type siblingCache struct {
+	dirs sync.Map // directory → func() set.Set[string], the memoized listing
+}
+
+// contains reports whether dir holds a sidecar-named entry name that resolves
+// to a regular file.
+func (c *siblingCache) contains(dir, name string) bool {
+	loader, _ := c.dirs.LoadOrStore(dir, sync.OnceValue(func() set.Set[string] {
+		return sidecarNamesIn(dir)
+	}))
+	names, _ := loader.(func() set.Set[string])
+	return names().Contains(name)
+}
+
+// sidecarNamesIn lists dir's sidecar-named regular files. A symlinked name is
+// resolved with a stat, preserving the per-file probe's follow-the-link
+// semantics; an unreadable directory yields none.
+func sidecarNamesIn(dir string) set.Set[string] {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	names := set.New[string]()
+	for _, entry := range entries {
+		name := entry.Name()
+		if _, ok := sidecar.Target(name); !ok {
+			continue
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			if ok, _ := xos.IsFile(filepath.Join(dir, name)); !ok {
+				continue
+			}
+		} else if !entry.Type().IsRegular() {
+			continue
+		}
+		names.Add(name)
+	}
+	return names
+}
+
 // hasSidecar reports whether path is the target of an existing sidecar, so the
 // walk can leave it to the sidecar's job rather than emit a duplicate File.
-func hasSidecar(path string) bool {
-	for _, name := range sidecar.Names(path) {
-		if ok, _ := xos.IsFile(name); ok {
+func hasSidecar(c *siblingCache, path string) bool {
+	dir := filepath.Dir(path)
+	for _, name := range sidecar.Names(filepath.Base(path)) {
+		if c.contains(dir, name) {
 			return true
 		}
 	}
@@ -223,11 +270,10 @@ func hasSidecar(path string) bool {
 
 // supersededByYAML reports whether sidecarPath is a .yml whose .yaml sibling also
 // exists; the .yaml wins, so the .yml is ignored.
-func supersededByYAML(sidecarPath, dir, targetName string) bool {
+func supersededByYAML(c *siblingCache, sidecarPath, dir, targetName string) bool {
 	preferred := sidecar.Names(targetName)[0] // the .yaml variant
 	if filepath.Base(sidecarPath) == preferred {
 		return false
 	}
-	ok, _ := xos.IsFile(filepath.Join(dir, preferred))
-	return ok
+	return c.contains(dir, preferred)
 }

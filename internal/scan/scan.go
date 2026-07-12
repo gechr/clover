@@ -48,6 +48,7 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 		workers:          runtime.NumCPU(),
 		maxSize:          defaultMaxSize,
 		ignore:           IgnoreFunc(func(string, bool) bool { return false }),
+		siblings:         new(siblingCache),
 		requireDirective: true,
 	}
 	for _, opt := range opts {
