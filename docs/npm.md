@@ -14,6 +14,7 @@ prettier_version: 3.6.2
 | `provider`                     | `npm`                                                                     |
 | `package`                      | The package to track, e.g. `prettier` or `@vue/reactivity`. **Required.** |
 | `dist-tag`                     | A registry channel pointer to track, e.g. `beta`                          |
+| `deprecated`                   | Keep deprecated versions eligible (default `false`)                       |
 | `registry`                     | An npm-compatible registry base URL, default `https://registry.npmjs.org` |
 | [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
 | [`include`](filtering.md)      | Keep only matching versions                                               |
@@ -43,6 +44,10 @@ reactivity_version: 3.6.0-beta.17
 ```
 
 A tag that names a prerelease version still needs [`prerelease=true`](prereleases.md) to let it through. A tag the registry does not carry is reported as an unknown dist-tag, so a typo is distinguishable from a missing package.
+
+## Deprecated versions
+
+Maintainers can deprecate a published version, attaching the message the npm client shows on install. Clover drops deprecated versions from consideration, so a bump never lands on one, and a dist-tag pointing at a deprecated version is likewise held back. Set `deprecated=true` to keep them eligible, which is the only way to track a package whose every version is deprecated (e.g. `left-pad`).
 
 ## Custom registries
 

@@ -60,10 +60,22 @@ func (m *timeMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// versionEntry is one published version's record; only the artifact block is
-// read.
+// versionEntry is one published version's record: the artifact block and the
+// deprecation marker.
 type versionEntry struct {
-	Dist dist `json:"dist"`
+	Dist       dist            `json:"dist"`
+	Deprecated json.RawMessage `json:"deprecated"`
+}
+
+// deprecated reports whether the version is marked deprecated. The field is
+// normally the deprecation message string, but an absent field, empty string,
+// null, or false all mean active, so anything else deprecates.
+func (e versionEntry) deprecated() bool {
+	switch string(e.Deprecated) {
+	case "", `""`, "null", "false":
+		return false
+	}
+	return true
 }
 
 // dist is a version's artifact record; only the tarball URL is read, backing
@@ -76,7 +88,8 @@ type dist struct {
 // Discover lists candidate versions of a package, reading its packument in one
 // fetch. The packument holds the whole version history in a single response -
 // keyed in publish order, not version order - so there is no pagination,
-// nothing is ever left unread, and --deep has no work to do here.
+// nothing is ever left unread, and --deep has no work to do here. Deprecated
+// versions are dropped unless the directive keeps them eligible.
 func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.Candidate, error) {
 	res, ok := r.(resource)
 	if !ok {
@@ -96,12 +109,21 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		if !ok {
 			return nil, fmt.Errorf("npm: package %q has no dist-tag %q", res.pkg, res.distTag)
 		}
-		return []model.Candidate{candidate(v, pkg.Versions[v], pkg.Time[v])}, nil
+		entry := pkg.Versions[v]
+		// A deprecated channel pointer yields no candidates rather than an
+		// error, mirroring the listing's gate below.
+		if !res.deprecated && entry.deprecated() {
+			return nil, nil
+		}
+		return []model.Candidate{candidate(v, entry, pkg.Time[v])}, nil
 	}
 
 	candidates := make([]model.Candidate, 0, len(pkg.Versions))
 	for v, entry := range pkg.Versions {
 		if v == "" {
+			continue
+		}
+		if !res.deprecated && entry.deprecated() {
 			continue
 		}
 		candidates = append(candidates, candidate(v, entry, pkg.Time[v]))

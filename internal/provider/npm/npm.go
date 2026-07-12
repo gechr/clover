@@ -16,9 +16,10 @@ import (
 
 // Directive keys npm accepts.
 const (
-	keyDistTag  = constant.DirectiveDistTag
-	keyPackage  = constant.DirectivePackage
-	keyRegistry = constant.DirectiveRegistry
+	keyDeprecated = constant.DirectiveDeprecated
+	keyDistTag    = constant.DirectiveDistTag
+	keyPackage    = constant.DirectivePackage
+	keyRegistry   = constant.DirectiveRegistry
 )
 
 // Provider resolves npm package versions from the public npm registry. A
@@ -60,6 +61,7 @@ func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyPackage, Required: true},
 		{Name: keyDistTag},
+		{Name: keyDeprecated},
 		{Name: keyRegistry},
 	}
 }
@@ -77,11 +79,15 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
+	dep, err := d.Bool(keyDeprecated)
+	if err != nil {
+		return nil, fmt.Errorf("npm: %w", err)
+	}
 	reg, err := registryBase(d)
 	if err != nil {
 		return nil, err
 	}
-	return resource{pkg: pkg, distTag: tag, registry: reg}, nil
+	return resource{pkg: pkg, distTag: tag, deprecated: dep, registry: reg}, nil
 }
 
 // distTag resolves the optional dist-tag key: absent means every version is a
@@ -156,10 +162,12 @@ func (p *Provider) Describe(r provider.Resource) string {
 
 // resource is a validated npm descriptor: which package to track, exactly as
 // published (a scoped name keeps its @scope/ prefix), the dist-tag narrowing
-// the candidates to one channel (empty tracks them all), and the registry base
-// URL to resolve against.
+// the candidates to one channel (empty tracks them all), whether deprecated
+// versions stay eligible, and the registry base URL to resolve against.
 type resource struct {
 	pkg      string
 	distTag  string
 	registry string
+
+	deprecated bool
 }

@@ -70,6 +70,10 @@
         "type": "string",
         "description": "Registry dist-tag to track, e.g. beta (npm)."
       },
+      "deprecated": {
+        "type": "boolean",
+        "description": "Keep deprecated versions eligible (npm)."
+      },
       "channel": {
         "type": "string",
         "description": "Release channel to track: stable (default) or beta (rust)."

@@ -27,13 +27,15 @@ func TestNameAndKeys(t *testing.T) {
 	require.Equal(t, "npm", p.Name())
 
 	keys := p.Keys()
-	require.Len(t, keys, 3)
+	require.Len(t, keys, 4)
 	require.Equal(t, "package", keys[0].Name)
 	require.True(t, keys[0].Required)
 	require.Equal(t, "dist-tag", keys[1].Name)
 	require.False(t, keys[1].Required)
-	require.Equal(t, "registry", keys[2].Name)
+	require.Equal(t, "deprecated", keys[2].Name)
 	require.False(t, keys[2].Required)
+	require.Equal(t, "registry", keys[3].Name)
+	require.False(t, keys[3].Required)
 }
 
 func TestResource(t *testing.T) {
@@ -108,6 +110,14 @@ func TestResource(t *testing.T) {
 			name:    "unscoped package with a slash",
 			pairs:   []directive.KV{{Key: "package", Value: "vue/reactivity"}},
 			wantErr: `npm: "package" must be a valid package name, got "vue/reactivity"`,
+		},
+		{
+			name: "invalid deprecated",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "deprecated", Value: "yes"},
+			},
+			wantErr: `npm: "deprecated" must be true or false, got "yes"`,
 		},
 		{
 			name: "empty dist-tag",

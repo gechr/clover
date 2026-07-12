@@ -140,6 +140,76 @@ func TestDiscoverCustomRegistry(t *testing.T) {
 	require.Equal(t, "https://npm.internal.corp/@vue%2Freactivity", requested)
 }
 
+// TestDiscoverSkipsDeprecated covers the deprecated gate on a mixed packument:
+// a version carrying a deprecation message is dropped by default and restored
+// by deprecated=true, while the empty-string and false shapes some registries
+// emit after un-deprecation stay active.
+func TestDiscoverSkipsDeprecated(t *testing.T) {
+	t.Parallel()
+
+	const body = `{
+		"versions": {
+			"1.0.0": {"deprecated": "use 2.x"},
+			"2.0.0": {},
+			"3.0.0": {"deprecated": ""},
+			"4.0.0": {"deprecated": false}
+		},
+		"time": {}
+	}`
+
+	p := newProvider(body)
+	got, err := p.Discover(
+		t.Context(),
+		resourceFor(t, p, directive.KV{Key: "package", Value: "left-pad"}),
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"2.0.0", "3.0.0", "4.0.0"}, versions(got))
+
+	all, err := p.Discover(
+		t.Context(),
+		resourceFor(t, p,
+			directive.KV{Key: "package", Value: "left-pad"},
+			directive.KV{Key: "deprecated", Value: "true"},
+		),
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0", "2.0.0", "3.0.0", "4.0.0"}, versions(all))
+}
+
+// TestDiscoverDistTagDeprecated covers a dist-tag naming a deprecated version:
+// the pointer yields no candidates by default and deprecated=true restores it.
+func TestDiscoverDistTagDeprecated(t *testing.T) {
+	t.Parallel()
+
+	const body = `{
+		"dist-tags": {"latest": "1.0.0"},
+		"versions": {"1.0.0": {"deprecated": "abandoned"}},
+		"time": {}
+	}`
+
+	p := newProvider(body)
+	got, err := p.Discover(
+		t.Context(),
+		resourceFor(t, p,
+			directive.KV{Key: "package", Value: "left-pad"},
+			directive.KV{Key: "dist-tag", Value: "latest"},
+		),
+	)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	kept, err := p.Discover(
+		t.Context(),
+		resourceFor(t, p,
+			directive.KV{Key: "package", Value: "left-pad"},
+			directive.KV{Key: "dist-tag", Value: "latest"},
+			directive.KV{Key: "deprecated", Value: "true"},
+		),
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, versions(kept))
+}
+
 func TestDiscoverError(t *testing.T) {
 	t.Parallel()
 

@@ -23,14 +23,12 @@ func fixtureProvider(t *testing.T, file string) *npm.Provider {
 	return newProvider(string(body))
 }
 
-// discoverFixture resolves candidates for a package against a fixture packument.
-func discoverFixture(t *testing.T, file, pkg string) []model.Candidate {
+// discoverFixture resolves candidates for the given directive pairs against a
+// fixture packument.
+func discoverFixture(t *testing.T, file string, pairs ...directive.KV) []model.Candidate {
 	t.Helper()
 	p := fixtureProvider(t, file)
-	candidates, err := p.Discover(
-		t.Context(),
-		resourceFor(t, p, directive.KV{Key: "package", Value: pkg}),
-	)
+	candidates, err := p.Discover(t.Context(), resourceFor(t, p, pairs...))
 	require.NoError(t, err)
 	return candidates
 }
@@ -50,11 +48,20 @@ func candidateFor(t *testing.T, candidates []model.Candidate, v string) model.Ca
 // TestFixtureDiscover covers an unscoped package (left-pad): only the versions
 // map drives the listing - the fixture's time map also dates versions with no
 // versions entry, mirroring an unpublished version, and none of those surface.
-// Every candidate parses, is dated, and carries its tarball as its sole asset.
+// Every left-pad version is deprecated, so the default listing is empty and
+// deprecated=true restores it. Every candidate parses, is dated, and carries
+// its tarball as its sole asset.
 func TestFixtureDiscover(t *testing.T) {
 	t.Parallel()
 
-	got := discoverFixture(t, "left-pad.json", "left-pad")
+	require.Empty(t, discoverFixture(t, "left-pad.json",
+		directive.KV{Key: "package", Value: "left-pad"},
+	))
+
+	got := discoverFixture(t, "left-pad.json",
+		directive.KV{Key: "package", Value: "left-pad"},
+		directive.KV{Key: "deprecated", Value: "true"},
+	)
 	require.Equal(t, []string{"0.0.3", "0.0.9", "1.0.0", "1.2.0", "1.3.0"}, versions(got))
 
 	for _, c := range got {
@@ -81,7 +88,9 @@ func TestFixtureDiscover(t *testing.T) {
 func TestFixtureUnpublished(t *testing.T) {
 	t.Parallel()
 
-	got := discoverFixture(t, "wowdude-11.json", "wowdude-11")
+	got := discoverFixture(t, "wowdude-11.json",
+		directive.KV{Key: "package", Value: "wowdude-11"},
+	)
 	require.Empty(t, got)
 }
 
@@ -92,7 +101,9 @@ func TestFixtureUnpublished(t *testing.T) {
 func TestFixtureScoped(t *testing.T) {
 	t.Parallel()
 
-	got := discoverFixture(t, "vue-reactivity.json", "@vue/reactivity")
+	got := discoverFixture(t, "vue-reactivity.json",
+		directive.KV{Key: "package", Value: "@vue/reactivity"},
+	)
 	require.Equal(t, []string{"3.5.38", "3.5.39", "3.6.0-beta.17"}, versions(got))
 
 	stable := candidateFor(t, got, "3.5.39")
