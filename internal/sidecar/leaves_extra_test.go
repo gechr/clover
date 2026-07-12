@@ -24,6 +24,32 @@ func TestLeavesShadowedAncestorDropped(t *testing.T) {
 	}, leaves, "the shadowed .a.b leaf is dropped; only the surviving .a scalar remains")
 }
 
+// TestLeavesRepeatedKeyAcrossObjects confirms the same key name in sibling
+// objects - the package-lock shape, where every entry carries "version" - is
+// not mistaken for a duplicated key.
+func TestLeavesRepeatedKeyAcrossObjects(t *testing.T) {
+	t.Parallel()
+
+	const src = `{
+  "a": { "version": "1.0.0" },
+  "b": { "version": "2.0.0" }
+}`
+	leaves, err := sidecar.Leaves([]byte(src))
+	require.NoError(t, err)
+	require.Len(t, leaves, 2)
+	require.Equal(t, `.["a"]["version"]`, leaves[0].JQ)
+	require.Equal(t, `.["b"]["version"]`, leaves[1].JQ)
+}
+
+// TestLeavesTrailingContent confirms content after the top-level value is
+// rejected with json.Unmarshal's own message.
+func TestLeavesTrailingContent(t *testing.T) {
+	t.Parallel()
+
+	_, err := sidecar.Leaves([]byte(`{"a": "1"} trailing`))
+	require.EqualError(t, err, "invalid character 't' after top-level value")
+}
+
 // TestLeavesRootScalar confirms a JSON document that is a bare string scalar
 // yields a single leaf with an empty key (the path has no final key segment) and
 // the identity locator.

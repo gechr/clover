@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"errors"
+	"io"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
 )
 
@@ -35,27 +38,50 @@ type Leaf struct {
 //
 // A single position-aware descent records every string scalar's path and byte
 // offset at once, so the cost is linear in the document size rather than the
-// per-leaf re-parse-and-re-walk a naive enumeration would pay.
+// per-leaf re-parse-and-re-walk a naive enumeration would pay. Only a document
+// the walk saw a duplicated key in pays for a second, structure-decoding parse
+// to arbitrate which members survive.
 func Leaves(source []byte) ([]Leaf, error) {
-	var input any
-	if err := json.Unmarshal(source, &input); err != nil {
-		return nil, err
+	dec := json.NewDecoder(bytes.NewReader(source))
+	var (
+		raw  []rawLeaf
+		path []any
+		dup  bool
+	)
+	if err := walkLeaves(dec, source, &path, &raw, &dup); err != nil {
+		return nil, canonicalJSONError(source, err)
 	}
-
-	var raw []rawLeaf
-	if err := walkLeaves(json.NewDecoder(bytes.NewReader(source)), source, nil, &raw); err != nil {
-		return nil, err
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, canonicalJSONError(source,
+			errors.New("unexpected content after top-level value"))
 	}
 
 	lines := lineStarts(source)
 
-	// Keyed by locator so a duplicated path keeps only the member the resolver
-	// selects: the parsed structure is last-value-wins, so a raw leaf survives
-	// only when input resolves its path back to the same string. An earlier
-	// duplicate, or a leaf under a shadowed duplicate ancestor, fails that check.
+	// Without a duplicated key, every recorded leaf is live and its path
+	// unique, and the walk already yielded document order.
+	if !dup {
+		return xslices.Map(raw, func(r rawLeaf) Leaf {
+			return Leaf{
+				Key:   lastKey(r.path),
+				Value: r.value,
+				Line:  lineIndex(lines, r.off),
+				JQ:    pathToJQ(r.path),
+			}
+		}), nil
+	}
+
+	// A duplicated key shadows earlier members, so the document is decoded -
+	// last-value-wins - to arbitrate. Keyed by locator so a duplicated path
+	// keeps only the member the resolver selects: a raw leaf survives only when
+	// input resolves its path back to the same string. An earlier duplicate, or
+	// a leaf under a shadowed duplicate ancestor, fails that check.
+	var input any
+	if err := json.Unmarshal(source, &input); err != nil {
+		return nil, err
+	}
 	byExpr := make(map[string]keptLeaf, len(raw))
 	for _, r := range raw {
-		key, _ := lastKey(r.path)
 		if v, ok := stringAt(input, r.path); !ok || v != r.value {
 			continue
 		}
@@ -63,7 +89,7 @@ func Leaves(source []byte) ([]Leaf, error) {
 		byExpr[expr] = keptLeaf{
 			off: r.off,
 			leaf: Leaf{
-				Key:   key,
+				Key:   lastKey(r.path),
 				Value: r.value,
 				Line:  lineIndex(lines, r.off),
 				JQ:    expr,
@@ -119,8 +145,9 @@ type keptLeaf struct {
 // walkLeaves consumes the single JSON value the decoder is positioned before,
 // recording every string scalar reached with its path and the byte offset of its
 // value. It descends objects and arrays in one pass, so each value is tokenized
-// exactly once.
-func walkLeaves(dec *json.Decoder, source []byte, path []any, out *[]rawLeaf) error {
+// exactly once. path is a shared segment stack, cloned only when a leaf is
+// recorded; dup is raised when any object carries the same key twice.
+func walkLeaves(dec *json.Decoder, source []byte, path *[]any, out *[]rawLeaf, dup *bool) error {
 	pre := int(dec.InputOffset())
 	tok, err := dec.Token()
 	if err != nil {
@@ -130,6 +157,7 @@ func walkLeaves(dec *json.Decoder, source []byte, path []any, out *[]rawLeaf) er
 	case json.Delim:
 		switch t {
 		case '{':
+			seen := set.New[string]()
 			for dec.More() {
 				keyTok, err := dec.Token()
 				if err != nil {
@@ -139,15 +167,23 @@ func walkLeaves(dec *json.Decoder, source []byte, path []any, out *[]rawLeaf) er
 				if !ok {
 					return errJQStructure
 				}
-				if err := walkLeaves(dec, source, appendSegment(path, key), out); err != nil {
+				if seen.Contains(key) {
+					*dup = true
+				}
+				seen.Add(key)
+				*path = append(*path, key)
+				if err := walkLeaves(dec, source, path, out, dup); err != nil {
 					return err
 				}
+				*path = (*path)[:len(*path)-1]
 			}
 		case '[':
 			for i := 0; dec.More(); i++ {
-				if err := walkLeaves(dec, source, appendSegment(path, i), out); err != nil {
+				*path = append(*path, i)
+				if err := walkLeaves(dec, source, path, out, dup); err != nil {
 					return err
 				}
+				*path = (*path)[:len(*path)-1]
 			}
 		}
 		_, err := dec.Token() // consume the closing } or ]
@@ -155,18 +191,13 @@ func walkLeaves(dec *json.Decoder, source []byte, path []any, out *[]rawLeaf) er
 	case string:
 		// pre sits just past the preceding token; skipToValue advances over the
 		// key's ':' (or an element ','), landing on the value's own first byte.
-		*out = append(*out, rawLeaf{path: path, value: t, off: skipToValue(source, pre)})
+		*out = append(*out, rawLeaf{
+			path:  slices.Clone(*path),
+			value: t,
+			off:   skipToValue(source, pre),
+		})
 	}
 	return nil
-}
-
-// appendSegment returns a fresh slice with seg appended, never aliasing prefix,
-// so each recursion keeps its own path.
-func appendSegment(prefix []any, seg any) []any {
-	next := make([]any, len(prefix)+1)
-	copy(next, prefix)
-	next[len(prefix)] = seg
-	return next
 }
 
 // stringAt walks the decoded JSON along path and returns the string it ends on.
@@ -196,14 +227,14 @@ func stringAt(v any, path []any) (string, bool) {
 	return str, ok
 }
 
-// lastKey returns the object key a path ends on, or false when the final segment
-// is an array index (which names no key to track by).
-func lastKey(path []any) (string, bool) {
+// lastKey returns the object key a path ends on, or the empty string when the
+// final segment is an array index (which names no key to track by).
+func lastKey(path []any) string {
 	if len(path) == 0 {
-		return "", false
+		return ""
 	}
-	key, ok := path[len(path)-1].(string)
-	return key, ok
+	key, _ := path[len(path)-1].(string)
+	return key
 }
 
 // pathToJQ serializes a path into a jq expression in bracket form
