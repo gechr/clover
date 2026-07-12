@@ -48,7 +48,9 @@ type Provider interface {
 	Resource(d directive.Directive) (Resource, error)
 	// Describe returns a human-readable label for a resource.
 	Describe(r Resource) string
-	// Discover lists the candidate versions for a resource.
+	// Discover lists the candidate versions for a resource. The pipeline shares
+	// one returned slice across every marker naming the same effective lookup,
+	// so the candidates and their nested metadata are immutable once returned.
 	Discover(ctx context.Context, r Resource) ([]model.Candidate, error)
 }
 

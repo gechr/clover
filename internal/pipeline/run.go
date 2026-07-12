@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -341,6 +342,8 @@ type plan struct {
 	cooldown       *time.Duration
 	deep           *bool
 	disabled       []Result
+	discoveryMu    sync.Mutex
+	discoveries    map[discoveryKey]*discovery
 	downgrade      *bool
 	force          *bool
 	lines          map[string][]string
@@ -431,6 +434,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		checksumSource: checksum.NewResolver(checksumClient),
 		deep:           set.deep,
 		disabled:       disabled,
+		discoveries:    make(map[discoveryKey]*discovery),
 		force:          set.force,
 		lines:          lines,
 		markers:        markers,
@@ -735,7 +739,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 		return errCooldownUnsupported
 	}
 
-	candidates, err := prov.Discover(ctx, resource)
+	candidates, err := p.discover(ctx, prov, resource)
 	if err != nil {
 		return err
 	}
@@ -924,7 +928,7 @@ func (p *plan) trackCooldown(
 	if cooldown <= 0 {
 		return nil
 	}
-	candidates, err := prov.Discover(ctx, resource)
+	candidates, err := p.discover(ctx, prov, resource)
 	if err != nil {
 		return err
 	}
