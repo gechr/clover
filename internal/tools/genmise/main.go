@@ -1,17 +1,22 @@
-// Command genmise generates the mise tool-name to GitHub repository map the
-// match package's auto-detection uses for mise configuration files. It reads
-// the registry directory of a mise checkout (github.com/jdx/mise), keeps every
-// tool that lists a backend naming a GitHub repository - an aqua:, github:, or
-// ubi: backend, in any position - and emits the sorted map to the output file.
+// Command genmise generates the maps the match package's auto-detection uses to
+// resolve a mise tool name to the upstream whose versions it tracks. It reads
+// the registry directory of a mise checkout (github.com/jdx/mise) and records,
+// for each tool, the provider its backends prove carry the pinned versions.
 //
-// A tool's backends are interchangeable installers for the same pinned
-// version, so a listed GitHub backend proves the repository's tags carry the
-// tool's versions even when mise prefers another ecosystem for installation.
-// Tools backed only by other ecosystems (npm:, pipx:, cargo:, core:, ...) are
-// skipped, since the versions a user pins for them follow that ecosystem's
-// scheme, not GitHub tags. Tools the match package already maps by hand (HashiCorp
-// products, the Go toolchain, the Node.js runtime) are skipped too, so the
-// curated mappings stay authoritative.
+// A tool's backends are interchangeable installers for the same pinned version.
+// A GitHub-shaped backend - aqua:, github:, or ubi:, in any position - is
+// preferred, since GitHub tags are the most universal version source, and the
+// tool maps to that owner/repo under the github provider. A tool with no GitHub
+// backend falls back to its first package-manager backend: pipx: to pypi, npm:
+// to npm, cargo: to crates, mapping to the package that ecosystem installs.
+// Tools backed only by an unsupported ecosystem (core:, asdf:, gem:, ...) are
+// skipped, as are tools the match package already maps by hand (HashiCorp
+// products, the Go toolchain, the Node.js runtime), so the curated mappings
+// stay authoritative.
+//
+// The output declares one map per provider: miseRegistryTools (github, name to
+// owner/repo), misePypiTools, miseNpmTools, and miseCratesTools (name to
+// package).
 //
 // Usage:
 //
@@ -37,6 +42,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gechr/clover/internal/constant"
 	xmaps "github.com/gechr/x/maps"
 )
 
@@ -50,6 +56,14 @@ const miseRepo = "https://github.com/jdx/mise"
 type registryTool struct {
 	Backends []any    `toml:"backends"`
 	Aliases  []string `toml:"aliases"`
+}
+
+// entry is a resolved registry tool: the Clover provider whose ecosystem
+// carries the tool's versions, and the provider-specific spec the map records -
+// a GitHub owner/repo, or a package name.
+type entry struct {
+	provider string
+	spec     string
 }
 
 // backendSpec returns a backend entry's "scheme:spec" string, "" when the
@@ -70,6 +84,16 @@ func backendSpec(backend any) string {
 // owner/repo whose tags carry the tool's versions.
 var githubBackends = []string{"aqua:", "github:", "ubi:"}
 
+// ecosystemBackends maps a mise package-manager backend scheme to the Clover
+// provider whose registry tracks the same versions. A tool with no GitHub
+// backend falls back to its first backend named here, so a pipx:/npm:/cargo:
+// -only tool resolves to pypi/npm/crates rather than being dropped.
+var ecosystemBackends = map[string]string{
+	"pipx:":  constant.ProviderPypi,
+	"npm:":   constant.ProviderNpm,
+	"cargo:": constant.ProviderCrates,
+}
+
 // curated are the tool names the match package maps by hand; the generator
 // never emits them so the curated entries stay authoritative.
 var curated = []string{
@@ -85,8 +109,14 @@ var curated = []string{
 var owner = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
 
 // segment validates the repository segment (and an alias name), where dots and
-// underscores are legal.
+// underscores are legal. It also validates a pypi or crate package name, which
+// carries no path separator.
 var segment = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// npmPackage validates an npm package name, optionally @scope/-prefixed, so a
+// scoped spec (npm:@antfu/ni) is kept while a git URL or other exotic spec is
+// rejected.
+var npmPackage = regexp.MustCompile(`^(@[A-Za-z0-9._-]+/)?[A-Za-z0-9._-]+$`)
 
 func main() {
 	src := flag.String("src", "", "path to a mise checkout (cloned to a temp dir when omitted)")
@@ -181,8 +211,8 @@ func describe(ctx context.Context, src, ref string) string {
 }
 
 // read parses every registry TOML under dir and returns the tool-name (and
-// alias) to repository map.
-func read(dir string) (map[string]string, error) {
+// alias) to resolved-entry map.
+func read(dir string) (map[string]entry, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.toml"))
 	if err != nil {
 		return nil, err
@@ -191,7 +221,7 @@ func read(dir string) (map[string]string, error) {
 		return nil, fmt.Errorf("no registry files under %q", dir)
 	}
 
-	tools := map[string]string{}
+	tools := map[string]entry{}
 	for _, file := range files {
 		name := strings.TrimSuffix(filepath.Base(file), ".toml")
 		if slices.Contains(curated, name) {
@@ -205,18 +235,52 @@ func read(dir string) (map[string]string, error) {
 		if err := toml.Unmarshal(data, &tool); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", file, err)
 		}
-		repo, ok := repository(tool.Backends)
+		resolved, ok := resolve(tool.Backends)
 		if !ok {
 			continue
 		}
-		tools[name] = repo
+		tools[name] = resolved
 		for _, alias := range tool.Aliases {
 			if segment.MatchString(alias) && !slices.Contains(curated, alias) {
-				tools[alias] = repo
+				tools[alias] = resolved
 			}
 		}
 	}
 	return tools, nil
+}
+
+// resolve returns the provider and spec the tool's backends prove carry its
+// versions: a GitHub owner/repo from the first github-shaped backend (preferred
+// regardless of list position, since GitHub tags are the most universal version
+// source), else the package name of the first pipx:/npm:/cargo: backend. ok is
+// false when no backend maps to a supported provider.
+func resolve(backends []any) (entry, bool) {
+	if repo, ok := repository(backends); ok {
+		return entry{provider: constant.ProviderGithub, spec: repo}, true
+	}
+	for _, backend := range backends {
+		spec := backendSpec(backend)
+		for scheme, provider := range ecosystemBackends {
+			pkg, ok := strings.CutPrefix(spec, scheme)
+			if !ok {
+				continue
+			}
+			pkg, _, _ = strings.Cut(pkg, "[") // drop a trailing [option] qualifier
+			if packageName(provider).MatchString(pkg) {
+				return entry{provider: provider, spec: pkg}, true
+			}
+		}
+	}
+	return entry{}, false
+}
+
+// packageName is the validator for a provider's package spec: an npm name may
+// carry an @scope/ prefix, a pypi or crate name may not.
+func packageName(provider string) *regexp.Regexp {
+	if provider == constant.ProviderNpm {
+		return npmPackage
+	}
+	return segment
 }
 
 // repository returns the owner/repo of the tool's first GitHub-shaped backend
@@ -240,27 +304,60 @@ func repository(backends []any) (string, bool) {
 	return "", false
 }
 
-// render emits the generated Go source for the tool map, gofmt-formatted.
-func render(tools map[string]string, ref string) ([]byte, error) {
+// providerMap describes one emitted map: its Go variable, the provider whose
+// tools populate it, and the sentence completing the map's doc comment.
+type providerMap struct {
+	name     string
+	provider string
+	values   string
+}
+
+// providerMaps are the generated maps in file order, github first so the
+// existing lookup path reads an unchanged declaration.
+var providerMaps = []providerMap{
+	{
+		"miseRegistryTools",
+		constant.ProviderGithub,
+		"the GitHub repository their default backend tracks",
+	},
+	{"misePypiTools", constant.ProviderPypi, "the PyPI package their pipx backend installs"},
+	{"miseNpmTools", constant.ProviderNpm, "the npm package their npm backend installs"},
+	{"miseCratesTools", constant.ProviderCrates, "the crate their cargo backend installs"},
+}
+
+// render emits the generated Go source for the per-provider tool maps,
+// gofmt-formatted.
+func render(tools map[string]entry, ref string) ([]byte, error) {
 	var b bytes.Buffer
 	fmt.Fprintf(
 		&b,
-		`// Code generated by ./internal/tools/genmise from the mise registry (%s); DO NOT EDIT.
-
-package match
-
-// miseRegistryTools maps mise registry tool names (and aliases) to the GitHub
-// repository their default backend tracks. Regenerate with:
-//
-//	go generate ./internal/match
-var miseRegistryTools = map[string]string{
-`,
+		"// Code generated by ./internal/tools/genmise from the mise registry (%s); DO NOT EDIT.\n//\n// Regenerate with: go generate ./internal/match\n\npackage match\n",
 		ref,
 	)
-	names := xmaps.KeysNatural(tools)
-	for _, name := range names {
-		fmt.Fprintf(&b, "\t%q: %q,\n", name, tools[name])
+	for _, m := range providerMaps {
+		writeMap(&b, m, tools)
+	}
+	return format.Source(b.Bytes())
+}
+
+// writeMap appends one provider's map literal to b, its doc comment included,
+// with the tool names naturally sorted.
+func writeMap(b *bytes.Buffer, m providerMap, tools map[string]entry) {
+	fmt.Fprintf(
+		b,
+		"\n// %s maps mise registry tool names (and aliases) to %s.\nvar %s = map[string]string{\n",
+		m.name,
+		m.values,
+		m.name,
+	)
+	specs := map[string]string{}
+	for name, e := range tools {
+		if e.provider == m.provider {
+			specs[name] = e.spec
+		}
+	}
+	for _, name := range xmaps.KeysNatural(specs) {
+		fmt.Fprintf(b, "\t%q: %q,\n", name, specs[name])
 	}
 	b.WriteString("}\n")
-	return format.Source(b.Bytes())
 }

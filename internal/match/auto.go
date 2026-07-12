@@ -40,7 +40,7 @@ func (i Inference) Missing() string {
 		if i.Product == "" {
 			return "line names no product"
 		}
-	case constant.ProviderPypi:
+	case constant.ProviderPypi, constant.ProviderNpm, constant.ProviderCrates:
 		if i.Package == "" {
 			return "line names no package"
 		}
@@ -107,7 +107,15 @@ func (t Table) Infer(lines []string, target int) (Inference, bool) {
 		case constant.ProviderHashicorp:
 			inferred.Product = hashicorpProduct(t.path, line)
 		case constant.ProviderPypi:
-			inferred.Package = pypiPackage(line)
+			// A mise pipx tool names its package in the generated map; a
+			// requirements or pyproject dependency names it on the line.
+			if MiseFile(t.path) {
+				inferred.Package = misePackage(toolKey(t.path, line))
+			} else {
+				inferred.Package = pypiPackage(line)
+			}
+		case constant.ProviderNpm, constant.ProviderCrates:
+			inferred.Package = misePackage(toolKey(t.path, line))
 		case constant.ProviderTerraform, constant.ProviderOpentofu:
 			inferred.Source = terraformSource(lines, target)
 		}
@@ -265,7 +273,9 @@ func LookupTool(name string) (string, string, bool) {
 }
 
 // ToolNames returns every tool name [LookupTool] resolves, naturally sorted,
-// so a mistyped name can be met with a suggestion.
+// so a mistyped name can be met with a suggestion. It covers the GitHub-released
+// tools only, the ones a `tool=` key names; an ecosystem tool is reached by its
+// package name, not this map.
 func ToolNames() []string {
 	names := xslices.Union(
 		xmaps.Keys(miseGithubTools),
@@ -273,6 +283,35 @@ func ToolNames() []string {
 	)
 	xslices.SortNatural(names)
 	return names
+}
+
+// pypiToolNames, npmToolNames, and cratesToolNames return the mise tool names
+// whose only backend is a pipx:, npm:, or cargo: package - the keys of the
+// generated ecosystem maps, naturally sorted so each route's alternation is a
+// stable string. The four name sets (these three and [ToolNames]) are disjoint,
+// since a tool resolves to exactly one provider.
+func pypiToolNames() []string   { return sortedKeys(misePypiTools) }
+func npmToolNames() []string    { return sortedKeys(miseNpmTools) }
+func cratesToolNames() []string { return sortedKeys(miseCratesTools) }
+
+// sortedKeys returns m's keys in natural order.
+func sortedKeys(m map[string]string) []string {
+	names := xmaps.Keys(m)
+	xslices.SortNatural(names)
+	return names
+}
+
+// misePackage returns the ecosystem package a mise tool key installs - the
+// pipx:, npm:, or cargo: backend the generated maps recorded - or "" when the
+// key names no ecosystem tool. A tool resolves to one provider, so it appears in
+// at most one map.
+func misePackage(key string) string {
+	for _, m := range []map[string]string{misePypiTools, miseNpmTools, miseCratesTools} {
+		if pkg, ok := m[key]; ok {
+			return pkg
+		}
+	}
+	return ""
 }
 
 // miseTool extracts the GitHub source a mise tool key tracks: a curated tool

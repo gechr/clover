@@ -3,6 +3,7 @@ package match
 import (
 	"testing"
 
+	"github.com/gechr/clover/internal/pattern"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,4 +37,24 @@ func TestYAMLScalar(t *testing.T) {
 			require.Equal(t, tc.want, yamlScalar(tc.in))
 		})
 	}
+}
+
+func TestAlternation(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "go|node", alternation([]string{"go", "node"}))
+	require.Equal(
+		t,
+		`dotnet\.exe|xxh`,
+		alternation([]string{"dotnet.exe", "xxh"}),
+		"meta chars are quoted",
+	)
+
+	// An empty name list yields a group that matches nothing, so a route built
+	// from an empty generated map cannot collapse to `()` and claim stray lines.
+	require.Equal(t, `[^\s\S]`, alternation(nil))
+	p, err := pattern.Compile(`/^\s*"?(` + alternation(nil) + `)"?\s*=\s*"/`)
+	require.NoError(t, err)
+	require.False(t, p.Matches(`foo = "1.2.3"`))
+	require.False(t, p.Matches(` = "1.2.3"`))
 }

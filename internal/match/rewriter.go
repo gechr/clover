@@ -534,7 +534,7 @@ var routes = []route{
 		// and the generated mise registry map.
 		when: conditions{
 			path:      miseGlob,
-			lineMatch: mustPattern(`/^\s*"?(` + miseToolAlternation() + `)"?\s*=\s*"/`),
+			lineMatch: mustPattern(`/^\s*"?(` + alternation(ToolNames()) + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderGithub,
 		},
 		rewriter: NewSmart(),
@@ -543,8 +543,68 @@ var routes = []route{
 		// The same well-known tool pinned in .tool-versions: tofu 1.8.5.
 		when: conditions{
 			path:      toolVersionsGlob,
-			lineMatch: mustPattern(`/^\s*(` + miseToolAlternation() + `)\s+\S/`),
+			lineMatch: mustPattern(`/^\s*(` + alternation(ToolNames()) + `)\s+\S/`),
 			provider:  constant.ProviderGithub,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise tool whose only backend is a pipx: package, tracked on PyPI:
+		// ansible = "1.2.3" installs pipx:ansible. The names come from the
+		// generated misePypiTools map.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?(` + alternation(pypiToolNames()) + `)"?\s*=\s*"/`),
+			provider:  constant.ProviderPypi,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same pipx tool pinned in .tool-versions: ansible 1.2.3.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(` + alternation(pypiToolNames()) + `)\s+\S/`),
+			provider:  constant.ProviderPypi,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise tool whose only backend is an npm: package: prettier = "3.3.3"
+		// installs npm:prettier. The names come from the generated miseNpmTools
+		// map.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?(` + alternation(npmToolNames()) + `)"?\s*=\s*"/`),
+			provider:  constant.ProviderNpm,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same npm tool pinned in .tool-versions: prettier 3.3.3.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(` + alternation(npmToolNames()) + `)\s+\S/`),
+			provider:  constant.ProviderNpm,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise tool whose only backend is a cargo: crate: magika = "1.2.3"
+		// installs cargo:magika-cli. The names come from the generated
+		// miseCratesTools map.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?(` + alternation(cratesToolNames()) + `)"?\s*=\s*"/`),
+			provider:  constant.ProviderCrates,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same cargo tool pinned in .tool-versions: magika 1.2.3.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*(` + alternation(cratesToolNames()) + `)\s+\S/`),
+			provider:  constant.ProviderCrates,
 		},
 		rewriter: NewSmart(),
 	},
@@ -629,11 +689,17 @@ var routes = []route{
 	{rewriter: NewSmart()},
 }
 
-// miseToolAlternation joins every GitHub-released mise tool name - curated and
-// generated - into the well-known-tool route's regex alternation, each name
-// quoted so a dot in a tool name stays literal.
-func miseToolAlternation() string {
-	names := ToolNames()
+// alternation joins mise tool names into a well-known-tool route's regex
+// alternation, each name quoted so a dot in a tool name stays literal. The
+// github route passes the GitHub-released names ([ToolNames]); each ecosystem
+// route passes its own map's names. The name sets are disjoint, so a tool
+// matches exactly one route. An empty list yields a group that matches nothing,
+// so a route whose generated map is empty stays inert rather than collapsing to
+// `()` and matching stray lines.
+func alternation(names []string) string {
+	if len(names) == 0 {
+		return `[^\s\S]`
+	}
 	for i, name := range names {
 		names[i] = regexp.QuoteMeta(name)
 	}
