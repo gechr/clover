@@ -21,6 +21,8 @@ prettier_version: 3.6.2
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
 
+The `constraint` key takes Clover's own [constraint grammar](constraints.md) of keywords (`major`, `minor`, `patch`) and comma-separated comparator ranges (`>=7.2,<8`). npm's caret and tilde ranges (`^3.6.2`, `~3.6`) are not part of that grammar, and `clover lint` rejects them.
+
 The registry is public for reads, so the npm provider needs no authentication. It is selected explicitly with `provider=npm`; a bare version line carries no signal to infer it from.
 
 ## Scoped packages
