@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/gechr/clover/internal/constant"
@@ -69,6 +70,9 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	if !ok || pkg == "" {
 		return nil, fmt.Errorf("npm: %q is required", keyPackage)
 	}
+	if !validPackage(pkg) {
+		return nil, fmt.Errorf("npm: %q must be a valid package name, got %q", keyPackage, pkg)
+	}
 	tag, err := distTag(d)
 	if err != nil {
 		return nil, err
@@ -94,6 +98,18 @@ func distTag(d directive.Directive) (string, error) {
 		return "", fmt.Errorf("npm: %q must not contain whitespace, got %q", keyDistTag, tag)
 	}
 	return tag, nil
+}
+
+// packagePattern matches an npm package name: an optional @scope/ prefix, each
+// segment URL-safe and not leading with a dot or underscore. Uppercase is
+// tolerated for the legacy packages that predate npm's lowercase rule.
+var packagePattern = regexp.MustCompile(
+	`^(@[A-Za-z0-9-][A-Za-z0-9._-]*/)?[A-Za-z0-9-][A-Za-z0-9._-]*$`,
+)
+
+// validPackage reports whether name is shaped like an npm package name.
+func validPackage(name string) bool {
+	return packagePattern.MatchString(name)
 }
 
 // registryBase resolves the optional registry key: absent means the public npm

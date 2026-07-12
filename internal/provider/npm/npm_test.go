@@ -85,6 +85,31 @@ func TestResource(t *testing.T) {
 			wantErr: `npm: "package" is required`,
 		},
 		{
+			name:         "legacy uppercase package",
+			pairs:        []directive.KV{{Key: "package", Value: "JSONStream"}},
+			wantDescribe: "npmjs.com/JSONStream",
+		},
+		{
+			name:    "package with whitespace",
+			pairs:   []directive.KV{{Key: "package", Value: "left pad"}},
+			wantErr: `npm: "package" must be a valid package name, got "left pad"`,
+		},
+		{
+			name:    "package with a leading dot",
+			pairs:   []directive.KV{{Key: "package", Value: ".left-pad"}},
+			wantErr: `npm: "package" must be a valid package name, got ".left-pad"`,
+		},
+		{
+			name:    "scope without a name",
+			pairs:   []directive.KV{{Key: "package", Value: "@vue"}},
+			wantErr: `npm: "package" must be a valid package name, got "@vue"`,
+		},
+		{
+			name:    "unscoped package with a slash",
+			pairs:   []directive.KV{{Key: "package", Value: "vue/reactivity"}},
+			wantErr: `npm: "package" must be a valid package name, got "vue/reactivity"`,
+		},
+		{
 			name: "empty dist-tag",
 			pairs: []directive.KV{
 				{Key: "package", Value: "left-pad"},
