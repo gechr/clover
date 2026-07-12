@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Attrs is the slice of a candidate the selection chain reads. Callers supply
@@ -290,8 +292,7 @@ func numericArity(tag string) int {
 	core, _, _ = strings.Cut(core, "+")
 	n := 0
 	for part := range strings.SplitSeq(core, ".") {
-		if part == "" ||
-			strings.IndexFunc(part, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
+		if !xstrings.IsDigits(part) {
 			break
 		}
 		n++

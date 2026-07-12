@@ -3,6 +3,7 @@ package match
 import (
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/version"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // maxComponents is the most numeric components a version core may have. Four or
@@ -59,13 +60,13 @@ func Shaped(s string) bool { return len(Find(s)) > 0 }
 // continue a token (an alphanumeric or dot, which would mean we are mid-word or
 // mid-number), and i must begin a v-prefix or a digit.
 func canStart(line string, i int) bool {
-	if i > 0 && (isAlnum(line[i-1]) || line[i-1] == '.') {
+	if i > 0 && (xstrings.IsAlphanumericChar(rune(line[i-1])) || line[i-1] == '.') {
 		return false
 	}
 	if line[i] == 'v' {
-		return i+1 < len(line) && isDigit(line[i+1])
+		return i+1 < len(line) && xstrings.IsDigitChar(rune(line[i+1]))
 	}
-	return isDigit(line[i])
+	return xstrings.IsDigitChar(rune(line[i]))
 }
 
 // scanToken attempts to read a whole version token at start, returning it with
@@ -87,7 +88,7 @@ func scanToken(line string, start int) (Token, int, bool) {
 	i = next
 
 	// A following .digit means a fourth component: not version-shaped.
-	if i+1 < len(line) && line[i] == '.' && isDigit(line[i+1]) {
+	if i+1 < len(line) && line[i] == '.' && xstrings.IsDigitChar(rune(line[i+1])) {
 		return Token{}, start, false
 	}
 
@@ -113,7 +114,7 @@ func scanToken(line string, start int) (Token, int, bool) {
 
 	// The token must end at a boundary; a trailing letter or digit means it ran
 	// into something that is not part of a version (1.2abc).
-	if i < len(line) && isAlnum(line[i]) {
+	if i < len(line) && xstrings.IsAlphanumericChar(rune(line[i])) {
 		return Token{}, start, false
 	}
 
@@ -156,7 +157,7 @@ func scanDashlessPre(line string, start int) (string, int, bool) {
 		return "", start, false
 	}
 	j := i
-	for j < len(line) && isDigit(line[j]) {
+	for j < len(line) && xstrings.IsDigitChar(rune(line[j])) {
 		j++
 	}
 	if j == i {
@@ -171,7 +172,7 @@ func scanCore(line string, start int) (string, int, bool) {
 	i, components := start, 0
 	for components < maxComponents {
 		j := i
-		for j < len(line) && isDigit(line[j]) {
+		for j < len(line) && xstrings.IsDigitChar(rune(line[j])) {
 			j++
 		}
 		if j == i {
@@ -181,7 +182,8 @@ func scanCore(line string, start int) (string, int, bool) {
 			return "", start, false
 		}
 		i, components = j, components+1
-		if i < len(line) && line[i] == '.' && i+1 < len(line) && isDigit(line[i+1]) {
+		if i < len(line) && line[i] == '.' && i+1 < len(line) &&
+			xstrings.IsDigitChar(rune(line[i+1])) {
 			i++ // consume the dot and read the next component
 			continue
 		}
@@ -202,10 +204,6 @@ func scanSegment(line string, start int) (string, int) {
 	return line[start:i], i
 }
 
-func isDigit(b byte) bool { return b >= '0' && b <= '9' }
-
-func isAlnum(b byte) bool {
-	return isDigit(b) || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+func isSegmentByte(b byte) bool {
+	return xstrings.IsAlphanumericChar(rune(b)) || b == '.' || b == constant.VersionDash
 }
-
-func isSegmentByte(b byte) bool { return isAlnum(b) || b == '.' || b == constant.VersionDash }
