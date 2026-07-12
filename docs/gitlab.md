@@ -9,18 +9,19 @@ FROM registry.gitlab.com/gitlab-org/cli:v1.105.0
 
 ## Keys
 
-| Key                            | Description                                                               |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| `provider`                     | `gitlab`                                                                  |
-| `repository`                   | The project's full path, e.g. `group/project` or `group/subgroup/project` |
-| `host`                         | The host, defaulting to `gitlab.com`                                      |
-| `source`                       | What to list: `tags` (default) or `releases`                              |
-| `asset`                        | Keep only releases publishing a matching asset (needs `source=releases`)  |
-| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
-| [`include`](filtering.md)      | Keep only matching tags                                                   |
-| [`exclude`](filtering.md)      | Drop matching tags                                                        |
-| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                      |
-| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
+| Key                                  | Description                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `provider`                           | `gitlab`                                                                  |
+| `repository`                         | The project's full path, e.g. `group/project` or `group/subgroup/project` |
+| `host`                               | The host, defaulting to `gitlab.com`                                      |
+| `source`                             | What to list: `tags` (default) or `releases`                              |
+| `asset`                              | Keep only releases publishing a matching asset (needs `source=releases`)  |
+| [`constraint`](constraints.md)       | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
+| [`include`](filtering.md)            | Keep only matching tags                                                   |
+| [`exclude`](filtering.md)            | Drop matching tags                                                        |
+| [`prerelease`](prereleases.md)       | Allow or exclude prerelease versions                                      |
+| [`cooldown`](cooldown.md)            | Require a minimum age before a version is eligible                        |
+| [`verify[-branch]`](verification.md) | Deep-verify a secure pin against upstream                                 |
 
 Unlike GitHub, a GitLab project path may be nested through any number of groups (`group/subgroup/project`), and Clover tracks the whole path.
 

@@ -1,10 +1,10 @@
 # Verification
 
-When a line carries a secure pin (a Docker digest or a GitHub commit), Clover verifies that the pin genuinely corresponds to the ref it claims, rather than trusting it blindly. Verification runs at two tiers.
+When a line carries a secure pin (a Docker digest or a forge commit), Clover verifies that the pin genuinely corresponds to the ref it claims, rather than trusting it blindly. Verification runs at two tiers, on GitHub, GitLab, and Gitea alike.
 
 ## Impostor detection (the default)
 
-Every GitHub commit pin resolved with a credential is checked against the repository's branches automatically. The commit a tag points at must be reachable from at least one branch. A tag pointing at a commit outside every branch's history is the signature of a maliciously published tag, and it blocks the update. This tier needs no configuration, and because a tag cut from any branch passes, ordinary release engineering such as release branches and backports never trips it. Anonymous lookups skip the tier rather than spend the small unauthenticated rate limit on it. Set `verify=false` on a marker to opt it out.
+Every commit pin resolved with a credential is checked against the repository's branches automatically. The commit a tag points at must be reachable from at least one branch. A tag pointing at a commit outside every branch's history is the signature of a maliciously published tag, and it blocks the update. This tier needs no configuration, and because a tag cut from any branch passes, ordinary release engineering such as release branches and backports never trips it. Anonymous lookups skip the tier rather than spend the small unauthenticated rate limit on it. Set `verify=false` on a marker to opt it out.
 
 ## Allowed branches (`verify`)
 

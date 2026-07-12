@@ -9,18 +9,19 @@ FROM codeberg.org/forgejo/forgejo:15.0.3
 
 ## Keys
 
-| Key                            | Description                                                               |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| `provider`                     | `gitea`                                                                   |
-| `repository`                   | The repository as `owner/name`                                            |
-| `host`                         | The forge host, defaulting to `codeberg.org`                              |
-| `source`                       | What to list: `tags` (default) or `releases`                              |
-| `asset`                        | Keep only releases publishing a matching asset (needs `source=releases`)  |
-| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
-| [`include`](filtering.md)      | Keep only matching tags                                                   |
-| [`exclude`](filtering.md)      | Drop matching tags                                                        |
-| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                      |
-| [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
+| Key                                  | Description                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `provider`                           | `gitea`                                                                   |
+| `repository`                         | The repository as `owner/name`                                            |
+| `host`                               | The forge host, defaulting to `codeberg.org`                              |
+| `source`                             | What to list: `tags` (default) or `releases`                              |
+| `asset`                              | Keep only releases publishing a matching asset (needs `source=releases`)  |
+| [`constraint`](constraints.md)       | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
+| [`include`](filtering.md)            | Keep only matching tags                                                   |
+| [`exclude`](filtering.md)            | Drop matching tags                                                        |
+| [`prerelease`](prereleases.md)       | Allow or exclude prerelease versions                                      |
+| [`cooldown`](cooldown.md)            | Require a minimum age before a version is eligible                        |
+| [`verify[-branch]`](verification.md) | Deep-verify a secure pin against upstream                                 |
 
 A repository is a flat `owner/name`, since Gitea and Forgejo organize repositories under a single owner with no nested subgroups. Point `host` at a private instance, such as `host=git.example.com`, to track it the same way.
 
