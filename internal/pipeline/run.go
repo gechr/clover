@@ -66,6 +66,11 @@ var errVerifyFailed = errors.New("pin failed verification")
 // mistaken for a malicious pin.
 var ErrVerifyIncomplete = errors.New("could not verify")
 
+// ErrAttestationRejected marks a digest whose Sigstore attestations did not
+// match the configured signer identity. It is a definitive verification
+// verdict, not an infrastructure failure.
+var ErrAttestationRejected = errors.New("attestation rejected")
+
 // incomplete wraps an infrastructure failure from a verification check so the
 // report can tell it apart from a bad-pin verdict.
 func incomplete(err error) error {
@@ -1051,15 +1056,15 @@ func (p *plan) finalize(
 	// marker opts out.
 	verify := verifyPin(located, chosen)
 	if verify == nil {
+		verify = p.verifyAttestation(ctx, prov, resource, located, chosen, m)
+	}
+	if verify == nil {
 		switch {
 		case p.deepVerify(m):
 			verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
 		case !p.verifyOff(m) && credentialed(prov, resource):
 			verify = p.verifyHistory(ctx, prov, resource, located, chosen)
 		}
-	}
-	if verify == nil {
-		verify = p.verifySigned(ctx, prov, resource, chosen, m)
 	}
 	if verify != nil {
 		p.results[i].Current = located.Current()
@@ -1230,31 +1235,66 @@ func (p *plan) verifyHistory(
 	return nil
 }
 
-// verifySigned enforces verify-signed=: the resolved tag's upstream signature
-// must have verified. It runs independently of the branch tiers for any marker
-// whose provider can check signatures, and fails closed.
-func (p *plan) verifySigned(
+// verifyAttestation enforces verify-identity= for digest-pinned images. The
+// directive opts in and fails closed when the provider cannot verify Sigstore
+// attestations or none match the configured certificate identity.
+func (p *plan) verifyAttestation(
 	ctx context.Context,
 	prov provider.Provider,
 	resource provider.Resource,
+	located match.Location,
 	chosen model.Candidate,
 	m Marker,
 ) error {
-	on, _ := m.Directive.Bool(constant.DirectiveVerifySigned)
-	if !on {
+	if p.verifyOff(m) {
 		return nil
 	}
-	checker, ok := prov.(provider.SignatureChecker)
+	identity, hasIdentity := m.Directive.Get(constant.DirectiveVerifyIdentity)
+	issuer, hasIssuer := m.Directive.Get(constant.DirectiveVerifyIssuer)
+	if !hasIdentity {
+		if hasIssuer {
+			return fmt.Errorf(
+				"%q requires %q",
+				constant.DirectiveVerifyIssuer,
+				constant.DirectiveVerifyIdentity,
+			)
+		}
+		return nil
+	}
+	if !located.NeedsDigest() {
+		return fmt.Errorf(
+			"%q applies only to a digest-pinned image",
+			constant.DirectiveVerifyIdentity,
+		)
+	}
+	checker, ok := prov.(provider.AttestationVerifier)
 	if !ok {
-		return nil
+		return fmt.Errorf(
+			"provider %q cannot verify attestations for a digest-pinned image",
+			m.Provider,
+		)
 	}
-	tag := cmp.Or(chosen.Ref, chosen.Version)
-	verified, reason, err := checker.SignedTag(ctx, resource, tag)
+	verified, err := checker.VerifyAttestation(
+		ctx,
+		resource,
+		chosen.Digest,
+		provider.AttestationPolicy{
+			Identity: identity,
+			Issuer:   issuer,
+		},
+	)
 	if err != nil {
 		return incomplete(err)
 	}
 	if !verified {
-		return fmt.Errorf("tag %s signature verification failed: %s", tag, reason)
+		return fmt.Errorf(
+			"%w: digest %s for %s has no attestation matching the %q pattern %q",
+			ErrAttestationRejected,
+			chosen.Digest,
+			chosen.Version,
+			constant.DirectiveVerifyIdentity,
+			identity,
+		)
 	}
 	return nil
 }

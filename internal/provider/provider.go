@@ -38,9 +38,9 @@ func KeyNames(p Provider) []string {
 // Everything beyond this contract is an optional capability, expressed as a
 // further interface discovered by type assertion: [RecencyOrderer],
 // [Anchorer], [Dater], [Digester], [AssetDownloader], [Linker], [Identifier],
-// [Committer], [BranchChecker], and [Authenticator]. A provider implements only the
-// capabilities its upstream supports, and the pipeline degrades gracefully
-// where one is absent.
+// [Committer], [BranchChecker], [AttestationVerifier], and [Authenticator]. A
+// provider implements only the capabilities its upstream supports, and the
+// pipeline degrades gracefully where one is absent.
 type Provider interface {
 	// Name is the provider's identifier, as written in a directive's provider=.
 	Name() string
@@ -158,12 +158,22 @@ type BranchChecker interface {
 	Reachable(ctx context.Context, r Resource, branch, commit string) (bool, error)
 }
 
-// SignatureChecker is an optional capability for providers that can report
-// whether a tag's signature verified upstream: an annotated tag's own
-// signature, or the pointed-at commit's signature for a lightweight tag.
-// verify-signed= gates on it.
-type SignatureChecker interface {
-	SignedTag(ctx context.Context, r Resource, tag string) (verified bool, reason string, err error)
+// AttestationPolicy constrains the signing certificate accepted for a digest's
+// Sigstore attestation.
+type AttestationPolicy struct {
+	Identity string
+	Issuer   string
+}
+
+// AttestationVerifier is an optional capability for providers that can verify
+// a digest's provenance attestation against a signer identity.
+type AttestationVerifier interface {
+	VerifyAttestation(
+		ctx context.Context,
+		r Resource,
+		digest string,
+		policy AttestationPolicy,
+	) (bool, error)
 }
 
 // CredentialChecker is an optional capability for providers that can report

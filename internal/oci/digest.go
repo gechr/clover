@@ -73,9 +73,21 @@ func (c *Client) fetchManifest(
 	tag string,
 ) (*http.Response, error) {
 	url := fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Host, repo.Repository, tag)
+	return c.getWithChallenge(ctx, method, url, repo, acceptManifests)
+}
+
+// getWithChallenge issues a registry request, performing the bearer-token
+// challenge and retrying once with the resulting repository token. The caller
+// closes the response body.
+func (c *Client) getWithChallenge(
+	ctx context.Context,
+	method, url string,
+	repo Repo,
+	accept string,
+) (*http.Response, error) {
 	token := c.cachedRepoToken(repo)
 
-	resp, err := c.send(ctx, method, url, token, acceptManifests)
+	resp, err := c.send(ctx, method, url, token, accept)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +101,7 @@ func (c *Client) fetchManifest(
 		if terr != nil {
 			return nil, terr
 		}
-		if resp, err = c.send(ctx, method, url, token, acceptManifests); err != nil {
+		if resp, err = c.send(ctx, method, url, token, accept); err != nil {
 			return nil, err
 		}
 	}

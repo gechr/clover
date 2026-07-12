@@ -45,14 +45,27 @@ type fakeProvider struct {
 	tagCommit    map[string]string // tag -> commit, for the Committer fallback
 	credentialed bool              // the CredentialChecker verdict, gating default verification
 	branchErr    error             // when set, every BranchChecker method fails with it
-	signed       bool              // the SignatureChecker verdict
-	signedReason string            // the reason paired with the SignatureChecker verdict
+	attest       bool              // the AttestationVerifier verdict
+	attestErr    error             // the AttestationVerifier infrastructure error
+	attestDigest *string           // when set, captures the verified digest
+	attestCalls  *int              // when set, counts attestation verification calls
 }
 
 func (f fakeProvider) Credentialed(provider.Resource) bool { return f.credentialed }
 
-func (f fakeProvider) SignedTag(context.Context, provider.Resource, string) (bool, string, error) {
-	return f.signed, f.signedReason, nil
+func (f fakeProvider) VerifyAttestation(
+	_ context.Context,
+	_ provider.Resource,
+	digest string,
+	_ provider.AttestationPolicy,
+) (bool, error) {
+	if f.attestDigest != nil {
+		*f.attestDigest = digest
+	}
+	if f.attestCalls != nil {
+		*f.attestCalls++
+	}
+	return f.attest, f.attestErr
 }
 
 func (f fakeProvider) Digest(_ context.Context, _ provider.Resource, tag string) (string, error) {
@@ -135,6 +148,22 @@ func (f fakeProvider) Discover(
 // recencyProvider is a fakeProvider that lists newest-first, so its truncation
 // drives the gated per-marker --deep hint rather than the run-wide blanket sink.
 type recencyProvider struct{ fakeProvider }
+
+// providerWithoutAttest exposes the base Provider and digest contracts while
+// hiding attestation verification for fail-closed capability tests.
+type providerWithoutAttest struct {
+	provider.Provider
+
+	digester provider.Digester
+}
+
+func (p providerWithoutAttest) Digest(
+	ctx context.Context,
+	r provider.Resource,
+	tag string,
+) (string, error) {
+	return p.digester.Digest(ctx, r, tag)
+}
 
 func (recencyProvider) RecencyOrdered() {}
 
@@ -1475,39 +1504,111 @@ func TestRunVerifyHistoryOptOut(t *testing.T) {
 	require.True(t, r.Changed)
 }
 
-func TestRunVerifySigned(t *testing.T) {
-	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	env := func(signed bool, reason string) string {
-		cand := candidate(t, "2.0.0")
-		cand.Commit = good
-		provider.Register(fakeProvider{
-			name:         "github",
-			candidates:   []model.Candidate{cand},
-			signed:       signed,
-			signedReason: reason,
-		})
-		return write(t, map[string]string{
-			".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify-signed=true\n" +
-				"  - uses: x/y@" + old + " # v1.0.0\n",
-		})
+func TestRunVerifyAttestation(t *testing.T) {
+	oldDigest := "sha256:" + strings.Repeat("a", 64)
+	newDigest := "sha256:" + strings.Repeat("b", 64)
+	identity := "https://github.com/example/project/.github/workflows/*"
+	dockerfile := func(extra string) string {
+		return "# clover: provider=docker repository=x/y " + extra + "\n" +
+			"FROM x/y:1.0.0@" + oldDigest + "\n"
+	}
+	run := func(t *testing.T, prov provider.Provider, contents string) pipeline.Result {
+		t.Helper()
+		provider.Register(prov)
+		dir := write(t, map[string]string{"Dockerfile": contents})
+		files, err := pipeline.Run(context.Background(), []string{dir})
+		require.NoError(t, err)
+		return files[0].Results[0]
+	}
+	base := func() fakeProvider {
+		return fakeProvider{
+			name: "docker", digest: newDigest,
+			candidates: []model.Candidate{candidate(t, "1.2.0")},
+		}
 	}
 
-	t.Run("unsigned", func(t *testing.T) {
-		files, err := pipeline.Run(context.Background(), []string{env(false, "unsigned")})
-		require.NoError(t, err)
-		r := files[0].Results[0]
-		require.EqualError(t, r.Verify,
-			"tag 2.0.0 signature verification failed: unsigned")
-		require.False(t, r.Changed, "an unsigned tag blocks the update")
+	t.Run("rejected", func(t *testing.T) {
+		prov := base()
+		r := run(t, prov, dockerfile("verify-identity="+identity))
+		require.ErrorIs(t, r.Verify, pipeline.ErrAttestationRejected)
+		require.EqualError(
+			t,
+			r.Verify,
+			"attestation rejected: digest "+newDigest+" for 1.2.0 has no attestation matching the \"verify-identity\" pattern \""+identity+"\"",
+		)
+		require.False(t, r.Changed)
 	})
 
-	t.Run("signed", func(t *testing.T) {
-		files, err := pipeline.Run(context.Background(), []string{env(true, "valid")})
-		require.NoError(t, err)
-		r := files[0].Results[0]
+	t.Run("accepted new digest", func(t *testing.T) {
+		captured := ""
+		prov := base()
+		prov.attest = true
+		prov.attestDigest = &captured
+		r := run(t, prov, dockerfile("verify-identity="+identity))
 		require.NoError(t, r.Verify)
 		require.True(t, r.Changed)
+		require.Equal(t, newDigest, captured)
+	})
+
+	t.Run("infrastructure error", func(t *testing.T) {
+		prov := base()
+		prov.attestErr = errors.New("registry unavailable")
+		r := run(t, prov, dockerfile("verify-identity="+identity))
+		require.ErrorIs(t, r.Verify, pipeline.ErrVerifyIncomplete)
+		require.EqualError(t, r.Verify, "could not verify: registry unavailable")
+		require.False(t, r.Changed)
+	})
+
+	t.Run("no key", func(t *testing.T) {
+		calls := 0
+		prov := base()
+		prov.attestCalls = &calls
+		r := run(t, prov, dockerfile(""))
+		require.NoError(t, r.Verify)
+		require.True(t, r.Changed)
+		require.Equal(t, 0, calls)
+	})
+
+	t.Run("unsupported provider", func(t *testing.T) {
+		prov := base()
+		r := run(
+			t,
+			providerWithoutAttest{Provider: prov, digester: prov},
+			dockerfile("verify-identity="+identity),
+		)
+		require.EqualError(t, r.Verify,
+			"provider \"docker\" cannot verify attestations for a digest-pinned image")
+		require.False(t, r.Changed)
+	})
+
+	t.Run("issuer requires identity", func(t *testing.T) {
+		prov := base()
+		r := run(t, prov, dockerfile("verify-issuer=https://issuer.example.com"))
+		require.EqualError(t, r.Verify, "\"verify-issuer\" requires \"verify-identity\"")
+		require.False(t, r.Changed)
+	})
+
+	t.Run("commit pin", func(t *testing.T) {
+		prov := base()
+		prov.name = "github"
+		prov.candidates[0].Commit = strings.Repeat("d", 40)
+		commit := strings.Repeat("c", 40)
+		r := run(t, prov,
+			"# clover: provider=github repository=x/y verify-identity="+identity+"\n"+
+				"uses: x/y@"+commit+" # v1.0.0\n")
+		require.EqualError(t, r.Verify,
+			"\"verify-identity\" applies only to a digest-pinned image")
+		require.False(t, r.Changed)
+	})
+
+	t.Run("verify off", func(t *testing.T) {
+		calls := 0
+		prov := base()
+		prov.attestCalls = &calls
+		r := run(t, prov, dockerfile("verify=false verify-identity="+identity))
+		require.NoError(t, r.Verify)
+		require.True(t, r.Changed)
+		require.Equal(t, 0, calls)
 	})
 }
 

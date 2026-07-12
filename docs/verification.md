@@ -1,6 +1,6 @@
 # Verification
 
-When a line carries a secure pin (a Docker digest or a forge commit), Clover verifies that the pin genuinely corresponds to the ref it claims, rather than trusting it blindly. Verification runs at two tiers, on GitHub, GitLab, and Gitea alike.
+When a line carries a secure pin (a Docker digest or a forge commit), Clover can verify that the pin genuinely corresponds to the ref it claims, rather than trusting it blindly. Commit pins use repository history; Docker digest pins can additionally require a Sigstore attestation from an expected identity.
 
 ## Impostor detection (the default)
 
@@ -19,20 +19,32 @@ The strict tier confirms the commit belongs to a specific set of branches, not m
 
 ### Keys
 
-| Key             | Description                                                                                                      |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `verify`        | Deep-verify this annotation's secure pin against upstream                                                        |
-| `verify-branch` | The allowed source-branch glob (or `/regex/`) for the verification. Defaults to the repository's default branch. |
-| `verify-signed` | Require the resolved tag's upstream signature to be verified                                                     |
+| Key               | Description                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `verify`          | Deep-verify this annotation's secure pin against upstream                                                        |
+| `verify-branch`   | The allowed source-branch glob (or `/regex/`) for the verification. Defaults to the repository's default branch. |
+| `verify-identity` | Signer certificate SAN glob or `/regex/` a digest pin's Sigstore attestation must match                          |
+| `verify-issuer`   | OIDC issuer URL for `verify-identity`. Defaults to GitHub Actions.                                               |
 
 `verify-branch` is what lets Clover confirm that the commit a tag points at actually belongs to the branch you expect, which is useful when a tag is cut from a release branch rather than the default one.
 
 Verification pairs naturally with [`track`](tracking.md). Tracking keeps the pin fresh, and `verify` checks whether each freshly resolved pin is reachable from an allowed branch.
 
-## Signed tags (`verify-signed`)
+## Attestation identity (`verify-identity`)
 
-With `verify-signed=true`, the resolved tag's signature must be verified upstream. An annotated tag carries its own signature, and a lightweight tag defers to the signature of the commit it points at. The check runs independently of the branch tiers, so it composes with either, and it catches the case the branch check cannot. A compromised account can push a tag to a commit that genuinely sits on the default branch, but it cannot produce a signature GitHub verifies against the project's known keys. GitHub is the only provider that supports this key today.
+Docker digest pins can require a modern Sigstore bundle published through the registry's OCI referrers API. Set `verify-identity` to the expected signing certificate's subject alternative name, using the same whole-string glob or `/regex/` syntax as `verify-branch`:
+
+```dockerfile
+# clover: provider=docker repository=owner/app registry=ghcr.io verify-identity=https://github.com/owner/app/.github/workflows/*
+FROM ghcr.io/owner/app:1.2.3@sha256:0000000000000000000000000000000000000000000000000000000000000000
+```
+
+The certificate issuer defaults to `https://token.actions.githubusercontent.com`. Set `verify-issuer` alongside `verify-identity` for another OIDC issuer. Clover accepts any cryptographically valid modern Sigstore bundle for the pinned digest that matches both values; SLSA provenance is accepted but not required. Legacy cosign `sha256-*.sig` signatures are not supported.
+
+The check verifies the newly resolved digest before writing an update and also fails closed when no matching bundle exists. A provider that cannot fetch and verify attestations rejects the marker rather than silently skipping it. `verify=false` and `--no-verify` suppress this check along with the other verification tiers.
+
+Publishers commonly attest a multi-architecture index digest, not each platform manifest. A marker combining `platform` with `verify-identity` therefore usually fails unless the publisher also attests the per-platform digest. Leave `platform` unset to verify the index digest.
 
 ## Failures block the update
 
-A verification failure at either tier blocks the update. The line keeps its current value, any markers that follow the blocked one hold too, and `clover run` exits non-zero. If a tag legitimately lives on a release branch and the strict tier rejects it, widen the allowed set with `verify-branch`.
+A verification failure blocks the update. The line keeps its current value, any markers that follow the blocked one hold too, and `clover run` exits non-zero. If a tag legitimately lives on a release branch and the strict commit tier rejects it, widen the allowed set with `verify-branch`.

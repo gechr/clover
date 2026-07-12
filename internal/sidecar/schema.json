@@ -157,9 +157,13 @@
         "type": "string",
         "description": "Allowed source-branch glob or /regex/ for deep verify; defaults to the repo's default branch."
       },
-      "verify-signed": {
-        "type": ["string", "boolean"],
-        "description": "Require the resolved tag's upstream signature to be verified."
+      "verify-identity": {
+        "type": "string",
+        "description": "Signer certificate SAN glob or /regex/ a digest pin's Sigstore attestation must match."
+      },
+      "verify-issuer": {
+        "type": "string",
+        "description": "OIDC issuer URL for verify-identity; defaults to GitHub Actions."
       },
       "id": {
         "type": "string",

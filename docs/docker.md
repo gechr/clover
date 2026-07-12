@@ -9,18 +9,20 @@ FROM redis:7.2.0
 
 ## Keys
 
-| Key                            | Description                                                                                              |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `provider`                     | `docker`                                                                                                 |
-| `repository`                   | The image repository (e.g. `redis`, `library/redis`, `team/app`). May carry an inline host (see below).  |
-| `registry`                     | The registry host. Defaults to Docker Hub, so set it for other registries (e.g. `registry.example.com`). |
-| `platform`                     | An `os/arch` (e.g. `linux/amd64`) to pin that platform's digest instead of the multi-arch index digest   |
-| [`constraint`](constraints.md) | How far the tag may move (`major`/`minor`/`patch`, or a semver range)                                    |
-| [`include`](filtering.md)      | Keep only matching tags (e.g. an `-alpine` variant)                                                      |
-| [`exclude`](filtering.md)      | Drop matching tags                                                                                       |
-| [`prerelease`](prereleases.md) | Allow or exclude prerelease tags                                                                         |
-| [`cooldown`](cooldown.md)      | Require a minimum age before a tag is eligible                                                           |
-| [`track`](tracking.md)         | Track a floating tag (e.g. `latest`, `nonroot`) instead of selecting a version                           |
+| Key                                                                       | Description                                                                                              |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `provider`                                                                | `docker`                                                                                                 |
+| `repository`                                                              | The image repository (e.g. `redis`, `library/redis`, `team/app`). May carry an inline host (see below).  |
+| `registry`                                                                | The registry host. Defaults to Docker Hub, so set it for other registries (e.g. `registry.example.com`). |
+| `platform`                                                                | An `os/arch` (e.g. `linux/amd64`) to pin that platform's digest instead of the multi-arch index digest   |
+| [`constraint`](constraints.md)                                            | How far the tag may move (`major`/`minor`/`patch`, or a semver range)                                    |
+| [`include`](filtering.md)                                                 | Keep only matching tags (e.g. an `-alpine` variant)                                                      |
+| [`exclude`](filtering.md)                                                 | Drop matching tags                                                                                       |
+| [`prerelease`](prereleases.md)                                            | Allow or exclude prerelease tags                                                                         |
+| [`cooldown`](cooldown.md)                                                 | Require a minimum age before a tag is eligible                                                           |
+| [`track`](tracking.md)                                                    | Track a floating tag (e.g. `latest`, `nonroot`) instead of selecting a version                           |
+| [`verify-identity`](verification.md#attestation-identity-verify-identity) | Signer certificate SAN glob or `/regex/` required for a digest pin's Sigstore attestation                |
+| [`verify-issuer`](verification.md#attestation-identity-verify-identity)   | OIDC issuer URL for `verify-identity`; defaults to GitHub Actions                                        |
 
 ```dockerfile
 # clover: provider=docker repository=team/app registry=registry.example.com constraint=minor
@@ -48,6 +50,8 @@ FROM redis:7.2.0@sha256:00000000000000000000000000000000000000000000000000000000
 ```
 
 Leave `platform` unset for the index digest. It is opt-in and never inferred from the host running Clover.
+
+If the digest must carry a Sigstore attestation, prefer the default index digest. Publishers usually attest the index rather than every platform manifest, so `platform` combined with [`verify-identity`](verification.md#attestation-identity-verify-identity) normally fails closed unless the publisher attests both.
 
 ## Tracking a floating tag
 

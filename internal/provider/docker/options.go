@@ -3,6 +3,7 @@ package docker
 import (
 	"net/http"
 
+	"github.com/gechr/clover/internal/attest"
 	"github.com/google/go-containerregistry/pkg/authn"
 )
 
@@ -17,4 +18,9 @@ func WithKeychain(kc authn.Keychain) Option {
 // WithTransport overrides the HTTP transport, for tests.
 func WithTransport(rt http.RoundTripper) Option {
 	return func(p *Provider) { p.transport = rt }
+}
+
+// WithAttestor overrides Sigstore bundle verification, for tests.
+func WithAttestor(attestor *attest.Verifier) Option {
+	return func(p *Provider) { p.attestor = attestor }
 }

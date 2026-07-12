@@ -14,7 +14,7 @@ Clover is conservative by default. It changes as little as possible, moves versi
 
 - **Fresh releases can wait.** A `cooldown` holds a release or a tracked digest back until it has aged, guarding against versions that are quickly yanked or patched. See [Cooldown](cooldown.md).
 
-- **Secure pins stay in lockstep.** A commit SHA and its human-readable ref comment move together, so Clover never updates one half of the pin without the other. Credentialed commit pins are checked for impostor commits by default, `verify` tightens the check to an allowed set of branches, and a pin that fails either check blocks the update and fails the run. See [Verification](verification.md).
+- **Secure pins stay in lockstep.** A commit SHA and its human-readable ref comment move together, so Clover never updates one half of the pin without the other. Credentialed commit pins are checked for impostor commits by default, `verify` tightens the check to an allowed set of branches, and Docker digest pins can require a Sigstore signer with `verify-identity`. A pin that fails verification blocks the update and fails the run. See [Verification](verification.md).
 
 - **Shallow by default.** Clover reads only the first page of versions unless you ask for a `--deep` lookup, keeping the common run fast and within rate limits. For newest-first providers that first page holds the latest versions, and for lexically paged registries Clover warns when a deeper lookup may be needed. See [Commands](commands.md).
 

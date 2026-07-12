@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/gechr/clover/internal/attest"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/oci"
@@ -40,7 +41,8 @@ type Provider struct {
 	transport http.RoundTripper // overridable for tests; nil uses the cached, rate-limited default
 	keychain  authn.Keychain    // resolves docker login credentials; nil uses the default keychain
 
-	client *oci.Client
+	client   *oci.Client
+	attestor *attest.Verifier
 
 	hubMu       sync.Mutex
 	hubJWT      string
@@ -51,7 +53,7 @@ type Provider struct {
 // user's existing docker login (config.json plus any docker-credential-*
 // helper), so clover piggybacks on credentials docker already stores.
 func New(opts ...Option) *Provider {
-	p := &Provider{keychain: authn.DefaultKeychain}
+	p := &Provider{keychain: authn.DefaultKeychain, attestor: attest.New()}
 	for _, opt := range opts {
 		opt(p)
 	}

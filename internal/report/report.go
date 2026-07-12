@@ -73,6 +73,9 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 				Link(field.To, r.ResolvedURL, value(reportTo(r), detail)).
 				Err(r.Verify).
 				Msg("Update blocked")
+		case errors.Is(r.Verify, pipeline.ErrAttestationRejected):
+			marker(logger.Error().Symbol("🚫"), r).Err(r.Verify).
+				Msg("Attestation verification failed (update withheld)")
 		default:
 			marker(logger.Error().Symbol("🔓"), r).Err(r.Verify).
 				Msg("Pin does not match upstream")
@@ -303,6 +306,8 @@ func GitHub(w io.Writer, summary mode.Summary, dryRun bool) {
 				msg = "verification did not complete: "
 			case r.Resolved != r.Current:
 				msg = "update blocked: "
+			case errors.Is(r.Verify, pipeline.ErrAttestationRejected):
+				msg = "attestation verification failed: "
 			}
 			fmt.Fprintln(w, github.Error(r.Marker.File, line(r), msg+r.Verify.Error()))
 		}
