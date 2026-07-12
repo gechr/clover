@@ -1316,8 +1316,45 @@ func TestRunVerifyBranchOffTrunk(t *testing.T) {
 	on := true
 	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithVerify(&on))
 	require.NoError(t, err)
-	require.EqualError(t, files[0].Results[0].Verify,
+	r := files[0].Results[0]
+	require.EqualError(t, r.Verify,
 		"commit "+good+" for 2.0.0 is not on an allowed branch")
+	require.NoError(t, r.Err, "the failure reports through Verify, not Err")
+	require.False(t, r.Changed, "a failed verification withholds the update")
+	require.Equal(t, "  - uses: actions/checkout@"+old+" # v1.0.0", r.NewLine,
+		"the line keeps its current pin")
+	require.Equal(t, "2.0.0", r.Resolved, "the refused update is still reported")
+}
+
+func TestRunVerifyFailureBlocksFollowers(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	pinned := strings.Repeat("c", 40)
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		commitBranch: map[string]string{good: "feature"}, // not the default branch
+	})
+
+	// The producer's pin fails verification, so it publishes nothing and its
+	// follower must hold rather than move to the unverified version.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y id=app\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n" +
+			"# clover: from=app value=commit find=pin-<commit>\n" +
+			"image: pin-" + pinned + "\n",
+	})
+	on := true
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithVerify(&on))
+	require.NoError(t, err)
+	follower := files[0].Results[1]
+	require.True(t, follower.Skipped)
+	require.Equal(t, `dependency "app" did not resolve`, follower.Reason)
+	require.Equal(t, "image: pin-"+pinned, follower.NewLine,
+		"the follower holds the committed pin")
 }
 
 func TestRunVerifyBranchGlobDirective(t *testing.T) {

@@ -133,17 +133,21 @@ func TestGitHub(t *testing.T) {
 	skipped.Skipped, skipped.Reason = true, "dep failed"
 	pinned := result("ci.yml", 2)
 	pinned.Verify = errors.New("commit abc is not on an allowed branch")
+	blocked := result("w.yml", 3)
+	blocked.Current, blocked.Resolved = "1.0.0", "2.0.0"
+	blocked.Verify = errors.New("commit abc is not on an allowed branch")
 	moved := result("d.txt", 5)
 	moved.Current, moved.Moved = "aaa", "bbb"
 
 	var buf bytes.Buffer
-	report.GitHub(&buf, summary(updated, failed, skipped, pinned, moved), true)
+	report.GitHub(&buf, summary(updated, failed, skipped, pinned, blocked, moved), true)
 
 	require.Equal(t,
 		"::warning file=x/app.txt,line=2::update available: 1.2.0 → 1.3.0\n"+
 			"::error file=y/b.txt,line=1::boom\n"+
 			"::warning file=c.txt,line=5::skipped: dep failed\n"+
 			"::error file=ci.yml,line=3::pin does not match upstream: commit abc is not on an allowed branch\n"+
+			"::error file=w.yml,line=4::update blocked: commit abc is not on an allowed branch\n"+
 			"::warning file=d.txt,line=6::pinned upstream tag has moved: aaa → bbb\n",
 		buf.String(),
 	)
@@ -161,8 +165,26 @@ func TestGitHubEscapes(t *testing.T) {
 	require.Equal(t, "::error file=a%3Ab.txt,line=1::oops%0Aagain\n", buf.String())
 }
 
-// TestRunReportsPinVerification confirms a non-fatal pin mismatch is logged
-// alongside the marker's outcome, not in place of it.
+// TestRunReportsBlockedUpdate confirms a resolved update that failed pin
+// verification is reported with the update it withheld.
+func TestRunReportsBlockedUpdate(t *testing.T) {
+	blocked := result("ci.yml", 0)
+	blocked.Current, blocked.Resolved = "1.0.0", "2.0.0"
+	blocked.Verify = errors.New("commit abc is not on an allowed branch")
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(blocked), false, output.Text)
+
+	require.Equal(t,
+		"ERR 🚫 Update blocked provider=github location=ci.yml:1 from=1.0.0 to=2.0.0 "+
+			"error=\"commit abc is not on an allowed branch\"\n"+
+			"INF 🏁 Run complete elapsed=2s\n",
+		buf.String(),
+	)
+}
+
+// TestRunReportsPinVerification confirms an up-to-date pin that no longer
+// matches upstream is reported as the marker's outcome.
 func TestRunReportsPinVerification(t *testing.T) {
 	upToDate := result("ci.yml", 0)
 	upToDate.Verify = errors.New("pinned aaa but 1.0.0 upstream is bbb")

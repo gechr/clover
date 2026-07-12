@@ -54,6 +54,12 @@ var errCooldownUnsupported = errors.New(
 // deep lookup, since a shallow lookup may have paged past a matching version.
 var ErrNoCandidate = errors.New("no candidate satisfies the rule")
 
+// errVerifyFailed marks a producer whose resolved pin failed verification. The
+// resolution itself succeeded, so the outcome reports through Result.Verify
+// rather than Result.Err - the error exists only to withhold the write and make
+// the follow-edge executor skip the marker's followers.
+var errVerifyFailed = errors.New("pin failed verification")
+
 // Result is the outcome of resolving one marker: the version it found in the
 // file, the value it resolved to, and the rewritten target line. Exactly one of
 // a clean resolution, Skipped, Disabled, or Err holds. A skipped, disabled, or
@@ -69,7 +75,7 @@ type Result struct {
 	Disabled bool   // the directive set disabled=...; the marker is intentionally inert (never a lint failure)
 	Reason   string // why the marker was skipped, or the disabled= reason it was disabled with
 	Err      error  // why resolution failed
-	Verify   error  // a secure pin failed verification (non-fatal: the marker still resolved)
+	Verify   error  // a secure pin failed verification: the write is withheld and the run fails
 	Moved    string // the upstream commit a held pin's tag moved to; empty when unmoved
 
 	// Truncated reports that a shallow lookup against a recency-ordered provider
@@ -595,6 +601,9 @@ func (p *plan) resolve(ctx context.Context) {
 			p.results[i].Skipped = true
 			p.results[i].Reason = r.Err.Error()
 			p.tasks[i].Skip(r.Err.Error())
+		case r.Err != nil && errors.Is(r.Err, errVerifyFailed):
+			// The verify outcome is already on the result; the error only exists
+			// to withhold the write and skip the marker's followers.
 		case r.Err != nil && errors.Is(r.Err, errCooldownUnsupported):
 			// The source cannot honor the cooldown, so hold the line and warn
 			// rather than fail: this is a source limitation, not a run error.
@@ -1017,23 +1026,33 @@ func (p *plan) finalize(
 	located match.Location,
 	chosen model.Candidate,
 ) error {
-	if m.ID != "" {
-		old := model.Candidate{Version: located.Current(), Semver: located.Semver()}
-		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
-	}
-	if err := p.render(i, line, located, chosen); err != nil {
-		return err
-	}
 	if linker, ok := prov.(provider.Linker); ok {
 		p.results[i].ResolvedURL = linker.URL(resource, chosen)
 		p.results[i].CurrentURL = linker.URL(resource, currentCandidate(located, chosen))
 	}
 	p.results[i].Resource, p.results[i].ResourceURL = identifyResource(prov, resource)
-	p.results[i].Verify = verifyPin(located, chosen)
-	if p.results[i].Verify == nil && p.deepVerify(m) {
-		p.results[i].Verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
+
+	// Verification gates the write: a pin that fails is recorded on the result
+	// and blocks the render, the registry publish (so followers skip), and the
+	// run's exit status.
+	verify := verifyPin(located, chosen)
+	if verify == nil && p.deepVerify(m) {
+		verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
 	}
-	return nil
+	if verify != nil {
+		p.results[i].Current = located.Current()
+		p.results[i].Resolved = chosen.Version
+		p.results[i].Written = renderedValue(located, chosen)
+		p.results[i].NewLine = line
+		p.results[i].Verify = verify
+		return fmt.Errorf("%w: %w", errVerifyFailed, verify)
+	}
+
+	if m.ID != "" {
+		old := model.Candidate{Version: located.Current(), Semver: located.Semver()}
+		p.registry.Set(m.ID, registry.Entry{Old: old, New: chosen})
+	}
+	return p.render(i, line, located, chosen)
 }
 
 // currentCandidate builds a candidate for the version currently on the line so a
@@ -1209,8 +1228,7 @@ func branchDescription(m Marker) string {
 // one upstream reports for that version. It returns nil - the cheap, always-on
 // check does nothing - when the target is not a secure pin, when the version is
 // being bumped (the new pin is correct by construction, and the old version's tag
-// may be off the fetched page), or when there is no upstream value to compare. A
-// non-nil result is non-fatal: the marker still resolved.
+// may be off the fetched page), or when there is no upstream value to compare.
 func verifyPin(located match.Location, chosen model.Candidate) error {
 	pin, ok := located.(match.SecurePin)
 	if !ok {

@@ -51,16 +51,25 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 			).Link(field.From, r.CurrentURL, value(r.Current, detail)).
 				Link(field.To, r.ResolvedURL, value(reportTo(r), detail)).
 				Msg(msg)
-		case detail == output.Wide:
+		case detail == output.Wide && r.Verify == nil:
 			marker(logger.Debug(), r).Link(field.Version, r.ResolvedURL, value(r.Current, detail)).
 				Msg("Already up-to-date")
 		}
 
-		// A failed pin verification is non-fatal: it is reported alongside the
-		// marker's outcome, not in place of it.
+		// A failed pin verification withholds the write: a blocked update is
+		// reported with the update it refused, an up-to-date pin that no longer
+		// matches upstream with the mismatch alone.
 		if r.Verify != nil {
-			marker(logger.Error().Symbol("🔓"), r).Err(r.Verify).
-				Msg("Pin does not match upstream")
+			if r.Resolved != r.Current {
+				marker(logger.Error().Symbol("🚫"), r).
+					Link(field.From, r.CurrentURL, value(r.Current, detail)).
+					Link(field.To, r.ResolvedURL, value(reportTo(r), detail)).
+					Err(r.Verify).
+					Msg("Update blocked")
+			} else {
+				marker(logger.Error().Symbol("🔓"), r).Err(r.Verify).
+					Msg("Pin does not match upstream")
+			}
 		}
 
 		// A held pin whose upstream tag moved is advisory: the pin stays put, but
@@ -282,8 +291,11 @@ func GitHub(w io.Writer, summary mode.Summary, dryRun bool) {
 				fmt.Sprintf("update %s: %s → %s", verb, r.Current, reportTo(r))))
 		}
 		if r.Verify != nil {
-			fmt.Fprintln(w, github.Error(r.Marker.File, line(r),
-				"pin does not match upstream: "+r.Verify.Error()))
+			msg := "pin does not match upstream: "
+			if r.Resolved != r.Current {
+				msg = "update blocked: "
+			}
+			fmt.Fprintln(w, github.Error(r.Marker.File, line(r), msg+r.Verify.Error()))
 		}
 		if r.Moved != "" {
 			fmt.Fprintln(w, github.Warning(r.Marker.File, line(r),

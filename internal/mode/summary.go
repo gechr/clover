@@ -36,9 +36,10 @@ func (s Summary) Disabled() int {
 	return s.count(func(r pipeline.Result) bool { return r.Disabled })
 }
 
-// Errored reports the number of markers that failed to resolve.
+// Errored reports the number of markers that failed to resolve or whose pin
+// failed verification (which withholds the write), so both fail the run.
 func (s Summary) Errored() int {
-	return s.count(func(r pipeline.Result) bool { return r.Err != nil })
+	return s.count(func(r pipeline.Result) bool { return r.Err != nil || r.Verify != nil })
 }
 
 // count tallies the markers across every outcome that satisfy pred.
