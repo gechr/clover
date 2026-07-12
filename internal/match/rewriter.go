@@ -12,6 +12,17 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
+// init asserts every built-in route glob compiles, the guarantee matchPath
+// relies on. Every glob constant in this file appears as a route guard, so
+// checking the table covers them all.
+func init() {
+	for _, r := range routes {
+		if r.when.path != "" && !doublestar.ValidatePattern(r.when.path) {
+			panic(fmt.Sprintf("match: invalid built-in route glob %q", r.when.path))
+		}
+	}
+}
+
 // Rewriter locates the version a target line carries. Implementations range from
 // the shape-based [Smart] rewriter to format-specific ones. Locate is offline and
 // pure, so lint runs it to validate a marker without resolving anything; the
@@ -109,11 +120,11 @@ func (c conditions) match(ctx Context) bool {
 	}
 }
 
-// matchPath reports whether path matches the doublestar glob. A malformed glob
-// (only a programmer error for the built-in routes) never matches.
+// matchPath reports whether path matches the doublestar glob. Only the
+// built-in globs reach it, each validated once at init, so the per-call
+// validation is skipped.
 func matchPath(glob, path string) bool {
-	ok, err := doublestar.Match(glob, path)
-	return err == nil && ok
+	return doublestar.MatchUnvalidated(glob, path)
 }
 
 // route pairs a guard with the rewriter to use when it matches.
