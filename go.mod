@@ -14,7 +14,7 @@ require (
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.6.6
 	github.com/gechr/clog v0.13.1
-	github.com/gechr/conductor v0.1.0
+	github.com/gechr/conductor v0.1.1
 	github.com/gechr/x v0.3.1
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
