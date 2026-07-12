@@ -48,6 +48,24 @@ func strictJSON(path string) bool {
 	return strings.EqualFold(filepath.Ext(path), ".json")
 }
 
+// proposeSidecar builds the sidecar proposal for a comment-less target: strict
+// JSON gets the leaf-based generator, a pyenv .python-version file the
+// line-based one. ok is false when the file hosts inline comments and no
+// sidecar applies. Only the JSON generator takes force - a text entry carries
+// no source keys beyond the provider, so there is no drift to repair.
+func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip, bool) {
+	switch {
+	case strictJSON(file.Path):
+		generated, skips := annotateSidecar(file, force)
+		return generated, skips, true
+	case match.PythonVersionFile(file.Path):
+		generated, skips := annotateTextSidecar(file)
+		return generated, skips, true
+	default:
+		return nil, nil, false
+	}
+}
+
 // AnnotateChange is one comment line annotate would write: At is the 0-based
 // line index it acts on, Line the comment text, Provider the provider the line
 // was inferred to track (for reporting). Existing distinguishes the two shapes -
@@ -193,11 +211,10 @@ func Annotate(
 		if scan.IsSidecar(file.Path) {
 			return // never propose inline directives inside a sidecar file
 		}
-		// A strict-JSON target cannot host an inline comment, so a recognized line
-		// earns a sidecar entry instead of a comment that would corrupt the JSON.
-		if strictJSON(file.Path) {
-			annotated := AnnotateFile{Path: file.Path}
-			annotated.Sidecar, annotated.Skips = annotateSidecar(file, force)
+		// A comment-less target cannot host an inline comment, so a recognized
+		// line earns a sidecar entry instead of a comment that would corrupt it.
+		if generated, skips, ok := proposeSidecar(file, force); ok {
+			annotated := AnnotateFile{Path: file.Path, Sidecar: generated, Skips: skips}
 			if annotated.Sidecar != nil && write {
 				if err := writeSidecar(annotated.Sidecar); err != nil {
 					annotated.WriteErr = err
@@ -497,6 +514,63 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 		skips = append(skips, AnnotateSkip{Line: -1, Reason: reason, Sidecar: path})
 	}
 	return sidecar, skips
+}
+
+// annotateTextSidecar proposes the sidecar for a comment-less plain-text target
+// (a pyenv .python-version file): each line auto-detection recognizes earns an
+// entry carrying the inferred directive and a whole-line find locator. The line
+// is the version itself, so the find is the bare version placeholder - which
+// also means a second recognized line would make every locator ambiguous, and
+// such a file is skipped.
+func annotateTextSidecar(file scan.File) (*AnnotateSidecar, []AnnotateSkip) {
+	governed := set.New[int]()
+	for _, loc := range file.Found {
+		if loc.Sidecar {
+			governed.Add(loc.Line)
+		}
+	}
+
+	var fresh []sidecarEntry
+	var skips []AnnotateSkip
+	for i, line := range file.Lines {
+		if governed.Contains(i) {
+			continue
+		}
+		inf, ok := match.Infer(file.Path, file.Lines, i)
+		if !ok {
+			continue
+		}
+		if reason := inf.Missing(); reason != "" {
+			skips = append(skips, skip(i, reason))
+			continue
+		}
+		d := infer.Directive(inf)
+		d.Pairs = append(
+			d.Pairs,
+			directive.KV{Key: constant.DirectiveFind, Value: versionPlaceholder},
+		)
+		if reason := sidecarUnresolvedReason(inf, d, line); reason != "" {
+			skips = append(skips, skip(i, reason))
+			continue
+		}
+		fresh = append(fresh, sidecarEntry{directive: d, target: i})
+	}
+	if len(fresh) > 1 {
+		for _, e := range fresh {
+			skips = append(
+				skips,
+				skip(e.target, "multiple trackable lines, so a find locator would be ambiguous"),
+			)
+		}
+		return nil, skips
+	}
+
+	path, data, found := loadSidecar(file.Path)
+	generated, reason := appendSidecar(fresh, path, data, found)
+	if reason != "" {
+		skips = append(skips, AnnotateSkip{Line: -1, Reason: reason, Sidecar: path})
+	}
+	return generated, skips
 }
 
 // recognizeLeaf builds the explicit directive a JSON leaf earns, or reports ok

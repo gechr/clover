@@ -488,6 +488,32 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "python-version pin",
+			path: ".python-version",
+			line: "3.14.6",
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			name: "python-version pin in a subdirectory",
+			path: "sub/.python-version",
+			line: "3.15.0b3",
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			name: "python-version implementation pin is not matched",
+			path: ".python-version",
+			line: "pypy3.10-7.3.12",
+			ok:   false,
+		},
+		{
+			name: "bare version outside .python-version is not matched",
+			path: "notes.txt",
+			line: "3.14.6",
+			ok:   false,
+		},
+		{
 			name: "tool-versions zig runtime",
 			path: ".tool-versions",
 			line: "zig 0.15.2",

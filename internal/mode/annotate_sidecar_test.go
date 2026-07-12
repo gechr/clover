@@ -327,3 +327,54 @@ func TestAnnotateSidecarForcePreservesUnresolvableEntries(t *testing.T) {
 		"the unresolvable github entry and the comment survive; only the docker repository is repaired",
 	)
 }
+
+// TestAnnotateGeneratesSidecarForPythonVersion covers the plain-text sidecar
+// path: a pyenv .python-version file cannot host an inline comment, so annotate
+// proposes a sidecar entry with the inferred python provider and a whole-line
+// find locator, never touching the pin file itself.
+func TestAnnotateGeneratesSidecarForPythonVersion(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{".python-version": "3.14.6\n"})
+
+	preview := annotate(t, root, false, false)
+	require.Equal(t, 1, preview.Added())
+	sidecarPath := filepath.Join(root, ".python-version.clover.yaml")
+	require.NoFileExists(t, sidecarPath, "preview never writes the sidecar")
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+	require.Equal(
+		t,
+		generatedSidecar("- provider: python\n  find: <version>\n"),
+		readFile(t, sidecarPath),
+	)
+	require.Equal(t, "3.14.6\n", readFile(t, filepath.Join(root, ".python-version")),
+		"the pin file itself is never rewritten by annotate")
+
+	// The generated sidecar must pass its own lint, and a second annotate pass
+	// must add nothing.
+	lint, err := mode.Lint(context.Background(), []string{root})
+	require.NoError(t, err)
+	require.True(t, lint.OK(), "the generated sidecar lints clean")
+	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
+}
+
+// TestAnnotateSidecarSkipsAmbiguousPythonVersion guards the whole-line locator:
+// two pinned versions would both match the bare find placeholder, so neither
+// earns an entry and both are reported as skips.
+func TestAnnotateSidecarSkipsAmbiguousPythonVersion(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{".python-version": "3.14.6\n3.13.14\n"})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 0, summary.Added())
+	require.NoFileExists(t, filepath.Join(root, ".python-version.clover.yaml"))
+	require.Len(t, summary.Files[0].Skips, 2)
+	require.Equal(
+		t,
+		"multiple trackable lines, so a find locator would be ambiguous",
+		summary.Files[0].Skips[0].Reason,
+	)
+}

@@ -17,7 +17,7 @@ PYTHON_VERSION: 3.14.6
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
 
-The downloads API is public, so the Python provider needs no authentication. It is selected explicitly with `provider=python`, or [inferred](auto.md) from a `target-version` or `requires-python` line in `pyproject.toml` or a `python` pin in a mise configuration. A `requires-python` floor is bumped in place, so `">=3.14"` keeps its operator and precision, and a range like `">=3.10,<4"` is skipped as ambiguous.
+The downloads API is public, so the Python provider needs no authentication. It is selected explicitly with `provider=python`, or [inferred](auto.md) from a `target-version` or `requires-python` line in `pyproject.toml`, a `python` pin in a mise configuration, or a pyenv `.python-version` file. A `requires-python` floor is bumped in place, so `">=3.14"` keeps its operator and precision, and a range like `">=3.10,<4"` is skipped as ambiguous. A `.python-version` file has no comment syntax to host a directive, so it is tracked through a [sidecar](sidecar.md) (which [`clover annotate`](commands.md) generates) or updated by `clover run --infer`.
 
 Each release name carries a `Python` prefix (`Python 3.14.6`). Clover parses out the version so the resolved value is clean semver (`3.14.6`), matching a bare on-line reference. The API carries each release's publication date, so [`cooldown`](cooldown.md) works: a version is held back until it has aged past the window. The whole release history arrives in one response, so Clover always sees every release and `--deep` has nothing extra to fetch.
 

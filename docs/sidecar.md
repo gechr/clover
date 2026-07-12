@@ -1,6 +1,6 @@
 # Sidecars
 
-A `clover:` directive is a comment, so strict JSON files like `package.json` and `tsconfig.json` have nowhere to host one. A **sidecar** carries the directives out of band instead. It is a YAML file beside the target that names each line to track and how to track it.
+A `clover:` directive is a comment, so a file with no comment syntax has nowhere to host one. Strict JSON files like `package.json` and `tsconfig.json` are the usual case, and plain-text pins like pyenv's `.python-version` share the problem. A **sidecar** carries the directives out of band instead. It is a YAML file beside the target that names each line to track and how to track it.
 
 ```yaml
 # tsconfig.json.clover.yaml
@@ -85,4 +85,4 @@ Clover publishes a [JSON schema](https://raw.githubusercontent.com/gechr/clover/
 
 ## Generating and formatting
 
-A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a strict-JSON file for trackable lines and generates a sidecar, previewing by default and writing with `--write`. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.
+A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a comment-less target (a strict-JSON file, or a pyenv `.python-version`) for trackable lines and generates a sidecar, previewing by default and writing with `--write`. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.

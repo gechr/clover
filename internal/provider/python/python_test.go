@@ -42,6 +42,20 @@ func TestResource(t *testing.T) {
 	require.Equal(t, "python.org", p.Describe(res))
 }
 
+// TestResourceRejectsAsset covers the up-front guard: python.org publishes no
+// release assets, so asset= is rejected at validation rather than failing every
+// selection later.
+func TestResourceRejectsAsset(t *testing.T) {
+	t.Parallel()
+
+	_, err := python.New().Resource(directiveOf(directive.KV{Key: "asset", Value: "*.tar.gz"}))
+	require.EqualError(
+		t,
+		err,
+		`python: "asset" is not supported, python.org publishes no release assets`,
+	)
+}
+
 func TestDescribeInvalidResource(t *testing.T) {
 	t.Parallel()
 
@@ -64,8 +78,32 @@ func TestURL(t *testing.T) {
 			model.Candidate{Version: "3.14.6", Meta: map[string]string{"slug": "python-3146"}},
 		),
 	)
-	// No slug (e.g. the synthesized current-version candidate) means no link.
-	require.Empty(t, p.URL(res, model.Candidate{Version: "3.14.6"}))
+	// A carried slug wins over derivation, covering the historic deviations
+	// (3.3.5rc1's slug is python-335-rc1, not the derived python-335rc1).
+	require.Equal(
+		t,
+		"https://www.python.org/downloads/release/python-335-rc1/",
+		p.URL(
+			res,
+			model.Candidate{
+				Version: "3.3.5-rc1",
+				Meta:    map[string]string{"slug": "python-335-rc1"},
+			},
+		),
+	)
+	// No slug (the synthesized current-version candidate) derives one from the
+	// version, preferring the raw Ref: dots and dashes drop.
+	require.Equal(
+		t,
+		"https://www.python.org/downloads/release/python-3146/",
+		p.URL(res, model.Candidate{Version: "3.14.6"}),
+	)
+	require.Equal(
+		t,
+		"https://www.python.org/downloads/release/python-3150b3/",
+		p.URL(res, model.Candidate{Version: "3.15.0-b3", Ref: "3.15.0b3"}),
+	)
+	require.Empty(t, p.URL(res, model.Candidate{}))
 	require.Empty(
 		t,
 		p.URL("not-a-resource", model.Candidate{Meta: map[string]string{"slug": "python-3146"}}),

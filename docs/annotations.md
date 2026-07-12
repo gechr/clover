@@ -29,7 +29,7 @@ A keyword whose colon is missing or detached ahead of pair-shaped text (`# clove
 
 ### Formats without comments
 
-A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit. `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line, so Clover reads their directives from a [**sidecar**](sidecar.md), a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.
+A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit, and plain-text pins like pyenv's `.python-version` share the problem. `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line, so Clover reads their directives from a [**sidecar**](sidecar.md), a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.
 
 [Biome](https://biomejs.dev), for example, ships a `biome.json` whose `$schema` URL can track Biome's releases. A `biome.json.clover.yaml` sidecar locates the line with [`jq`](sidecar.md#locators) and tracks it:
 

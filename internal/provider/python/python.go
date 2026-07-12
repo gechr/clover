@@ -1,6 +1,7 @@
 package python
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gechr/clover/internal/constant"
@@ -50,7 +51,15 @@ func (p *Provider) Keys() []provider.Key { return nil }
 
 // Resource validates a directive into a Python resource. python.org takes no
 // provider-specific keys, so every directive resolves to the same descriptor.
-func (p *Provider) Resource(_ directive.Directive) (provider.Resource, error) {
+// It rejects asset= up front: the downloads API publishes no release assets,
+// so the filter could never match and every selection would fail confusingly.
+func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
+	if _, ok := d.Get(constant.RuleAsset); ok {
+		return nil, fmt.Errorf(
+			"python: %q is not supported, python.org publishes no release assets",
+			constant.RuleAsset,
+		)
+	}
 	return resource{}, nil
 }
 

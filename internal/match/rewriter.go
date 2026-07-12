@@ -148,6 +148,17 @@ func MiseFile(path string) bool {
 // goModGlob matches Go module files, whose go directive pins the toolchain.
 const goModGlob = "**/go.mod"
 
+// pythonVersionGlob matches pyenv's .python-version files, whose whole line is
+// the pinned interpreter version. The file has no comment syntax, so a marker
+// for it lives in a sidecar or is synthesized by run --infer.
+const pythonVersionGlob = "**/.python-version"
+
+// PythonVersionFile reports whether path is a pyenv .python-version file, the
+// comment-less plain-text target annotate proposes a sidecar for.
+func PythonVersionFile(path string) bool {
+	return matchPath(pythonVersionGlob, path)
+}
+
 // pyprojectGlob matches Python project files, whose target-version key pins the
 // interpreter a tool targets.
 const pyprojectGlob = "**/pyproject.toml"
@@ -366,6 +377,17 @@ var routes = []route{
 		when: conditions{
 			path:      toolVersionsGlob,
 			lineMatch: mustPattern(`/^\s*python\s+\S/`),
+			provider:  constant.ProviderPython,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// pyenv's .python-version: the whole line is the version (3.14.6). An
+		// implementation-prefixed pin (pypy3.10-7.3.12) does not start with a
+		// digit, so only bare CPython pins route.
+		when: conditions{
+			path:      pythonVersionGlob,
+			lineMatch: mustPattern(`/^\d/`),
 			provider:  constant.ProviderPython,
 		},
 		rewriter: NewSmart(),
