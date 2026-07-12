@@ -67,6 +67,17 @@ func (r *Resolver) Root(dir string) string {
 	return dir
 }
 
+// VCS returns the repository-root resolver config discovery walks, so a scan
+// can share one ancestry cache instead of re-statting the same directories
+// twice. A nil receiver returns a fresh resolver, keeping unconfigured scans
+// working.
+func (r *Resolver) VCS() *vcs.Resolver {
+	if r == nil {
+		return vcs.NewResolver()
+	}
+	return r.roots
+}
+
 // ForDir returns the effective config governing the directory dir: the project
 // config at dir's repository root (or dir itself when not in a repository),
 // overlaid on the user config and memoized per root. With --config the explicit

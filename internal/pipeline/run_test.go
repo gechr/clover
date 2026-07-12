@@ -17,6 +17,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/manual"
 	"github.com/gechr/clover/internal/version"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 )
 
@@ -407,6 +408,53 @@ func TestScanGatesUnsatisfiedRequiredVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1, "the blocked repository's file is dropped")
 	require.Equal(t, filepath.Join(parent, "ok", "app.yaml"), files[0].Path)
+}
+
+// A scan spanning several repositories shares one repository-root cache
+// between config discovery and the ignore traversal; each repository's
+// excludes still apply only under its own root, and a directory outside any
+// repository scans unexcluded.
+func TestScanSharedRootsKeepPerRepoExcludes(t *testing.T) {
+	parent := t.TempDir()
+	repoAt(t, filepath.Join(parent, "alpha"),
+		"paths:\n  exclude:\n    - vendor/**\n",
+		map[string]string{
+			"app.yaml":         gateDirective,
+			"vendor/drop.yaml": gateDirective,
+		})
+	repoAt(t, filepath.Join(parent, "beta"),
+		"paths:\n  exclude:\n    - build/**\n",
+		map[string]string{
+			"app.yaml":         gateDirective,
+			"build/drop.yaml":  gateDirective,
+			"vendor/keep.yaml": gateDirective, // alpha's exclude must not leak here
+		})
+	plain := filepath.Join(parent, "plain", "vendor")
+	require.NoError(t, os.MkdirAll(plain, 0o755))
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(plain, "keep.yaml"), []byte(gateDirective), 0o644),
+	)
+
+	files, _, err := pipeline.Scan(
+		context.Background(),
+		[]string{parent},
+		pipeline.WithConfig(config.NewResolver(nil, "", false)),
+	)
+	require.NoError(t, err)
+	got := make([]string, 0, len(files))
+	for _, f := range files {
+		rel, err := filepath.Rel(parent, f.Path)
+		require.NoError(t, err)
+		got = append(got, filepath.ToSlash(rel))
+	}
+	xslices.SortNatural(got)
+	require.Equal(t, []string{
+		"alpha/app.yaml",
+		"beta/app.yaml",
+		"beta/vendor/keep.yaml",
+		"plain/vendor/keep.yaml",
+	}, got)
 }
 
 // A malformed project config is a hard error - a bug to fix - not a benign skip.

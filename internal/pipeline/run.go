@@ -167,7 +167,10 @@ func scanRoots(
 	roots []string,
 	set settings,
 ) (*vcs.Resolver, []scan.File, int, error) {
-	resolver := vcs.NewResolver()
+	// Config discovery and the ignore traversal resolve the same repository
+	// ancestry, so they share one resolver and each directory is statted once
+	// across both.
+	resolver := set.configs.VCS()
 	var ignoreOpts []ignore.Option
 	switch {
 	case set.noIgnore:

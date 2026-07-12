@@ -149,3 +149,20 @@ func TestResolverPrimaryForPathsMultiRootFallsBackToUser(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, new(false), cfg.AnnotateWrite())
 }
+
+func TestResolverVCSIsShared(t *testing.T) {
+	t.Parallel()
+
+	resolver := config.NewResolver(nil, "", false)
+	shared := resolver.VCS()
+	require.Same(t, shared, resolver.VCS(),
+		"one ancestry cache serves the whole run")
+}
+
+func TestResolverVCSNilReceiver(t *testing.T) {
+	t.Parallel()
+
+	var resolver *config.Resolver
+	require.NotNil(t, resolver.VCS(),
+		"a nil resolver still yields a usable root resolver")
+}
