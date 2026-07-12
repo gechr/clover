@@ -32,6 +32,11 @@ import (
 // JSON's quoted-key syntax; resolution still runs against the real JSON path.
 const syntheticInferencePath = "clover-sidecar.yaml"
 
+// syntheticInferenceTable is the dispatch table scoped to the synthetic path,
+// built once: every JSON leaf infers against the same path, and rebuilding the
+// table per leaf dwarfs the inference itself on a large tree.
+var syntheticInferenceTable = match.NewTable(syntheticInferencePath)
+
 // versionPlaceholder is the find-pattern token the rewriter rewrites in place; a
 // generated docker entry anchors its find on `<repository>:<version>`.
 const versionPlaceholder = "<version>"
@@ -620,7 +625,7 @@ func inferLeaf(leaf sidecar.Leaf) (match.Inference, string, bool) {
 	if !ok {
 		return match.Inference{}, "", false
 	}
-	inf, ok := match.Infer(syntheticInferencePath, []string{syntheticLine}, 0)
+	inf, ok := syntheticInferenceTable.Infer([]string{syntheticLine}, 0)
 	if !ok {
 		return match.Inference{}, "", false
 	}
