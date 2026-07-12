@@ -24,7 +24,7 @@ func summary(results ...pipeline.Result) mode.Summary {
 }
 
 func result(file string, target int) pipeline.Result {
-	return pipeline.Result{Marker: pipeline.Marker{File: file, Target: target}}
+	return pipeline.Result{Marker: pipeline.Marker{File: file, Target: target, Provider: "github"}}
 }
 
 func TestRun(t *testing.T) {
@@ -37,8 +37,8 @@ func TestRun(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(updated, skipped), false, output.Text)
 
 	require.Equal(t,
-		"INF ⬆️ Update applied location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
-			"WRN 📛 Skipped location=x/b.txt:4 reason=\"dep failed\"\n"+
+		"INF ⬆️ Update applied provider=github location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
+			"WRN 📛 Skipped provider=github location=x/b.txt:4 reason=\"dep failed\"\n"+
 			"INF 🏁 Run complete changed=1 skipped=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -58,8 +58,8 @@ func TestRunReportsWrittenValue(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(written, fallback), false, output.Text)
 
 	require.Equal(t,
-		"INF ⬆️ Update applied location=app.txt:1 from=1.20.0 to=1.31.2\n"+
-			"INF ⬆️ Update applied location=app.txt:3 from=1.0.0 to=2.0.0\n"+
+		"INF ⬆️ Update applied provider=github location=app.txt:1 from=1.20.0 to=1.31.2\n"+
+			"INF ⬆️ Update applied provider=github location=app.txt:3 from=1.0.0 to=2.0.0\n"+
 			"INF 🏁 Run complete changed=2 elapsed=2s\n",
 		buf.String(),
 	)
@@ -98,6 +98,28 @@ func TestAnnotateWrites(t *testing.T) {
 	require.Equal(t,
 		"INF 🌱 Annotated provider=docker location=Dockerfile:1\n"+
 			"INF 🏁 Annotate complete added=1 elapsed=2s\n",
+		buf.String(),
+	)
+}
+
+func TestAnnotateLogsResource(t *testing.T) {
+	s := mode.AnnotateSummary{Files: []mode.AnnotateFile{{
+		Path: ".github/workflows/ci.yaml",
+		Changes: []mode.AnnotateChange{{
+			At:          20,
+			Provider:    "github",
+			Resource:    "actions/checkout",
+			ResourceURL: "https://github.com/actions/checkout",
+		}},
+	}}, Elapsed: 2 * time.Second}
+
+	var buf bytes.Buffer
+	report.Annotate(clog.NewWriter(&buf), s, false)
+
+	require.Equal(
+		t,
+		"DRY 🚧 Would annotate provider=github resource=actions/checkout location=.github/workflows/ci.yaml:21\n"+
+			"DRY 🏁 Annotate complete added=1 elapsed=2s\n",
 		buf.String(),
 	)
 }
@@ -149,7 +171,7 @@ func TestRunReportsPinVerification(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(upToDate), false, output.Text)
 
 	require.Equal(t,
-		"ERR 🔓 Pin does not match upstream location=ci.yml:1 "+
+		"ERR 🔓 Pin does not match upstream provider=github location=ci.yml:1 "+
 			"error=\"pinned aaa but 1.0.0 upstream is bbb\"\n"+
 			"INF 🏁 Run complete elapsed=2s\n",
 		buf.String(),
@@ -171,7 +193,7 @@ func TestRunReportsMovedTag(t *testing.T) {
 
 	require.Equal(t,
 		"WRN 🔀 Pinned upstream tag has moved (pass `--force` to re-pin if safe) "+
-			"location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
+			"provider=github location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
 			"INF 🏁 Run complete elapsed=2s\n",
 		buf.String(),
 	)
@@ -190,8 +212,9 @@ func TestRunAbbreviatesHashValues(t *testing.T) {
 	var buf bytes.Buffer
 	report.Run(clog.NewWriter(&buf), summary(pinned), false, output.Text)
 
-	require.Equal(t,
-		"INF ⬆️ Update applied location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
+	require.Equal(
+		t,
+		"INF ⬆️ Update applied provider=github location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
 			"INF 🏁 Run complete changed=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -208,7 +231,7 @@ func TestRunWideShowsFullHash(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(pinned), false, output.Wide)
 
 	require.Equal(t,
-		"INF ⬆️ Update applied location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
+		"INF ⬆️ Update applied provider=github location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
 			"INF 🏁 Run complete changed=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -222,8 +245,30 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 	report.Run(clog.NewWriter(&buf), summary(updated), true, output.Text)
 
 	require.Equal(t,
-		"DRY ⬆️ Update available location=app.txt:1 from=1.0.0 to=2.0.0\n"+
+		"DRY ⬆️ Update available provider=github location=app.txt:1 from=1.0.0 to=2.0.0\n"+
 			"DRY 🏁 Run complete changed=1 elapsed=2s\n",
+		buf.String(),
+	)
+}
+
+// TestRunLogsResource confirms a change carries the resolved provider and, when
+// the provider names one, a resource= field; a result without a resource omits
+// it entirely.
+func TestRunLogsResource(t *testing.T) {
+	named := result("ci.yml", 0)
+	named.Current, named.Resolved, named.Changed = "1.0.0", "2.0.0", true
+	named.Resource, named.ResourceURL = "actions/checkout", "https://github.com/actions/checkout"
+	bare := result("ci.yml", 2)
+	bare.Current, bare.Resolved, bare.Changed = "3.0.0", "4.0.0", true
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(named, bare), false, output.Text)
+
+	require.Equal(
+		t,
+		"INF ⬆️ Update applied provider=github resource=actions/checkout location=ci.yml:1 from=1.0.0 to=2.0.0\n"+
+			"INF ⬆️ Update applied provider=github location=ci.yml:3 from=3.0.0 to=4.0.0\n"+
+			"INF 🏁 Run complete changed=2 elapsed=2s\n",
 		buf.String(),
 	)
 }
@@ -261,7 +306,7 @@ func TestLint(t *testing.T) {
 	report.Lint(clog.NewWriter(&buf), summary(bad), output.Text)
 
 	require.Equal(t,
-		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
+		"ERR ❌ Invalid provider=github location=a.txt:1 error=boom\n"+
 			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -279,8 +324,8 @@ func TestRunWideReportsUpToDate(t *testing.T) {
 	report.Run(logger, summary(updated, steady), false, output.Wide)
 
 	require.Equal(t,
-		"INF ⬆️ Update applied location=app.txt:1 from=1.0.0 to=2.0.0\n"+
-			"DBG 🐞 Already up-to-date location=app.txt:3 version=1.5.0\n"+
+		"INF ⬆️ Update applied provider=github location=app.txt:1 from=1.0.0 to=2.0.0\n"+
+			"DBG 🐞 Already up-to-date provider=github location=app.txt:3 version=1.5.0\n"+
 			"INF 🏁 Run complete changed=1 elapsed=2s\n",
 		buf.String(),
 	)
@@ -295,8 +340,8 @@ func TestLintWideReportsValid(t *testing.T) {
 	report.Lint(clog.NewWriter(&buf), summary(bad, ok), output.Wide)
 
 	require.Equal(t,
-		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
-			"INF ✅ Valid location=b.txt:2\n"+
+		"ERR ❌ Invalid provider=github location=a.txt:1 error=boom\n"+
+			"INF ✅ Valid provider=github location=b.txt:2\n"+
 			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
 		buf.String(),
 	)

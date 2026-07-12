@@ -137,6 +137,15 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return resource{host: host, owner: owner, name: name, source: source}, nil
 }
 
+// Identify returns the owner/name repository and its landing page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	return res.owner + "/" + res.name, webURL(res)
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)

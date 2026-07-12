@@ -53,12 +53,12 @@ func (p *plan) check(i int) error {
 		return m.TargetErr
 	}
 	if m.Directive.Has(constant.DirectiveTrack) {
-		return p.checkTrack(m)
+		return p.checkTrack(i, m)
 	}
 	if m.IsFollower() {
 		return p.checkFollower(m)
 	}
-	return p.checkProducer(m)
+	return p.checkProducer(i, m)
 }
 
 // checkKeys rejects a marker carrying a key outside the common vocabulary and
@@ -136,7 +136,7 @@ func trackPreconditions(m Marker) error {
 // checkTrack validates a track= marker offline: its provider-agnostic
 // preconditions, plus an explicit provider whose floating-ref pin the line
 // carries and which can resolve that pin's secure value.
-func (p *plan) checkTrack(m Marker) error {
+func (p *plan) checkTrack(i int, m Marker) error {
 	if err := trackPreconditions(m); err != nil {
 		return err
 	}
@@ -145,9 +145,11 @@ func (p *plan) checkTrack(m Marker) error {
 	if err != nil {
 		return err
 	}
-	if _, resourceErr := prov.Resource(m.Directive); resourceErr != nil {
+	resource, resourceErr := prov.Resource(m.Directive)
+	if resourceErr != nil {
 		return resourceErr
 	}
+	p.results[i].Resource, p.results[i].ResourceURL = identifyResource(prov, resource)
 	_, located, err := p.locate(m)
 	if err != nil {
 		return err
@@ -174,14 +176,16 @@ func trackCapable(prov provider.Provider, name string, needsDigest bool) error {
 // checkProducer verifies a producer names a known provider, builds a valid
 // resource, locates an unambiguous version on its target line, and compiles its
 // rule - every step the run does before the one thing it skips, the network.
-func (p *plan) checkProducer(m Marker) error {
+func (p *plan) checkProducer(i int, m Marker) error {
 	prov, err := lookupProvider(m.Provider)
 	if err != nil {
 		return err
 	}
-	if _, err = prov.Resource(m.Directive); err != nil {
+	resource, err := prov.Resource(m.Directive)
+	if err != nil {
 		return err
 	}
+	p.results[i].Resource, p.results[i].ResourceURL = identifyResource(prov, resource)
 
 	_, located, err := p.locate(m)
 	if err != nil {

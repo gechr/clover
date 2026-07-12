@@ -82,6 +82,19 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return newReference(registry, chart)
 }
 
+// Identify returns the chart reference and, for a classic repository, its root.
+// An OCI chart has no browser landing page, so its URL is empty.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	ref, ok := r.(reference)
+	if !ok {
+		return "", ""
+	}
+	if ref.isOCI {
+		return ref.String(), ""
+	}
+	return ref.String(), ref.baseURL
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	ref, ok := r.(reference)

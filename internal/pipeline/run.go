@@ -86,6 +86,17 @@ type Result struct {
 	// with its ref inferred from the resolved ref's format. The report
 	// hyperlinks the from value to it; empty when unavailable.
 	CurrentURL string
+
+	// Resource is a compact identifier for the tracked resource (a repo, image,
+	// or package, e.g. actions/checkout), when the provider supplies one. The
+	// report logs it as resource=; empty for followers and providers without the
+	// capability.
+	Resource string
+
+	// ResourceURL is the upstream landing page for Resource (e.g. a repository's
+	// home page). The report hyperlinks the resource to it; empty when
+	// unavailable.
+	ResourceURL string
 }
 
 // FileResult groups a scanned file's original lines with the results of every
@@ -658,6 +669,17 @@ func lookupProvider(name string) (provider.Provider, error) {
 	return nil, fmt.Errorf("unknown provider %q", name)
 }
 
+// identifyResource returns the resource's compact id and upstream landing page
+// when the provider implements [provider.Identifier], else empty strings. It is
+// shared by the resolve and validate paths so a run and a lint report the same
+// resource for a marker.
+func identifyResource(prov provider.Provider, resource provider.Resource) (string, string) {
+	if idr, ok := prov.(provider.Identifier); ok {
+		return idr.Identify(resource)
+	}
+	return "", ""
+}
+
 func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
 
@@ -1005,6 +1027,7 @@ func (p *plan) finalize(
 		p.results[i].ResolvedURL = linker.URL(resource, chosen)
 		p.results[i].CurrentURL = linker.URL(resource, currentCandidate(located, chosen))
 	}
+	p.results[i].Resource, p.results[i].ResourceURL = identifyResource(prov, resource)
 	p.results[i].Verify = verifyPin(located, chosen)
 	if p.results[i].Verify == nil && p.deepVerify(m) {
 		p.results[i].Verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)

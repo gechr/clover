@@ -90,6 +90,15 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return newReference(registry, repo, platform)
 }
 
+// Identify returns the image reference and its registry landing page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	ref, ok := r.(reference)
+	if !ok {
+		return "", ""
+	}
+	return ref.String(), ref.url()
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	ref, ok := r.(reference)

@@ -78,6 +78,15 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return resource{product: product, enterprise: enterprise, build: build}, nil
 }
 
+// Identify returns the product name and its releases page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	return res.product, "https://" + host + "/" + res.product
+}
+
 // Describe returns a human-readable label for a resource, noting the build
 // flavor or enterprise edition when one is selected.
 func (p *Provider) Describe(r provider.Resource) string {

@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/progress"
+	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
 	"github.com/gechr/x/set"
@@ -79,10 +80,12 @@ func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSki
 // existing directive comment at At into its canonical minimal form (Existing
 // true, only under --force).
 type AnnotateChange struct {
-	At       int
-	Line     string
-	Provider string
-	Existing bool
+	At          int
+	Line        string
+	Provider    string
+	Resource    string // the tracked resource id, for reporting; empty when none
+	ResourceURL string // the resource's upstream landing page, for the report hyperlink
+	Existing    bool
 }
 
 // AnnotateSkip records a recognized annotation candidate that annotate left
@@ -123,9 +126,11 @@ type AnnotateSidecar struct {
 // the entry tracks (for reporting), and whether it replaces an existing entry
 // rather than introducing a new one.
 type SidecarEntryChange struct {
-	Target   int
-	Provider string
-	Existing bool
+	Target      int
+	Provider    string
+	Resource    string // the tracked resource id, for reporting; empty when none
+	ResourceURL string // the resource's upstream landing page, for the report hyperlink
+	Existing    bool
 }
 
 // AnnotateSummary is the annotate outcome over all roots, in file order.
@@ -335,7 +340,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		if governed.Contains(i) {
 			continue
 		}
-		if change, ok := insert(syntax, i, line, inf.Provider); ok {
+		if change, ok := insert(syntax, i, line, inf); ok {
 			annotated.Changes = append(annotated.Changes, change)
 		} else {
 			annotated.Skips = append(annotated.Skips, skip(i, "comment syntax unavailable"))
@@ -367,13 +372,41 @@ func forceEligible(d directive.Directive, inferred string) bool {
 // insert builds the fresh annotation for a recognized, unannotated line: a
 // `@clover` comment indented to match the line. ok is false when the file's
 // syntax exposes no comment delimiter.
-func insert(syntax comment.Syntax, i int, line, provider string) (AnnotateChange, bool) {
+func insert(syntax comment.Syntax, i int, line string, inf match.Inference) (AnnotateChange, bool) {
 	body := directive.Render(canonicalDirective(directive.Directive{}, match.Inference{}))
 	comment, ok := syntax.Comment(leadingWhitespace(line), body)
 	if !ok {
 		return AnnotateChange{}, false
 	}
-	return AnnotateChange{At: i, Line: comment, Provider: provider}, true
+	id, url := resourceFor(infer.Directive(inf))
+	return AnnotateChange{
+		At:          i,
+		Line:        comment,
+		Provider:    inf.Provider,
+		Resource:    id,
+		ResourceURL: url,
+	}, true
+}
+
+// resourceFor derives the tracked resource's id and upstream landing page from a
+// directive, reusing the provider's [provider.Identifier] capability so the value
+// matches what a run reports. It returns empty strings when the provider is
+// unknown, the directive does not validate, or the provider names no resource.
+func resourceFor(d directive.Directive) (string, string) {
+	name, _ := d.Get(constant.DirectiveProvider)
+	prov, ok := provider.Get(name)
+	if !ok {
+		return "", ""
+	}
+	res, err := prov.Resource(d)
+	if err != nil {
+		return "", ""
+	}
+	idr, ok := prov.(provider.Identifier)
+	if !ok {
+		return "", ""
+	}
+	return idr.Identify(res)
 }
 
 // rewrite canonicalizes an existing directive comment into its minimal form,
@@ -390,11 +423,14 @@ func rewrite(
 	if !ok || rendered == line {
 		return AnnotateChange{}, false
 	}
+	id, url := resourceFor(infer.Directive(inf))
 	return AnnotateChange{
-		At:       loc.Line,
-		Line:     rendered,
-		Provider: inf.Provider,
-		Existing: true,
+		At:          loc.Line,
+		Line:        rendered,
+		Provider:    inf.Provider,
+		Resource:    id,
+		ResourceURL: url,
+		Existing:    true,
 	}, true
 }
 
@@ -789,9 +825,16 @@ func forceSidecar(
 		if !ok || !sourceDrifted(existing, inf) {
 			return directive.Directive{}, false
 		}
+		id, url := resourceFor(infer.Directive(inf))
 		updated = append(
 			updated,
-			SidecarEntryChange{Target: line, Provider: inf.Provider, Existing: true},
+			SidecarEntryChange{
+				Target:      line,
+				Provider:    inf.Provider,
+				Resource:    id,
+				ResourceURL: url,
+				Existing:    true,
+			},
 		)
 		return refreshSource(existing, inf), true
 	}
@@ -859,7 +902,14 @@ func renderEntries(entries []sidecarEntry) ([]byte, error) {
 func entryChanges(entries []sidecarEntry) []SidecarEntryChange {
 	changes := xslices.Map(entries, func(e sidecarEntry) SidecarEntryChange {
 		provider, _ := e.directive.Get(constant.DirectiveProvider)
-		return SidecarEntryChange{Target: e.target, Provider: provider, Existing: false}
+		id, url := resourceFor(e.directive)
+		return SidecarEntryChange{
+			Target:      e.target,
+			Provider:    provider,
+			Resource:    id,
+			ResourceURL: url,
+			Existing:    false,
+		}
 	})
 	return changes
 }

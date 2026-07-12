@@ -63,6 +63,14 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return resource{}, nil
 }
 
+// Identify names the Python runtime and its home page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	if _, ok := r.(resource); !ok {
+		return "", ""
+	}
+	return host, "https://www." + host
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	if _, ok := r.(resource); !ok {

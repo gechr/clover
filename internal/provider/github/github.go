@@ -196,6 +196,16 @@ func unknownTool(tool string) error {
 	return fmt.Errorf("github: unknown tool %q", tool)
 }
 
+// Identify returns the owner/name repository and its landing page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	id := res.owner + "/" + res.name
+	return id, "https://" + res.host + "/" + id
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)

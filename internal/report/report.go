@@ -32,19 +32,17 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().
+			marker(logger.Error(), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Err(r.Err).
 				Msg("Update check failed")
 		case r.Skipped:
-			logger.Warn().
-				Symbol("📛").
+			marker(logger.Warn().Symbol("📛"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
 		case r.Disabled:
-			logger.Info().
-				Symbol("💤").
+			marker(logger.Info().Symbol("💤"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Disabled")
@@ -53,14 +51,13 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 			if dryRun {
 				msg = "Update available"
 			}
-			summarize(logger, dryRun).
-				Symbol("⬆️").
+			marker(summarize(logger, dryRun).Symbol("⬆️"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Link(field.From, r.CurrentURL, value(r.Current, detail)).
 				Link(field.To, r.ResolvedURL, value(reportTo(r), detail)).
 				Msg(msg)
 		case detail == output.Wide:
-			logger.Debug().
+			marker(logger.Debug(), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Link(field.Version, r.ResolvedURL, value(r.Current, detail)).
 				Msg("Already up-to-date")
@@ -69,8 +66,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		// A failed pin verification is non-fatal: it is reported alongside the
 		// marker's outcome, not in place of it.
 		if r.Verify != nil {
-			logger.Error().
-				Symbol("🔓").
+			marker(logger.Error().Symbol("🔓"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Err(r.Verify).
 				Msg("Pin does not match upstream")
@@ -79,8 +75,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		// A held pin whose upstream tag moved is advisory: the pin stays put, but
 		// the unexpected move (a force-pushed tag) is surfaced so it is not silent.
 		if r.Moved != "" {
-			logger.Warn().
-				Symbol("🔀").
+			marker(logger.Warn().Symbol("🔀"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Link(field.From, r.CurrentURL, value(r.Current, detail)).
 				Link(field.To, r.ResolvedURL, value(r.Moved, detail)).
@@ -134,21 +129,24 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 	forEach(summary, func(r pipeline.Result) {
 		switch {
 		case r.Err != nil:
-			logger.Error().Line(field.Location, r.Marker.File, line(r)).Err(r.Err).Msg("Invalid")
+			marker(logger.Error(), r).
+				Line(field.Location, r.Marker.File, line(r)).
+				Err(r.Err).
+				Msg("Invalid")
 		case r.Skipped:
-			logger.Warn().
-				Symbol("📛").
+			marker(logger.Warn().Symbol("📛"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Skipped")
 		case r.Disabled:
-			logger.Info().
-				Symbol("💤").
+			marker(logger.Info().Symbol("💤"), r).
 				Line(field.Location, r.Marker.File, line(r)).
 				Str(field.Reason, r.Reason).
 				Msg("Disabled")
 		case detail == output.Wide:
-			logger.Info().Symbol("✅").Line(field.Location, r.Marker.File, line(r)).Msg("Valid")
+			marker(logger.Info().Symbol("✅"), r).
+				Line(field.Location, r.Marker.File, line(r)).
+				Msg("Valid")
 		}
 	})
 
@@ -207,9 +205,11 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 	dry := !write
 	for _, file := range summary.Files {
 		for _, change := range file.Changes {
-			event := summarize(logger, dry).
-				Str(field.Provider, change.Provider).
-				Line(field.Location, file.Path, change.At+1)
+			event := summarize(logger, dry).Str(field.Provider, change.Provider)
+			if change.Resource != "" {
+				event = event.Link(field.Resource, change.ResourceURL, change.Resource)
+			}
+			event = event.Line(field.Location, file.Path, change.At+1)
 			if write {
 				event = event.Symbol(annotateSymbol(change.Existing))
 			}
@@ -219,9 +219,11 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 		// target line they govern and tagged with the sidecar file they live in.
 		if file.Sidecar != nil {
 			for _, entry := range file.Sidecar.Entries {
-				event := summarize(logger, dry).
-					Str(field.Provider, entry.Provider).
-					Line(field.Location, file.Path, entry.Target+1).
+				event := summarize(logger, dry).Str(field.Provider, entry.Provider)
+				if entry.Resource != "" {
+					event = event.Link(field.Resource, entry.ResourceURL, entry.Resource)
+				}
+				event = event.Line(field.Location, file.Path, entry.Target+1).
 					Path(field.Sidecar, file.Sidecar.Path)
 				if write {
 					event = event.Symbol(annotateSymbol(entry.Existing))
@@ -320,6 +322,17 @@ func summarize(logger *clog.Logger, dry bool) *clog.Event {
 		return logger.Dry()
 	}
 	return logger.Info()
+}
+
+// marker adds the fields that identify a marker to an event: its resolved
+// provider, and - when the provider named one - a hyperlinked resource. Every
+// per-marker line runs through it so a report always says what it acted on.
+func marker(event *clog.Event, r pipeline.Result) *clog.Event {
+	event = event.Str(field.Provider, r.Marker.Provider)
+	if r.Resource != "" {
+		event = event.Link(field.Resource, r.ResourceURL, r.Resource)
+	}
+	return event
 }
 
 // line is a result's 1-based target line, for a clog file:line hyperlink.

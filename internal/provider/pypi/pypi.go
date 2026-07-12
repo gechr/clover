@@ -76,6 +76,15 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return resource{name: normalize(name)}, nil
 }
 
+// Identify returns the project name and its PyPI page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	return res.name, projectPath + res.name
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)

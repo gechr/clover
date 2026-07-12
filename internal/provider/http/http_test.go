@@ -204,6 +204,20 @@ func TestDescribe(t *testing.T) {
 	require.Equal(t, "http", p.Describe("not-a-resource"))
 }
 
+func TestIdentify(t *testing.T) {
+	t.Parallel()
+
+	p := http.New()
+	res := resourceFor(t, p, kv("url", testURL), kv("jq", ".version"))
+	id, link := p.Identify(res)
+	require.Equal(t, "example.com", id)
+	require.Equal(t, testURL, link)
+
+	id, link = p.Identify("not-a-resource")
+	require.Empty(t, id)
+	require.Empty(t, link)
+}
+
 func TestDiscoverJQStream(t *testing.T) {
 	t.Parallel()
 

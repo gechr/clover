@@ -50,6 +50,14 @@ func (p *Provider) Resource(_ directive.Directive) (provider.Resource, error) {
 	return resource{}, nil
 }
 
+// Identify names the Go runtime and its home page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	if _, ok := r.(resource); !ok {
+		return "", ""
+	}
+	return host, "https://" + host
+}
+
 // Describe returns a human-readable label for a resource.
 func (p *Provider) Describe(r provider.Resource) string {
 	if _, ok := r.(resource); !ok {

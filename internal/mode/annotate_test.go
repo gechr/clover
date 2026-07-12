@@ -224,6 +224,27 @@ func TestAnnotateInsertsForRecognizedLines(t *testing.T) {
 		readFile(t, filepath.Join(root, "compose.yaml")))
 }
 
+// TestAnnotateReportsResource confirms an inserted annotation carries the tracked
+// resource id and its landing URL, derived through the provider's Identifier
+// capability, so the report can show a hyperlinked resource=. It runs serially and
+// re-registers the real github provider, since a sibling run test overwrites it in
+// the shared registry with a fake that names no resource.
+func TestAnnotateReportsResource(t *testing.T) {
+	provider.Register(github.New())
+
+	root := annotateTree(t, map[string]string{
+		".github/workflows/ci.yaml": "jobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n",
+	})
+
+	summary := annotate(t, root, false, false)
+	require.Len(t, summary.Files, 1)
+	require.Len(t, summary.Files[0].Changes, 1)
+	change := summary.Files[0].Changes[0]
+	require.Equal(t, "github", change.Provider)
+	require.Equal(t, "actions/checkout", change.Resource)
+	require.Equal(t, "https://github.com/actions/checkout", change.ResourceURL)
+}
+
 func TestAnnotateInsertsForTagPinnedUses(t *testing.T) {
 	t.Parallel()
 

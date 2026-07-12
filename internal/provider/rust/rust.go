@@ -88,6 +88,14 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return resource{channel: channel}, nil
 }
 
+// Identify names the Rust toolchain and its home page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	if _, ok := r.(resource); !ok {
+		return "", ""
+	}
+	return host, "https://www." + host
+}
+
 // Describe returns a human-readable label for a resource, noting when it is
 // scoped to the beta channel.
 func (p *Provider) Describe(r provider.Resource) string {

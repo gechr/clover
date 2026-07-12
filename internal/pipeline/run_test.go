@@ -33,6 +33,8 @@ type fakeProvider struct {
 	floor        *string           // when set, Discover records the version-floor hint
 	truncate     bool              // when set, Discover reports a truncated lookup
 	link         string            // when set, the Linker capability returns link+candidate.Ref
+	resource     string            // when set, the Identifier capability returns resource+resourceURL
+	resourceURL  string            // the landing URL the Identifier capability returns
 	digest       string            // the digest the Digester capability returns
 	digestByTag  map[string]string // tag -> digest, overriding digest when the tag matches
 	defaultBr    string            // the BranchChecker default branch
@@ -57,6 +59,13 @@ func (f fakeProvider) URL(_ provider.Resource, c model.Candidate) string {
 		return ""
 	}
 	return f.link + c.Ref
+}
+
+func (f fakeProvider) Identify(provider.Resource) (string, string) {
+	if f.resource == "" {
+		return "", ""
+	}
+	return f.resource, f.resourceURL
 }
 
 func (f fakeProvider) DefaultBranch(context.Context, provider.Resource) (string, error) {
@@ -332,6 +341,40 @@ func TestRunResolvedURL(t *testing.T) {
 
 	// A prefixless resolved ref (1.3.0) infers a prefixless from ref (1.2.0).
 	require.Equal(t, "https://example.test/releases/tag/1.2.0", byName["bare.txt"].CurrentURL)
+}
+
+// A provider implementing Identifier has its resource id and landing URL captured
+// on the result, so the report can log a hyperlinked resource=; a provider that
+// names none leaves both empty.
+func TestRunResource(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:        "idfake",
+		resource:    "x/y",
+		resourceURL: "https://example.test/x/y",
+		candidates:  []model.Candidate{candidate(t, "1.3.0")},
+	})
+	provider.Register(fakeProvider{
+		name:       "noidfake",
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"named.txt": "# clover: provider=idfake repository=x/y\nversion: 1.2.0\n",
+		"bare.txt":  "# clover: provider=noidfake repository=x/y\nversion: 1.2.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+
+	byName := map[string]pipeline.Result{}
+	for _, f := range files {
+		byName[filepath.Base(f.Path)] = f.Results[0]
+	}
+
+	require.Equal(t, "x/y", byName["named.txt"].Resource)
+	require.Equal(t, "https://example.test/x/y", byName["named.txt"].ResourceURL)
+	require.Empty(t, byName["bare.txt"].Resource, "no resource when the provider names none")
+	require.Empty(t, byName["bare.txt"].ResourceURL)
 }
 
 func TestScanSkipsConfiguredExcludes(t *testing.T) {

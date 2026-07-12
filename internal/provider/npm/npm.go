@@ -141,6 +141,15 @@ func registryBase(d directive.Directive) (string, error) {
 	return base, nil
 }
 
+// Identify returns the package name and its npmjs.com page.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	return res.pkg, "https://" + host + "/package/" + res.pkg
+}
+
 // Describe returns a human-readable label for a resource: the npm web host for
 // the public registry, the custom registry's scheme-stripped base otherwise. A
 // tracked dist-tag is appended in npm's own package@tag spelling.

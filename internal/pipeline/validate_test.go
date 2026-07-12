@@ -109,6 +109,26 @@ func TestValidateCleanMarker(t *testing.T) {
 	require.NoError(t, files[0].Results[0].Err)
 }
 
+// TestValidatePopulatesResource confirms a lint validates the descriptor far
+// enough to capture the tracked resource, so a lint report can name it just like
+// a run does.
+func TestValidatePopulatesResource(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:        "vresfake",
+		resource:    "x/y",
+		resourceURL: "https://example.test/x/y",
+	})
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=vresfake repository=x/y\nversion: 1.2.0\n",
+	})
+
+	files, err := pipeline.Validate(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.NoError(t, files[0].Results[0].Err)
+	require.Equal(t, "x/y", files[0].Results[0].Resource)
+	require.Equal(t, "https://example.test/x/y", files[0].Results[0].ResourceURL)
+}
+
 func TestValidateStaysOffline(t *testing.T) {
 	// fakeProvider with an error set would surface only if Discover were called;
 	// validation never calls it, so a clean marker validates regardless.

@@ -130,6 +130,29 @@ func TestResource(t *testing.T) {
 	}
 }
 
+// TestIdentify confirms the resource id and landing page, including when the
+// repository comes from a curated tool name.
+func TestIdentify(t *testing.T) {
+	t.Parallel()
+
+	p := github.New()
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "actions/checkout"}))
+	require.NoError(t, err)
+	id, link := p.Identify(res)
+	require.Equal(t, "actions/checkout", id)
+	require.Equal(t, "https://github.com/actions/checkout", link)
+
+	res, err = p.Resource(directiveOf(directive.KV{Key: "tool", Value: "ripgrep"}))
+	require.NoError(t, err)
+	id, link = p.Identify(res)
+	require.Equal(t, "BurntSushi/ripgrep", id)
+	require.Equal(t, "https://github.com/BurntSushi/ripgrep", link)
+
+	id, link = p.Identify("not a resource")
+	require.Empty(t, id)
+	require.Empty(t, link)
+}
+
 // TestResourceToolErrors pins the exact messages the tool key's validation
 // reports, including the typo suggestion.
 func TestResourceToolErrors(t *testing.T) {

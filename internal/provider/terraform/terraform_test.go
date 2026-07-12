@@ -111,6 +111,40 @@ func TestDescribeInvalidResource(t *testing.T) {
 	require.Equal(t, "terraform", p.Describe("not a resource"))
 }
 
+// TestIdentify confirms the namespace/name id and that the landing page is built
+// only for a public registry, dropping the trailing version segment.
+func TestIdentify(t *testing.T) {
+	t.Parallel()
+
+	tf := terraform.New(terraform.Terraform)
+	r, err := tf.Resource(directiveOf(sourceAWS))
+	require.NoError(t, err)
+	id, link := tf.Identify(r)
+	require.Equal(t, "hashicorp/aws", id)
+	require.Equal(t, "https://registry.terraform.io/providers/hashicorp/aws", link)
+
+	ot := terraform.New(terraform.OpenTofu)
+	r, err = ot.Resource(directiveOf(sourceAWS))
+	require.NoError(t, err)
+	id, link = ot.Identify(r)
+	require.Equal(t, "hashicorp/aws", id)
+	require.Equal(t, "https://search.opentofu.org/provider/hashicorp/aws", link)
+
+	// A private registry (an explicit host) has no known web UI, so the id
+	// stands alone with no link.
+	priv, err := tf.Resource(
+		directiveOf(sourceAWS, directive.KV{Key: "host", Value: "registry.example.com"}),
+	)
+	require.NoError(t, err)
+	id, link = tf.Identify(priv)
+	require.Equal(t, "hashicorp/aws", id)
+	require.Empty(t, link)
+
+	id, link = tf.Identify("not a resource")
+	require.Empty(t, id)
+	require.Empty(t, link)
+}
+
 func TestDiscoverInvalidResource(t *testing.T) {
 	t.Parallel()
 

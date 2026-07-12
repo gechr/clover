@@ -117,6 +117,18 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	return res, nil
 }
 
+// Identify returns the endpoint host and the tracked URL.
+func (p *Provider) Identify(r provider.Resource) (string, string) {
+	res, ok := r.(resource)
+	if !ok {
+		return "", ""
+	}
+	if u, err := url.Parse(res.url); err == nil && u.Host != "" {
+		return u.Host, res.url
+	}
+	return res.url, res.url
+}
+
 // Describe returns a human-readable label for a resource: the endpoint's host.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)

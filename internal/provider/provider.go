@@ -35,9 +35,10 @@ func KeyNames(p Provider) []string {
 //
 // Everything beyond this contract is an optional capability, expressed as a
 // further interface discovered by type assertion: [RecencyOrderer],
-// [Anchorer], [Dater], [Digester], [Linker], [Committer], [BranchChecker],
-// and [Authenticator]. A provider implements only the capabilities its
-// upstream supports, and the pipeline degrades gracefully where one is absent.
+// [Anchorer], [Dater], [Digester], [Linker], [Identifier], [Committer],
+// [BranchChecker], and [Authenticator]. A provider implements only the
+// capabilities its upstream supports, and the pipeline degrades gracefully
+// where one is absent.
 type Provider interface {
 	// Name is the provider's identifier, as written in a directive's provider=.
 	Name() string
@@ -107,6 +108,15 @@ type Digester interface {
 // linked.
 type Linker interface {
 	URL(r Resource, c model.Candidate) string
+}
+
+// Identifier is an optional capability for providers that can name the resource
+// they track. Identify returns a compact identifier (e.g. "actions/checkout",
+// "docker.io/library/nginx", "clap") and a URL to its upstream landing page. The
+// report logs it as resource=<id>, hyperlinked to the URL. An empty URL logs the
+// id as plain text, an empty id omits the field.
+type Identifier interface {
+	Identify(r Resource) (id, url string)
 }
 
 // Committer is an optional capability for providers that can resolve a specific
