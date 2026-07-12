@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
@@ -32,6 +33,7 @@ func (c *cmdLint) Help() string {
 func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
 	launch(false)
 	ctx := context.Background()
+	start := time.Now()
 
 	filter, err := tagFilter(c.Tags)
 	if err != nil {
@@ -50,6 +52,7 @@ func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
 	if err != nil {
 		return err
 	}
+	summary.Elapsed = time.Since(start)
 
 	detail := configs.Primary().LintOutput(c.Output)
 	if detail == output.GitHub {

@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/gechr/clive/version"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clover/internal/display"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/log/field"
@@ -14,6 +16,13 @@ import (
 	"github.com/gechr/clover/internal/output"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/report/github"
+)
+
+// The closing summaries always report elapsed at millisecond granularity, so a
+// fast run shows a real value instead of being hidden or collapsing to 0s.
+const (
+	elapsedMinimum = time.Millisecond
+	elapsedRound   = time.Millisecond
 )
 
 // Run renders a run's per-marker outcomes and a closing summary. A dry run logs
@@ -105,7 +114,7 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		Int(field.Changed, summary.Changed()).
 		Int(field.Skipped, summary.Skipped()).
 		Int(field.Disabled, summary.Disabled()).
-		Duration(field.Elapsed, summary.Elapsed).
+		Duration(field.Elapsed, summary.Elapsed, duration.WithMinimum(elapsedMinimum), duration.WithRound(elapsedRound)).
 		Msg("Run complete")
 }
 
@@ -149,6 +158,7 @@ func Lint(logger *clog.Logger, summary mode.Summary, detail output.Mode) {
 		Int(field.Errored, summary.Errored()).
 		Int(field.Skipped, summary.Skipped()).
 		Int(field.Disabled, summary.Disabled()).
+		Duration(field.Elapsed, summary.Elapsed, duration.WithMinimum(elapsedMinimum), duration.WithRound(elapsedRound)).
 		Msg("Lint complete")
 }
 
@@ -236,6 +246,7 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 		OmitZero(true).
 		Int(field.Added, summary.Added()).
 		Int(field.Updated, summary.Updated()).
+		Duration(field.Elapsed, summary.Elapsed, duration.WithMinimum(elapsedMinimum), duration.WithRound(elapsedRound)).
 		Msg("Annotate complete")
 }
 

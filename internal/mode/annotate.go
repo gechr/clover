@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/gechr/clover/internal/comment"
 	"github.com/gechr/clover/internal/config"
@@ -130,7 +131,8 @@ type SidecarEntryChange struct {
 // AnnotateSummary is the annotate outcome over all roots, in file order.
 type AnnotateSummary struct {
 	Files   []AnnotateFile
-	Scanned int // total files examined during the walk
+	Scanned int           // total files examined during the walk
+	Elapsed time.Duration // wall-clock time the run took, for the summary line
 }
 
 // Added reports how many fresh annotations annotate would insert.

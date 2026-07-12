@@ -72,7 +72,7 @@ func TestAnnotatePreview(t *testing.T) {
 			{At: 0, Provider: "docker"},
 			{At: 4, Provider: "docker", Existing: true},
 		},
-	}}}
+	}}, Elapsed: 2 * time.Second}
 
 	var buf bytes.Buffer
 	report.Annotate(clog.NewWriter(&buf), s, false)
@@ -80,7 +80,7 @@ func TestAnnotatePreview(t *testing.T) {
 	require.Equal(t,
 		"DRY 🚧 Would annotate provider=docker location=Dockerfile:1\n"+
 			"DRY 🚧 Would reannotate provider=docker location=Dockerfile:5\n"+
-			"DRY 🏁 Annotate complete added=1 updated=1\n",
+			"DRY 🏁 Annotate complete added=1 updated=1 elapsed=2s\n",
 		buf.String(),
 	)
 }
@@ -90,14 +90,14 @@ func TestAnnotateWrites(t *testing.T) {
 		Path:    "Dockerfile",
 		Written: true,
 		Changes: []mode.AnnotateChange{{At: 0, Provider: "docker"}},
-	}}}
+	}}, Elapsed: 2 * time.Second}
 
 	var buf bytes.Buffer
 	report.Annotate(clog.NewWriter(&buf), s, true)
 
 	require.Equal(t,
 		"INF 🌱 Annotated provider=docker location=Dockerfile:1\n"+
-			"INF 🏁 Annotate complete added=1\n",
+			"INF 🏁 Annotate complete added=1 elapsed=2s\n",
 		buf.String(),
 	)
 }
@@ -262,7 +262,7 @@ func TestLint(t *testing.T) {
 
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
-			"INF 🏁 Lint complete errored=1\n",
+			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
 		buf.String(),
 	)
 }
@@ -297,7 +297,7 @@ func TestLintWideReportsValid(t *testing.T) {
 	require.Equal(t,
 		"ERR ❌ Invalid location=a.txt:1 error=boom\n"+
 			"INF ✅ Valid location=b.txt:2\n"+
-			"INF 🏁 Lint complete errored=1\n",
+			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
 		buf.String(),
 	)
 }

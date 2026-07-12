@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
@@ -48,6 +49,7 @@ func (c *cmdAnnotate) Help() string {
 func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	launch(false)
 	ctx := context.Background()
+	start := time.Now()
 	cfg, err := configs.PrimaryForPaths(roots(c.Paths))
 	if err != nil {
 		return err
@@ -73,6 +75,7 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	if err != nil {
 		return err
 	}
+	summary.Elapsed = time.Since(start)
 
 	annotateDiscovered(summary)
 	report.Annotate(clog.Default, summary, write)
