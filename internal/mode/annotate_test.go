@@ -193,15 +193,15 @@ func TestAnnotateInsertsForRecognizedLines(t *testing.T) {
 
 	require.Equal(
 		t,
-		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: actions/checkout@"+sha+" # v4.1.0\n",
+		"jobs:\n  build:\n    steps:\n      # @clover\n      - uses: actions/checkout@"+sha+" # v4.1.0\n",
 		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
 		"the comment is inserted above the uses: line, indented to match it",
 	)
 	require.Equal(t,
-		"# clover: provider=auto\nFROM nginx:1.27\n",
+		"# @clover\nFROM nginx:1.27\n",
 		readFile(t, filepath.Join(root, "Dockerfile")))
 	require.Equal(t,
-		"services:\n  web:\n    # clover: provider=auto\n    image: ghcr.io/owner/api:1.2.0\n",
+		"services:\n  web:\n    # @clover\n    image: ghcr.io/owner/api:1.2.0\n",
 		readFile(t, filepath.Join(root, "compose.yaml")))
 }
 
@@ -217,7 +217,7 @@ func TestAnnotateInsertsForTagPinnedUses(t *testing.T) {
 
 	require.Equal(
 		t,
-		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: actions/checkout@v4\n",
+		"jobs:\n  build:\n    steps:\n      # @clover\n      - uses: actions/checkout@v4\n",
 		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
 		"a tag-pinned uses: earns an annotation just like a SHA pin",
 	)
@@ -235,7 +235,7 @@ func TestAnnotateInsertsForContainerJobUses(t *testing.T) {
 
 	require.Equal(
 		t,
-		"jobs:\n  build:\n    steps:\n      # clover: provider=auto\n      - uses: docker://alpine:3.20\n",
+		"jobs:\n  build:\n    steps:\n      # @clover\n      - uses: docker://alpine:3.20\n",
 		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
 		"a container job's docker:// image earns an annotation",
 	)
@@ -253,7 +253,7 @@ func TestAnnotateInsertsForGitLabComponent(t *testing.T) {
 
 	require.Equal(
 		t,
-		"include:\n  # clover: provider=auto\n  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1\n",
+		"include:\n  # @clover\n  - component: gitlab.com/components/opentofu/full-pipeline@2.0.1\n",
 		readFile(t, filepath.Join(root, ".gitlab-ci.yml")),
 		"a component include earns an annotation",
 	)
@@ -284,17 +284,17 @@ func TestAnnotateInsertsForMiseTools(t *testing.T) {
 	require.Equal(
 		t,
 		"[tools]\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"terraform = \"1.9.8\"\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"node = \"24.11.0\"\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"tofu = \"1.8.5\"\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"\"ubi:owner/tool\" = \"1.2.3\"\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"go = \"1.23.2\"\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"zig = \"0.15.2\"\n"+
 			"java = \"21.0.5\"\n",
 		readFile(t, filepath.Join(root, ".mise.toml")),
@@ -313,7 +313,7 @@ func TestAnnotateInsertsForGoMod(t *testing.T) {
 
 	require.Equal(
 		t,
-		"module github.com/owner/repo\n\n// clover: provider=auto\ngo 1.23.2\n",
+		"module github.com/owner/repo\n\n// @clover\ngo 1.23.2\n",
 		readFile(t, filepath.Join(root, "go.mod")),
 		"the go directive earns a slash-comment annotation",
 	)
@@ -335,10 +335,10 @@ func TestAnnotateInsertsForPyproject(t *testing.T) {
 	require.Equal(
 		t,
 		"[project]\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"requires-python = \">=3.13\"\n\n"+
 			"[tool.ruff]\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"target-version = \"py313\"\n",
 		readFile(t, filepath.Join(root, "pyproject.toml")),
 		"the requires-python floor and the compact target-version both earn annotations",
@@ -372,15 +372,15 @@ func TestAnnotateInsertsForPyprojectDependencies(t *testing.T) {
 		t,
 		"[project]\n"+
 			"dependencies = [\n"+
-			"  # clover: provider=auto\n"+
+			"  # @clover\n"+
 			"  \"pydantic>=2.12.5\",\n"+
-			"  # clover: provider=auto\n"+
+			"  # @clover\n"+
 			"  \"ruamel.yaml >= 0.19.1\",\n"+
 			"]\n\n"+
 			"[dependency-groups]\n"+
 			"dev = [\"ruff>=0.15.2\", \"pytest>=9.0.3\"]\n\n"+
 			"[build-system]\n"+
-			"# clover: provider=auto\n"+
+			"# @clover\n"+
 			"requires = [\"uv_build>=0.8.24\"]\n",
 		readFile(t, filepath.Join(root, "pyproject.toml")),
 		"each single-specifier line earns an annotation, the multi-specifier group is left alone",
@@ -432,7 +432,7 @@ func TestAnnotateInsertsForDigestPinnedFloatingTag(t *testing.T) {
 
 	require.Equal(
 		t,
-		"# clover: provider=auto\nFROM gcr.io/distroless/static:nonroot@sha256:"+digest+"\n",
+		"# @clover\nFROM gcr.io/distroless/static:nonroot@sha256:"+digest+"\n",
 		readFile(t, filepath.Join(root, "Dockerfile")),
 		"a digest pin on a floating tag earns an annotation, resolved as track",
 	)
@@ -450,7 +450,7 @@ func TestAnnotateInsertsForTerraformRequiredVersion(t *testing.T) {
 
 	require.Equal(
 		t,
-		"terraform {\n  # clover: provider=auto\n  required_version = \"~> 1.11.0\"\n}\n",
+		"terraform {\n  # @clover\n  required_version = \"~> 1.11.0\"\n}\n",
 		readFile(t, filepath.Join(root, "versions.tf")),
 		"a required_version constraint earns an annotation",
 	)
@@ -479,7 +479,7 @@ func TestAnnotateInsertsForRequiredProviders(t *testing.T) {
 			"  required_providers {\n"+
 			"    aws = {\n"+
 			"      source  = \"hashicorp/aws\"\n"+
-			"      # clover: provider=auto\n"+
+			"      # @clover\n"+
 			"      version = \"~> 6.39\"\n"+
 			"    }\n"+
 			"  }\n"+
@@ -522,7 +522,7 @@ func TestAnnotateBottomUpInsertsMultiple(t *testing.T) {
 	require.Equal(t, 2, annotate(t, root, true, false).Added())
 	require.Equal(
 		t,
-		"# clover: provider=auto\nFROM nginx:1.27\nRUN build\n# clover: provider=auto\nFROM redis:7.2\n",
+		"# @clover\nFROM nginx:1.27\nRUN build\n# @clover\nFROM redis:7.2\n",
 		readFile(t, filepath.Join(root, "Dockerfile")),
 		"both comments land above their own line; later insertions do not shift earlier ones",
 	)
@@ -550,12 +550,12 @@ func TestAnnotateForceCanonicalises(t *testing.T) {
 		{
 			name:     "collapses redundant keys, keeps rule keys",
 			original: "# clover: provider=docker repository=nginx constraint=minor\nFROM nginx:1.27\n",
-			want:     "# clover: provider=auto constraint=minor\nFROM nginx:1.27\n",
+			want:     "# @clover: constraint=minor\nFROM nginx:1.27\n",
 		},
 		{
 			name:     "repairs a repository that has drifted from its line",
 			original: "# clover: provider=docker repository=library/stale\nFROM nginx:1.27\n",
-			want:     "# clover: provider=auto\nFROM nginx:1.27\n",
+			want:     "# @clover\nFROM nginx:1.27\n",
 		},
 	}
 
@@ -619,7 +619,7 @@ func TestAnnotateSkipsCommentedOutLines(t *testing.T) {
 func TestAnnotateForceNoOpWhenCanonical(t *testing.T) {
 	t.Parallel()
 
-	original := "# clover: provider=auto\nFROM nginx:1.27\n"
+	original := "# @clover\nFROM nginx:1.27\n"
 	root := annotateTree(t, map[string]string{"Dockerfile": original})
 
 	require.True(t, annotate(t, root, true, true).OK(),
@@ -657,11 +657,11 @@ func TestAnnotateSkipsUnlocatableLines(t *testing.T) {
 	require.Equal(t, "FROM nginx\n", readFile(t, filepath.Join(root, "Dockerfile")),
 		"a docker line with no tag stays unannotated")
 	require.Equal(t,
-		"    # clover: provider=auto\n    - uses: actions/checkout@"+sha+"\n",
+		"    # @clover\n    - uses: actions/checkout@"+sha+"\n",
 		readFile(t, filepath.Join(root, ".github/workflows/ci.yaml")),
 		"an undocumented action pin is annotated; run will add its version comment")
 	require.Equal(t,
-		"# clover: provider=auto\nFROM redis:7.2\n",
+		"# @clover\nFROM redis:7.2\n",
 		readFile(t, filepath.Join(root, "ok/Dockerfile")))
 }
 
@@ -720,12 +720,12 @@ func TestAnnotateHonorsIgnoreControls(t *testing.T) {
 		{
 			name:     "ignore next-line",
 			original: "# clover:ignore\nFROM nginx:1.27\nFROM redis:7.2\n",
-			want:     "# clover:ignore\nFROM nginx:1.27\n# clover: provider=auto\nFROM redis:7.2\n",
+			want:     "# clover:ignore\nFROM nginx:1.27\n# @clover\nFROM redis:7.2\n",
 		},
 		{
 			name:     "ignore block",
 			original: "# clover:ignore-start\nFROM nginx:1.27\n# clover:ignore-end\nFROM redis:7.2\n",
-			want:     "# clover:ignore-start\nFROM nginx:1.27\n# clover:ignore-end\n# clover: provider=auto\nFROM redis:7.2\n",
+			want:     "# clover:ignore-start\nFROM nginx:1.27\n# clover:ignore-end\n# @clover\nFROM redis:7.2\n",
 		},
 	}
 

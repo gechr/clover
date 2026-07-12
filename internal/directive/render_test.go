@@ -37,6 +37,20 @@ func TestRender(t *testing.T) {
 		{"quoted partial-slash re-quoted", `clover: include="/foo"`, `clover: include="/foo"`},
 		{"boolean explicit", "clover: disabled=true", "clover: disabled=true"},
 		{"repeated keys preserved", "clover: include=a include=b", "clover: include=a include=b"},
+		{"auto folds into the sigil", "clover: provider=auto", "@clover"},
+		{
+			"auto with pairs keeps the colon",
+			"clover: provider=auto constraint=minor",
+			"@clover: constraint=minor",
+		},
+		{"bare shorthand is canonical", "@clover", "@clover"},
+		{"shorthand with empty pairs drops the colon", "@clover:", "@clover"},
+		{"redundant explicit auto folds", "@clover: provider=auto", "@clover"},
+		{
+			"redundant sigil drops for explicit provider",
+			"@clover: provider=github",
+			"clover: provider=github",
+		},
 	}
 
 	for _, tc := range tests {
@@ -83,6 +97,9 @@ func TestRenderParseRoundTrip(t *testing.T) {
 		`clover: constraint=">=1.2,<2.0"`,
 		`clover: include="/foo"`,
 		"clover: include=/a\\/b/ disabled=false",
+		"@clover",
+		"@clover: constraint=minor",
+		"clover: provider=auto include=/x.*/",
 	}
 
 	for _, body := range bodies {

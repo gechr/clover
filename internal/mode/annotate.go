@@ -143,7 +143,7 @@ func (s AnnotateSummary) count(existing bool) int {
 }
 
 // Annotate scans every text file under roots and, for each line that clover can
-// already track but is not yet annotated, proposes a `clover: provider=auto`
+// already track but is not yet annotated, proposes a `@clover`
 // comment above it - the inverse of the auto-detection that resolves such a
 // marker. It is the onboarding command: it leans on the same dispatch routes
 // [match.Infer] uses, so a line only earns an annotation that is guaranteed to
@@ -327,8 +327,8 @@ func forceEligible(d directive.Directive, inferred string) bool {
 }
 
 // insert builds the fresh annotation for a recognized, unannotated line: a
-// `clover: provider=auto` comment indented to match the line. ok is false when
-// the file's syntax exposes no comment delimiter.
+// `@clover` comment indented to match the line. ok is false when the file's
+// syntax exposes no comment delimiter.
 func insert(syntax comment.Syntax, i int, line, provider string) (AnnotateChange, bool) {
 	body := directive.Render(canonicalDirective(directive.Directive{}, match.Inference{}))
 	comment, ok := syntax.Comment(leadingWhitespace(line), body)

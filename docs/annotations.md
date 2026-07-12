@@ -23,6 +23,10 @@ image: redis:7.2.0
 required_version = "1.7.0"
 ```
 
+The most common annotation by far is `provider=auto`, which asks Clover to infer everything from the target line. It has a dedicated shorthand, a bare [`@clover`](auto.md#the-clover-shorthand) comment, described with the rest of [auto-detection](auto.md).
+
+A keyword whose colon is missing or detached ahead of pair-shaped text (`# clover foo=bar`, `# @clover : constraint=minor`) is reported as a malformed directive rather than silently ignored, while a comment that merely leads with the word stays inert.
+
 ### Formats without comments
 
 A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit. `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line, so Clover reads their directives from a [**sidecar**](sidecar.md), a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.

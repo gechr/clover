@@ -4,16 +4,16 @@
 clover <command>
 ```
 
-| Command    | Alias | Description                                                       |
-| ---------- | ----- | ----------------------------------------------------------------- |
-| `init`     |       | Create a starter [`.clover.yaml`](configuration.md) interactively |
-| `run`      |       | Resolve version references and update them in place               |
-| `lint`     |       | Check every directive resolves, offline and without writing       |
-| `format`   | `fmt` | Canonicalize directive comments                                   |
-| `annotate` |       | Add `provider=auto` directives to recognized version lines        |
-| `login`    |       | Authenticate Clover with a provider (GitHub, GitLab, Gitea)       |
-| `update`   | `up`  | Update Clover to the latest release via Homebrew                  |
-| `version`  |       | Print version information                                         |
+| Command    | Alias | Description                                                                          |
+| ---------- | ----- | ------------------------------------------------------------------------------------ |
+| `init`     |       | Create a starter [`.clover.yaml`](configuration.md) interactively                    |
+| `run`      |       | Resolve version references and update them in place                                  |
+| `lint`     |       | Check every directive resolves, offline and without writing                          |
+| `format`   | `fmt` | Canonicalize directive comments                                                      |
+| `annotate` |       | Add [`@clover`](auto.md#the-clover-shorthand) directives to recognized version lines |
+| `login`    |       | Authenticate Clover with a provider (GitHub, GitLab, Gitea)                          |
+| `update`   | `up`  | Update Clover to the latest release via Homebrew                                     |
+| `version`  |       | Print version information                                                            |
 
 ## `run`
 
@@ -86,7 +86,7 @@ clover format [options] [<path>…]
 
 ## `annotate`
 
-Add `clover: provider=auto` directives to lines Clover can already track but that carry none. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. It is the inverse of [auto-detection](auto.md). Rather than resolving an existing `provider=auto` marker, it finds the lines such a marker would resolve and writes one above each.
+Add [`@clover`](auto.md#the-clover-shorthand) directives to lines Clover can already track but that carry none. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. It is the inverse of [auto-detection](auto.md). Rather than resolving an existing auto marker, it finds the lines such a marker would resolve and writes one above each.
 
 ```text
 clover annotate [options] [<path>…]
@@ -106,7 +106,7 @@ Unlike `run` and `format`, `annotate` previews by default and writes only with `
 
 Pass global `--verbose` with `annotate` to show recognized candidates Clover deliberately skipped, including the reason they failed validation or were opted out.
 
-Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce (`provider=auto`, or an explicit provider the line infers) is collapsed back to `provider=auto`, dropping the `provider`/`repository`/`registry` keys that inference supplies (and `host`, when the line itself names one) while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
+Existing annotations are never touched without `--force`. With it, an annotation Clover itself would produce (`provider=auto`, or an explicit provider the line infers) is collapsed back to [`@clover`](auto.md#the-clover-shorthand), dropping the `provider`/`repository`/`registry` keys that inference supplies (and `host`, when the line itself names one) while preserving every selection rule (`constraint`, `include`, `cooldown`, …). A deliberately explicit directive Clover cannot infer (`provider=http`, a `find`/`replace`, a tracked ref) is left untouched. A [`clover:ignore`](ignore.md) control opts a line out of annotation just as it opts it out of resolution.
 
 ## `login`
 

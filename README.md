@@ -40,7 +40,7 @@ clover run         # resolve references and update them in place
 clover run -n      # dry-run: resolve and preview, write nothing
 clover lint        # check every directive resolves, offline, no writes
 clover format      # canonicalize directive comments
-clover annotate    # preview provider=auto directives for recognized lines
+clover annotate    # preview @clover directives for recognized lines
 clover annotate -w # write those annotations
 ```
 
@@ -50,24 +50,24 @@ By default, lines without a `clover:` comment are never touched.
 
 Clover resolves versions from a range of upstream sources:
 
+- **`docker`** - image tags and digests from any OCI registry
+- **`gitea`** - Gitea and Forgejo forges, defaulting to [Codeberg](https://codeberg.org/)
 - **`github`** - releases and tags, with checksum and commit-SHA pinning
 - **`gitlab`** - project tags and releases
-- **`gitea`** - Gitea and Forgejo forges, defaulting to [Codeberg](https://codeberg.org/)
-- **`docker`** - image tags and digests from any OCI registry
-- **`helm`** - chart versions from HTTP or OCI repositories
-- **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools from [releases.hashicorp.com](https://releases.hashicorp.com/)
-- **`terraform`** / **`opentofu`** - provider plugins from a registry
 - **`go`** - Go toolchain versions from [go.dev](https://go.dev/)
+- **`hashicorp`** - Terraform, Vault, Consul, Nomad, and other HashiCorp tools from [releases.hashicorp.com](https://releases.hashicorp.com/)
+- **`helm`** - chart versions from HTTP or OCI repositories
+- **`http`** - any endpoint, read with [`jq`](https://jqlang.org/) or a regular expression
+- **`manual`** - a hand-maintained value for other directives to follow
 - **`node`** - Node.js runtime versions from [nodejs.org](https://nodejs.org/)
 - **`npm`** - package versions from [registry.npmjs.org](https://registry.npmjs.org/)
 - **`pypi`** - Python package versions from [pypi.org](https://pypi.org/)
 - **`python`** - Python runtime versions from [python.org](https://www.python.org/)
 - **`rust`** - Rust toolchain versions, stable or beta channel
+- **`terraform`** / **`opentofu`** - provider plugins from a registry
 - **`zig`** - Zig toolchain versions from [ziglang.org](https://ziglang.org/)
-- **`http`** - any endpoint, read with [`jq`](https://jqlang.org/) or a regular expression
-- **`manual`** - a hand-maintained value for other directives to follow
 
-Setting `provider=auto` infers the right provider from the line itself, so common cases such as GitHub Actions, `FROM` images, `go.mod`, and Terraform blocks need no provider at all.
+A bare [`# @clover`](https://gechr.github.io/clover/auto.html#the-clover-shorthand) comment (shorthand for `provider=auto`) infers the right provider from the line itself, so common cases such as GitHub Actions, `FROM` images, `go.mod`, and Terraform blocks need no provider at all.
 
 ## Documentation
 

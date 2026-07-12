@@ -37,18 +37,43 @@ func canonicalTags(value string) string {
 // pair as key=value separated by single spaces. A value is quoted only when it
 // must be - when it contains whitespace, or when its first character (a quote or
 // a slash) would otherwise re-trigger quoted or /regex/ parsing - and a value
-// that is already a complete /regex/ is left bare because it self-delimits. This
-// makes Render the exact inverse of Parse, so format is idempotent.
+// that is already a complete /regex/ is left bare because it self-delimits. A
+// directive whose provider is auto renders in the canonical @clover shorthand:
+// the provider=auto pair folds into the sigil, and the colon appears only when
+// other pairs follow. This makes Render the exact inverse of Parse, so format
+// is idempotent.
 func Render(d Directive) string {
+	auto := isAuto(d)
+
 	var b strings.Builder
-	b.WriteString(constant.DirectiveKeyword)
+	if auto {
+		b.WriteString(constant.DirectiveAutoKeyword)
+	} else {
+		b.WriteString(constant.DirectiveKeyword)
+	}
+	first := true
 	for _, kv := range d.Pairs {
+		if auto && kv.Key == constant.DirectiveProvider {
+			continue // folded into the @ sigil
+		}
+		if auto && first {
+			b.WriteRune(constant.DirectiveColon)
+			first = false
+		}
 		b.WriteRune(constant.DirectiveSeparator)
 		b.WriteString(kv.Key)
 		b.WriteRune(constant.DirectiveEqual)
 		b.WriteString(renderValue(kv.Value))
 	}
 	return b.String()
+}
+
+// isAuto reports whether d's sole provider pair is auto, so Render folds it
+// into the @clover shorthand. A repeated provider key (already nonsense) stays
+// longhand, so nothing is folded away that a reparse would not restore.
+func isAuto(d Directive) bool {
+	providers := d.All(constant.DirectiveProvider)
+	return len(providers) == 1 && providers[0] == constant.ProviderAuto
 }
 
 // renderValue quotes v when leaving it bare would not round-trip through Parse.

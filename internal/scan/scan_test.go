@@ -66,6 +66,24 @@ func TestScanFindsDirectives(t *testing.T) {
 	require.NotContains(t, got, "README.md", "files without directives are dropped")
 }
 
+// TestScanFindsBareAutoShorthand guards the prefilter needle: a file whose only
+// directive is a bare @clover (no colon, so no "clover:" substring) must still
+// pass both the whole-file and per-line prefilters and parse as provider=auto.
+func TestScanFindsBareAutoShorthand(t *testing.T) {
+	t.Parallel()
+
+	root := tree(t, map[string]string{
+		"Dockerfile": "# @clover\nFROM nginx:1.27\n",
+	})
+
+	files, _, err := scan.Scan(t.Context(), []string{root})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Len(t, files[0].Found, 1)
+	p, _ := files[0].Found[0].Directive.Get("provider")
+	require.Equal(t, "auto", p)
+}
+
 func TestScanRequireDirectiveOffReturnsAllText(t *testing.T) {
 	t.Parallel()
 

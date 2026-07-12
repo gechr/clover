@@ -8,7 +8,7 @@ The PyPI provider tracks the versions of a Python package published on [`pypi.or
 requires = ["uv_build>=0.8.24"]
 ```
 
-In a `pyproject.toml` file the directive can be a bare `provider=auto`: the package name is [inferred](auto.md) from the specifier itself.
+In a `pyproject.toml` file the directive can be a bare [`@clover`](auto.md#the-clover-shorthand): the package name is [inferred](auto.md) from the specifier itself.
 
 ## Keys
 

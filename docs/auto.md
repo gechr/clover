@@ -5,11 +5,31 @@ When you omit `provider` (or set `provider=auto`), Clover infers the provider an
 <!-- clover-lint-skip -->
 
 ```dockerfile
-# clover: constraint=minor
+# @clover: constraint=minor
 FROM redis:7.2.0
 ```
 
 Here Clover recognizes a Docker image reference on the line and resolves it with the [Docker](docker.md) provider, inferring `repository=redis`. A line that names a GitHub repository resolves with the [GitHub](github.md) provider instead.
+
+## The `@clover` shorthand
+
+The canonical spelling of an auto marker is a bare `@clover` comment. The `@` sigil stands for `provider=auto`, and the colon returns when other keys follow.
+
+<!-- clover-lint-skip -->
+
+```dockerfile
+# @clover
+FROM redis:7.2.0
+```
+
+<!-- clover-lint-skip -->
+
+```dockerfile
+# @clover: constraint=minor
+FROM redis:7.2.0
+```
+
+The longhand `clover: provider=auto` means the same thing and stays valid. The shorthand is what `clover annotate` writes, and `clover format` rewrites the longhand into it. A redundant `@clover: provider=<name>` unfolds back to longhand, since an explicit `provider` always wins.
 
 ## Recognized shapes
 
@@ -43,6 +63,6 @@ Inference only fills in what you leave out, and any key you set yourself always 
 
 ## Generating annotations
 
-To add `provider=auto` directives across an existing codebase rather than write them by hand, run [`clover annotate`](commands.md#annotate). It scans for the same lines auto-detection recognizes and inserts a directive above each, so onboarding a repository is a single command.
+To add [`@clover`](#the-clover-shorthand) directives across an existing codebase rather than write them by hand, run [`clover annotate`](commands.md#annotate). It scans for the same lines auto-detection recognizes and inserts a directive above each, so onboarding a repository is a single command.
 
-To skip annotations entirely, run [`clover run --infer`](commands.md#run): it updates every recognized line directly, as if each carried a bare `provider=auto`, writing no comments at all. Annotations remain the way to pin selection rules (`constraint`, `include`, `cooldown`, …) to a line.
+To skip annotations entirely, run [`clover run --infer`](commands.md#run): it updates every recognized line directly, as if each carried a bare [`@clover`](#the-clover-shorthand), writing no comments at all. Annotations remain the way to pin selection rules (`constraint`, `include`, `cooldown`, …) to a line.

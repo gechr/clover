@@ -40,7 +40,7 @@ A [CI/CD component](https://docs.gitlab.com/ci/components/) include names its pr
 
 ```yaml
 include:
-  # clover: provider=auto constraint=minor
+  # @clover: constraint=minor
   - component: gitlab.com/components/opentofu/full-pipeline@2.0.1
 ```
 

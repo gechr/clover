@@ -228,6 +228,56 @@ func TestFormatAlreadyCanonicalIsNoop(t *testing.T) {
 	require.Equal(t, original, string(got))
 }
 
+// TestFormatCollapsesAutoToShorthand covers the canonical spelling of auto
+// mode: a longhand provider=auto folds into the @clover sigil, other pairs
+// survive after the colon, and a redundant sigil next to an explicit provider
+// unfolds back to longhand.
+func TestFormatCollapsesAutoToShorthand(t *testing.T) {
+	provider.Register(orderedProvider{name: "fmta"})
+	tests := []struct {
+		name     string
+		original string
+		want     string
+	}{
+		{
+			name:     "bare auto",
+			original: "# clover: provider=auto\nversion: 1.0.0\n",
+			want:     "# @clover\nversion: 1.0.0\n",
+		},
+		{
+			name:     "auto with rule keys",
+			original: "# clover: provider=auto constraint=minor\nversion: 1.0.0\n",
+			want:     "# @clover: constraint=minor\nversion: 1.0.0\n",
+		},
+		{
+			name:     "redundant sigil with explicit provider",
+			original: "# @clover: provider=fmta repository=a/b\nversion: 1.0.0\n",
+			want:     "# clover: provider=fmta repository=a/b\nversion: 1.0.0\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, path := formatDir(t, tc.original)
+
+			summary, err := mode.Format(
+				context.Background(),
+				[]string{dir},
+				false,
+				nil,
+				config.NewResolver(nil, "", false),
+				testWorkers,
+			)
+			require.NoError(t, err)
+			require.Equal(t, 1, summary.Changed())
+
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
 func TestFormatIsIdempotent(t *testing.T) {
 	provider.Register(orderedProvider{name: "fmti"})
 	dir, path := formatDir(t, "# clover: source=tags repository=a/b provider=fmti\nv: 1.0.0\n")

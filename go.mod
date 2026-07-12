@@ -1,6 +1,6 @@
 module github.com/gechr/clover
 
-// clover: provider=auto
+// @clover
 go 1.26.5
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint

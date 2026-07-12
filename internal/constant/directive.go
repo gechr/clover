@@ -1,5 +1,16 @@
 package constant
 
+// DirectiveAutoKeyword is the shorthand sigil for auto mode: a bare `@clover`
+// means `clover: provider=auto`. Pairs may follow after a colon (`@clover:
+// key=value`) and are parsed as usual; an explicit provider pair overrides the
+// implied auto.
+const DirectiveAutoKeyword = "@" + DirectiveStem
+
+// DirectiveColon closes a directive keyword before its pairs. It mirrors
+// [DirectiveEqual]: a rune, used via string(DirectiveColon) where a string is
+// needed.
+const DirectiveColon = ':'
+
 // DirectiveEqual separates a directive key from its value. It is a rune because
 // the parser scans character by character; use string(DirectiveEqual) where a
 // string is needed (e.g. rendering a directive in format mode).
@@ -7,12 +18,17 @@ const DirectiveEqual = '='
 
 // DirectiveKeyword is the sigil clover scans for inside a comment. Everything
 // after it on the line is the directive the user wrote.
-const DirectiveKeyword = "clover:"
+const DirectiveKeyword = DirectiveStem + string(DirectiveColon)
 
 // DirectiveSeparator separates a rendered directive's key=value pairs from one
 // another and from the comment marker. It mirrors [DirectiveEqual]: a rune, used
 // via string(DirectiveSeparator) where a string is needed.
 const DirectiveSeparator = ' '
+
+// DirectiveStem is the directive word without its closing colon. It is the
+// prefilter needle: the substring every directive form ([DirectiveKeyword],
+// [DirectiveAutoKeyword], the clover:ignore controls) contains.
+const DirectiveStem = "clover"
 
 // Directive targeting and control keys: who resolves the marker and how it
 // relates to others.

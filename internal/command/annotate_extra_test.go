@@ -49,7 +49,7 @@ func TestRunAnnotate(t *testing.T) {
 		require.NoError(t, command.RunAnnotate(
 			[]string{root}, nil, new(true), nil, false, false, resolver(), 4,
 		))
-		require.Equal(t, "# clover: provider=auto\nFROM nginx:1.27\n",
+		require.Equal(t, "# @clover\nFROM nginx:1.27\n",
 			readFileAt(t, root, "Dockerfile"), "--write applies the annotation")
 	})
 
@@ -81,7 +81,7 @@ func TestAnnotateDiscovered(t *testing.T) {
 			Scanned: 3,
 			Files: []mode.AnnotateFile{{
 				Path:    "Dockerfile",
-				Changes: []mode.AnnotateChange{{At: 0, Line: "# clover: provider=auto"}},
+				Changes: []mode.AnnotateChange{{At: 0, Line: "# @clover"}},
 			}},
 		},
 		"sidecar entries counted": {

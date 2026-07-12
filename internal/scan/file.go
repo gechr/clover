@@ -17,7 +17,9 @@ import (
 
 const prefilterChunkSize = 32 << 10
 
-var directiveKeywordBytes = []byte(constant.DirectiveKeyword)
+// directiveStemBytes is the prefilter needle: every directive form (clover:,
+// @clover, the clover:ignore controls) contains the bare stem.
+var directiveStemBytes = []byte(constant.DirectiveStem)
 
 // Located is a directive found on a line of a file. An inline directive's Line
 // is its comment line (it rewrites the line below); a sidecar directive's Line
@@ -126,7 +128,7 @@ func scanFile(path string, size, maxSize int64, requireDirective bool) (File, bo
 		if inBlock || i == ignoreLine {
 			markIgnored(i)
 		}
-		if !strings.Contains(line, constant.DirectiveKeyword) {
+		if !strings.Contains(line, constant.DirectiveStem) {
 			continue // cheap prefilter: most lines have no keyword
 		}
 		body, ok := syntax.Body(line)
@@ -187,7 +189,7 @@ func maybeTextWithDirective(path string, requireDirective bool) (bool, string) {
 	defer func() { _ = file.Close() }()
 
 	buf := make([]byte, prefilterChunkSize)
-	tail := make([]byte, 0, len(directiveKeywordBytes)-1)
+	tail := make([]byte, 0, len(directiveStemBytes)-1)
 	foundKeyword := false
 	for {
 		n, err := file.Read(buf)
@@ -226,23 +228,23 @@ func splitLines(content []byte) []string {
 // containsKeyword reports whether chunk contains the directive keyword, either
 // wholly inside chunk or split across the previous buffer's tail.
 func containsKeyword(tail, chunk []byte) bool {
-	if bytes.Contains(chunk, directiveKeywordBytes) {
+	if bytes.Contains(chunk, directiveStemBytes) {
 		return true
 	}
 	if len(tail) == 0 {
 		return false
 	}
-	prefixLen := min(len(chunk), len(directiveKeywordBytes)-1)
+	prefixLen := min(len(chunk), len(directiveStemBytes)-1)
 	window := make([]byte, 0, len(tail)+prefixLen)
 	window = append(window, tail...)
 	window = append(window, chunk[:prefixLen]...)
-	return bytes.Contains(window, directiveKeywordBytes)
+	return bytes.Contains(window, directiveStemBytes)
 }
 
 // carry keeps enough trailing bytes to match a directive keyword split across
 // two read buffers.
 func carry(buf []byte) []byte {
-	keep := min(len(buf), len(directiveKeywordBytes)-1)
+	keep := min(len(buf), len(directiveStemBytes)-1)
 	out := make([]byte, keep)
 	copy(out, buf[len(buf)-keep:])
 	return out

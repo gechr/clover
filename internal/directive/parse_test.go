@@ -16,6 +16,11 @@ func TestParseNotFound(t *testing.T) {
 	}{
 		{name: "no keyword", body: " FROM nginx:1.25"},
 		{name: "keyword not leading", body: " note about clover: not a directive"},
+		{name: "auto keyword not leading", body: " see @clover for details"},
+		{name: "auto keyword unclosed", body: "@cloverfield is a film"},
+		{name: "auto keyword embedded in a word", body: "@cloverfield"},
+		{name: "auto keyword with prose", body: "@clover please review this"},
+		{name: "keyword with prose", body: "clover run updates the line below"},
 		{name: "empty", body: ""},
 	}
 
@@ -45,6 +50,34 @@ func TestParsePairs(t *testing.T) {
 				{Key: "provider", Value: "github"},
 				{Key: "constraint", Value: "minor"},
 			},
+		},
+		{
+			name: "bare auto shorthand",
+			body: " @clover",
+			want: []directive.KV{{Key: "provider", Value: "auto"}},
+		},
+		{
+			name: "bare auto shorthand with trailing space",
+			body: "@clover ",
+			want: []directive.KV{{Key: "provider", Value: "auto"}},
+		},
+		{
+			name: "auto shorthand with pairs",
+			body: "@clover: constraint=minor",
+			want: []directive.KV{
+				{Key: "provider", Value: "auto"},
+				{Key: "constraint", Value: "minor"},
+			},
+		},
+		{
+			name: "auto shorthand with empty pairs",
+			body: "@clover:",
+			want: []directive.KV{{Key: "provider", Value: "auto"}},
+		},
+		{
+			name: "explicit provider wins over auto shorthand",
+			body: "@clover: provider=github",
+			want: []directive.KV{{Key: "provider", Value: "github"}},
 		},
 		{
 			name: "trailing comment body",
@@ -142,6 +175,11 @@ func TestParseErrors(t *testing.T) {
 		{name: "unterminated regex", body: "clover: include=/oops"},
 		{name: "bare key without value", body: "clover: disabled"},
 		{name: "bare key among pairs", body: "clover: provider=github disabled"},
+		{name: "auto shorthand with prose after colon", body: "@clover: pins this line"},
+		{name: "auto shorthand missing colon before pairs", body: "@clover constraint=minor"},
+		{name: "auto shorthand detached colon", body: "@clover : constraint=minor"},
+		{name: "keyword missing colon before pairs", body: "clover foo=bar"},
+		{name: "keyword detached colon", body: "clover : foo=bar"},
 		{name: "empty key", body: "clover: =foo"},
 	}
 

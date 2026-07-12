@@ -48,7 +48,7 @@ type root struct {
 	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Globals/Execution'"  short:"P" default:"10" placeholder:"<n>"`
 	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Globals/Diagnostics'"`
 
-	Annotate cmdAnnotate "help:\"Add `provider=auto` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
+	Annotate cmdAnnotate "help:\"Add `@clover` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
 	Format   cmdFormat   `help:"Canonicalise directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
 	Init     cmdInit     "help:\"Create a starter `.clover.yaml` interactively\"                             clib:\"terse='Scaffold a config'\" cmd:\"\""
 	Lint     cmdLint     `help:"Check every directive resolves, offline and without writing" clib:"terse='Check directives'" cmd:""`
