@@ -20,7 +20,7 @@ RUST_VERSION: 1.97.0
 
 The manifest index is public, so the Rust provider needs no authentication. It is selected explicitly with `provider=rust`, or [inferred](auto.md) from a `rust` pin in a mise configuration or `.tool-versions` file, a version-pinned `channel` in `rust-toolchain.toml`, or a `rust-version` floor in `Cargo.toml`. Like a `requires-python` floor, `rust-version` is bumped in place with its precision preserved, so `"1.70"` advances only when a new minor line ships.
 
-Each release is dated by the directory its manifest was published under, so [`cooldown`](cooldown.md) works: a version is held back until it has aged past the window. The whole release history arrives in one response, so Clover always sees every release and `--deep` has nothing extra to fetch.
+Each release is dated by the directory its manifest was published under, so [`cooldown`](cooldown.md) works: a version is held back until it has aged past the window. The whole release history arrives in one response, so Clover always sees every release and `--deep` has nothing extra to fetch. The index starts at Rust 1.8.0 and its numbered beta snapshots at 1.75.0, so earlier releases predate it and cannot be resolved.
 
 ## Channels
 
@@ -31,10 +31,10 @@ Rust ships on three [release channels](https://forge.rust-lang.org/#current-rele
 RUST_VERSION: 1.98.0-beta.1
 ```
 
-A beta version's dash-suffix behaves like any other suffix on a line: selection stays on the numbered track already written there, so `1.98.0-beta.1` advances to the next cycle's first snapshot (`1.99.0-beta.1`) as soon as it ships. Since every cycle publishes a `beta.1`, that is the number to pin. Moving *across* numbers instead - always the newest snapshot, whatever its number - takes an explicit [`include`](filtering.md) to unpin the track, [`prerelease=true`](prereleases.md) because betas then face the prerelease gate, and `downgrade=true` because a beta orders below its own cycle's stable core:
+A beta version's dash-suffix behaves like any other suffix on a line: selection stays on the numbered track already written there, so `1.98.0-beta.1` advances to the next cycle's first snapshot (`1.99.0-beta.1`) as soon as it ships. Since every cycle publishes a `beta.1`, that is the number to pin. Moving *across* numbers instead, so the line always holds the newest snapshot whatever its number, takes an explicit [`include`](filtering.md) to unpin the track and [`prerelease=true`](prereleases.md) because betas then face the prerelease gate:
 
 ```yaml
-# clover: provider=rust channel=beta include=*-beta.* prerelease=true downgrade=true
+# clover: provider=rust channel=beta include=*-beta.* prerelease=true
 RUST_VERSION: 1.98.0-beta.1
 ```
 
