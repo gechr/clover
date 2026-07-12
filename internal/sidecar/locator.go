@@ -62,7 +62,9 @@ func (l *Locator) Locate(d directive.Directive) (int, error) {
 }
 
 // locateJQ resolves a jq locator to a line: the expression is reduced to a
-// concrete path, and the path is looked up in the document's offset index.
+// concrete path, and the path is looked up in the document's offset index. A
+// literal path expression - the form annotate generates - is parsed directly,
+// so the common case never decodes the document or compiles a gojq program.
 func (l *Locator) locateJQ(expr string) (int, error) {
 	if expr == "" {
 		return 0, fmt.Errorf("%q expression is empty", constant.DirectiveJQ)
@@ -78,12 +80,22 @@ func (l *Locator) locateJQ(expr string) (int, error) {
 		return resolveJQLine(l.joined(), expr)
 	}
 
-	path, err := l.jqPath(expr)
-	if err != nil {
-		return 0, err
+	path, literal := parsePath(expr)
+	if !literal {
+		if path, err = l.jqPath(expr); err != nil {
+			return 0, err
+		}
 	}
 	off, err := idx.offsetAt(path)
 	if err != nil {
+		// A literal path's structural mismatch (indexing a scalar, a key into
+		// an array) is re-derived through gojq, whose evaluation error names
+		// the mismatch better than the index can.
+		if literal && errors.Is(err, errJQStructure) {
+			if _, jqErr := l.jqPath(expr); jqErr != nil {
+				return 0, jqErr
+			}
+		}
 		return 0, err
 	}
 	return lineIndex(idx.starts, off), nil
