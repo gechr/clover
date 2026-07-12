@@ -27,9 +27,11 @@ func TestNameAndKeys(t *testing.T) {
 	require.Equal(t, "npm", p.Name())
 
 	keys := p.Keys()
-	require.Len(t, keys, 1)
+	require.Len(t, keys, 2)
 	require.Equal(t, "package", keys[0].Name)
 	require.True(t, keys[0].Required)
+	require.Equal(t, "registry", keys[1].Name)
+	require.False(t, keys[1].Required)
 }
 
 func TestResource(t *testing.T) {
@@ -52,6 +54,22 @@ func TestResource(t *testing.T) {
 			wantDescribe: "npmjs.com/@vue/reactivity",
 		},
 		{
+			name: "custom registry",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "registry", Value: "https://npm.internal.corp"},
+			},
+			wantDescribe: "npm.internal.corp/left-pad",
+		},
+		{
+			name: "custom registry tolerates a trailing slash",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "registry", Value: "http://npm.internal.corp/"},
+			},
+			wantDescribe: "npm.internal.corp/left-pad",
+		},
+		{
 			name:    "missing package",
 			pairs:   nil,
 			wantErr: `npm: "package" is required`,
@@ -60,6 +78,30 @@ func TestResource(t *testing.T) {
 			name:    "empty package",
 			pairs:   []directive.KV{{Key: "package", Value: ""}},
 			wantErr: `npm: "package" is required`,
+		},
+		{
+			name: "registry without a scheme",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "registry", Value: "npm.internal.corp"},
+			},
+			wantErr: `npm: "registry" must start with https:// or http://, got "npm.internal.corp"`,
+		},
+		{
+			name: "registry with an unsupported scheme",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "registry", Value: "oci://npm.internal.corp"},
+			},
+			wantErr: `npm: "registry" must start with https:// or http://, got "oci://npm.internal.corp"`,
+		},
+		{
+			name: "registry without a host",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "registry", Value: "https://"},
+			},
+			wantErr: `npm: registry "https://" has no registry host`,
 		},
 	}
 
@@ -112,6 +154,13 @@ func TestURL(t *testing.T) {
 
 	require.Empty(t, p.URL(res, model.Candidate{}))
 	require.Empty(t, p.URL("not-a-resource", model.Candidate{Version: "1.3.0"}))
+
+	// A custom registry's web UI (if any) is unknown, so no link is offered.
+	custom := resourceFor(t, p,
+		directive.KV{Key: "package", Value: "left-pad"},
+		directive.KV{Key: "registry", Value: "https://npm.internal.corp"},
+	)
+	require.Empty(t, p.URL(custom, model.Candidate{Version: "1.3.0"}))
 }
 
 // TestNotRecencyOrderer locks the leaner design: the packument returns the whole

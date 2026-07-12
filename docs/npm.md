@@ -13,6 +13,7 @@ prettier_version: 3.6.2
 | ------------------------------ | ------------------------------------------------------------------------- |
 | `provider`                     | `npm`                                                                     |
 | `package`                      | The package to track, e.g. `prettier` or `@vue/reactivity`. **Required.** |
+| `registry`                     | An npm-compatible registry base URL, default `https://registry.npmjs.org` |
 | [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
 | [`include`](filtering.md)      | Keep only matching versions                                               |
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
@@ -30,6 +31,17 @@ reactivity_version: 3.5.39
 ```
 
 The packument serves the package's whole version history in one response, so Clover always sees every version, and `--deep` has nothing extra to fetch. The packument also dates every version, so a [`cooldown`](cooldown.md) can hold a fresh release back. Prerelease versions (`3.6.0-beta.17`) are published alongside the stables and stay excluded unless [allowed](prereleases.md).
+
+## Custom registries
+
+The `registry` key points discovery at any npm-compatible registry, e.g. a corporate mirror. The value is the registry base URL (http or https, a trailing slash is tolerated), and the packument is fetched from `<registry>/<package>` exactly as on the public registry:
+
+```yaml
+# clover: provider=npm package=left-pad registry=https://npm.internal.corp constraint=minor
+leftpad_version: 1.3.0
+```
+
+Access is anonymous. A registry that requires authentication for reads is not supported.
 
 ## Checksums
 

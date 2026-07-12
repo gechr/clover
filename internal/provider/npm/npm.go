@@ -3,6 +3,8 @@ package npm
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
@@ -10,8 +12,11 @@ import (
 	"github.com/gechr/clover/internal/provider"
 )
 
-// keyPackage is the only directive key npm accepts.
-const keyPackage = constant.DirectivePackage
+// Directive keys npm accepts.
+const (
+	keyPackage  = constant.DirectivePackage
+	keyRegistry = constant.DirectiveRegistry
+)
 
 // Provider resolves npm package versions from the public npm registry. A
 // package's packument holds its whole version history in one response, so the
@@ -51,6 +56,7 @@ func (p *Provider) Dated() {}
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyPackage, Required: true},
+		{Name: keyRegistry},
 	}
 }
 
@@ -60,20 +66,56 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	if !ok || pkg == "" {
 		return nil, fmt.Errorf("npm: %q is required", keyPackage)
 	}
-	return resource{pkg: pkg}, nil
+	reg, err := registryBase(d)
+	if err != nil {
+		return nil, err
+	}
+	return resource{pkg: pkg, registry: reg}, nil
 }
 
-// Describe returns a human-readable label for a resource.
+// registryBase resolves the optional registry key: absent means the public npm
+// registry; an explicit value must be an http(s) base URL, trailing slash
+// tolerated.
+func registryBase(d directive.Directive) (string, error) {
+	reg, ok := d.Get(keyRegistry)
+	if !ok {
+		return registryURL, nil
+	}
+	base := strings.TrimSuffix(strings.TrimSpace(reg), "/")
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme != "https" && u.Scheme != "http" {
+		return "", fmt.Errorf(
+			"npm: %q must start with https:// or http://, got %q",
+			keyRegistry,
+			reg,
+		)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("npm: %s %q has no registry host", keyRegistry, reg)
+	}
+	return base, nil
+}
+
+// Describe returns a human-readable label for a resource: the npm web host for
+// the public registry, the custom registry's scheme-stripped base otherwise.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)
 	if !ok {
 		return constant.ProviderNpm
 	}
+	if res.registry != registryURL {
+		return strings.TrimPrefix(
+			strings.TrimPrefix(res.registry, "https://"),
+			"http://",
+		) + "/" + res.pkg
+	}
 	return host + "/" + res.pkg
 }
 
 // resource is a validated npm descriptor: which package to track, exactly as
-// published (a scoped name keeps its @scope/ prefix).
+// published (a scoped name keeps its @scope/ prefix), and the registry base URL
+// to resolve it against.
 type resource struct {
-	pkg string
+	pkg      string
+	registry string
 }

@@ -79,7 +79,7 @@ const (
 	DirectivePackage    = "package"    // package name, scoped npm names included (npm, pypi)
 	DirectivePlatform   = "platform"   // OCI platform os/arch for per-arch digest resolution (docker)
 	DirectiveProduct    = "product"    // hashicorp product name, e.g. terraform (hashicorp)
-	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm)
+	DirectiveRegistry   = "registry"   // container registry host (docker); chart repository URL or oci:// base (helm); registry base URL (npm)
 	DirectiveSource     = "source"     // provider source address namespace/name (terraform, opentofu)
 	DirectiveTool       = "tool"       // mise registry tool name, resolved to the repository it tracks (github)
 	DirectiveRepository = "repository" // repository path (github, docker)

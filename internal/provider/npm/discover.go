@@ -81,7 +81,7 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		return nil, fmt.Errorf("npm: invalid resource %T", r)
 	}
 
-	pkg, err := p.fetch(ctx, res.pkg)
+	pkg, err := p.fetch(ctx, res)
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +96,11 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	return candidates, nil
 }
 
-// fetch downloads and decodes a package's packument. The name is path-escaped
-// whole, yielding the @scope%2Fname form the registry documents for scoped
-// packages.
-func (p *Provider) fetch(ctx context.Context, name string) (packument, error) {
-	endpoint := registryURL + "/" + url.PathEscape(name)
+// fetch downloads and decodes a package's packument from the resource's
+// registry. The name is path-escaped whole, yielding the @scope%2Fname form the
+// registry documents for scoped packages.
+func (p *Provider) fetch(ctx context.Context, res resource) (packument, error) {
+	endpoint := res.registry + "/" + url.PathEscape(res.pkg)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return packument{}, fmt.Errorf("npm: build request: %w", err)
@@ -112,7 +112,7 @@ func (p *Provider) fetch(ctx context.Context, name string) (packument, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return packument{}, provider.StatusError("npm: get package "+name, resp)
+		return packument{}, provider.StatusError("npm: get package "+res.pkg, resp)
 	}
 
 	var pkg packument

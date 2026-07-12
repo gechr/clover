@@ -115,6 +115,31 @@ func TestDiscoverEscapesScopedPackagePath(t *testing.T) {
 	require.Equal(t, "https://registry.npmjs.org/@vue%2Freactivity", requested)
 }
 
+// TestDiscoverCustomRegistry covers the registry key: the packument URL is built
+// on the custom base (trailing slash trimmed), with the same scoped-name
+// escaping as the public registry.
+func TestDiscoverCustomRegistry(t *testing.T) {
+	t.Parallel()
+
+	var requested string
+	p := npm.New(npm.WithTransport(
+		roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requested = req.URL.String()
+			return jsonResponse(req, `{"versions": {}, "time": {}}`), nil
+		}),
+	))
+
+	_, err := p.Discover(
+		t.Context(),
+		resourceFor(t, p,
+			directive.KV{Key: "package", Value: "@vue/reactivity"},
+			directive.KV{Key: "registry", Value: "https://npm.internal.corp/"},
+		),
+	)
+	require.NoError(t, err)
+	require.Equal(t, "https://npm.internal.corp/@vue%2Freactivity", requested)
+}
+
 func TestDiscoverError(t *testing.T) {
 	t.Parallel()
 
