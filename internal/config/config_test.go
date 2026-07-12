@@ -3,7 +3,6 @@ package config_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/output"
+	xencoding "github.com/gechr/x/encoding"
 	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -299,7 +299,7 @@ func TestReferenceConfigComplete(t *testing.T) {
 	var ref map[string]any
 	require.NoError(t, yaml.Unmarshal(data, &ref))
 
-	missing := missingKeys(doc, doc, ref, "")
+	missing := missingKeys(doc, doc, ref, nil)
 	xslices.SortNatural(missing)
 	require.Empty(t, missing, "every schema key must appear in the reference config")
 }
@@ -307,7 +307,7 @@ func TestReferenceConfigComplete(t *testing.T) {
 // missingKeys walks node's object properties (resolving local $defs
 // references) and returns the schema key paths absent from val. Array item
 // keys are checked against each populated element.
-func missingKeys(doc, node map[string]any, val any, prefix string) []string {
+func missingKeys(doc, node map[string]any, val any, prefix *xencoding.Path) []string {
 	if ref, ok := node["$ref"].(string); ok {
 		defs, _ := doc["$defs"].(map[string]any)
 		node, _ = defs[strings.TrimPrefix(ref, "#/$defs/")].(map[string]any)
@@ -316,9 +316,7 @@ func missingKeys(doc, node map[string]any, val any, prefix string) []string {
 	if items, ok := node["items"].(map[string]any); ok {
 		elems, _ := val.([]any)
 		for i, elem := range elems {
-			missing = append(
-				missing,
-				missingKeys(doc, items, elem, fmt.Sprintf("%s[%d]", prefix, i))...)
+			missing = append(missing, missingKeys(doc, items, elem, prefix.Index(i))...)
 		}
 		return missing
 	}
@@ -328,13 +326,10 @@ func missingKeys(doc, node map[string]any, val any, prefix string) []string {
 	}
 	obj, _ := val.(map[string]any)
 	for name, sub := range props {
-		path := name
-		if prefix != "" {
-			path = prefix + "." + name
-		}
+		path := prefix.Child(name)
 		child, ok := obj[name]
 		if !ok {
-			missing = append(missing, path)
+			missing = append(missing, path.String())
 			continue
 		}
 		subSchema, _ := sub.(map[string]any)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	xencoding "github.com/gechr/x/encoding"
 	"github.com/gechr/x/human"
 )
 
@@ -94,11 +95,11 @@ func (r Rule) validate(i int) error {
 // ruleKey renders the config key naming rule i (optionally one of its fields)
 // in error messages, so they quote the key the user wrote.
 func ruleKey(i int, field string) string {
-	key := fmt.Sprintf("run.rules[%d]", i)
+	key := xencoding.NewPath("run", "rules").Index(i)
 	if field != "" {
-		key += "." + field
+		key = key.Child(field)
 	}
-	return key
+	return key.String()
 }
 
 // VerifyFor resolves the run.verify default for marker m: the first matching
