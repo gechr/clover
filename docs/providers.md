@@ -5,6 +5,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | Provider    | Tracks                                                                                   | Page                                 |
 | ----------- | ---------------------------------------------------------------------------------------- | ------------------------------------ |
 | `auto`      | Inferred from the target line's contents                                                 | [Auto-detection](auto.md)            |
+| `crates`    | Rust crate versions from [crates.io](https://crates.io/)                                 | [crates.io](crates.md)               |
 | `docker`    | Image tags and digests from a container registry                                         | [Docker](docker.md)                  |
 | `gitea`     | Tags and releases of a Gitea/Forgejo repository (Codeberg)                               | [Gitea](gitea.md)                    |
 | `github`    | Releases, tags, and branch commits of a GitHub repository                                | [GitHub](github.md)                  |

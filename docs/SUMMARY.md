@@ -14,6 +14,7 @@
 
 - [Providers](providers.md)
   - [Auto-detection](auto.md)
+  - [crates.io](crates.md)
   - [Docker](docker.md)
   - [Gitea](gitea.md)
   - [GitHub](github.md)

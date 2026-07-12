@@ -50,6 +50,7 @@ By default, lines without a `clover:` comment are never touched.
 
 Clover resolves versions from a range of upstream sources:
 
+- **`crates`** - Rust crate versions from [crates.io](https://crates.io/)
 - **`docker`** - image tags and digests from any OCI registry
 - **`gitea`** - Gitea and Forgejo forges, defaulting to [Codeberg](https://codeberg.org/)
 - **`github`** - releases and tags, with checksum and commit-SHA pinning
