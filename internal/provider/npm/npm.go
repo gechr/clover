@@ -14,6 +14,7 @@ import (
 
 // Directive keys npm accepts.
 const (
+	keyDistTag  = constant.DirectiveDistTag
 	keyPackage  = constant.DirectivePackage
 	keyRegistry = constant.DirectiveRegistry
 )
@@ -56,6 +57,7 @@ func (p *Provider) Dated() {}
 func (p *Provider) Keys() []provider.Key {
 	return []provider.Key{
 		{Name: keyPackage, Required: true},
+		{Name: keyDistTag},
 		{Name: keyRegistry},
 	}
 }
@@ -66,11 +68,31 @@ func (p *Provider) Resource(d directive.Directive) (provider.Resource, error) {
 	if !ok || pkg == "" {
 		return nil, fmt.Errorf("npm: %q is required", keyPackage)
 	}
+	tag, err := distTag(d)
+	if err != nil {
+		return nil, err
+	}
 	reg, err := registryBase(d)
 	if err != nil {
 		return nil, err
 	}
-	return resource{pkg: pkg, registry: reg}, nil
+	return resource{pkg: pkg, distTag: tag, registry: reg}, nil
+}
+
+// distTag resolves the optional dist-tag key: absent means every version is a
+// candidate; an explicit value names the registry channel pointer to track.
+func distTag(d directive.Directive) (string, error) {
+	tag, ok := d.Get(keyDistTag)
+	if !ok {
+		return "", nil
+	}
+	switch {
+	case tag == "":
+		return "", fmt.Errorf("npm: %q must not be empty", keyDistTag)
+	case strings.ContainsAny(tag, " \t"):
+		return "", fmt.Errorf("npm: %q must not contain whitespace, got %q", keyDistTag, tag)
+	}
+	return tag, nil
 }
 
 // registryBase resolves the optional registry key: absent means the public npm
@@ -97,25 +119,30 @@ func registryBase(d directive.Directive) (string, error) {
 }
 
 // Describe returns a human-readable label for a resource: the npm web host for
-// the public registry, the custom registry's scheme-stripped base otherwise.
+// the public registry, the custom registry's scheme-stripped base otherwise. A
+// tracked dist-tag is appended in npm's own package@tag spelling.
 func (p *Provider) Describe(r provider.Resource) string {
 	res, ok := r.(resource)
 	if !ok {
 		return constant.ProviderNpm
 	}
+	base := host
 	if res.registry != registryURL {
-		return strings.TrimPrefix(
-			strings.TrimPrefix(res.registry, "https://"),
-			"http://",
-		) + "/" + res.pkg
+		base = strings.TrimPrefix(strings.TrimPrefix(res.registry, "https://"), "http://")
 	}
-	return host + "/" + res.pkg
+	label := base + "/" + res.pkg
+	if res.distTag != "" {
+		label += "@" + res.distTag
+	}
+	return label
 }
 
 // resource is a validated npm descriptor: which package to track, exactly as
-// published (a scoped name keeps its @scope/ prefix), and the registry base URL
-// to resolve it against.
+// published (a scoped name keeps its @scope/ prefix), the dist-tag narrowing
+// the candidates to one channel (empty tracks them all), and the registry base
+// URL to resolve against.
 type resource struct {
 	pkg      string
+	distTag  string
 	registry string
 }

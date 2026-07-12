@@ -23,12 +23,14 @@ const (
 )
 
 // packument is the subset of a registry packument the provider reads. Versions
-// holds one entry per published version; Time dates each version and also
+// holds one entry per published version; DistTags maps each channel pointer
+// (latest, beta, ...) to the version it names; Time dates each version and also
 // carries the non-version created/modified keys, which are never looked up. An
 // unpublished version lingers in Time but leaves Versions, so Versions drives
 // the listing.
 type packument struct {
 	Versions map[string]versionEntry `json:"versions"`
+	DistTags map[string]string       `json:"dist-tags"`
 	Time     timeMap                 `json:"time"`
 }
 
@@ -84,6 +86,17 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	pkg, err := p.fetch(ctx, res)
 	if err != nil {
 		return nil, err
+	}
+
+	// A dist-tag narrows the listing to the one version the registry's channel
+	// pointer names. A tag the registry does not carry is its own error - the
+	// package itself exists, a missing one surfaces as the fetch's 404.
+	if res.distTag != "" {
+		v, ok := pkg.DistTags[res.distTag]
+		if !ok {
+			return nil, fmt.Errorf("npm: package %q has no dist-tag %q", res.pkg, res.distTag)
+		}
+		return []model.Candidate{candidate(v, pkg.Versions[v], pkg.Time[v])}, nil
 	}
 
 	candidates := make([]model.Candidate, 0, len(pkg.Versions))

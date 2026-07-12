@@ -28,7 +28,7 @@
       },
       "registry": {
         "type": "string",
-        "description": "Container registry host (docker); chart repository URL or oci:// base (helm)."
+        "description": "Container registry host (docker); chart repository URL or oci:// base (helm); registry base URL (npm)."
       },
       "platform": {
         "type": "string",
@@ -65,6 +65,10 @@
       "package": {
         "type": "string",
         "description": "Package name, scoped npm names included (npm, pypi)."
+      },
+      "dist-tag": {
+        "type": "string",
+        "description": "Registry dist-tag to track, e.g. beta (npm)."
       },
       "channel": {
         "type": "string",

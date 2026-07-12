@@ -109,3 +109,52 @@ func TestFixtureScoped(t *testing.T) {
 		URL:  "https://registry.npmjs.org/@vue/reactivity/-/reactivity-3.6.0-beta.17.tgz",
 	}}, beta.Assets)
 }
+
+// discoverTag resolves candidates for the scoped fixture package narrowed to a
+// dist-tag.
+func discoverTag(t *testing.T, p *npm.Provider, tag string) ([]model.Candidate, error) {
+	t.Helper()
+	return p.Discover(
+		t.Context(),
+		resourceFor(t, p,
+			directive.KV{Key: "package", Value: "@vue/reactivity"},
+			directive.KV{Key: "dist-tag", Value: tag},
+		),
+	)
+}
+
+// TestFixtureDistTag covers the dist-tag key: each tag resolves to exactly the
+// version the registry's pointer names, a tag whose version has no versions
+// entry still surfaces (undated and assetless), and a tag the registry does not
+// carry is its own error, distinct from a missing package's 404.
+func TestFixtureDistTag(t *testing.T) {
+	t.Parallel()
+
+	p := fixtureProvider(t, "vue-reactivity.json")
+
+	beta, err := discoverTag(t, p, "beta")
+	require.NoError(t, err)
+	require.Equal(t, []string{"3.6.0-beta.17"}, versions(beta))
+	require.Equal(t,
+		time.Date(2026, 6, 24, 9, 18, 46, 592_000_000, time.UTC),
+		beta[0].PublishedAt,
+	)
+	require.Equal(t, []model.Asset{{
+		Name: "reactivity-3.6.0-beta.17.tgz",
+		URL:  "https://registry.npmjs.org/@vue/reactivity/-/reactivity-3.6.0-beta.17.tgz",
+	}}, beta[0].Assets)
+
+	latest, err := discoverTag(t, p, "latest")
+	require.NoError(t, err)
+	require.Equal(t, []string{"3.5.39"}, versions(latest))
+
+	// The trimmed fixture keeps the rc tag but not its version's entries.
+	rc, err := discoverTag(t, p, "rc")
+	require.NoError(t, err)
+	require.Equal(t, []string{"3.5.0-rc.1"}, versions(rc))
+	require.True(t, rc[0].PublishedAt.IsZero())
+	require.Empty(t, rc[0].Assets)
+
+	_, err = discoverTag(t, p, "next")
+	require.EqualError(t, err, `npm: package "@vue/reactivity" has no dist-tag "next"`)
+}

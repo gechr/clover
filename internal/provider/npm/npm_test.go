@@ -27,11 +27,13 @@ func TestNameAndKeys(t *testing.T) {
 	require.Equal(t, "npm", p.Name())
 
 	keys := p.Keys()
-	require.Len(t, keys, 2)
+	require.Len(t, keys, 3)
 	require.Equal(t, "package", keys[0].Name)
 	require.True(t, keys[0].Required)
-	require.Equal(t, "registry", keys[1].Name)
+	require.Equal(t, "dist-tag", keys[1].Name)
 	require.False(t, keys[1].Required)
+	require.Equal(t, "registry", keys[2].Name)
+	require.False(t, keys[2].Required)
 }
 
 func TestResource(t *testing.T) {
@@ -70,9 +72,33 @@ func TestResource(t *testing.T) {
 			wantDescribe: "npm.internal.corp/left-pad",
 		},
 		{
+			name: "dist-tag names a channel",
+			pairs: []directive.KV{
+				{Key: "package", Value: "@vue/reactivity"},
+				{Key: "dist-tag", Value: "beta"},
+			},
+			wantDescribe: "npmjs.com/@vue/reactivity@beta",
+		},
+		{
 			name:    "missing package",
 			pairs:   nil,
 			wantErr: `npm: "package" is required`,
+		},
+		{
+			name: "empty dist-tag",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "dist-tag", Value: ""},
+			},
+			wantErr: `npm: "dist-tag" must not be empty`,
+		},
+		{
+			name: "dist-tag with whitespace",
+			pairs: []directive.KV{
+				{Key: "package", Value: "left-pad"},
+				{Key: "dist-tag", Value: "beta channel"},
+			},
+			wantErr: `npm: "dist-tag" must not contain whitespace, got "beta channel"`,
 		},
 		{
 			name:    "empty package",

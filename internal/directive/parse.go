@@ -21,8 +21,8 @@ import (
 //
 // The keyword must lead the comment (after optional whitespace), so an
 // incidental "clover:" inside prose is not mistaken for a directive. A keyword
-// whose colon is missing or detached ahead of pair-shaped text (clover foo=bar,
-// @clover : constraint=minor) is reported as malformed - see [malformedColon].
+// whose colon is missing or detached ahead of pair-shaped text (a comment
+// reading "clover foo=bar") is reported as malformed - see [malformedColon].
 func Parse(body string) (Directive, bool, error) {
 	trimmed := strings.TrimLeft(body, " \t")
 	rest, auto := cutAutoKeyword(trimmed)

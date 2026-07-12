@@ -13,6 +13,7 @@ prettier_version: 3.6.2
 | ------------------------------ | ------------------------------------------------------------------------- |
 | `provider`                     | `npm`                                                                     |
 | `package`                      | The package to track, e.g. `prettier` or `@vue/reactivity`. **Required.** |
+| `dist-tag`                     | A registry channel pointer to track, e.g. `beta`                          |
 | `registry`                     | An npm-compatible registry base URL, default `https://registry.npmjs.org` |
 | [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range) |
 | [`include`](filtering.md)      | Keep only matching versions                                               |
@@ -31,6 +32,17 @@ reactivity_version: 3.5.39
 ```
 
 The packument serves the package's whole version history in one response, so Clover always sees every version, and `--deep` has nothing extra to fetch. The packument also dates every version, so a [`cooldown`](cooldown.md) can hold a fresh release back. Prerelease versions (`3.6.0-beta.17`) are published alongside the stables and stay excluded unless [allowed](prereleases.md).
+
+## Dist-tags
+
+Registry dist-tags are channel pointers. Every publish moves `latest`, and maintainers point extra tags (`beta`, `next`) at whichever versions they choose. The `dist-tag` key tracks the version the named tag currently points at rather than the highest published version:
+
+```yaml
+# clover: provider=npm package=@vue/reactivity dist-tag=beta prerelease=true
+reactivity_version: 3.6.0-beta.17
+```
+
+A tag that names a prerelease version still needs [`prerelease=true`](prereleases.md) to let it through. A tag the registry does not carry is reported as an unknown dist-tag, so a typo is distinguishable from a missing package.
 
 ## Custom registries
 
