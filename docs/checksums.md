@@ -34,3 +34,5 @@ Two keys refine `checksums`/`download`:
 
 - `sha256-url` is the checksum-file URL, templated with `<version>`.
 - `pattern` is an asset filename glob selecting which asset to hash.
+
+On a private GitHub repository, assets and sibling checksum files are read through the authenticated API rather than the public download URL, so `checksums` and `download` work wherever discovery does.

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"io"
 
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/model"
@@ -35,8 +36,8 @@ func KeyNames(p Provider) []string {
 //
 // Everything beyond this contract is an optional capability, expressed as a
 // further interface discovered by type assertion: [RecencyOrderer],
-// [Anchorer], [Dater], [Digester], [Linker], [Identifier], [Committer],
-// [BranchChecker], and [Authenticator]. A provider implements only the
+// [Anchorer], [Dater], [Digester], [AssetDownloader], [Linker], [Identifier],
+// [Committer], [BranchChecker], and [Authenticator]. A provider implements only the
 // capabilities its upstream supports, and the pipeline degrades gracefully
 // where one is absent.
 type Provider interface {
@@ -99,6 +100,15 @@ type Dater interface {
 // marker.
 type Digester interface {
 	Digest(ctx context.Context, r Resource, tag string) (string, error)
+}
+
+// AssetDownloader is an optional capability for providers that can stream a
+// release asset's content through their authenticated channel, reaching assets
+// a plain GET of the public URL cannot (a private repository). clover uses it
+// when a sha256 follower must read an asset's bytes - a download-and-hash or a
+// sibling checksums file; absent, the asset's public URL is fetched directly.
+type AssetDownloader interface {
+	DownloadAsset(ctx context.Context, r Resource, asset model.Asset) (io.ReadCloser, error)
 }
 
 // Linker is an optional capability for providers that can build a web URL for a

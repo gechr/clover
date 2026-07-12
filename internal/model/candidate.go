@@ -76,9 +76,13 @@ type Candidate struct {
 
 // Asset is one downloadable file a version publishes. Digest is the provider's
 // own content digest when it supplies one (e.g. sha256:...), letting clover
-// source a checksum without a download.
+// source a checksum without a download. URL is the public browser download URL;
+// APIURL is the forge API endpoint serving the same content, which honors a
+// credential where the browser URL does not, keeping a private repository's
+// assets downloadable.
 type Asset struct {
 	Name   string
 	Digest string
 	URL    string
+	APIURL string
 }

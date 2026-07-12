@@ -1,6 +1,7 @@
 package checksum_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -200,4 +201,59 @@ func TestResolveMatchErrors(t *testing.T) {
 	_, err = checksum.Resolve(t.Context(), failClient(t),
 		checksum.Request{Source: "digest", Assets: assets, Pattern: "*windows*"})
 	require.EqualError(t, err, `checksum: no asset matched pattern "*windows*"`)
+}
+
+func TestResolveDownloadUsesSeam(t *testing.T) {
+	t.Parallel()
+
+	const content = "private-release-bytes"
+	sum := sha256.Sum256([]byte(content))
+
+	assets := []model.Asset{{Name: "tool_linux_amd64.tar.gz", URL: "http://x/tool"}}
+	var gotName string
+	download := func(_ context.Context, asset model.Asset) (io.ReadCloser, error) {
+		gotName = asset.Name
+		return io.NopCloser(strings.NewReader(content)), nil
+	}
+	got, err := checksum.Resolve(t.Context(), failClient(t), checksum.Request{
+		Source: "download", Assets: assets, Pattern: "*linux_amd64*", Download: download,
+	})
+	require.NoError(t, err)
+	require.Equal(t, hex.EncodeToString(sum[:]), got,
+		"the seam streams the asset, no plain HTTP is issued")
+	require.Equal(t, "tool_linux_amd64.tar.gz", gotName)
+}
+
+func TestResolveDownloadSeamError(t *testing.T) {
+	t.Parallel()
+
+	assets := []model.Asset{{Name: "tool_linux_amd64.tar.gz", URL: "http://x/tool"}}
+	download := func(context.Context, model.Asset) (io.ReadCloser, error) {
+		return nil, errors.New("boom")
+	}
+	_, err := checksum.Resolve(t.Context(), failClient(t), checksum.Request{
+		Source: "download", Assets: assets, Pattern: "*linux_amd64*", Download: download,
+	})
+	require.EqualError(t, err, "checksum: download tool_linux_amd64.tar.gz: boom")
+}
+
+func TestResolveChecksumsSiblingUsesSeam(t *testing.T) {
+	t.Parallel()
+
+	assets := []model.Asset{
+		{Name: "tool_linux_amd64.tar.gz", URL: "http://x/tool"},
+		{Name: "checksums.txt", URL: "http://x/checksums.txt"},
+	}
+	var gotName string
+	download := func(_ context.Context, asset model.Asset) (io.ReadCloser, error) {
+		gotName = asset.Name
+		return io.NopCloser(strings.NewReader(sumA + "  tool_linux_amd64.tar.gz\n")), nil
+	}
+	got, err := checksum.Resolve(t.Context(), failClient(t), checksum.Request{
+		Source: "checksums", Assets: assets, Pattern: "*linux_amd64*", Download: download,
+	})
+	require.NoError(t, err)
+	require.Equal(t, sumA, got)
+	require.Equal(t, "checksums.txt", gotName,
+		"the sibling checksum file is fetched through the seam")
 }

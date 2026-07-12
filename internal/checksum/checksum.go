@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/pattern"
 	xstrings "github.com/gechr/x/strings"
 	"golang.org/x/sync/singleflight"
@@ -67,20 +68,54 @@ func (r *Resolver) fetch(ctx context.Context, rawURL, version, pat string) (stri
 }
 
 func (r *Resolver) fetchEntries(ctx context.Context, url string) ([]entry, error) {
-	if entries, ok := r.cached(url); ok {
+	return r.load(url, func() ([]entry, error) {
+		return fetchEntries(ctx, r.client, url)
+	})
+}
+
+// assetEntries parses a sibling checksum asset, streamed through the request's
+// authenticated download when set and a plain GET of its public URL otherwise.
+func (r *Resolver) assetEntries(
+	ctx context.Context,
+	req Request,
+	asset model.Asset,
+) ([]entry, error) {
+	if req.Download == nil {
+		return r.fetchEntries(ctx, asset.URL)
+	}
+	return r.load(asset.URL, func() ([]entry, error) {
+		body, err := req.Download(ctx, asset)
+		if err != nil {
+			return nil, fmt.Errorf("checksum: download %s: %w", asset.Name, err)
+		}
+		defer body.Close()
+		// Errors cite the asset name: the seam decides which URL it actually
+		// reads, so the public URL could mislead.
+		data, err := readBody(body, asset.Name, maxSize)
+		if err != nil {
+			return nil, err
+		}
+		return parseEntries(string(data), asset.Name)
+	})
+}
+
+// load returns the cached entries for key, fetching them once (deduped across
+// goroutines) on a miss.
+func (r *Resolver) load(key string, fetch func() ([]entry, error)) ([]entry, error) {
+	if entries, ok := r.cached(key); ok {
 		return entries, nil
 	}
 
-	result, err, _ := r.group.Do(url, func() (any, error) {
-		if entries, ok := r.cached(url); ok {
+	result, err, _ := r.group.Do(key, func() (any, error) {
+		if entries, ok := r.cached(key); ok {
 			return entries, nil
 		}
-		entries, err := fetchEntries(ctx, r.client, url)
+		entries, err := fetch()
 		if err != nil {
 			return nil, err
 		}
 		r.mu.Lock()
-		r.entries[url] = entries
+		r.entries[key] = entries
 		r.mu.Unlock()
 		return entries, nil
 	})
@@ -89,7 +124,7 @@ func (r *Resolver) fetchEntries(ctx context.Context, url string) ([]entry, error
 	}
 	entries, ok := result.([]entry)
 	if !ok {
-		return fetchEntries(ctx, r.client, url)
+		return fetch()
 	}
 	return entries, nil
 }
@@ -106,9 +141,14 @@ func fetchEntries(ctx context.Context, client *http.Client, url string) ([]entry
 	if err != nil {
 		return nil, err
 	}
-	entries := parse(string(data))
+	return parseEntries(string(data), url)
+}
+
+// parseEntries parses data's checksum lines, erroring when none are found.
+func parseEntries(data, src string) ([]entry, error) {
+	entries := parse(data)
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("checksum: no sha256 entries at %s", url)
+		return nil, fmt.Errorf("checksum: no sha256 entries at %s", src)
 	}
 	return entries, nil
 }
@@ -127,14 +167,19 @@ func fetchBody(ctx context.Context, client *http.Client, url string, limit int64
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("checksum: get %s: %s", url, resp.Status)
 	}
-	// Read one byte past the limit so an over-cap file is an error, never a
-	// silently truncated prefix that could mis-parse.
-	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	return readBody(resp.Body, url, limit)
+}
+
+// readBody reads up to limit bytes from body. It reads one byte past the limit
+// so an over-cap file is an error, never a silently truncated prefix that could
+// mis-parse.
+func readBody(body io.Reader, src string, limit int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, limit+1))
 	if err != nil {
-		return nil, fmt.Errorf("checksum: read %s: %w", url, err)
+		return nil, fmt.Errorf("checksum: read %s: %w", src, err)
 	}
 	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("checksum: %s exceeds the %d-byte limit", url, limit)
+		return nil, fmt.Errorf("checksum: %s exceeds the %d-byte limit", src, limit)
 	}
 	return data, nil
 }

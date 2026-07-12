@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -1430,12 +1431,38 @@ func (p *plan) followValue(ctx context.Context, m Marker) (string, error) {
 	pat, _ := m.Directive.Get(constant.DirectivePattern)
 	source, _ := m.Directive.Get(constant.DirectiveSha256Source)
 	return p.checksumSource.Resolve(ctx, checksum.Request{
-		Source:  source,
-		Assets:  cand.Assets,
-		Pattern: pat,
-		URL:     url,
-		Version: cversion.RemovePrefix(cand.Version),
+		Source:   source,
+		Assets:   cand.Assets,
+		Pattern:  pat,
+		URL:      url,
+		Version:  cversion.RemovePrefix(cand.Version),
+		Download: p.assetDownloader(m.From),
 	})
+}
+
+// assetDownloader returns a download seam over the producer's provider when it
+// can stream assets through an authenticated channel, else nil (the checksum
+// resolver then falls back to plain GETs of public asset URLs).
+func (p *plan) assetDownloader(from string) checksum.DownloadFunc {
+	producer, ok := p.markerByID(from)
+	if !ok {
+		return nil
+	}
+	prov, err := lookupProvider(producer.Provider)
+	if err != nil {
+		return nil
+	}
+	downloader, ok := prov.(provider.AssetDownloader)
+	if !ok {
+		return nil
+	}
+	res, err := prov.Resource(producer.Directive)
+	if err != nil {
+		return nil
+	}
+	return func(ctx context.Context, asset model.Asset) (io.ReadCloser, error) {
+		return downloader.DownloadAsset(ctx, res, asset)
+	}
 }
 
 // report sends a marker's terminal progress event: the resolved value on

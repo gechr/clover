@@ -67,6 +67,7 @@ type release struct {
 		Name   string `json:"name"`
 		Digest string `json:"digest"`
 		URL    string `json:"browser_download_url"`
+		APIURL string `json:"url"`
 	} `json:"assets"`
 }
 
@@ -189,7 +190,10 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		}
 		assets := make([]model.Asset, 0, len(rel.Assets))
 		for _, a := range rel.Assets {
-			assets = append(assets, model.Asset{Name: a.Name, Digest: a.Digest, URL: a.URL})
+			assets = append(
+				assets,
+				model.Asset{Name: a.Name, Digest: a.Digest, URL: a.URL, APIURL: a.APIURL},
+			)
 		}
 		candidates = append(
 			candidates,

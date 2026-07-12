@@ -21,15 +21,22 @@ import (
 // an unbounded binary.
 const maxDownload = 256 << 20 // 256 MiB
 
+// DownloadFunc streams a release asset's content through the producer
+// provider's authenticated channel, reaching assets a plain GET of the public
+// URL cannot (a private repository).
+type DownloadFunc func(ctx context.Context, asset model.Asset) (io.ReadCloser, error)
+
 // Request describes how to source a follower's sha256: the source method, the
-// producer's release assets, an asset-selecting pattern, and an optional
-// explicit checksums-file URL.
+// producer's release assets, an asset-selecting pattern, an optional explicit
+// checksums-file URL, and an optional authenticated download (nil falls back to
+// a plain GET of the asset's public URL).
 type Request struct {
-	Source  string
-	Assets  []model.Asset
-	Pattern string
-	URL     string
-	Version string
+	Source   string
+	Assets   []model.Asset
+	Pattern  string
+	URL      string
+	Version  string
+	Download DownloadFunc
 }
 
 // Resolve sources a sha256 for the asset the request selects, per its source
@@ -100,14 +107,14 @@ func (r *Resolver) checksums(ctx context.Context, req Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	url := siblingChecksumURL(req.Assets, asset.Name)
-	if url == "" {
+	sibling, ok := siblingChecksum(req.Assets, asset.Name)
+	if !ok {
 		return "", fmt.Errorf(
 			"checksum: no %q and no checksums file among the assets",
 			constant.DirectiveSha256URL,
 		)
 	}
-	entries, err := r.fetchEntries(ctx, url)
+	entries, err := r.assetEntries(ctx, req, sibling)
 	if err != nil {
 		return "", err
 	}
@@ -121,22 +128,14 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 		return "", err
 	}
 
-	get, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.URL, nil)
+	body, err := openAsset(ctx, client, req, asset)
 	if err != nil {
-		return "", fmt.Errorf("checksum: build request: %w", err)
+		return "", err
 	}
-	get.Header.Set("Cache-Control", "no-store")
-	resp, err := client.Do(get)
-	if err != nil {
-		return "", fmt.Errorf("checksum: download %s: %w", asset.Name, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("checksum: download %s: %s", asset.Name, resp.Status)
-	}
+	defer body.Close()
 
 	hasher := sha256.New()
-	n, err := io.Copy(hasher, io.LimitReader(resp.Body, maxDownload+1))
+	n, err := io.Copy(hasher, io.LimitReader(body, maxDownload+1))
 	if err != nil {
 		return "", fmt.Errorf("checksum: hash %s: %w", asset.Name, err)
 	}
@@ -148,6 +147,38 @@ func downloadAndHash(ctx context.Context, client *http.Client, req Request) (str
 		)
 	}
 	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+// openAsset streams the asset's content: through the request's authenticated
+// download when set, else a plain GET of its public URL.
+func openAsset(
+	ctx context.Context,
+	client *http.Client,
+	req Request,
+	asset model.Asset,
+) (io.ReadCloser, error) {
+	if req.Download != nil {
+		body, err := req.Download(ctx, asset)
+		if err != nil {
+			return nil, fmt.Errorf("checksum: download %s: %w", asset.Name, err)
+		}
+		return body, nil
+	}
+
+	get, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("checksum: build request: %w", err)
+	}
+	get.Header.Set("Cache-Control", "no-store")
+	resp, err := client.Do(get)
+	if err != nil {
+		return nil, fmt.Errorf("checksum: download %s: %w", asset.Name, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("checksum: download %s: %s", asset.Name, resp.Status)
+	}
+	return resp.Body, nil
 }
 
 // verify requires the provider digest and the checksums file to agree, so a
@@ -208,19 +239,23 @@ func matchAsset(req Request) (model.Asset, error) {
 	}
 }
 
-// siblingChecksumURL finds a checksum file among assets: a per-asset
+// siblingChecksum finds a checksum file among assets: a per-asset
 // "<name>.sha256" first, else a combined list (checksums.txt, sha256sums.txt).
-func siblingChecksumURL(assets []model.Asset, assetName string) string {
-	var combined string
+func siblingChecksum(assets []model.Asset, assetName string) (model.Asset, bool) {
+	var (
+		combined model.Asset
+		found    bool
+	)
 	for _, a := range assets {
 		switch {
 		case a.Name == assetName+".sha256":
-			return a.URL
-		case combined == "" && isChecksumList(a.Name):
-			combined = a.URL
+			return a, true
+		case !found && isChecksumList(a.Name):
+			combined = a
+			found = true
 		}
 	}
-	return combined
+	return combined, found
 }
 
 // hashForFile returns the entry whose file matches name, or the sole bare hash.
