@@ -53,6 +53,7 @@ Settings are grouped by the command they configure, with a `global` block for cr
 | `fmt.prune`        | Remove unknown directive keys instead of erroring on them by default                                                                                                                  |
 | `annotate.write`   | Apply proposed annotations by default instead of previewing them                                                                                                                      |
 | `annotate.check`   | Report proposed annotations and exit non-zero by default instead of writing                                                                                                           |
+| `annotate.sidecar` | Generate [sidecars](sidecar.md) for comment-less targets. On by default. Set `false` to leave such targets untouched                                                                  |
 
 **Precedence**, highest first: an explicit CLI flag, then the per-command key, then `global`, then the built-in default. For the per-marker toggles (`verify`, `prerelease`, `downgrade`), a CLI flag wins over both the config and the directive. Otherwise the config supplies the default, which a directive can still override. `run.cooldown` follows the latter model: a directive's own `cooldown` always wins over the config default, while the `--cooldown` flag overrides both.
 

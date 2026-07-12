@@ -75,3 +75,28 @@ func TestAnnotateMode(t *testing.T) {
 		})
 	}
 }
+
+func TestAnnotateSidecar(t *testing.T) {
+	t.Parallel()
+
+	cfgOff := &config.Config{Annotate: config.Annotate{Sidecar: new(false)}}
+
+	tests := map[string]struct {
+		flag *bool
+		cfg  *config.Config
+		want bool
+	}{
+		"default enabled":       {want: true},
+		"nil config enabled":    {cfg: nil, want: true},
+		"flag disables":         {flag: new(false), want: false},
+		"config disables":       {cfg: cfgOff, want: false},
+		"flag beats config":     {flag: new(true), cfg: cfgOff, want: true},
+		"flag and config agree": {flag: new(false), cfg: cfgOff, want: false},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, command.AnnotateSidecar(tc.flag, tc.cfg))
+		})
+	}
+}

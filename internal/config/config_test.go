@@ -288,7 +288,7 @@ func TestLoadCommandSettings(t *testing.T) {
 		"run:\n  verify: true\n  prerelease: false\n  deep: true\n  output: github\n" +
 		"lint:\n  output: text\n" +
 		"fmt:\n  prune: true\n" +
-		"annotate:\n  write: true\n  check: false\n"
+		"annotate:\n  write: true\n  check: false\n  sidecar: false\n"
 	dir := writeConfig(t, ".clover.yaml", body)
 
 	cfg, err := config.Load(dir, "")
@@ -301,6 +301,7 @@ func TestLoadCommandSettings(t *testing.T) {
 	require.True(t, *cfg.Prune())
 	require.True(t, *cfg.AnnotateWrite())
 	require.False(t, *cfg.AnnotateCheck())
+	require.False(t, *cfg.AnnotateSidecar())
 	require.Equal(t, output.GitHub, cfg.RunOutput(nil), "run.output overrides global.output")
 	require.Equal(t, output.Text, cfg.LintOutput(nil), "lint.output overrides global.output")
 }
@@ -375,12 +376,12 @@ func TestMergeCommandSettings(t *testing.T) {
 	user := &config.Config{
 		Global:   config.Global{Output: new(output.Wide)},
 		Run:      config.Run{Verify: new(true), Deep: new(true)},
-		Annotate: config.Annotate{Write: new(true), Check: new(false)},
+		Annotate: config.Annotate{Write: new(true), Check: new(false), Sidecar: new(true)},
 	}
 	project := &config.Config{
 		Run:      config.Run{Verify: new(false)},
 		Lint:     config.Lint{Output: new(output.GitHub)},
-		Annotate: config.Annotate{Write: new(false)},
+		Annotate: config.Annotate{Write: new(false), Sidecar: new(false)},
 	}
 
 	got := config.Merge(user, project)
@@ -388,6 +389,7 @@ func TestMergeCommandSettings(t *testing.T) {
 	require.True(t, *got.Deep(), "unset project run.deep falls back to user")
 	require.False(t, *got.AnnotateWrite(), "project annotate.write overrides user")
 	require.False(t, *got.AnnotateCheck(), "unset project annotate.check falls back to user")
+	require.False(t, *got.AnnotateSidecar(), "project annotate.sidecar overrides user")
 	require.Equal(t, output.Wide, got.RunOutput(nil), "user global.output preserved")
 	require.Equal(t, output.GitHub, got.LintOutput(nil), "project lint.output applied")
 }

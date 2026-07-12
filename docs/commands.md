@@ -98,6 +98,7 @@ clover annotate [options] [<path>…]
 | `-n, --dry-run`   | Preview the proposed annotations without writing                                   |
 | `-w, --write`     | Apply the proposed annotations                                                     |
 | `--force`         | Rewrite an existing annotation into its canonical minimal form                     |
+| `--[no-]sidecar`  | Generate [sidecars](sidecar.md) for comment-less targets (`--no-sidecar` opts out) |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded) |
 | `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                  |
 | `--no-config`     | Do not load any `.clover.yaml` config                                              |

@@ -48,22 +48,22 @@ func strictJSON(path string) bool {
 	return strings.EqualFold(filepath.Ext(path), ".json")
 }
 
+// sidecarTarget reports whether path is a comment-less target - one whose
+// directives must live in a sidecar because an inline comment would corrupt it.
+func sidecarTarget(path string) bool {
+	return strictJSON(path) || match.PythonVersionFile(path)
+}
+
 // proposeSidecar builds the sidecar proposal for a comment-less target: strict
 // JSON gets the leaf-based generator, a pyenv .python-version file the
-// line-based one. ok is false when the file hosts inline comments and no
-// sidecar applies. Only the JSON generator takes force - a text entry carries
-// no source keys beyond the provider, so there is no drift to repair.
-func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip, bool) {
-	switch {
-	case strictJSON(file.Path):
-		generated, skips := annotateSidecar(file, force)
-		return generated, skips, true
-	case match.PythonVersionFile(file.Path):
-		generated, skips := annotateTextSidecar(file)
-		return generated, skips, true
-	default:
-		return nil, nil, false
+// line-based one. It must only be called for a [sidecarTarget]. Only the JSON
+// generator takes force - a text entry carries no source keys beyond the
+// provider, so there is no drift to repair.
+func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip) {
+	if strictJSON(file.Path) {
+		return annotateSidecar(file, force)
 	}
+	return annotateTextSidecar(file)
 }
 
 // AnnotateChange is one comment line annotate would write: At is the 0-based
@@ -169,12 +169,14 @@ func (s AnnotateSummary) count(existing bool) int {
 // also rewrites a recognized line's directive into its canonical minimal form,
 // collapsing keys inference supplies while preserving every rule key. With write
 // off it reports what it would do and writes nothing; otherwise it rewrites each
-// changed file atomically.
+// changed file atomically. With sidecars off it proposes inline comments only,
+// leaving comment-less targets untouched instead of generating sidecars.
 func Annotate(
 	ctx context.Context,
 	roots []string,
 	write bool,
 	force bool,
+	sidecars bool,
 	configs *config.Resolver,
 	reporter progress.Reporter,
 	parallelism int,
@@ -213,16 +215,12 @@ func Annotate(
 		}
 		// A comment-less target cannot host an inline comment, so a recognized
 		// line earns a sidecar entry instead of a comment that would corrupt it.
-		if generated, skips, ok := proposeSidecar(file, force); ok {
-			annotated := AnnotateFile{Path: file.Path, Sidecar: generated, Skips: skips}
-			if annotated.Sidecar != nil && write {
-				if err := writeSidecar(annotated.Sidecar); err != nil {
-					annotated.WriteErr = err
-				} else {
-					annotated.Written = true
-				}
+		// With sidecars off the target is left untouched - it must not fall
+		// through to the inline path either.
+		if sidecarTarget(file.Path) {
+			if sidecars {
+				results[i] = annotateSidecarFile(file, force, write)
 			}
-			results[i] = &annotated
 			return
 		}
 		annotated := annotateFile(file, force)
@@ -244,6 +242,21 @@ func Annotate(
 		}
 	}
 	return AnnotateSummary{Files: out, Scanned: scanned}, nil
+}
+
+// annotateSidecarFile proposes the sidecar for a comment-less target and, with
+// write, lays it down.
+func annotateSidecarFile(file scan.File, force, write bool) *AnnotateFile {
+	generated, skips := proposeSidecar(file, force)
+	annotated := AnnotateFile{Path: file.Path, Sidecar: generated, Skips: skips}
+	if annotated.Sidecar != nil && write {
+		if err := writeSidecar(annotated.Sidecar); err != nil {
+			annotated.WriteErr = err
+		} else {
+			annotated.Written = true
+		}
+	}
+	return &annotated
 }
 
 // annotateFile walks a file's lines and collects the annotations to add (and,

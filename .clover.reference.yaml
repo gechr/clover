@@ -48,6 +48,9 @@ run:
   # Persist cacheable HTTP responses across runs under the XDG cache directory
   # and revalidate them with conditional requests.
   cache: true
+  # Default minimum age before a version is eligible, for directives that set
+  # no cooldown of their own (e.g. 72h, 2w).
+  cooldown: 0s
   # Output detail for run; overrides global.output.
   output: text
   # Scoped defaults. Each rule applies its settings (verify, prerelease,
@@ -79,3 +82,5 @@ annotate:
   write: false
   # Report proposed annotations and exit non-zero instead of writing.
   check: false
+  # Generate sidecars for comment-less targets (false leaves them untouched).
+  sidecar: true

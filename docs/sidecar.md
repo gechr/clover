@@ -85,4 +85,4 @@ Clover publishes a [JSON schema](https://raw.githubusercontent.com/gechr/clover/
 
 ## Generating and formatting
 
-A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a comment-less target (a strict-JSON file, or a pyenv `.python-version`) for trackable lines and generates a sidecar, previewing by default and writing with `--write`. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.
+A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a comment-less target (a strict-JSON file, or a pyenv `.python-version`) for trackable lines and generates a sidecar, previewing by default and writing with `--write`. Pass `--no-sidecar` to opt out of generation and leave comment-less targets untouched, or set [`annotate.sidecar: false`](configuration.md) to make that the default for a project or globally. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.

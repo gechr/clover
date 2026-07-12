@@ -97,8 +97,9 @@ type Format struct {
 
 // Annotate holds defaults for `clover annotate`.
 type Annotate struct {
-	Check *bool `yaml:"check"`
-	Write *bool `yaml:"write"`
+	Check   *bool `yaml:"check"`
+	Sidecar *bool `yaml:"sidecar"`
+	Write   *bool `yaml:"write"`
 }
 
 // Load reads the project config from path, or - when path is empty - the first
@@ -152,6 +153,7 @@ func Merge(user, project *Config) *Config {
 		merged.Run.Rules = project.Run.Rules
 	}
 	merged.Annotate.Check = cmp.Or(project.Annotate.Check, merged.Annotate.Check)
+	merged.Annotate.Sidecar = cmp.Or(project.Annotate.Sidecar, merged.Annotate.Sidecar)
 	merged.Annotate.Write = cmp.Or(project.Annotate.Write, merged.Annotate.Write)
 	merged.Format.Prune = cmp.Or(project.Format.Prune, merged.Format.Prune)
 	merged.Lint.Output = cmp.Or(project.Lint.Output, merged.Lint.Output)
@@ -367,6 +369,16 @@ func (c *Config) AnnotateCheck() *bool {
 		return nil
 	}
 	return c.Annotate.Check
+}
+
+// AnnotateSidecar returns the configured annotate.sidecar default (nil =
+// unset). When false, comment-less targets are left untouched instead of
+// earning generated sidecars.
+func (c *Config) AnnotateSidecar() *bool {
+	if c == nil {
+		return nil
+	}
+	return c.Annotate.Sidecar
 }
 
 // RunOutput resolves the output detail for `clover run`: the CLI value when set,

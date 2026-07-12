@@ -109,6 +109,10 @@
         "check": {
           "type": "boolean",
           "description": "Report annotations that would be added and exit non-zero by default."
+        },
+        "sidecar": {
+          "type": "boolean",
+          "description": "Generate sidecars for comment-less targets (false leaves them untouched)."
         }
       }
     }

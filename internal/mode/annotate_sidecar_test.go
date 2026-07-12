@@ -378,3 +378,29 @@ func TestAnnotateSidecarSkipsAmbiguousPythonVersion(t *testing.T) {
 		summary.Files[0].Skips[0].Reason,
 	)
 }
+
+// TestAnnotateNoSidecarLeavesTargetsUntouched covers the sidecar opt-out: with
+// noSidecar set a comment-less target earns no sidecar and no candidates - even
+// with write - while a commentable file is still annotated inline.
+func TestAnnotateNoSidecarLeavesTargetsUntouched(t *testing.T) {
+	t.Parallel()
+
+	json := "{\n  \"image\": \"nginx:1.27\"\n}\n"
+	root := annotateTree(t, map[string]string{
+		"k8s.json":        json,
+		".python-version": "3.14.6\n",
+		"Dockerfile":      "FROM nginx:1.27\n",
+	})
+
+	summary := annotateNoSidecar(t, root, true)
+	require.Equal(t, 1, summary.Added(), "only the Dockerfile line earns an annotation")
+	require.NoFileExists(t, filepath.Join(root, "k8s.json.clover.yaml"))
+	require.NoFileExists(t, filepath.Join(root, ".python-version.clover.yaml"))
+	//nolint:testifylint // byte-identical is the point, not semantic JSON equality
+	require.Equal(t, json, readFile(t, filepath.Join(root, "k8s.json")),
+		"the JSON target is left untouched, never annotated inline")
+	require.Equal(t, "3.14.6\n", readFile(t, filepath.Join(root, ".python-version")),
+		"the pin file is left untouched, never annotated inline")
+	require.Equal(t, "# @clover\nFROM nginx:1.27\n", readFile(t, filepath.Join(root, "Dockerfile")),
+		"a commentable file still earns its inline annotation")
+}

@@ -104,6 +104,24 @@ func annotate(t *testing.T, root string, write, force bool) mode.AnnotateSummary
 		[]string{root},
 		write,
 		force,
+		true,
+		config.NewResolver(nil, "", false),
+		progress.Nop{},
+		testWorkers,
+	)
+	require.NoError(t, err)
+	return summary
+}
+
+// annotateNoSidecar runs annotate with sidecar generation disabled.
+func annotateNoSidecar(t *testing.T, root string, write bool) mode.AnnotateSummary {
+	t.Helper()
+	summary, err := mode.Annotate(
+		context.Background(),
+		[]string{root},
+		write,
+		false,
+		false,
 		config.NewResolver(nil, "", false),
 		progress.Nop{},
 		testWorkers,
@@ -164,6 +182,7 @@ func TestAnnotateReportsVerifyProgress(t *testing.T) {
 		[]string{root},
 		false,
 		false,
+		true,
 		config.NewResolver(nil, "", false),
 		reporter,
 		testWorkers,

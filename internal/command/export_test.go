@@ -43,6 +43,11 @@ func AnnotateMode(check, dryRun, write *bool, cfg *config.Config) (bool, bool) {
 	return c.mode(cfg)
 }
 
+// AnnotateSidecar drives (*cmdAnnotate).sidecar from a black-box test.
+func AnnotateSidecar(sidecar *bool, cfg *config.Config) bool {
+	return (&cmdAnnotate{Sidecar: sidecar}).sidecar(cfg)
+}
+
 // NewResolver drives newResolver from a black-box test: the root command tree
 // is unexported, so tests cannot build it directly.
 func NewResolver(cfgPath string, noConfig bool) (*config.Resolver, error) {
