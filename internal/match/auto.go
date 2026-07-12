@@ -52,27 +52,45 @@ func (i Inference) Missing() string {
 	return ""
 }
 
-// Infer resolves the provider for an `auto` marker from its file path and
-// target line (lines[target]), reusing the dispatch routes: the first route
-// whose path and line match (ignoring its provider guard, which is the answer)
-// names the provider. It also reads the provider's parameters from the line -
-// the repository from a GitHub Actions pin, the registry and repository from a
+// Table is the dispatch table scoped to one file: the routes whose path guard
+// matches the file, computed once so per-line inference never re-evaluates a
+// path glob. Inference is called for every line of every scanned file, and the
+// glob matching dwarfs the line matching, so the scoping is what makes a large
+// tree affordable.
+type Table struct {
+	path   string
+	routes []route
+}
+
+// NewTable scopes the dispatch table to the file at path.
+func NewTable(path string) Table {
+	scoped := make([]route, 0, len(routes))
+	for _, r := range routes {
+		if r.when.path == "" || matchPath(r.when.path, path) {
+			scoped = append(scoped, r)
+		}
+	}
+	return Table{path: path, routes: scoped}
+}
+
+// Infer resolves the provider for an `auto` marker from its target line
+// (lines[target]), reusing the dispatch routes: the first route whose line
+// matches (ignoring its provider guard, which is the answer) names the
+// provider. It also reads the provider's parameters from the line - the
+// repository from a GitHub Actions pin, the registry and repository from a
 // container image reference - so a bare `provider=auto` needs no further keys.
 // The surrounding lines matter only to the Terraform route, whose source
 // address lives on a sibling line of its block. It returns ok=false when
 // nothing matches, leaving the marker for the caller to reject.
-func Infer(path string, lines []string, target int) (Inference, bool) {
+func (t Table) Infer(lines []string, target int) (Inference, bool) {
 	if target < 0 || target >= len(lines) {
 		return Inference{}, false
 	}
 	line := lines[target]
-	for _, r := range routes {
+	for _, r := range t.routes {
 		c := r.when
 		if c.provider == "" {
 			continue // the smart catch-all infers nothing
-		}
-		if c.path != "" && !matchPath(c.path, path) {
-			continue
 		}
 		if c.lineMatch != nil && !c.lineMatch.Matches(line) {
 			continue
@@ -80,14 +98,14 @@ func Infer(path string, lines []string, target int) (Inference, bool) {
 		inferred := Inference{Provider: c.provider}
 		switch c.provider {
 		case constant.ProviderGithub:
-			inferred.Repository, inferred.TagPrefix = githubReference(path, line)
+			inferred.Repository, inferred.TagPrefix = githubReference(t.path, line)
 		case constant.ProviderDocker:
 			inferred.Registry, inferred.Repository = imageReference(line)
 			inferred.Track = trackedTag(imageToken(line))
 		case constant.ProviderGitlab:
 			inferred.Host, inferred.Repository = componentReference(line)
 		case constant.ProviderHashicorp:
-			inferred.Product = hashicorpProduct(path, line)
+			inferred.Product = hashicorpProduct(t.path, line)
 		case constant.ProviderPypi:
 			inferred.Package = pypiPackage(line)
 		case constant.ProviderTerraform, constant.ProviderOpentofu:
@@ -96,6 +114,12 @@ func Infer(path string, lines []string, target int) (Inference, bool) {
 		return inferred, true
 	}
 	return Inference{}, false
+}
+
+// Infer is the one-shot form of [Table.Infer], for a caller inferring a single
+// line. A loop over a file's lines builds one [Table] instead.
+func Infer(path string, lines []string, target int) (Inference, bool) {
+	return NewTable(path).Infer(lines, target)
 }
 
 // gitlabHost is the host the gitlab provider targets when host is omitted. A

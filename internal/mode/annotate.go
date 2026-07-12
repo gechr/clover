@@ -265,6 +265,7 @@ func annotateSidecarFile(file scan.File, force, write bool) *AnnotateFile {
 // is never annotated, so manual, http, follow, and unrelated lines are untouched.
 func annotateFile(file scan.File, force bool) AnnotateFile {
 	syntax := comment.For(file.Path)
+	recognizer := infer.NewRecognizer(file.Path)
 	annotated := AnnotateFile{Path: file.Path}
 
 	// A directive binds to the line below it, so its comment and target are both
@@ -283,7 +284,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 
 	for i, line := range file.Lines {
 		if file.Ignored.Contains(i) {
-			if infer.Recognizable(file.Path, file.Lines, i) {
+			if recognizer.Recognizable(file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "ignored"))
 			}
 			continue // a clover:ignore control opts this line out
@@ -292,7 +293,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		// live field, so it is never a target - inference reads raw line text and
 		// would otherwise match inside the comment.
 		if syntax.IsComment(line) {
-			if infer.Recognizable(file.Path, file.Lines, i) {
+			if recognizer.Recognizable(file.Lines, i) {
 				annotated.Skips = append(annotated.Skips, skip(i, "commented out"))
 			}
 			continue
@@ -301,7 +302,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		// resolution checks lint does, so annotate never emits a directive lint
 		// would reject: an incomplete reference, a resource that does not build,
 		// or a version the rewriter cannot locate all skip with the reason.
-		inf, reason, ok := infer.Recognize(file.Path, file.Lines, i)
+		inf, reason, ok := recognizer.Recognize(file.Lines, i)
 		if !ok {
 			continue
 		}

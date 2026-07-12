@@ -146,12 +146,13 @@ func appendParam(d directive.Directive, key, value string) directive.Directive {
 // target) and comment lines are never doubled up.
 func InferredMarkers(file scan.File, governed map[int]bool) []Marker {
 	syntax := comment.For(file.Path)
+	recognizer := infer.NewRecognizer(file.Path)
 	var markers []Marker
 	for i, line := range file.Lines {
 		if governed[i] || file.Ignored.Contains(i) || syntax.IsComment(line) {
 			continue
 		}
-		if _, reason, ok := infer.Recognize(file.Path, file.Lines, i); !ok || reason != "" {
+		if _, reason, ok := recognizer.Recognize(file.Lines, i); !ok || reason != "" {
 			continue
 		}
 		d := directive.Directive{Pairs: []directive.KV{

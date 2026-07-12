@@ -12,28 +12,51 @@ import (
 	"github.com/gechr/clover/internal/provider"
 )
 
+// Recognizer is the gate scoped to one file: it holds the file's dispatch
+// table so a loop over the file's lines never re-matches path globs.
+type Recognizer struct {
+	path  string
+	table match.Table
+}
+
+// NewRecognizer returns the recognition gate for the file at path.
+func NewRecognizer(path string) Recognizer {
+	return Recognizer{path: path, table: match.NewTable(path)}
+}
+
 // Recognize reports the inference for lines[i] and whether its line would
 // resolve: ok is false when no auto route matches at all, and reason carries
 // why a matched line still cannot resolve (an incomplete reference, a provider
 // resource that does not build, a version the rewriter cannot locate). A
 // matched line with an empty reason is safe to annotate or update.
-func Recognize(path string, lines []string, i int) (match.Inference, string, bool) {
-	inf, ok := match.Infer(path, lines, i)
+func (r Recognizer) Recognize(lines []string, i int) (match.Inference, string, bool) {
+	inf, ok := r.table.Infer(lines, i)
 	if !ok {
 		return match.Inference{}, "", false
 	}
 	if reason := inf.Missing(); reason != "" {
 		return inf, reason, true
 	}
-	return inf, unresolvedReason(path, inf, lines[i]), true
+	return inf, unresolvedReason(r.path, inf, lines[i]), true
 }
 
 // Recognizable reports whether lines[i] names a complete reference, stopping
 // before the heavier offline resolution gate. It backs opt-out diagnostics,
 // which only need to know a line would otherwise have been a candidate.
-func Recognizable(path string, lines []string, i int) bool {
-	inf, ok := match.Infer(path, lines, i)
+func (r Recognizer) Recognizable(lines []string, i int) bool {
+	inf, ok := r.table.Infer(lines, i)
 	return ok && inf.Missing() == ""
+}
+
+// Recognize is the one-shot form of [Recognizer.Recognize], for a caller
+// gating a single line.
+func Recognize(path string, lines []string, i int) (match.Inference, string, bool) {
+	return NewRecognizer(path).Recognize(lines, i)
+}
+
+// Recognizable is the one-shot form of [Recognizer.Recognizable].
+func Recognizable(path string, lines []string, i int) bool {
+	return NewRecognizer(path).Recognizable(lines, i)
 }
 
 // unresolvedReason reports why the directive a provider=auto marker would bind
