@@ -3,6 +3,7 @@ package report_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -178,6 +179,24 @@ func TestRunReportsBlockedUpdate(t *testing.T) {
 	require.Equal(t,
 		"ERR 🚫 Update blocked provider=github location=ci.yml:1 from=1.0.0 to=2.0.0 "+
 			"error=\"commit abc is not on an allowed branch\"\n"+
+			"INF 🏁 Run complete elapsed=2s\n",
+		buf.String(),
+	)
+}
+
+// TestRunReportsIncompleteVerification confirms a check that never completed is
+// worded as incomplete rather than as a bad-pin verdict.
+func TestRunReportsIncompleteVerification(t *testing.T) {
+	withheld := result("ci.yml", 0)
+	withheld.Current, withheld.Resolved = "1.0.0", "2.0.0"
+	withheld.Verify = fmt.Errorf("%w: boom", pipeline.ErrVerifyIncomplete)
+
+	var buf bytes.Buffer
+	report.Run(clog.NewWriter(&buf), summary(withheld), false, output.Text)
+
+	require.Equal(t,
+		"ERR ❓ Verification did not complete (update withheld) provider=github "+
+			"location=ci.yml:1 error=\"could not verify: boom\"\n"+
 			"INF 🏁 Run complete elapsed=2s\n",
 		buf.String(),
 	)

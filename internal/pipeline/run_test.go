@@ -2,6 +2,7 @@ package pipeline_test
 
 import (
 	"context"
+	"errors"
 	"image/color"
 	"io"
 	"net/http"
@@ -43,6 +44,7 @@ type fakeProvider struct {
 	commitBranch map[string]string // commit SHA -> the branch it is reachable from
 	tagCommit    map[string]string // tag -> commit, for the Committer fallback
 	credentialed bool              // the CredentialChecker verdict, gating default verification
+	branchErr    error             // when set, every BranchChecker method fails with it
 }
 
 func (f fakeProvider) Credentialed(provider.Resource) bool { return f.credentialed }
@@ -73,11 +75,11 @@ func (f fakeProvider) Identify(provider.Resource) (string, string) {
 }
 
 func (f fakeProvider) DefaultBranch(context.Context, provider.Resource) (string, error) {
-	return f.defaultBr, nil
+	return f.defaultBr, f.branchErr
 }
 
 func (f fakeProvider) Branches(context.Context, provider.Resource) ([]provider.Branch, error) {
-	return f.branches, nil
+	return f.branches, f.branchErr
 }
 
 func (f fakeProvider) Reachable(
@@ -85,7 +87,7 @@ func (f fakeProvider) Reachable(
 	_ provider.Resource,
 	branch, commit string,
 ) (bool, error) {
-	return f.commitBranch[commit] == branch, nil
+	return f.commitBranch[commit] == branch, f.branchErr
 }
 
 func (f fakeProvider) Name() string { return f.name }
@@ -1465,6 +1467,32 @@ func TestRunVerifyHistoryOptOut(t *testing.T) {
 	r := files[0].Results[0]
 	require.NoError(t, r.Verify)
 	require.True(t, r.Changed)
+}
+
+func TestRunVerifyIncompleteOnAPIError(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		credentialed: true,
+		branchErr:    errors.New("boom"),
+	})
+
+	// An API failure mid-check is not a verdict: it still withholds the write,
+	// but reports as incomplete rather than as a bad pin.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.ErrorIs(t, r.Verify, pipeline.ErrVerifyIncomplete)
+	require.EqualError(t, r.Verify, "could not verify: boom")
+	require.False(t, r.Changed, "an unverified update is withheld")
 }
 
 func TestRunVerifyBranchGlobDirective(t *testing.T) {

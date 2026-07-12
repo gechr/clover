@@ -60,6 +60,18 @@ var ErrNoCandidate = errors.New("no candidate satisfies the rule")
 // the follow-edge executor skip the marker's followers.
 var errVerifyFailed = errors.New("pin failed verification")
 
+// ErrVerifyIncomplete marks a verification that did not complete - an API or
+// network failure - as distinct from a verdict that the pin is bad. Both block
+// the write; the report words them differently so a transient failure is not
+// mistaken for a malicious pin.
+var ErrVerifyIncomplete = errors.New("could not verify")
+
+// incomplete wraps an infrastructure failure from a verification check so the
+// report can tell it apart from a bad-pin verdict.
+func incomplete(err error) error {
+	return fmt.Errorf("%w: %w", ErrVerifyIncomplete, err)
+}
+
 // Result is the outcome of resolving one marker: the version it found in the
 // file, the value it resolved to, and the rewritten target line. Exactly one of
 // a clean resolution, Skipped, Disabled, or Err holds. A skipped, disabled, or
@@ -1151,11 +1163,11 @@ func (p *plan) verifyBranch(
 	}
 	branches, err := p.allowedBranches(ctx, checker, resource, m)
 	if err != nil {
-		return fmt.Errorf("verify: %w", err)
+		return err
 	}
 	reachable, err := reachableFromAny(ctx, checker, resource, branches, commit)
 	if err != nil {
-		return fmt.Errorf("verify: %w", err)
+		return incomplete(err)
 	}
 	if !reachable {
 		return fmt.Errorf(
@@ -1186,24 +1198,24 @@ func (p *plan) verifyHistory(
 	}
 	def, err := checker.DefaultBranch(ctx, resource)
 	if err != nil {
-		return fmt.Errorf("verify: %w", err)
+		return incomplete(err)
 	}
 	reachable, err := reachableFromAny(
 		ctx, checker, resource, []provider.Branch{{Name: def}}, commit)
 	if err != nil {
-		return fmt.Errorf("verify: %w", err)
+		return incomplete(err)
 	}
 	if !reachable {
 		branches, err := checker.Branches(ctx, resource)
 		if err != nil {
-			return fmt.Errorf("verify: %w", err)
+			return incomplete(err)
 		}
 		branches = slices.DeleteFunc(branches, func(b provider.Branch) bool {
 			return b.Name == def // already checked
 		})
 		reachable, err = reachableFromAny(ctx, checker, resource, branches, commit)
 		if err != nil {
-			return fmt.Errorf("verify: %w", err)
+			return incomplete(err)
 		}
 	}
 	if !reachable {
@@ -1245,7 +1257,7 @@ func (p *plan) branchCheckTarget(
 		}
 		c, err := committer.Commit(ctx, resource, located.Current())
 		if err != nil {
-			return nil, "", fmt.Errorf("verify: %w", err)
+			return nil, "", incomplete(err)
 		}
 		commit = c
 	}
@@ -1292,7 +1304,7 @@ func (p *plan) allowedBranches(
 	if !ok || raw == "" {
 		def, err := checker.DefaultBranch(ctx, resource)
 		if err != nil {
-			return nil, err
+			return nil, incomplete(err)
 		}
 		return []provider.Branch{{Name: def}}, nil
 	}
@@ -1310,7 +1322,7 @@ func (p *plan) allowedBranches(
 	}
 	branches, err := checker.Branches(ctx, resource)
 	if err != nil {
-		return nil, err
+		return nil, incomplete(err)
 	}
 	var matched []provider.Branch
 	for _, b := range branches {
