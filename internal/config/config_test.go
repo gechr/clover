@@ -2,12 +2,16 @@ package config_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/output"
+	xslices "github.com/gechr/x/slices"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -277,6 +281,66 @@ func TestReferenceConfigValid(t *testing.T) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	require.NoError(t, dec.Decode(new(config.Config)), "every documented key must be known")
+}
+
+// TestReferenceConfigComplete guards the opposite direction: every key the
+// schema defines must appear in .clover.reference.yaml, so a key added to the
+// schema cannot land without an example in the reference.
+func TestReferenceConfigComplete(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile("schema.json")
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(data, &doc))
+
+	data, err = os.ReadFile("../../.clover.reference.yaml")
+	require.NoError(t, err)
+	var ref map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &ref))
+
+	missing := missingKeys(doc, doc, ref, "")
+	xslices.SortNatural(missing)
+	require.Empty(t, missing, "every schema key must appear in the reference config")
+}
+
+// missingKeys walks node's object properties (resolving local $defs
+// references) and returns the schema key paths absent from val. Array item
+// keys are checked against each populated element.
+func missingKeys(doc, node map[string]any, val any, prefix string) []string {
+	if ref, ok := node["$ref"].(string); ok {
+		defs, _ := doc["$defs"].(map[string]any)
+		node, _ = defs[strings.TrimPrefix(ref, "#/$defs/")].(map[string]any)
+	}
+	var missing []string
+	if items, ok := node["items"].(map[string]any); ok {
+		elems, _ := val.([]any)
+		for i, elem := range elems {
+			missing = append(
+				missing,
+				missingKeys(doc, items, elem, fmt.Sprintf("%s[%d]", prefix, i))...)
+		}
+		return missing
+	}
+	props, ok := node["properties"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	obj, _ := val.(map[string]any)
+	for name, sub := range props {
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+		child, ok := obj[name]
+		if !ok {
+			missing = append(missing, path)
+			continue
+		}
+		subSchema, _ := sub.(map[string]any)
+		missing = append(missing, missingKeys(doc, subSchema, child, path)...)
+	}
+	return missing
 }
 
 // TestLoadCommandSettings parses the per-command blocks and confirms the typed
