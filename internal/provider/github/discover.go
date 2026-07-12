@@ -307,25 +307,47 @@ func listAll[T any](
 	}
 }
 
-// Commit resolves a tag to its peeled commit SHA, satisfying provider.Committer.
-// The /commits/{ref} endpoint resolves any ref - including an annotated tag - to
-// the commit it points at, so --verify can check a pin even for a tag off the
-// discovered page.
+// Commit resolves a tag to its peeled commit SHA, satisfying provider.Committer,
+// so --verify can check a pin even for a tag off the discovered page. The lookup
+// is namespace-explicit - git/ref/tags/, peeling an annotated tag via git/tags/ -
+// because the commits/{ref} endpoint resolves any ref-like string and prefers a
+// branch over a same-named tag, which would let a crafted tag borrow a benign
+// branch's commit and pass verification.
 func (p *Provider) Commit(ctx context.Context, r provider.Resource, tag string) (string, error) {
 	res, ok := r.(resource)
 	if !ok {
 		return "", fmt.Errorf("github: invalid resource %T", r)
 	}
+	rest := p.client()
+	token := forge.Bearer(p.credential(res.host))
 
-	var commit struct {
-		SHA string `json:"sha"`
+	var ref struct {
+		Object struct {
+			Type string `json:"type"`
+			SHA  string `json:"sha"`
+		} `json:"object"`
 	}
-	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/commits/%s", res.owner, res.name, tag))
-	if _, err := p.client().
-		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &commit); err != nil {
-		return "", fmt.Errorf("github: resolve commit for %s: %w", tag, err)
+	url := apiURL(res.host, fmt.Sprintf("repos/%s/%s/git/ref/tags/%s", res.owner, res.name, tag))
+	if _, err := rest.DoWithContext(ctx, url, token, &ref); err != nil {
+		return "", fmt.Errorf("github: resolve tag %s: %w", tag, err)
 	}
-	return commit.SHA, nil
+	if ref.Object.Type != "tag" { // a lightweight tag points straight at the commit
+		return ref.Object.SHA, nil
+	}
+
+	var tagObj struct {
+		Object struct {
+			SHA string `json:"sha"`
+		} `json:"object"`
+	}
+	url = apiURL(
+		res.host,
+		fmt.Sprintf("repos/%s/%s/git/tags/%s", res.owner, res.name, ref.Object.SHA),
+	)
+	if _, err := rest.DoWithContext(ctx, url, token, &tagObj); err != nil {
+		return "", fmt.Errorf("github: peel tag %s: %w", tag, err)
+	}
+	return tagObj.Object.SHA, nil
 }
 
 // tagCommits maps tag name to its peeled commit SHA, for resolving the commit a

@@ -90,13 +90,29 @@ func (c RESTClient) DoWithContext(
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("%s (%s)", strings.TrimSpace(string(msg)), resp.Status)
+		return nil, &StatusError{
+			Code:   resp.StatusCode,
+			Status: resp.Status,
+			Body:   strings.TrimSpace(string(msg)),
+		}
 	}
 	if response == nil || resp.StatusCode == http.StatusNoContent {
 		return resp.Header, nil
 	}
 	return resp.Header, json.NewDecoder(resp.Body).Decode(response)
 }
+
+// StatusError is the error [RESTClient.DoWithContext] returns for a non-2xx
+// response, carrying the status code so a caller can branch on a specific
+// status - e.g. a compare 404 that means two refs share no history rather than
+// a transport failure.
+type StatusError struct {
+	Code   int    // the HTTP status code
+	Status string // the status line, e.g. "404 Not Found"
+	Body   string // the trimmed response body
+}
+
+func (e *StatusError) Error() string { return fmt.Sprintf("%s (%s)", e.Body, e.Status) }
 
 // do issues a single GET, attaching authorization when non-empty.
 func (c RESTClient) do(ctx context.Context, url, authorization string) (*http.Response, error) {

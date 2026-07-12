@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/provider"
@@ -90,6 +92,13 @@ func (p *Provider) Reachable(
 	)
 	if _, err := p.client().
 		DoWithContext(ctx, url, forge.Bearer(p.credential(res.host)), &cmp); err != nil {
+		// The compare endpoint 404s when the two refs share no common history -
+		// e.g. a commit fabricated outside the repository - which is a definitive
+		// "not reachable", not an API failure.
+		var status *forge.StatusError
+		if errors.As(err, &status) && status.Code == http.StatusNotFound {
+			return false, nil
+		}
 		return false, fmt.Errorf("github: compare %s...%s: %w", branch, commit, err)
 	}
 	return cmp.Status == "behind" || cmp.Status == "identical", nil
