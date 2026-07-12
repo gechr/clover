@@ -1034,10 +1034,17 @@ func (p *plan) finalize(
 
 	// Verification gates the write: a pin that fails is recorded on the result
 	// and blocks the render, the registry publish (so followers skip), and the
-	// run's exit status.
+	// run's exit status. The strict allowed-branch tier runs when asked for;
+	// otherwise every credentialed secure pin gets the impostor check unless the
+	// marker opts out.
 	verify := verifyPin(located, chosen)
-	if verify == nil && p.deepVerify(m) {
-		verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
+	if verify == nil {
+		switch {
+		case p.deepVerify(m):
+			verify = p.verifyBranch(ctx, prov, resource, located, chosen, m)
+		case !p.verifyOff(m) && credentialed(prov, resource):
+			verify = p.verifyHistory(ctx, prov, resource, located, chosen)
+		}
 	}
 	if verify != nil {
 		p.results[i].Current = located.Current()
@@ -1092,15 +1099,37 @@ func (p *plan) anchor(i int, m Marker, line string, located match.Location) erro
 	return nil
 }
 
-// deepVerify reports whether the deep tag-on-branch check runs for marker m: the
-// --verify override wins, then the root's run.verify default, else the marker's
-// own verify=/verify-branch=.
+// deepVerify reports whether the strict allowed-branch check runs for marker m:
+// the --verify override wins, then the root's run.verify default, else the
+// marker's own verify=/verify-branch=.
 func (p *plan) deepVerify(m Marker) bool {
 	if verify := cmp.Or(p.verify, p.configFor(m.File).VerifyFor(p.scopeFor(m))); verify != nil {
 		return *verify
 	}
 	on, _ := m.Directive.Bool(constant.DirectiveVerify)
 	return on || m.Directive.Has(constant.DirectiveVerifyBranch)
+}
+
+// verifyOff reports whether marker m explicitly opts out of verification, via
+// --no-verify, a run.verify=false default, or its own verify=false. Only an
+// explicit opt-out suppresses the default impostor check.
+func (p *plan) verifyOff(m Marker) bool {
+	if verify := cmp.Or(p.verify, p.configFor(m.File).VerifyFor(p.scopeFor(m))); verify != nil {
+		return !*verify
+	}
+	if !m.Directive.Has(constant.DirectiveVerify) {
+		return false
+	}
+	on, err := m.Directive.Bool(constant.DirectiveVerify)
+	return err == nil && !on
+}
+
+// credentialed reports whether prov holds a credential for resource, the gate
+// for the default verification tier: an anonymous rate limit is too small to
+// spend on checks the user did not ask for.
+func credentialed(prov provider.Provider, resource provider.Resource) bool {
+	checker, ok := prov.(provider.CredentialChecker)
+	return ok && checker.Credentialed(resource)
 }
 
 // verifyBranch confirms the commit clover resolved for a secure pin is reachable
@@ -1116,53 +1145,138 @@ func (p *plan) verifyBranch(
 	chosen model.Candidate,
 	m Marker,
 ) error {
+	checker, commit, err := p.branchCheckTarget(ctx, prov, resource, located, chosen)
+	if checker == nil || err != nil {
+		return err
+	}
+	branches, err := p.allowedBranches(ctx, checker, resource, m)
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+	reachable, err := reachableFromAny(ctx, checker, resource, branches, commit)
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+	if !reachable {
+		return fmt.Errorf(
+			"commit %s for %s is not on %s",
+			commit, chosen.Version, branchDescription(m),
+		)
+	}
+	return nil
+}
+
+// verifyHistory is the default verification tier: the commit a credentialed
+// secure pin resolved to must exist in some branch's history. It catches a tag
+// pointing at a commit smuggled in from outside the repository (an impostor
+// commit) without constraining which branch releases are cut from, so ordinary
+// release engineering never trips it. The default branch is compared first,
+// which covers almost every real tag in one call, before falling back to the
+// full branch list. It fails closed.
+func (p *plan) verifyHistory(
+	ctx context.Context,
+	prov provider.Provider,
+	resource provider.Resource,
+	located match.Location,
+	chosen model.Candidate,
+) error {
+	checker, commit, err := p.branchCheckTarget(ctx, prov, resource, located, chosen)
+	if checker == nil || err != nil {
+		return err
+	}
+	def, err := checker.DefaultBranch(ctx, resource)
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+	reachable, err := reachableFromAny(
+		ctx, checker, resource, []provider.Branch{{Name: def}}, commit)
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+	if !reachable {
+		branches, err := checker.Branches(ctx, resource)
+		if err != nil {
+			return fmt.Errorf("verify: %w", err)
+		}
+		branches = slices.DeleteFunc(branches, func(b provider.Branch) bool {
+			return b.Name == def // already checked
+		})
+		reachable, err = reachableFromAny(ctx, checker, resource, branches, commit)
+		if err != nil {
+			return fmt.Errorf("verify: %w", err)
+		}
+	}
+	if !reachable {
+		return fmt.Errorf(
+			"commit %s for %s is not reachable from any branch",
+			commit, chosen.Version,
+		)
+	}
+	return nil
+}
+
+// branchCheckTarget resolves what a branch-level verification checks: the
+// checker capability and the pin's commit. A nil checker means the marker is
+// not subject to the check - a digest pin (no branch provenance), a provider
+// without the capability, or no resolvable commit.
+func (p *plan) branchCheckTarget(
+	ctx context.Context,
+	prov provider.Provider,
+	resource provider.Resource,
+	located match.Location,
+	chosen model.Candidate,
+) (provider.BranchChecker, string, error) {
 	if located.NeedsDigest() {
-		return nil // a registry digest has no branch provenance
+		return nil, "", nil
 	}
 	if _, ok := located.(match.SecurePin); !ok {
-		return nil
+		return nil, "", nil
 	}
 	checker, ok := prov.(provider.BranchChecker)
 	if !ok {
-		return nil
+		return nil, "", nil
 	}
 
 	commit := chosen.Commit
 	if commit == "" { // the tag was off the discovered page; resolve it directly
 		committer, ok := prov.(provider.Committer)
 		if !ok {
-			return nil
+			return nil, "", nil
 		}
 		c, err := committer.Commit(ctx, resource, located.Current())
 		if err != nil {
-			return fmt.Errorf("verify: %w", err)
+			return nil, "", fmt.Errorf("verify: %w", err)
 		}
 		commit = c
 	}
 	if commit == "" {
-		return nil
+		return nil, "", nil
 	}
+	return checker, commit, nil
+}
 
-	branches, err := p.allowedBranches(ctx, checker, resource, m)
-	if err != nil {
-		return fmt.Errorf("verify: %w", err)
-	}
+// reachableFromAny reports whether commit is reachable from any of branches,
+// trying the tip-equality fast path before a compare call.
+func reachableFromAny(
+	ctx context.Context,
+	checker provider.BranchChecker,
+	resource provider.Resource,
+	branches []provider.Branch,
+	commit string,
+) (bool, error) {
 	for _, b := range branches {
 		if b.Tip == commit { // fast path: the commit is the branch tip
-			return nil
+			return true, nil
 		}
 		reachable, err := checker.Reachable(ctx, resource, b.Name, commit)
 		if err != nil {
-			return fmt.Errorf("verify: %w", err)
+			return false, err
 		}
 		if reachable {
-			return nil
+			return true, nil
 		}
 	}
-	return fmt.Errorf(
-		"commit %s for %s is not on %s",
-		commit, chosen.Version, branchDescription(m),
-	)
+	return false, nil
 }
 
 // allowedBranches resolves the branches a tag's commit may be reached from: the

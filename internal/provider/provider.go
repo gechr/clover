@@ -158,6 +158,14 @@ type BranchChecker interface {
 	Reachable(ctx context.Context, r Resource, branch, commit string) (bool, error)
 }
 
+// CredentialChecker is an optional capability for providers that can report
+// whether a credential applies to a resource. The default verification tier
+// gates on it, so an anonymous rate limit is never spent on verification the
+// user did not ask for.
+type CredentialChecker interface {
+	Credentialed(r Resource) bool
+}
+
 // Authenticator is an optional capability for providers that need credentials.
 // clover type-asserts for it during the authenticate phase; a provider without it
 // is treated as needing no authentication.

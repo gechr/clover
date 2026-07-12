@@ -42,7 +42,10 @@ type fakeProvider struct {
 	branches     []provider.Branch // the BranchChecker branch list
 	commitBranch map[string]string // commit SHA -> the branch it is reachable from
 	tagCommit    map[string]string // tag -> commit, for the Committer fallback
+	credentialed bool              // the CredentialChecker verdict, gating default verification
 }
+
+func (f fakeProvider) Credentialed(provider.Resource) bool { return f.credentialed }
 
 func (f fakeProvider) Digest(_ context.Context, _ provider.Resource, tag string) (string, error) {
 	if d, ok := f.digestByTag[tag]; ok {
@@ -1355,6 +1358,113 @@ func TestRunVerifyFailureBlocksFollowers(t *testing.T) {
 	require.Equal(t, `dependency "app" did not resolve`, follower.Reason)
 	require.Equal(t, "image: pin-"+pinned, follower.NewLine,
 		"the follower holds the committed pin")
+}
+
+func TestRunVerifyHistoryBlocksImpostor(t *testing.T) {
+	const impostor = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = impostor
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		credentialed: true,
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}, {Name: "feature"}},
+		commitBranch: map[string]string{}, // reachable from no branch at all
+	})
+
+	// No verify flag or directive: the impostor check is the credentialed
+	// default.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.EqualError(t, r.Verify,
+		"commit "+impostor+" for 2.0.0 is not reachable from any branch")
+	require.False(t, r.Changed, "an impostor commit blocks the update by default")
+}
+
+func TestRunVerifyHistoryAdmitsReleaseBranch(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = good
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		credentialed: true,
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}, {Name: "release-1.0"}},
+		commitBranch: map[string]string{good: "release-1.0"}, // off the default branch
+	})
+
+	// The default tier accepts a tag cut from any branch: only a commit outside
+	// every branch's history is an impostor.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Verify, "a release-branch commit is in the repository's history")
+	require.True(t, r.Changed)
+}
+
+func TestRunVerifyHistorySkipsAnonymous(t *testing.T) {
+	const impostor = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = impostor
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}},
+		commitBranch: map[string]string{}, // would fail the check if it ran
+	})
+
+	// Without a credential the default tier stays off, preserving the anonymous
+	// rate limit.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Verify)
+	require.True(t, r.Changed)
+}
+
+func TestRunVerifyHistoryOptOut(t *testing.T) {
+	const impostor = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const old = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cand := candidate(t, "2.0.0")
+	cand.Commit = impostor
+	provider.Register(fakeProvider{
+		name:         "github",
+		candidates:   []model.Candidate{cand},
+		credentialed: true,
+		defaultBr:    "main",
+		branches:     []provider.Branch{{Name: "main"}},
+		commitBranch: map[string]string{}, // would fail the check if it ran
+	})
+
+	// verify=false opts the marker out of the default tier.
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "# clover: provider=github repository=x/y verify=false\n" +
+			"  - uses: x/y@" + old + " # v1.0.0\n",
+	})
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	r := files[0].Results[0]
+	require.NoError(t, r.Verify)
+	require.True(t, r.Changed)
 }
 
 func TestRunVerifyBranchGlobDirective(t *testing.T) {

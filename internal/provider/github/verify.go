@@ -10,6 +10,14 @@ import (
 	"github.com/gechr/clover/internal/provider"
 )
 
+// Credentialed reports whether a credential applies to the resource's host,
+// satisfying provider.CredentialChecker. It gates the default verification
+// tier.
+func (p *Provider) Credentialed(r provider.Resource) bool {
+	res, ok := r.(resource)
+	return ok && p.authenticated(res.host)
+}
+
 // DefaultBranch returns the repository's default branch, for tag-on-trunk
 // verification when no explicit allowed-branch pattern is set.
 func (p *Provider) DefaultBranch(ctx context.Context, r provider.Resource) (string, error) {
