@@ -121,10 +121,11 @@ func certificateIdentity(identity, issuer string) (verify.CertificateIdentity, e
 	if err != nil {
 		return verify.CertificateIdentity{}, err
 	}
-	sanRegex := pat.Regexp().String()
-	if pat.Kind() == pattern.KindGlob {
-		sanRegex = "^(?:" + sanRegex + ")$"
-	}
+	// Anchor both dialects to a full-string match. sigstore matches the SAN
+	// regex as an unanchored substring, so an unanchored identity (a raw
+	// /regex/) would accept an attacker SAN that merely contains it - to require
+	// a substring the user writes the wildcards explicitly.
+	sanRegex := "^(?:" + pat.Regexp().String() + ")$"
 	if issuer == "" {
 		issuer = DefaultIssuer
 	}

@@ -37,7 +37,13 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			name: "matching regex", bundles: [][]byte{contents}, digest: fixtureDigest,
-			identity: `/sigstore-js\/.github\/workflows\/release\.yml/`, want: true,
+			identity: `/.*sigstore-js\/.github\/workflows\/release\.yml@.*/`, want: true,
+		},
+		{
+			// A regex is anchored to the whole SAN: a bare substring must not
+			// match, or an attacker SAN containing it would pass verification.
+			name: "regex is whole string", bundles: [][]byte{contents}, digest: fixtureDigest,
+			identity: `/sigstore-js\/.github\/workflows\/release\.yml/`, want: false,
 		},
 		{
 			name: "identity mismatch", bundles: [][]byte{contents}, digest: fixtureDigest,
