@@ -58,6 +58,13 @@ func providerStyles() style.KeyValue {
 	return style.KeyValue{Values: values}
 }
 
+// SetQuiet drops the CLI log level to warnings and errors only.
+func SetQuiet(quiet bool) {
+	if quiet {
+		clog.SetLevel(clog.LevelWarn)
+	}
+}
+
 // SetVerbose enables debug-level CLI logs.
 func SetVerbose(verbose bool) {
 	clog.SetVerbose(verbose)

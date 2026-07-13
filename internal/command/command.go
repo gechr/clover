@@ -45,7 +45,8 @@ type root struct {
 	Config      string "help:\"Path to a `.clover.yaml` config file\"  placeholder:\"<path>\" clib:\"terse='Config file',group='Globals/Configuration'\""
 	NoConfig    bool   "help:\"Do not load any `.clover.yaml` config\"                      clib:\"terse='Skip config',group='Globals/Configuration'\""
 	Parallelism int    `help:"Maximum number of files processed concurrently" clib:"terse='Parallelism',group='Globals/Execution'"  short:"P" default:"10" placeholder:"<n>"`
-	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Globals/Diagnostics'"`
+	Verbose     bool   `help:"Enable debug logs"                              clib:"terse='Debug logs',group='Globals/Diagnostics'"                                          xor:"verbosity"`
+	Quiet       bool   `help:"Only log warnings and errors"                   clib:"terse='Quiet logs',group='Globals/Diagnostics'"                                          xor:"verbosity"`
 
 	Annotate cmdAnnotate "help:\"Add `@clover` directives to detected version lines\"   clib:\"terse='Add directives'\" cmd:\"\""
 	Format   cmdFormat   `help:"Canonicalize directive comments"                             clib:"terse='Format comments'"  cmd:"" aliases:"fmt"`
@@ -100,6 +101,7 @@ func Run() int {
 		prog.Parser.FatalIfErrorf(err)
 	}
 	logger.SetVerbose(r.Verbose)
+	logger.SetQuiet(r.Quiet)
 
 	resolver, err := newResolver(r)
 	if err != nil {
