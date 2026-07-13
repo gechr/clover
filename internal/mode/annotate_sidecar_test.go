@@ -360,6 +360,38 @@ func TestAnnotateGeneratesSidecarForPythonVersion(t *testing.T) {
 	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
 }
 
+// TestAnnotateGeneratesSidecarForSwiftVersion covers the other plain-text
+// sidecar target: a swiftly .swift-version file cannot host an inline comment,
+// so annotate proposes a sidecar entry with the inferred swift provider and a
+// whole-line find locator, never touching the pin file itself.
+func TestAnnotateGeneratesSidecarForSwiftVersion(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{".swift-version": "6.3.3\n"})
+
+	preview := annotate(t, root, false, false)
+	require.Equal(t, 1, preview.Added())
+	sidecarPath := filepath.Join(root, ".swift-version.clover.yaml")
+	require.NoFileExists(t, sidecarPath, "preview never writes the sidecar")
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+	require.Equal(
+		t,
+		generatedSidecar("- provider: swift\n  find: <version>\n"),
+		readFile(t, sidecarPath),
+	)
+	require.Equal(t, "6.3.3\n", readFile(t, filepath.Join(root, ".swift-version")),
+		"the pin file itself is never rewritten by annotate")
+
+	// The generated sidecar must pass its own lint, and a second annotate pass
+	// must add nothing.
+	lint, err := mode.Lint(context.Background(), []string{root})
+	require.NoError(t, err)
+	require.True(t, lint.OK(), "the generated sidecar lints clean")
+	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
+}
+
 // TestAnnotateSidecarSkipsAmbiguousPythonVersion guards the whole-line locator:
 // two pinned versions would both match the bare find placeholder, so neither
 // earns an entry and both are reported as skips.

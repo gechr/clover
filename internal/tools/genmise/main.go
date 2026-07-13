@@ -100,7 +100,8 @@ var curated = []string{
 	// HashiCorp products, mapped to the hashicorp provider.
 	"boundary", "consul", "nomad", "packer", "terraform", "vagrant", "vault", "waypoint",
 	// Mapped by hand in the match package.
-	"bun", "deno", "elixir", "erlang", "go", "node", "opentofu", "python", "rust", "tofu", "zig",
+	"bun", "deno", "elixir", "erlang", "go", "node", "opentofu", "python", "rust", "swift",
+	"tofu", "zig",
 }
 
 // owner validates the owner segment of an owner/repo spec. A GitHub owner is

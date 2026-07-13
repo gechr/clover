@@ -490,6 +490,13 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "mise swift toolchain",
+			path: ".mise.toml",
+			line: `swift = "6.3.3"`,
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
 			name: "mise unknown tool is not matched",
 			path: ".mise.toml",
 			line: `java = "21.0.5"`,
@@ -575,6 +582,33 @@ func TestInfer(t *testing.T) {
 			line: "zig 0.15.2",
 			want: match.Inference{Provider: "zig"},
 			ok:   true,
+		},
+		{
+			name: "tool-versions swift toolchain",
+			path: ".tool-versions",
+			line: "swift 6.3.3",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "swift-version pin",
+			path: ".swift-version",
+			line: "6.3.3",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "swift-version pin in a subdirectory",
+			path: "sub/.swift-version",
+			line: "5.10",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "swift-version snapshot pin is not matched",
+			path: ".swift-version",
+			line: "6.1-snapshot-2026-06-29",
+			ok:   false,
 		},
 		{
 			name: "tool-versions well-known github tool",

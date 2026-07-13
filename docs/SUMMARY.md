@@ -29,6 +29,7 @@
   - [PyPI](pypi.md)
   - [Python](python.md)
   - [Rust](rust.md)
+  - [Swift](swift.md)
   - [Terraform / OpenTofu](terraform.md)
   - [Zig](zig.md)
 

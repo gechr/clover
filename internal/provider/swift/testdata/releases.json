@@ -1,0 +1,81 @@
+[
+ {
+  "name": "4.1.1",
+  "tag": "swift-4.1.1-RELEASE",
+  "xcode": "Xcode 9.3",
+  "linux_only": true,
+  "date": "2018-05-04",
+  "platforms": [
+   {
+    "name": "Ubuntu 16.04",
+    "platform": "Linux",
+    "archs": [
+     "x86_64"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "5.10",
+  "tag": "swift-5.10-RELEASE",
+  "xcode": "Xcode 15.3",
+  "xcode_release": true,
+  "date": "2024-03-05",
+  "platforms": [
+   {
+    "name": "Ubuntu 22.04",
+    "platform": "Linux",
+    "docker": "5.10-jammy",
+    "archs": [
+     "x86_64",
+     "aarch64"
+    ]
+   },
+   {
+    "name": "Windows 10",
+    "platform": "Windows",
+    "docker": "5.10-windowsservercore-ltsc2022",
+    "archs": [
+     "x86_64"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "6.3.3",
+  "tag": "swift-6.3.3-RELEASE",
+  "xcode": "Xcode 26.6",
+  "xcode_release": true,
+  "date": "2026-06-29",
+  "platforms": [
+   {
+    "name": "Ubuntu 24.04",
+    "platform": "Linux",
+    "docker": "6.3.3-noble",
+    "archs": [
+     "x86_64",
+     "aarch64"
+    ]
+   },
+   {
+    "name": "Static SDK",
+    "platform": "static-sdk",
+    "version": "0.1.0",
+    "checksum": "87c3eaf908e67c0e13a84367119e12273cec1d2cd3d81f7d74bb36722d6b607b",
+    "archs": [
+     "x86_64",
+     "arm64"
+    ]
+   },
+   {
+    "name": "Wasm SDK",
+    "platform": "wasm-sdk",
+    "checksum": "cabfa08b73bb8ac783927ecd15fa386e99d0c139c5f232445067bcf58379cae7",
+    "archs": [
+     "x86_64",
+     "arm64"
+    ]
+   }
+  ]
+ }
+]

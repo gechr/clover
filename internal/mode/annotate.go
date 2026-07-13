@@ -58,14 +58,14 @@ func strictJSON(path string) bool {
 // sidecarTarget reports whether path is a comment-less target - one whose
 // directives must live in a sidecar because an inline comment would corrupt it.
 func sidecarTarget(path string) bool {
-	return strictJSON(path) || match.PythonVersionFile(path)
+	return strictJSON(path) || match.PythonVersionFile(path) || match.SwiftVersionFile(path)
 }
 
 // proposeSidecar builds the sidecar proposal for a comment-less target: strict
-// JSON gets the leaf-based generator, a pyenv .python-version file the
-// line-based one. It must only be called for a [sidecarTarget]. Only the JSON
-// generator takes force - a text entry carries no source keys beyond the
-// provider, so there is no drift to repair.
+// JSON gets the leaf-based generator, a plain-text version pin
+// (.python-version, .swift-version) the line-based one. It must only be called
+// for a [sidecarTarget]. Only the JSON generator takes force - a text entry
+// carries no source keys beyond the provider, so there is no drift to repair.
 func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip) {
 	if strictJSON(file.Path) {
 		return annotateSidecar(file, force)
@@ -573,9 +573,10 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 	return sidecar, skips
 }
 
-// annotateTextSidecar proposes the sidecar for a comment-less plain-text target
-// (a pyenv .python-version file): each line auto-detection recognizes earns an
-// entry carrying the inferred directive and a whole-line find locator. The line
+// annotateTextSidecar proposes the sidecar for a comment-less plain-text
+// target (a .python-version or .swift-version file): each line auto-detection
+// recognizes earns an entry carrying the inferred directive and a whole-line
+// find locator. The line
 // is the version itself, so the find is the bare version placeholder - which
 // also means a second recognized line would make every locator ambiguous, and
 // such a file is skipped.

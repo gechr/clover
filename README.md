@@ -65,6 +65,7 @@ Clover resolves versions from a range of upstream sources:
 - **`pypi`** - Python package versions from [pypi.org](https://pypi.org/)
 - **`python`** - Python runtime versions from [python.org](https://www.python.org/)
 - **`rust`** - Rust toolchain versions, stable or beta channel
+- **`swift`** - Swift toolchain versions from [swift.org](https://www.swift.org/)
 - **`terraform`** / **`opentofu`** - provider plugins from a registry
 - **`zig`** - Zig toolchain versions from [ziglang.org](https://ziglang.org/)
 

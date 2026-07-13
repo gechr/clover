@@ -170,6 +170,17 @@ func PythonVersionFile(path string) bool {
 	return matchPath(pythonVersionGlob, path)
 }
 
+// swiftVersionGlob matches swiftly's .swift-version files, whose whole line is
+// the pinned toolchain version. The file has no comment syntax, so a marker for
+// it lives in a sidecar or is synthesized by run --infer.
+const swiftVersionGlob = "**/.swift-version"
+
+// SwiftVersionFile reports whether path is a swiftly .swift-version file, the
+// comment-less plain-text target annotate proposes a sidecar for.
+func SwiftVersionFile(path string) bool {
+	return matchPath(swiftVersionGlob, path)
+}
+
 // pyprojectGlob matches Python project files, whose target-version key pins the
 // interpreter a tool targets.
 const pyprojectGlob = "**/pyproject.toml"
@@ -400,6 +411,38 @@ var routes = []route{
 			path:      pythonVersionGlob,
 			lineMatch: mustPattern(`/^\d/`),
 			provider:  constant.ProviderPython,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A mise Swift toolchain pin: swift = "6.3.3". The swift provider
+		// resolves it from swift.org, so this precedes the general GitHub-tool
+		// route.
+		when: conditions{
+			path:      miseGlob,
+			lineMatch: mustPattern(`/^\s*"?swift"?\s*=\s*"/`),
+			provider:  constant.ProviderSwift,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// The same toolchain pinned in .tool-versions: swift 6.3.3.
+		when: conditions{
+			path:      toolVersionsGlob,
+			lineMatch: mustPattern(`/^\s*swift\s+\S/`),
+			provider:  constant.ProviderSwift,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// swiftly's .swift-version: the whole line is the version (6.3.3). A
+		// snapshot pin (6.1-snapshot, main-snapshot-2026-06-29) is a moving
+		// development build with no release to track, so only a bare version
+		// routes.
+		when: conditions{
+			path:      swiftVersionGlob,
+			lineMatch: mustPattern(`/^\d+(\.\d+)*\s*$/`),
+			provider:  constant.ProviderSwift,
 		},
 		rewriter: NewSmart(),
 	},

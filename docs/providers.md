@@ -21,6 +21,7 @@ A provider is the source of truth a directive resolves against. Set it with the 
 | `pypi`      | Python package versions from [pypi.org](https://pypi.org/)                               | [PyPI](pypi.md)                      |
 | `python`    | CPython interpreter releases from [python.org](https://www.python.org/)                  | [Python](python.md)                  |
 | `rust`      | Rust toolchain releases from static.rust-lang.org                                        | [Rust](rust.md)                      |
+| `swift`     | Swift toolchain releases from the [swift.org](https://www.swift.org/) release index      | [Swift](swift.md)                    |
 | `terraform` | Terraform provider versions from a provider registry                                     | [Terraform / OpenTofu](terraform.md) |
 | `zig`       | Zig toolchain releases from the [ziglang.org](https://ziglang.org/) download index       | [Zig](zig.md)                        |
 

@@ -26,6 +26,7 @@ const (
 	ProviderPypi      = "pypi"
 	ProviderPython    = "python"
 	ProviderRust      = "rust"
+	ProviderSwift     = "swift"
 	ProviderTerraform = "terraform"
 	ProviderZig       = "zig"
 )

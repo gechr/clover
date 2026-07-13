@@ -32,6 +32,7 @@ func TestDaterCoversDatedProviders(t *testing.T) {
 		constant.ProviderPypi:      true,
 		constant.ProviderPython:    true,
 		constant.ProviderRust:      true,
+		constant.ProviderSwift:     true,
 		constant.ProviderTerraform: false,
 		constant.ProviderZig:       true,
 	}
