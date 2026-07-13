@@ -8,12 +8,12 @@ Every commit pin resolved with a credential is checked against the repository's 
 
 ## Allowed branches (`verify`)
 
-The strict tier confirms the commit belongs to a specific set of branches, not merely to the repository.
+The strict tier confirms the commit belongs to a specific set of branches, not merely to the repository. Set `verify=true` to check the resolved commit against the repository's default branch.
 
 <!-- clover-lint-skip -->
 
 ```yaml
-# clover: provider=github track=main verify=true verify-branch=main
+# clover: provider=github track=main verify=true
 - uses: actions/checkout@0000000000000000000000000000000000000000 # main
 ```
 
@@ -26,7 +26,14 @@ The strict tier confirms the commit belongs to a specific set of branches, not m
 | `verify-identity` | Signer certificate SAN glob or `/regex/` a digest pin's Sigstore attestation must match                          |
 | `verify-issuer`   | OIDC issuer URL for `verify-identity`. Defaults to GitHub Actions.                                               |
 
-`verify-branch` is what lets Clover confirm that the commit a tag points at actually belongs to the branch you expect, which is useful when a tag is cut from a release branch rather than the default one.
+`verify-branch` narrows the check to the branch you expect, which is useful when a tag is cut from a release branch rather than the default one. Setting it also enables the strict tier on its own, so `verify=true` is unnecessary alongside it.
+
+<!-- clover-lint-skip -->
+
+```yaml
+# clover: provider=github track=release-1.x verify-branch=release-*
+- uses: actions/checkout@0000000000000000000000000000000000000000 # release-1.x
+```
 
 Verification pairs naturally with [`track`](tracking.md). Tracking keeps the pin fresh, and `verify` checks whether each freshly resolved pin is reachable from an allowed branch.
 
