@@ -59,6 +59,12 @@ func (p *Provider) discoverHub(ctx context.Context, ref reference) ([]model.Cand
 			candidates = append(candidates, candidate(t.Name, t.LastUpdated.Time))
 		}
 		if !provider.Deep(ctx) {
+			// A full first page with more behind it means a constrained older
+			// match may sit unread; note it so the run suggests --deep (Hub is
+			// newest-first, so the latest itself is never missed).
+			if page.Next != "" {
+				provider.NoteTruncated(ctx, ref.String(), ref.url())
+			}
 			break
 		}
 		url = page.Next
