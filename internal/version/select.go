@@ -181,9 +181,16 @@ func SelectReason[T any](
 		if c := Compare(y.semver, x.semver); c != 0 {
 			return c
 		}
-		// Equal versions: prefer the shorter (less decorated) tag, so a plain
-		// tag is never out-ranked by a variant of the same version; fall back to
-		// a lexical compare for a deterministic order.
+		// Equal versions: prefer the more specific tag - the one with more
+		// numeric components - so a precise, immutable v7.0.0 outranks a floating
+		// v7 that maintainers re-point at the same commit, documenting the pin
+		// with the exact release rather than a moving pointer. At equal precision
+		// prefer the shorter (less decorated) tag, so a plain tag is never
+		// out-ranked by a variant of the same version; fall back to a lexical
+		// compare for a deterministic order.
+		if c := cmp.Compare(numericArity(y.tag), numericArity(x.tag)); c != 0 {
+			return c
+		}
 		if c := cmp.Compare(len(x.tag), len(y.tag)); c != 0 {
 			return c
 		}

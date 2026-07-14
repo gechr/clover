@@ -418,17 +418,30 @@ func TestSelectCooldown(t *testing.T) {
 	require.Equal(t, "1.2.0", got.tag, "fresh 1.3.0 held back by cooldown")
 }
 
-func TestSelectTieBreakPrefersShorter(t *testing.T) {
+func TestSelectTieBreakPrefersMoreSpecific(t *testing.T) {
 	t.Parallel()
 
-	// 1.2 and 1.2.0 are semver-equal; the tie-break prefers the shorter (less
-	// decorated) tag, deterministically regardless of input order. This keeps a
-	// plain tag from being out-ranked by a longer, more-decorated equal version.
-	got1, ok := version.Select(nil, candidates("1.2", "1.2.0"), attrsOf)
+	// v7 and v7.0.0 are semver-equal; the tie-break prefers the more specific tag
+	// (more numeric components), deterministically regardless of input order. The
+	// precise, immutable v7.0.0 outranks a floating v7 that points at the same
+	// commit, so the pin is documented with the exact release.
+	got1, ok := version.Select(nil, candidates("v7", "v7.0.0"), attrsOf)
 	require.True(t, ok)
-	require.Equal(t, "1.2", got1.tag)
+	require.Equal(t, "v7.0.0", got1.tag)
 
-	got2, ok := version.Select(nil, candidates("1.2.0", "1.2"), attrsOf)
+	got2, ok := version.Select(nil, candidates("v7.0.0", "v7"), attrsOf)
 	require.True(t, ok)
-	require.Equal(t, "1.2", got2.tag)
+	require.Equal(t, "v7.0.0", got2.tag)
+}
+
+func TestSelectTieBreakEqualPrecisionPrefersShorter(t *testing.T) {
+	t.Parallel()
+
+	// 1.2.3+build and 1.2.3 are semver-equal at equal precision (build metadata
+	// does not affect precedence); the tie-break falls back to the shorter (less
+	// decorated) tag, so a plain tag is never out-ranked by an equal-precision
+	// decorated tag sharing its numeric core (e.g. a stripped docker variant).
+	got, ok := version.Select(nil, candidates("1.2.3+build", "1.2.3"), attrsOf)
+	require.True(t, ok)
+	require.Equal(t, "1.2.3", got.tag)
 }
