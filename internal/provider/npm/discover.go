@@ -109,6 +109,13 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		if !ok {
 			return nil, fmt.Errorf("npm: package %q has no dist-tag %q", res.pkg, res.distTag)
 		}
+		// A malformed empty channel pointer yields no candidates rather than a
+		// blank version. A tag naming a version absent from the listing still
+		// resolves - the tag alone names the version to bump to; only the
+		// enrichment (date, assets) is missing.
+		if v == "" {
+			return nil, nil
+		}
 		entry := pkg.Versions[v]
 		// A deprecated channel pointer yields no candidates rather than an
 		// error, mirroring the listing's gate below.
