@@ -16,8 +16,9 @@ import (
 // endpoint (Accept: application/octet-stream), which authorizes a private
 // repository's download where the browser URL 404s; anonymously the browser URL
 // is fetched directly. The bearer is attached only when the API URL shares the
-// host's API origin, so a forged asset URL cannot redirect the token, and Go's
-// client already drops the header on the cross-host redirect to the CDN.
+// host's API origin, so a forged asset URL cannot redirect the token, and any
+// redirect off that origin (the CDN, a subdomain, a scheme downgrade) drops
+// the header.
 func (p *Provider) DownloadAsset(
 	ctx context.Context,
 	r provider.Resource,
@@ -49,7 +50,8 @@ func (p *Provider) DownloadAsset(
 	}
 
 	p.initClients()
-	resp, err := (&http.Client{Transport: p.resolved}).Do(req)
+	client := http.Client{Transport: p.resolved, CheckRedirect: forge.DropAuthRedirect}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("github: download %s: %w", asset.Name, err)
 	}
