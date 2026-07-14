@@ -91,16 +91,14 @@ func TestDiscoverSkipsUninstallableVersions(t *testing.T) {
 	)
 }
 
-// TestDiscoverSkipsUnparseableVersions covers the semver gate: .dev and .post
-// suffixes and epochs are not semver-shaped, so they are dropped, while a
-// dashless PEP 440 prerelease is normalized to canonical semver with the raw
-// form kept on Ref.
+// TestDiscoverSkipsUnparseableVersions covers the semver gate: a .dev suffix
+// and an epoch are not orderable, so they are dropped, while a dashless PEP 440
+// prerelease is normalized to canonical semver with the raw form kept on Ref.
 func TestDiscoverSkipsUnparseableVersions(t *testing.T) {
 	t.Parallel()
 
 	const body = `{"releases": {
 		"2.0.dev1": [{"filename": "p-2.0.dev1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-01T00:00:00Z", "digests": {"sha256": "aa"}}],
-		"1.0.post1": [{"filename": "p-1.0.post1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-02T00:00:00Z", "digests": {"sha256": "bb"}}],
 		"1!2.0": [{"filename": "p-2.0.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-03T00:00:00Z", "digests": {"sha256": "cc"}}],
 		"2.1rc1": [{"filename": "p-2.1rc1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-04T00:00:00Z", "digests": {"sha256": "dd"}}]
 	}}`
@@ -110,6 +108,34 @@ func TestDiscoverSkipsUnparseableVersions(t *testing.T) {
 	require.Equal(t, "2.1rc1", got[0].Ref)
 	require.NotNil(t, got[0].Semver)
 	require.Equal(t, "rc1", got[0].Semver.Prerelease())
+}
+
+// TestDiscoverPostRelease covers PEP 440 post-release support: 1.0.post1 is
+// discovered and ordered as an extra segment (1.0.1) - after its base release
+// and before the next - while the candidate keeps the real PyPI spelling on
+// both Version and Ref, so the line is rewritten to a version pip understands.
+func TestDiscoverPostRelease(t *testing.T) {
+	t.Parallel()
+
+	const body = `{"releases": {
+		"1.0": [{"filename": "p-1.0.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-01T00:00:00Z", "digests": {"sha256": "aa"}}],
+		"1.0.post1": [{"filename": "p-1.0.post1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-02T00:00:00Z", "digests": {"sha256": "bb"}}],
+		"1.1": [{"filename": "p-1.1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-03T00:00:00Z", "digests": {"sha256": "cc"}}]
+	}}`
+
+	got := discoverBody(t, body)
+	require.Equal(t, []string{"1.0.0", "1.0.post1", "1.1.0"}, versions(got))
+
+	var post model.Candidate
+	for _, c := range got {
+		if c.Ref == "1.0.post1" {
+			post = c
+		}
+	}
+	require.Equal(t, "1.0.post1", post.Version, "the line keeps the real PyPI spelling")
+	require.NotNil(t, post.Semver)
+	require.Equal(t, "1.0.1", post.Semver.String(),
+		"the post number orders as an extra segment, after 1.0 and before 1.1")
 }
 
 // TestDiscoverMissingDigestLeavesAssetUndigested covers a file record without

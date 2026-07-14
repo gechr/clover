@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
@@ -72,13 +75,21 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		if len(live) == 0 {
 			continue // no files, or every file yanked: not installable
 		}
-		semver, err := version.Parse(raw)
+		norm := normalizePEP440(raw)
+		semver, err := version.Parse(norm)
 		if err != nil {
-			// A .dev or .post suffix or an epoch is not semver-shaped; drop it
-			// rather than surface an unparseable candidate.
+			// A .dev suffix or an epoch is not orderable; drop it rather than
+			// surface an unparseable candidate. A .post release was normalized
+			// above and does not reach here.
 			continue
 		}
-		candidates = append(candidates, candidate(raw, semver, live))
+		c := candidate(raw, semver, live)
+		if norm != raw {
+			// A post-release's normalized semver (1.0.1) is only for ordering;
+			// the line must be rewritten to the real PyPI version (1.0.post1).
+			c.Version = raw
+		}
+		candidates = append(candidates, c)
 	}
 	slices.SortFunc(candidates, func(a, b model.Candidate) int {
 		// The ref breaks a tie between two raw spellings of one canonical
@@ -114,6 +125,24 @@ func (p *Provider) fetch(ctx context.Context, name string) (map[string][]file, e
 	return l.Releases, nil
 }
 
+// normalizePEP440 rewrites a PEP 440 post-release (1.0.post1) into a form
+// go-version can parse and order (1.0.1): an extra numeric segment sorts the
+// post-release after its base release and before the next one. Everything else
+// is returned unchanged - a dashless prerelease already parses, and a .dev
+// suffix or epoch stays unsupported. The raw spelling is kept as the
+// candidate's Version, so the line is still rewritten to the real PyPI version.
+func normalizePEP440(raw string) string {
+	base, post, ok := strings.Cut(raw, ".post")
+	if !ok {
+		return raw
+	}
+	n, err := strconv.Atoi(post)
+	if err != nil {
+		return raw // a .post.dev or non-numeric post stays unsupported
+	}
+	return base + "." + strconv.Itoa(n)
+}
+
 // alive returns the files still offered for a version, dropping yanked ones.
 func alive(files []file) []file {
 	return slices.DeleteFunc(slices.Clone(files), func(f file) bool { return f.Yanked })
@@ -136,7 +165,7 @@ func candidate(raw string, semver *version.Version, files []file) model.Candidat
 		}
 		digest := f.Digests.SHA256
 		if digest != "" {
-			digest = "sha256:" + digest
+			digest = constant.DigestSha256 + digest
 		}
 		assets = append(assets, model.Asset{Name: f.Filename, Digest: digest, URL: f.URL})
 	}

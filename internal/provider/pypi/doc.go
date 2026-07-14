@@ -5,7 +5,9 @@
 //
 // A PEP 440 prerelease omits the dash (0.5.30rc1); parsing to canonical semver
 // restores it (0.5.30-rc1) so the version orders and scheme-matches like any
-// other prerelease. Versions outside the semver shape (.dev and .post suffixes,
-// epochs) are dropped, as are versions with no files and versions whose every
+// other prerelease. A post-release (1.0.post1) is ordered by appending its post
+// number as an extra segment (after 1.0, before 1.1) while the line keeps the
+// real PyPI spelling. Versions clover cannot order - .dev suffixes and epochs
+// (1!2.0) - are dropped, as are versions with no files and versions whose every
 // file is yanked - neither is installable.
 package pypi
