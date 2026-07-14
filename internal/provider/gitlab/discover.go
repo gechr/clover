@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/url"
@@ -46,8 +47,9 @@ type release struct {
 	} `json:"commit"`
 	Assets struct {
 		Links []struct {
-			Name string `json:"name"`
-			URL  string `json:"url"`
+			Name           string `json:"name"`
+			URL            string `json:"url"`
+			DirectAssetURL string `json:"direct_asset_url"`
 		} `json:"links"`
 	} `json:"assets"`
 }
@@ -145,7 +147,14 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		}
 		assets := make([]model.Asset, 0, len(rel.Assets.Links))
 		for _, l := range rel.Assets.Links {
-			assets = append(assets, model.Asset{Name: l.Name, URL: l.URL})
+			// url is the api/v4 endpoint that streams the bytes and honors a
+			// credential, kept on APIURL for the authenticated download path;
+			// direct_asset_url is the public browser form.
+			assets = append(assets, model.Asset{
+				Name:   l.Name,
+				URL:    cmp.Or(l.DirectAssetURL, l.URL),
+				APIURL: l.URL,
+			})
 		}
 		candidates = append(
 			candidates,

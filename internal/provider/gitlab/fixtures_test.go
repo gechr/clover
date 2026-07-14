@@ -107,12 +107,14 @@ func TestFixtureReleases(t *testing.T) {
 
 	require.Equal(t, []model.Asset{
 		{
-			Name: "glab_1.105.0_linux_armv6.tar.gz",
-			URL:  "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_linux_armv6%2Etar%2Egz",
+			Name:   "glab_1.105.0_linux_armv6.tar.gz",
+			URL:    "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0/downloads/glab_1.105.0_linux_armv6.tar.gz",
+			APIURL: "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_linux_armv6%2Etar%2Egz",
 		},
 		{
-			Name: "glab_1.105.0_windows_386.zip",
-			URL:  "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_windows_386%2Ezip",
+			Name:   "glab_1.105.0_windows_386.zip",
+			URL:    "https://gitlab.com/gitlab-org/cli/-/releases/v1.105.0/downloads/glab_1.105.0_windows_386.zip",
+			APIURL: "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1%2E105%2E0/glab_1%2E105%2E0_windows_386%2Ezip",
 		},
 	}, got[0].Assets)
 }
