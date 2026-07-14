@@ -156,7 +156,7 @@ func TestURL(t *testing.T) {
 }
 
 // TestRecencyOrderer locks the capability: the tags endpoint is queried
-// newest-first (order_by=updated&sort=desc) and the releases endpoint is
+// newest-first (order_by=version&sort=desc) and the releases endpoint is
 // date-ordered, so the provider claims the recency-ordered capability that routes
 // the targeted (not blanket) truncation hint.
 func TestRecencyOrderer(t *testing.T) {
