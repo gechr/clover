@@ -167,6 +167,29 @@ func TestNodeVersionFile(t *testing.T) {
 	}
 }
 
+func TestRustToolchainFile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: "rust-toolchain", want: true},
+		{path: "sub/rust-toolchain", want: true},
+		{path: "rust-toolchain.toml", want: false},
+		{path: "rust-toolchain.clover.yaml", want: false},
+		{path: "Cargo.toml", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, match.RustToolchainFile(tt.path))
+		})
+	}
+}
+
 // TestForContainerJobUses confirms a workflow container job's uses: docker://
 // reference routes to the docker rewriters, not the action ones: digest-pinned
 // to docker-pin, tag-only to docker-tag.

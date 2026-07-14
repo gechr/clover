@@ -198,9 +198,20 @@ func NodeVersionFile(path string) bool {
 const pyprojectGlob = "**/pyproject.toml"
 
 // rustToolchainGlob matches rust-toolchain.toml files, whose channel key pins
-// the toolchain. The legacy bare rust-toolchain file holds only the version
-// itself, with no room for a comment to carry a marker.
+// the toolchain.
 const rustToolchainGlob = "**/rust-toolchain.toml"
+
+// rustToolchainBareGlob matches the legacy bare rust-toolchain file, whose whole
+// line is the pinned toolchain version. It holds only the version itself, with no
+// room for a comment, so a marker for it lives in a sidecar or is synthesized by
+// run --infer.
+const rustToolchainBareGlob = "**/rust-toolchain"
+
+// RustToolchainFile reports whether path is a legacy bare rust-toolchain file,
+// the comment-less plain-text target annotate proposes a sidecar for.
+func RustToolchainFile(path string) bool {
+	return matchPath(rustToolchainBareGlob, path)
+}
 
 // cargoGlob matches Cargo manifests, whose rust-version key floors the
 // toolchain a crate requires.
@@ -515,6 +526,17 @@ var routes = []route{
 		when: conditions{
 			path:      rustToolchainGlob,
 			lineMatch: mustPattern(`/^\s*channel\s*=\s*["']\d/`),
+			provider:  constant.ProviderRust,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A legacy bare rust-toolchain file: the whole line is the version
+		// (1.97.0). Only a version-shaped pin routes here - a named channel
+		// (stable, nightly-2026-07-11) has no version on the line to track.
+		when: conditions{
+			path:      rustToolchainBareGlob,
+			lineMatch: mustPattern(`/^\d+(\.\d+)*\s*$/`),
 			provider:  constant.ProviderRust,
 		},
 		rewriter: NewSmart(),

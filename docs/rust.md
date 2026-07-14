@@ -18,7 +18,7 @@ RUST_VERSION: 1.97.0
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
 
-The manifest index is public, so the Rust provider needs no authentication. It is selected explicitly with `provider=rust`, or [inferred](auto.md) from a `rust` pin in a mise configuration or `.tool-versions` file, a version-pinned `channel` in `rust-toolchain.toml`, or a `rust-version` floor in `Cargo.toml`. Like a `requires-python` floor, `rust-version` is bumped in place with its precision preserved, so `"1.70"` advances only when a new minor line ships.
+The manifest index is public, so the Rust provider needs no authentication. It is selected explicitly with `provider=rust`, or [inferred](auto.md) from a `rust` pin in a mise configuration or `.tool-versions` file, a version-pinned `channel` in `rust-toolchain.toml`, a bare version pin in a legacy `rust-toolchain` file, or a `rust-version` floor in `Cargo.toml`. Like a `requires-python` floor, `rust-version` is bumped in place with its precision preserved, so `"1.70"` advances only when a new minor line ships.
 
 Each release is dated by the directory its manifest was published under, so [`cooldown`](cooldown.md) works: a version is held back until it has aged past the window. The whole release history arrives in one response, so Clover always sees every release and `--deep` has nothing extra to fetch. The index starts at Rust 1.8.0 and its numbered beta snapshots at 1.75.0, so earlier releases predate it and cannot be resolved.
 

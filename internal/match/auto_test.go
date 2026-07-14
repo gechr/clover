@@ -486,6 +486,19 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "bare rust-toolchain pin",
+			path: "rust-toolchain",
+			line: "1.97.0",
+			want: match.Inference{Provider: "rust"},
+			ok:   true,
+		},
+		{
+			name: "bare rust-toolchain named channel is not matched",
+			path: "rust-toolchain",
+			line: "nightly-2026-07-11",
+			ok:   false,
+		},
+		{
 			name: "mise core runtime with a tag prefix",
 			path: ".mise.toml",
 			line: `erlang = "27.2"`,
