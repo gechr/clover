@@ -391,8 +391,67 @@ func TestDigestPlatformNotFound(t *testing.T) {
 }
 
 // A single-arch image is not an index, so a platform lookup falls back to the
-// sole digest in the Docker-Content-Digest header.
+// sole digest in the Docker-Content-Digest header, once the config blob's
+// os/architecture matches the pin.
 func TestDigestPlatformSingleArch(t *testing.T) {
+	t.Parallel()
+
+	const want = "sha256:" + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	transport := singleArchTransport(want, `{"os":"linux","architecture":"amd64"}`)
+
+	digest, err := newClient(transport).Digest(
+		t.Context(),
+		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/amd64"},
+		"1.27",
+	)
+	require.NoError(t, err)
+	require.Equal(t, want, digest)
+}
+
+// singleArchTransport serves a single-arch manifest (not an index) whose config
+// blob reports the given platform, behind a bearer challenge.
+func singleArchTransport(digest, configJSON string) roundTripFunc {
+	const configDigest = "sha256:" + "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	return func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/token"):
+			return jsonResponse(req, `{"token":"abc"}`), nil
+		case strings.Contains(req.URL.Path, "/manifests/"):
+			if req.Header.Get("Authorization") == "" {
+				return challengeResponse(req), nil
+			}
+			resp := jsonResponse(
+				req,
+				`{"schemaVersion":2,"config":{"digest":"`+configDigest+`"},"layers":[]}`,
+			)
+			resp.Header.Set("Docker-Content-Digest", digest)
+			return resp, nil
+		case strings.Contains(req.URL.Path, "/blobs/"+configDigest):
+			return jsonResponse(req, configJSON), nil
+		}
+		return nil, fmt.Errorf("no route for %s", req.URL)
+	}
+}
+
+// A single-arch image whose platform differs from the pin is an error, matching
+// `docker pull --platform`, so the wrong architecture's digest is never pinned.
+func TestDigestPlatformSingleArchMismatch(t *testing.T) {
+	t.Parallel()
+
+	const want = "sha256:" + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	transport := singleArchTransport(want, `{"os":"linux","architecture":"amd64"}`)
+
+	_, err := newClient(transport).Digest(
+		t.Context(),
+		oci.Repo{Host: "registry.example.com", Repository: "team/img", Platform: "linux/arm64"},
+		"1.27",
+	)
+	require.EqualError(t, err, "oci: 1.27 is linux/amd64, not linux/arm64")
+}
+
+// A legacy manifest without a config digest cannot be platform-checked, so the
+// sole digest is tolerated rather than failing the pin.
+func TestDigestPlatformSingleArchLegacy(t *testing.T) {
 	t.Parallel()
 
 	const want = "sha256:" + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"

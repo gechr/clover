@@ -134,16 +134,27 @@ func (c *Client) digestForPlatform(ctx context.Context, repo Repo, tag string) (
 				Arch string `json:"architecture"`
 			} `json:"platform"`
 		} `json:"manifests"`
+		Config struct {
+			Digest string `json:"digest"`
+		} `json:"config"`
 	}
 	if err := json.Unmarshal(body, &index); err != nil {
 		return "", fmt.Errorf("%s: parse manifest for %s: %w", c.label, tag, err)
 	}
 
+	// A single-arch image is not an index (no manifests array). Its sole digest
+	// still only satisfies the pin when the image's own platform matches - what
+	// `docker pull --platform` enforces - so the config blob's os/architecture
+	// is checked before the header digest is returned.
 	if len(index.Manifests) == 0 {
-		if digest := resp.Header.Get("Docker-Content-Digest"); digest != "" {
-			return digest, nil
+		digest := resp.Header.Get("Docker-Content-Digest")
+		if digest == "" {
+			return "", fmt.Errorf("%s: registry returned no digest for %s", c.label, tag)
 		}
-		return "", fmt.Errorf("%s: registry returned no digest for %s", c.label, tag)
+		if err := c.checkPlatform(ctx, repo, tag, index.Config.Digest); err != nil {
+			return "", err
+		}
+		return digest, nil
 	}
 
 	os, arch, _ := strings.Cut(repo.Platform, "/")
@@ -153,6 +164,41 @@ func (c *Client) digestForPlatform(ctx context.Context, repo Repo, tag string) (
 		}
 	}
 	return "", fmt.Errorf("%s: no manifest for platform %s in %s", c.label, repo.Platform, tag)
+}
+
+// checkPlatform verifies a single-arch image's config blob against the pinned
+// platform. A manifest without a config digest (a legacy schema) cannot be
+// checked and is tolerated, keeping the pre-check behavior for images the
+// modern media types do not describe.
+func (c *Client) checkPlatform(
+	ctx context.Context,
+	repo Repo,
+	tag, configDigest string,
+) error {
+	if configDigest == "" {
+		return nil
+	}
+	url := fmt.Sprintf("https://%s/v2/%s/blobs/%s", repo.Host, repo.Repository, configDigest)
+	resp, err := c.getWithChallenge(ctx, http.MethodGet, url, repo, "")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return c.StatusErr("get image config for "+tag, resp)
+	}
+
+	var config struct {
+		OS   string `json:"os"`
+		Arch string `json:"architecture"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return fmt.Errorf("%s: parse image config for %s: %w", c.label, tag, err)
+	}
+	if got := config.OS + "/" + config.Arch; got != repo.Platform {
+		return fmt.Errorf("%s: %s is %s, not %s", c.label, tag, got, repo.Platform)
+	}
+	return nil
 }
 
 func (c *Client) cachedDigest(key digestKey) (string, bool) {
