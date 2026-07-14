@@ -13,6 +13,7 @@ import (
 // its target line: the real provider plus any provider parameters readable from
 // the line. Empty parameter fields mean the line did not carry that detail.
 type Inference struct {
+	Chart      string
 	Host       string
 	Package    string
 	Product    string
@@ -47,6 +48,10 @@ func (i Inference) Missing() string {
 	case constant.ProviderTerraform, constant.ProviderOpentofu:
 		if i.Source == "" {
 			return "block names no source"
+		}
+	case constant.ProviderHelm:
+		if i.Chart == "" || i.Registry == "" {
+			return "dependency names no chart or repository"
 		}
 	}
 	return ""
@@ -118,6 +123,8 @@ func (t Table) Infer(lines []string, target int) (Inference, bool) {
 			inferred.Package = misePackage(toolKey(t.path, line))
 		case constant.ProviderTerraform, constant.ProviderOpentofu:
 			inferred.Source = terraformSource(lines, target)
+		case constant.ProviderHelm:
+			inferred.Chart, inferred.Registry = helmDependency(lines, target)
 		}
 		return inferred, true
 	}

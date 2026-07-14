@@ -20,6 +20,8 @@ version: 18.2.0
 | [`prerelease`](prereleases.md) | Allow or exclude prerelease versions                                                                                       |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible (classic repositories only, see below)                                  |
 
+The provider is selected explicitly with `provider=helm`, or [inferred](auto.md) from a `dependencies` entry in a `Chart.yaml`, where the entry's `name` supplies the chart and its `repository` the registry.
+
 ## Classic vs OCI
 
 The `registry` scheme selects how Clover looks up versions:

@@ -217,6 +217,10 @@ func RustToolchainFile(path string) bool {
 // toolchain a crate requires.
 const cargoGlob = "**/Cargo.toml"
 
+// helmChartGlob matches a Helm chart's Chart.yaml, whose dependencies entries
+// each pin a subchart across sibling name, repository, and version fields.
+const helmChartGlob = "**/Chart.yaml"
+
 // terraformGlob matches Terraform configuration files, whose required_version
 // constraint pins the toolchain.
 const terraformGlob = "**/*.tf"
@@ -738,6 +742,18 @@ var routes = []route{
 			path:      tofuGlob,
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderOpentofu,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A Helm chart dependency in Chart.yaml: the version scalar of a
+		// dependencies entry, whose sibling name and repository fields supply the
+		// chart and registry (see helmDependency). The chart's own top-level
+		// version sits at column zero, so the leading-whitespace guard excludes it.
+		when: conditions{
+			path:      helmChartGlob,
+			lineMatch: mustPattern(`/^\s+version\s*:/`),
+			provider:  constant.ProviderHelm,
 		},
 		rewriter: NewSmart(),
 	},

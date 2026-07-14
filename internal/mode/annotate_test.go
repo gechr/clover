@@ -23,6 +23,7 @@ import (
 	"github.com/gechr/clover/internal/provider/gitlab"
 	"github.com/gechr/clover/internal/provider/golang"
 	"github.com/gechr/clover/internal/provider/hashicorp"
+	"github.com/gechr/clover/internal/provider/helm"
 	"github.com/gechr/clover/internal/provider/node"
 	"github.com/gechr/clover/internal/provider/pypi"
 	"github.com/gechr/clover/internal/provider/python"
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 		gitlab.New(),
 		golang.New(),
 		hashicorp.New(),
+		helm.New(),
 		node.New(node.WithTransport(nodeIndex)),
 		pypi.New(),
 		python.New(),
@@ -530,6 +532,37 @@ func TestAnnotateInsertsForRequiredProviders(t *testing.T) {
 			"}\n",
 		readFile(t, filepath.Join(root, "versions.tf")),
 		"a required_providers version earns an annotation, sourced from its block",
+	)
+}
+
+func TestAnnotateInsertsForHelmDependencies(t *testing.T) {
+	t.Parallel()
+
+	root := annotateTree(t, map[string]string{
+		"Chart.yaml": "apiVersion: v2\n" +
+			"name: mychart\n" +
+			"version: 1.0.0\n" +
+			"dependencies:\n" +
+			"  - name: postgresql\n" +
+			"    repository: https://charts.bitnami.com/bitnami\n" +
+			"    version: 12.1.2\n",
+	})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+
+	require.Equal(
+		t,
+		"apiVersion: v2\n"+
+			"name: mychart\n"+
+			"version: 1.0.0\n"+
+			"dependencies:\n"+
+			"  - name: postgresql\n"+
+			"    repository: https://charts.bitnami.com/bitnami\n"+
+			"    # @clover\n"+
+			"    version: 12.1.2\n",
+		readFile(t, filepath.Join(root, "Chart.yaml")),
+		"a dependency version earns an annotation, while the chart's own version is left alone",
 	)
 }
 

@@ -106,6 +106,9 @@ func Unresolved(
 // gate validates the provider resource against.
 func Directive(inf match.Inference) directive.Directive {
 	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
+	if inf.Chart != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveChart, Value: inf.Chart})
+	}
 	if inf.Repository != "" {
 		pairs = append(
 			pairs,

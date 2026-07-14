@@ -461,7 +461,10 @@ func canonicalDirective(d directive.Directive, inf match.Inference) directive.Di
 // a reference at a self-managed instance survives the collapse.
 func inferenceOwns(key string, inf match.Inference) bool {
 	switch key {
-	case constant.DirectiveProvider, constant.DirectiveRepository, constant.DirectiveRegistry:
+	case constant.DirectiveProvider,
+		constant.DirectiveRepository,
+		constant.DirectiveRegistry,
+		constant.DirectiveChart:
 		return true
 	case constant.DirectiveHost:
 		return inf.Host != ""

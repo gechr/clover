@@ -882,3 +882,80 @@ func TestInferTerraformProviders(t *testing.T) {
 		)
 	})
 }
+
+// TestInferHelmDependencies covers the Chart.yaml context-aware inference: a
+// dependencies entry's version line whose chart name and repository live on
+// sibling fields of the entry.
+func TestInferHelmDependencies(t *testing.T) {
+	t.Parallel()
+
+	chart := []string{
+		"apiVersion: v2",
+		"name: mychart",
+		"version: 1.0.0",
+		`appVersion: "2.3.4"`,
+		"dependencies:",
+		"  - name: postgresql",
+		"    repository: https://charts.bitnami.com/bitnami",
+		"    version: 12.1.2",
+		"  - name: redis",
+		"    version: 17.0.0",
+		"    repository: oci://registry-1.docker.io/bitnamicharts",
+		"  - name: local",
+		"    repository: file://../local",
+		"    version: 0.1.0",
+	}
+
+	tests := []struct {
+		name   string
+		target int
+		want   match.Inference
+		ok     bool
+	}{
+		{
+			name:   "classic repository dependency",
+			target: 7,
+			want: match.Inference{
+				Provider: "helm",
+				Chart:    "postgresql",
+				Registry: "https://charts.bitnami.com/bitnami",
+			},
+			ok: true,
+		},
+		{
+			name:   "oci repository with the version above the repository",
+			target: 9,
+			want: match.Inference{
+				Provider: "helm",
+				Chart:    "redis",
+				Registry: "oci://registry-1.docker.io/bitnamicharts",
+			},
+			ok: true,
+		},
+		{
+			name:   "local file dependency infers a repository the provider rejects",
+			target: 13,
+			want: match.Inference{
+				Provider: "helm",
+				Chart:    "local",
+				Registry: "file://../local",
+			},
+			ok: true,
+		},
+		{
+			name:   "the chart's own top-level version is not a dependency",
+			target: 2,
+			ok:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := match.Infer("charts/mychart/Chart.yaml", chart, tt.target)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
