@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	"github.com/gechr/clover/internal/provider"
@@ -117,7 +118,7 @@ func (p *Provider) fetch(ctx context.Context, name string) ([]release, error) {
 func candidate(name string, rel release, semver *version.Version) model.Candidate {
 	digest := rel.Checksum
 	if digest != "" {
-		digest = "sha256:" + digest
+		digest = constant.DigestSha256 + digest
 	}
 	var url string
 	if rel.DLPath != "" {
