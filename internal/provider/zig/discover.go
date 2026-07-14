@@ -69,7 +69,7 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		}
 		c, err := candidate(key, semver, raw)
 		if err != nil {
-			return nil, err
+			continue // defensive: skip a malformed entry rather than drop all
 		}
 		candidates = append(candidates, c)
 	}
