@@ -118,6 +118,11 @@ func (p *Provider) fetch(ctx context.Context, product string) ([]release, bool, 
 			return all, !provider.Deep(ctx) && full, nil
 		}
 		// Page older releases using the last item's creation timestamp as cursor.
+		// after is strictly exclusive, so a sibling sharing the boundary
+		// timestamp would be skipped - a theoretical risk the API offers no
+		// alternative cursor for. Observed live 2026-07-14: millisecond
+		// precision, zero duplicate timestamps across 800 releases of
+		// vault/terraform/consul/nomad.
 		last := releases[len(releases)-1]
 		if last.TimestampCreated == "" {
 			return all, false, nil
