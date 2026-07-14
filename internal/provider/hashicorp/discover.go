@@ -124,8 +124,10 @@ func (p *Provider) fetch(ctx context.Context, product string) ([]release, bool, 
 		}
 		after = last.TimestampCreated
 	}
-	// A deep lookup that exhausted the page cap still has older releases unread.
-	return all, true, nil
+	// A deep lookup that exhausted the page cap has older releases unread, but
+	// the truncation signal only drives a "pass --deep" hint - useless on a run
+	// that is already deep - so it is not reported here (matching gitlab).
+	return all, false, nil
 }
 
 // page fetches and decodes one page of the list endpoint.
