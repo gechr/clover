@@ -85,8 +85,9 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		}
 		c := candidate(raw, semver, live)
 		if norm != raw {
-			// A post-release's normalized semver (1.0.1) is only for ordering;
-			// the line must be rewritten to the real PyPI version (1.0.post1).
+			// A post-release's normalized semver (1.0.0.1) is only for
+			// ordering; the line must be rewritten to the real PyPI version
+			// (1.0.post1).
 			c.Version = raw
 		}
 		candidates = append(candidates, c)
@@ -126,11 +127,14 @@ func (p *Provider) fetch(ctx context.Context, name string) (map[string][]file, e
 }
 
 // normalizePEP440 rewrites a PEP 440 post-release (1.0.post1) into a form
-// go-version can parse and order (1.0.1): an extra numeric segment sorts the
-// post-release after its base release and before the next one. Everything else
-// is returned unchanged - a dashless prerelease already parses, and a .dev
-// suffix or epoch stays unsupported. The raw spelling is kept as the
-// candidate's Version, so the line is still rewritten to the real PyPI version.
+// go-version can parse and order: the base padded to three segments with the
+// post number appended as a fourth (1.0.0.1), which sorts after the base
+// release and before its next patch release - distinct from a real 1.0.1, so a
+// post-release can never compare equal to (or admit a constraint meant for)
+// the following release. Everything else is returned unchanged - a dashless
+// prerelease already parses, and a .dev suffix or epoch stays unsupported. The
+// raw spelling is kept as the candidate's Version, so the line is still
+// rewritten to the real PyPI version.
 func normalizePEP440(raw string) string {
 	base, post, ok := strings.Cut(raw, ".post")
 	if !ok {
@@ -139,6 +143,9 @@ func normalizePEP440(raw string) string {
 	n, err := strconv.Atoi(post)
 	if err != nil {
 		return raw // a .post.dev or non-numeric post stays unsupported
+	}
+	for strings.Count(base, ".") < 2 {
+		base += ".0"
 	}
 	return base + "." + strconv.Itoa(n)
 }

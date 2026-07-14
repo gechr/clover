@@ -111,9 +111,10 @@ func TestDiscoverSkipsUnparseableVersions(t *testing.T) {
 }
 
 // TestDiscoverPostRelease covers PEP 440 post-release support: 1.0.post1 is
-// discovered and ordered as an extra segment (1.0.1) - after its base release
-// and before the next - while the candidate keeps the real PyPI spelling on
-// both Version and Ref, so the line is rewritten to a version pip understands.
+// discovered and ordered as a fourth segment on the padded base (1.0.0.1) -
+// after its base release and before the next patch - while the candidate keeps
+// the real PyPI spelling on both Version and Ref, so the line is rewritten to
+// a version pip understands.
 func TestDiscoverPostRelease(t *testing.T) {
 	t.Parallel()
 
@@ -134,8 +135,35 @@ func TestDiscoverPostRelease(t *testing.T) {
 	}
 	require.Equal(t, "1.0.post1", post.Version, "the line keeps the real PyPI spelling")
 	require.NotNil(t, post.Semver)
-	require.Equal(t, "1.0.1", post.Semver.String(),
-		"the post number orders as an extra segment, after 1.0 and before 1.1")
+	require.Equal(t, "1.0.0.1", post.Semver.String(),
+		"the post number orders as a fourth segment, after 1.0.0 and before 1.0.1")
+}
+
+// TestDiscoverPostReleaseDistinctFromPatch locks the padding: 1.0.post1 and a
+// real 1.0.1 are different versions and must never compare equal, or a yanked
+// 1.0.1 could be silently downgraded to 1.0.post1.
+func TestDiscoverPostReleaseDistinctFromPatch(t *testing.T) {
+	t.Parallel()
+
+	const body = `{"releases": {
+		"1.0.post1": [{"filename": "p-1.0.post1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-02T00:00:00Z", "digests": {"sha256": "aa"}}],
+		"1.0.1": [{"filename": "p-1.0.1.tar.gz", "yanked": false, "upload_time_iso_8601": "2026-01-03T00:00:00Z", "digests": {"sha256": "bb"}}]
+	}}`
+
+	got := discoverBody(t, body)
+	require.Len(t, got, 2)
+	require.NotEqual(t, got[0].Semver.String(), got[1].Semver.String())
+
+	var post, patch model.Candidate
+	for _, c := range got {
+		if c.Ref == "1.0.post1" {
+			post = c
+		} else {
+			patch = c
+		}
+	}
+	require.Equal(t, -1, post.Semver.Compare(patch.Semver),
+		"the post-release orders strictly below the next patch release")
 }
 
 // TestDiscoverMissingDigestLeavesAssetUndigested covers a file record without
