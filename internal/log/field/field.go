@@ -17,6 +17,7 @@ const (
 	Files       = "files"
 	From        = "from"
 	Hint        = "hint"
+	Host        = "host"
 	Key         = "key"
 	Line        = "line"
 	Location    = "location"

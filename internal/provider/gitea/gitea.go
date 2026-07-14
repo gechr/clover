@@ -11,10 +11,12 @@ import (
 	"os"
 	"sync"
 
+	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/httpcache"
+	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/token"
 )
@@ -213,18 +215,18 @@ func (p *Provider) AuthHint() string {
 		"run `clover login gitea` or set `CLOVER_GITEA_TOKEN`"
 }
 
-// auth resolves the credential for a host into a token and the Authorization
-// scheme it uses. A PAT (env var or test) is sent as `token`, but only to the one
-// host it is bound to - a marker-controlled host= must not redirect it. A login
-// minted by `clover login` is an OAuth access token sent as `Bearer`, refreshed
-// and re-persisted when it has expired. An empty token means anonymous access.
 // authorization resolves the credential for a host into a ready Authorization
-// header value; empty means anonymous access.
+// header value - empty means anonymous access.
 func (p *Provider) authorization(ctx context.Context, host string) string {
 	token, scheme := p.auth(ctx, host)
 	return forge.Authorization(scheme, token)
 }
 
+// auth resolves the credential for a host into a token and the Authorization
+// scheme it uses. A PAT (env var or test) is sent as `token`, but only to the one
+// host it is bound to - a marker-controlled host= must not redirect it. A login
+// minted by `clover login` is an OAuth access token sent as `Bearer`, refreshed
+// and re-persisted when it has expired. An empty token means anonymous access.
 func (p *Provider) auth(ctx context.Context, host string) (string, string) {
 	if pat := p.staticCredential(); pat != "" && host == p.patHost() {
 		return pat, "token"
@@ -269,7 +271,15 @@ func (p *Provider) refreshAndStore(
 	//nolint:gosec // persisting the minted credential is the point
 	blob, err := json.Marshal(refreshed)
 	if err == nil {
-		_ = p.store.Set(host, string(blob))
+		if serr := p.store.Set(host, string(blob)); serr != nil {
+			// Gitea rotates the refresh token on each refresh, so a failed
+			// persist strands a now-dead token in the store. Warn rather than
+			// fail - this run still succeeds on the in-memory credential.
+			clog.Warn().
+				Str(field.Host, host).
+				Err(serr).
+				Msg("Failed to persist refreshed gitea credential - a later run may need `clover login gitea`")
+		}
 	}
 	return refreshed.AccessToken, "Bearer"
 }
