@@ -3,10 +3,14 @@ package github
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/httpcache"
@@ -127,21 +131,30 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 // the latest version. The anonymous REST path is not ordered (the endpoint has
 // no sort, and a repo's legacy tag namespace - e.g. golang/go's weekly.* tags -
 // can bury every real version past page one), so a full shallow page that yields
-// no parsable version escalates to a deep lookup once.
+// no parsable version escalates to a deep lookup once; a shallow page that did
+// parse but left pages unread reports its truncation, since the unordered
+// listing may hold the newest version - or a constrained marker's older match -
+// on an unread page.
 func (p *Provider) discoverTags(ctx context.Context, res resource) ([]model.Candidate, error) {
-	tags, err := p.listTags(ctx, res)
+	tags, truncated, err := p.listTags(ctx, res)
 	if err != nil {
 		return nil, err
 	}
 	candidates := candidatesFromTags(tags)
 
-	if !p.authenticated(res.host) && !provider.Deep(ctx) && len(tags) == perPage &&
-		!anyParsable(candidates) {
-		tags, err = p.listTags(provider.WithDeep(ctx, true), res)
+	if truncated && !anyParsable(candidates) {
+		tags, truncated, err = p.listTags(provider.WithDeep(ctx, true), res)
 		if err != nil {
 			return nil, err
 		}
 		candidates = candidatesFromTags(tags)
+	}
+	if truncated {
+		provider.NoteTruncated(
+			ctx,
+			p.Describe(res),
+			constant.SchemeHTTPS+res.host+"/"+res.owner+"/"+res.name+"/tags",
+		)
 	}
 	return candidates, nil
 }
@@ -167,7 +180,7 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 		res.host,
 		fmt.Sprintf("repos/%s/%s/releases?per_page=%d", res.owner, res.name, perPage),
 	)
-	releases, err := listAll[release](ctx, p.client(), "releases", start, p.credential(res.host))
+	releases, _, err := listAll[release](ctx, p.client(), "releases", start, p.credential(res.host))
 	if err != nil {
 		return nil, err
 	}
@@ -210,20 +223,34 @@ func (p *Provider) discoverReleases(ctx context.Context, res resource) ([]model.
 }
 
 // listTags returns a repository's tags, newest-first. With a credential it uses
-// the GraphQL refs API ordered by tag commit date; anonymously it falls back to
-// the REST tags endpoint, since GraphQL rejects unauthenticated requests.
-// Shallow reads the first page; a deep lookup pages to exhaustion.
-func (p *Provider) listTags(ctx context.Context, res resource) ([]tag, error) {
+// the GraphQL refs API ordered by tag commit date, degrading to the REST
+// endpoint when the credential is rejected (a revoked token should not fail a
+// lookup anonymous access would serve); anonymously it uses REST directly,
+// since GraphQL rejects unauthenticated requests. Shallow reads the first page;
+// a deep lookup pages to exhaustion. The second return reports a truncated
+// shallow REST lookup - the ordered GraphQL first page already holds the
+// newest, so it never counts as truncated.
+func (p *Provider) listTags(ctx context.Context, res resource) ([]tag, bool, error) {
 	if p.authenticated(res.host) {
-		return p.listTagsGraphQL(ctx, res)
+		tags, err := p.listTagsGraphQL(ctx, res)
+		if err == nil || !unauthorized(err) {
+			return tags, false, err
+		}
 	}
 	return p.listTagsREST(ctx, res)
 }
 
+// unauthorized reports whether err is an HTTP 401, the signal that a stored
+// credential has been revoked or expired upstream.
+func unauthorized(err error) bool {
+	var httpErr *api.HTTPError
+	return errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusUnauthorized
+}
+
 // listTagsREST reads the REST tags endpoint. The endpoint has no sort, so its
 // order is git's raw ref order - not necessarily newest-first; discoverTags
-// guards that with its deep fallback.
-func (p *Provider) listTagsREST(ctx context.Context, res resource) ([]tag, error) {
+// guards that with its deep fallback and truncation note.
+func (p *Provider) listTagsREST(ctx context.Context, res resource) ([]tag, bool, error) {
 	start := apiURL(
 		res.host,
 		fmt.Sprintf("repos/%s/%s/tags?per_page=%d", res.owner, res.name, perPage),
@@ -280,18 +307,19 @@ func (p *Provider) listTagsGraphQL(ctx context.Context, res resource) ([]tag, er
 // count. The releases endpoint is newest-first, so the shallow first page holds
 // the latest release; tags are listed through listTags (GraphQL-ordered or REST
 // + fallback) rather than here. Deep lookup trades requests for completeness
-// across a repository's whole history.
+// across a repository's whole history. The second return reports a truncated
+// shallow lookup - a first page with more behind it.
 func listAll[T any](
 	ctx context.Context,
 	rest forge.RESTClient,
 	what, start, token string,
-) ([]T, error) {
+) ([]T, bool, error) {
 	var all []T
 	for url := start; ; {
 		var batch []T
 		header, err := rest.DoWithContext(ctx, url, forge.Bearer(token), &batch)
 		if err != nil {
-			return nil, fmt.Errorf("github: list %s: %w", what, err)
+			return nil, false, fmt.Errorf("github: list %s: %w", what, err)
 		}
 		all = append(all, batch...)
 		next := xhttp.NextLink(header)
@@ -301,7 +329,7 @@ func listAll[T any](
 			next = ""
 		}
 		if next == "" || !provider.Deep(ctx) {
-			return all, nil
+			return all, !provider.Deep(ctx) && next != "", nil
 		}
 		url = next
 	}
@@ -367,9 +395,11 @@ func (p *Provider) tagRefObject(
 }
 
 // tagCommits maps tag name to its peeled commit SHA, for resolving the commit a
-// release points at.
+// release points at. A truncated tag listing is not noted here: it only narrows
+// the join, blocking action-pinning for a release older than the newest page of
+// tags, not the release listing itself.
 func (p *Provider) tagCommits(ctx context.Context, res resource) (map[string]string, error) {
-	tags, err := p.listTags(ctx, res)
+	tags, _, err := p.listTags(ctx, res)
 	if err != nil {
 		return nil, err
 	}

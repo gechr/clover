@@ -76,15 +76,13 @@ func TestDiscoverTagsDeepPaginates(t *testing.T) {
 	require.Equal(t, []string{"1", "2"}, pages, "a deep lookup follows pages until a short one")
 }
 
-func TestDiscoverTagsShallowReportsNoTruncation(t *testing.T) {
+func TestDiscoverTagsShallowReportsTruncation(t *testing.T) {
 	t.Parallel()
 
-	// github never emits a --deep truncation hint: the authenticated GraphQL path
-	// is ordered, and the anonymous REST path silently auto-escalates to a deep
-	// lookup when a full page holds no parsable version (see the fallback test).
-	// Regression guard: a blanket truncation hint was wrongly added once (it
-	// belongs to the lexically-ordered OCI registries, not github). This case
-	// uses a parsable first page, so no escalation and no hint.
+	// The anonymous REST tags endpoint is unordered, so a shallow first page
+	// that parsed but left pages unread may still be missing the newest version
+	// (or a constrained marker's older match) - it reports its truncation. The
+	// deep fallback does not fire here since the page held parsable versions.
 	var pages []string
 	p := github.New(github.WithTransport(pagedTags(&pages)))
 	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
@@ -95,8 +93,27 @@ func TestDiscoverTagsShallowReportsNoTruncation(t *testing.T) {
 		func(t provider.Truncation) { trunc = append(trunc, t) })
 	_, err = p.Discover(ctx, res)
 	require.NoError(t, err)
-	require.Empty(t, trunc,
-		"github is recency-ordered, so a full first page is not truncation-hinted")
+	require.Equal(t, []string{"1"}, pages, "a parsable shallow page does not escalate")
+	require.Len(t, trunc, 1,
+		"the unordered REST listing left pages unread, so the lookup is truncated")
+}
+
+func TestDiscoverTagsDeepReportsNoTruncation(t *testing.T) {
+	t.Parallel()
+
+	// A deep lookup pages to exhaustion, so nothing is left unread and no
+	// truncation is reported.
+	var pages []string
+	p := github.New(github.WithTransport(pagedTags(&pages)))
+	res, err := p.Resource(directiveOf(directive.KV{Key: "repository", Value: "owner/name"}))
+	require.NoError(t, err)
+
+	var trunc []provider.Truncation
+	ctx := provider.WithTruncationSink(provider.WithDeep(t.Context(), true),
+		func(t provider.Truncation) { trunc = append(trunc, t) })
+	_, err = p.Discover(ctx, res)
+	require.NoError(t, err)
+	require.Empty(t, trunc, "a deep lookup reads everything, so it is never truncated")
 }
 
 // roundTripFunc adapts a function to an http.RoundTripper.
