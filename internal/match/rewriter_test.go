@@ -142,6 +142,31 @@ func TestSwiftVersionFile(t *testing.T) {
 	}
 }
 
+func TestNodeVersionFile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: ".node-version", want: true},
+		{path: ".nvmrc", want: true},
+		{path: "sub/.node-version", want: true},
+		{path: "sub/.nvmrc", want: true},
+		{path: "node-version", want: false},
+		{path: ".node-version.clover.yaml", want: false},
+		{path: "package.json", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, match.NodeVersionFile(tt.path))
+		})
+	}
+}
+
 // TestForContainerJobUses confirms a workflow container job's uses: docker://
 // reference routes to the docker rewriters, not the action ones: digest-pinned
 // to docker-pin, tag-only to docker-tag.

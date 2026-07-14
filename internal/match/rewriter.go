@@ -182,6 +182,17 @@ func SwiftVersionFile(path string) bool {
 	return matchPath(swiftVersionGlob, path)
 }
 
+// nodeVersionGlob matches the .node-version and .nvmrc files whose whole line is
+// the pinned runtime version. Neither has a comment syntax, so a marker for one
+// lives in a sidecar or is synthesized by run --infer.
+const nodeVersionGlob = "**/{.node-version,.nvmrc}"
+
+// NodeVersionFile reports whether path is a .node-version or .nvmrc file, the
+// comment-less plain-text target annotate proposes a sidecar for.
+func NodeVersionFile(path string) bool {
+	return matchPath(nodeVersionGlob, path)
+}
+
 // pyprojectGlob matches Python project files, whose target-version key pins the
 // interpreter a tool targets.
 const pyprojectGlob = "**/pyproject.toml"
@@ -359,6 +370,17 @@ var routes = []route{
 		when: conditions{
 			path:      toolVersionsGlob,
 			lineMatch: mustPattern(`/^\s*(node|nodejs)\s+\S/`),
+			provider:  constant.ProviderNode,
+		},
+		rewriter: NewSmart(),
+	},
+	{
+		// A .node-version or .nvmrc pin: the whole line is the version (24.18.0,
+		// v24.18.0). Only a bare numeric pin routes - an alias (lts/*, node,
+		// stable) carries no version on the line to track.
+		when: conditions{
+			path:      nodeVersionGlob,
+			lineMatch: mustPattern(`/^v?\d+(\.\d+)*\s*$/`),
 			provider:  constant.ProviderNode,
 		},
 		rewriter: NewSmart(),

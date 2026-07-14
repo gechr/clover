@@ -58,12 +58,13 @@ func strictJSON(path string) bool {
 // sidecarTarget reports whether path is a comment-less target - one whose
 // directives must live in a sidecar because an inline comment would corrupt it.
 func sidecarTarget(path string) bool {
-	return strictJSON(path) || match.PythonVersionFile(path) || match.SwiftVersionFile(path)
+	return strictJSON(path) || match.PythonVersionFile(path) ||
+		match.SwiftVersionFile(path) || match.NodeVersionFile(path)
 }
 
 // proposeSidecar builds the sidecar proposal for a comment-less target: strict
 // JSON gets the leaf-based generator, a plain-text version pin
-// (.python-version, .swift-version) the line-based one. It must only be called
+// (.python-version, .swift-version, .node-version) the line-based one. It must only be called
 // for a [sidecarTarget]. Only the JSON generator takes force - a text entry
 // carries no source keys beyond the provider, so there is no drift to repair.
 func proposeSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSkip) {
@@ -574,7 +575,7 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 }
 
 // annotateTextSidecar proposes the sidecar for a comment-less plain-text
-// target (a .python-version or .swift-version file): each line auto-detection
+// target (a .python-version, .swift-version, or .node-version file): each line auto-detection
 // recognizes earns an entry carrying the inferred directive and a whole-line
 // find locator. The line
 // is the version itself, so the find is the bare version placeholder - which

@@ -625,6 +625,33 @@ func TestInfer(t *testing.T) {
 			ok:   false,
 		},
 		{
+			name: "node-version pin",
+			path: ".node-version",
+			line: "24.18.0",
+			want: match.Inference{Provider: "node"},
+			ok:   true,
+		},
+		{
+			name: "node-version v-prefixed pin",
+			path: ".node-version",
+			line: "v24.18.0",
+			want: match.Inference{Provider: "node"},
+			ok:   true,
+		},
+		{
+			name: "nvmrc pin",
+			path: "sub/.nvmrc",
+			line: "24",
+			want: match.Inference{Provider: "node"},
+			ok:   true,
+		},
+		{
+			name: "node-version alias is not matched",
+			path: ".node-version",
+			line: "lts/jod",
+			ok:   false,
+		},
+		{
 			name: "tool-versions well-known github tool",
 			path: ".tool-versions",
 			line: "tofu 1.8.5",
