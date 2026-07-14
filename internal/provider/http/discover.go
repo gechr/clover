@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -79,6 +80,8 @@ func (p *Provider) fetch(ctx context.Context, rawURL, userAgent string) ([]byte,
 // value per Next, the .[].tag_name idiom) or a single array; either way each
 // string is taken and a non-string result is ignored.
 func jqVersions(code *gojq.Code, body []byte) ([]string, error) {
+	// Strip a leading UTF-8 BOM some endpoints emit; encoding/json rejects it.
+	body = bytes.TrimPrefix(body, []byte("\xef\xbb\xbf"))
 	var input any
 	if err := json.Unmarshal(body, &input); err != nil {
 		return nil, fmt.Errorf("http: %q: parse JSON response: %w", keyJQ, err)

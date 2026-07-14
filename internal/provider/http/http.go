@@ -185,12 +185,12 @@ func compileExtract(expr string) (*pattern.Pattern, error) {
 		return pat, nil
 	}
 
-	hasVersion := false
+	versions := 0
 	for _, t := range pat.Tokens() {
 		//nolint:exhaustive // only the version-family tokens are constrained; others are valid context.
 		switch t {
 		case pattern.TokenVersion:
-			hasVersion = true
+			versions++
 		case pattern.TokenMajor,
 			pattern.TokenMinor,
 			pattern.TokenPatch,
@@ -202,9 +202,15 @@ func compileExtract(expr string) (*pattern.Pattern, error) {
 			)
 		}
 	}
-	if !hasVersion {
+	if versions == 0 {
 		return nil, fmt.Errorf(
 			"http: %q glob must contain a <%s> token (or use a /regex/)",
+			keyExtract, pattern.TokenVersion,
+		)
+	}
+	if versions > 1 {
+		return nil, fmt.Errorf(
+			"http: %q glob must contain exactly one <%s> token",
 			keyExtract, pattern.TokenVersion,
 		)
 	}
