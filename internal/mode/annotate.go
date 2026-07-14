@@ -104,12 +104,13 @@ type AnnotateSkip struct {
 // a comment-less strict-JSON target), and whether they were written. The two are
 // mutually exclusive - a file either hosts inline comments or it does not.
 type AnnotateFile struct {
-	Path     string
-	Changes  []AnnotateChange
-	Sidecar  *AnnotateSidecar
-	Skips    []AnnotateSkip
-	Written  bool
-	WriteErr error
+	Path      string
+	Changes   []AnnotateChange
+	Sidecar   *AnnotateSidecar
+	Skips     []AnnotateSkip
+	Annotated int // recognized lines already carrying an annotation, left as-is
+	Written   bool
+	WriteErr  error
 }
 
 // AnnotateSidecar is the sidecar annotate would write beside a comment-less
@@ -150,6 +151,16 @@ func (s AnnotateSummary) Updated() int { return s.count(true) }
 
 // Total reports the total number of comment lines annotate would add or rewrite.
 func (s AnnotateSummary) Total() int { return s.Added() + s.Updated() }
+
+// Annotated reports how many recognized lines already carry an annotation and
+// were left as-is - the trackable lines onboarding has nothing left to do for.
+func (s AnnotateSummary) Annotated() int {
+	var n int
+	for _, f := range s.Files {
+		n += f.Annotated
+	}
+	return n
+}
 
 // OK reports whether every recognized line is already annotated canonically -
 // nothing to add or rewrite.
@@ -263,6 +274,11 @@ func Annotate(
 func annotateSidecarFile(file scan.File, force, write bool) *AnnotateFile {
 	generated, skips := proposeSidecar(file, force)
 	annotated := AnnotateFile{Path: file.Path, Sidecar: generated, Skips: skips}
+	for _, loc := range file.Found {
+		if loc.Sidecar {
+			annotated.Annotated++ // an entry already governs this target line
+		}
+	}
 	if annotated.Sidecar != nil && write {
 		if err := writeSidecar(annotated.Sidecar); err != nil {
 			annotated.WriteErr = err
@@ -326,6 +342,7 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 		}
 
 		if loc, bound := existing[i]; bound {
+			annotated.Annotated++
 			// An existing annotation is only canonicalized under force, and only when
 			// it is one clover owns: provider=auto or a redundant explicit provider the
 			// line itself infers. A deliberate non-inferable directive (provider=http,

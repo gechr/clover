@@ -121,10 +121,19 @@ func (c *cmdAnnotate) sidecar(cfg *config.Config) bool {
 }
 
 // annotateDiscovered logs the scan result that supplants the transient scan
-// line: the candidate lines annotate found, or a notice when it found none.
+// line: the candidate lines annotate found, a notice that every recognized line
+// is already annotated, or a warning when it found nothing trackable at all.
 func annotateDiscovered(summary mode.AnnotateSummary) {
 	candidates := summary.Total()
 	if candidates == 0 {
+		if annotated := summary.Annotated(); annotated > 0 {
+			clog.Info().
+				Symbol("🍃").
+				Int(field.Scanned, summary.Scanned).
+				Int(field.Annotated, annotated).
+				Msg("Every trackable line is already annotated")
+			return
+		}
 		clog.Warn().
 			Symbol("🫠").
 			Int(field.Scanned, summary.Scanned).

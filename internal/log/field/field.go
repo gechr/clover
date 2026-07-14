@@ -4,6 +4,7 @@ package field
 
 const (
 	Added       = "added"
+	Annotated   = "annotated"
 	Cached      = "cached"
 	Candidates  = "candidates"
 	Changed     = "changed"
