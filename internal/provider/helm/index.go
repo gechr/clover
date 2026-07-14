@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"path"
 	"strings"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/dates"
 	"github.com/gechr/clover/internal/model"
 	xslices "github.com/gechr/x/slices"
@@ -75,12 +77,21 @@ func indexCandidate(ref reference, e indexEntry) model.Candidate {
 }
 
 // resolveURL resolves a possibly-relative chart URL from the index against the
-// repository base; a Helm index may carry either absolute or relative URLs.
+// repository base. A Helm index may carry absolute or relative URLs; the base is
+// treated as a directory (trailing slash) for RFC 3986 resolution, so a
+// host-absolute (/charts/x.tgz) or dot-relative (../x.tgz) URL resolves correctly
+// rather than being blindly appended to the base path.
 func resolveURL(base, raw string) string {
 	if strings.Contains(raw, "://") {
 		return raw
 	}
-	return strings.TrimSuffix(base, "/") + "/" + strings.TrimPrefix(raw, "/")
+	b, berr := neturl.Parse(base)
+	r, rerr := neturl.Parse(raw)
+	if berr != nil || rerr != nil {
+		return strings.TrimSuffix(base, "/") + "/" + strings.TrimPrefix(raw, "/")
+	}
+	b.Path = strings.TrimSuffix(b.Path, "/") + "/"
+	return b.ResolveReference(r).String()
 }
 
 // normalizeDigest prefixes a bare hex digest with its algorithm, matching the
@@ -90,5 +101,5 @@ func normalizeDigest(digest string) string {
 	if strings.Contains(digest, ":") {
 		return digest
 	}
-	return "sha256:" + digest
+	return constant.DigestSha256 + digest
 }
