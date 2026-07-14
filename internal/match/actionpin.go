@@ -51,8 +51,7 @@ func (ActionPin) Locate(line string) (Location, error) {
 		// optional closing quote and whitespace may follow the SHA - stray text
 		// (uses: …@<sha> extra) is malformed, so fail rather than append a comment
 		// after the garbage.
-		after := strings.TrimSpace(line[end:])
-		if strings.TrimSpace(strings.TrimLeft(after, `"'`)) != "" {
+		if !xstrings.IsBlank(strings.TrimLeft(line[end:], `"'`)) {
 			return nil, errors.New("action pin has unexpected text after the commit SHA")
 		}
 		return actionPinLocated{
