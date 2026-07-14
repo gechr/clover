@@ -20,7 +20,20 @@ func (p *Provider) URL(r provider.Resource, c model.Candidate) string {
 		return ""
 	}
 	if !strings.HasPrefix(ref, versionPrefix) {
-		ref = versionPrefix + ref
+		ref = versionPrefix + goAnchor(ref)
 	}
 	return downloadBase + "#" + ref
+}
+
+// goAnchor collapses a canonical semver into go.dev's download-page anchor
+// spelling. A discovered candidate's Ref already wears it; only the synthesized
+// current-version candidate arrives as canonical semver, whose prerelease form
+// (1.27.0-rc1) must lose its dash and zero patch to match go.dev's anchor
+// (1.27rc1, becoming go1.27rc1 once the prefix is applied).
+func goAnchor(ref string) string {
+	base, pre, ok := strings.Cut(ref, "-")
+	if !ok {
+		return ref
+	}
+	return strings.TrimSuffix(base, ".0") + pre
 }
