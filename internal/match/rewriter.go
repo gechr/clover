@@ -156,8 +156,9 @@ func MiseFile(path string) bool {
 	return matchPath(miseGlob, path) || matchPath(toolVersionsGlob, path)
 }
 
-// goModGlob matches Go module files, whose go directive pins the toolchain.
-const goModGlob = "**/go.mod"
+// goGlob matches Go module and workspace files, whose go and toolchain
+// directives share a syntax and both pin the toolchain.
+const goGlob = "**/go.{mod,work}"
 
 // pythonVersionGlob matches pyenv's .python-version files, whose whole line is
 // the pinned interpreter version. The file has no comment syntax, so a marker
@@ -697,22 +698,23 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
-		// The go directive in go.mod: go 1.23.2. The go provider resolves the
-		// toolchain from the go.dev download index, stripping the goX.Y.Z prefix
-		// to clean semver.
+		// The go directive in go.mod or go.work: go 1.23.2. The go provider
+		// resolves the toolchain from the go.dev download index, stripping the
+		// goX.Y.Z prefix to clean semver.
 		when: conditions{
-			path:      goModGlob,
+			path:      goGlob,
 			lineMatch: mustPattern(`/^go\s+\d/`),
 			provider:  constant.ProviderGo,
 		},
 		rewriter: NewSmart(),
 	},
 	{
-		// The toolchain directive in go.mod: toolchain go1.26.5. The version is
-		// glued to its go prefix, which the shape scanner rejects as mid-word, so
-		// a find pattern anchors on the literal prefix and captures the version.
+		// The toolchain directive in go.mod or go.work: toolchain go1.26.5. The
+		// version is glued to its go prefix, which the shape scanner rejects as
+		// mid-word, so a find pattern anchors on the literal prefix and captures
+		// the version.
 		when: conditions{
-			path:      goModGlob,
+			path:      goGlob,
 			lineMatch: mustPattern(`/^toolchain\s+go\d/`),
 			provider:  constant.ProviderGo,
 		},

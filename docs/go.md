@@ -16,7 +16,7 @@ GO_VERSION: 1.26.5
 | [`include`](filtering.md)      | Keep only matching versions                                               |
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 
-The download index is public, so the Go provider needs no authentication. It is selected explicitly with `provider=go`, or [inferred](auto.md) from a `go` or `toolchain` directive in a `go.mod` file or a `go` pin in a mise configuration.
+The download index is public, so the Go provider needs no authentication. It is selected explicitly with `provider=go`, or [inferred](auto.md) from a `go` or `toolchain` directive in a `go.mod` or `go.work` file or a `go` pin in a mise configuration.
 
 Every `go.dev` version carries a `go` prefix (`go1.26.5`). Clover strips it so the resolved value is clean semver (`1.26.5`), which matches a bare on-line reference and renders cleanly through [`<version>`](find-replace.md). The index serves the whole release history in one response, so Clover always sees every release and `--deep` has nothing extra to fetch. `go.dev` publishes no per-release dates, so [`cooldown`](cooldown.md) is unsupported here: setting it holds the line with a `cooldown not supported` warning rather than bumping past a cooldown that cannot be measured.
 

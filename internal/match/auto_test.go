@@ -368,6 +368,20 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "go directive in go.work",
+			path: "go.work",
+			line: "go 1.23.2",
+			want: match.Inference{Provider: "go"},
+			ok:   true,
+		},
+		{
+			name: "toolchain directive in go.work",
+			path: "go.work",
+			line: "toolchain go1.26.5",
+			want: match.Inference{Provider: "go"},
+			ok:   true,
+		},
+		{
 			name: "mise python runtime",
 			path: ".mise.toml",
 			line: `python = "3.14.5"`,
