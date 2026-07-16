@@ -15,7 +15,7 @@ require (
 	github.com/gechr/clib v0.7.3
 	github.com/gechr/clog v0.13.17
 	github.com/gechr/conductor v0.1.11
-	github.com/gechr/x v0.3.9
+	github.com/gechr/x v0.3.10
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
@@ -170,7 +170,7 @@ require (
 	github.com/firefart/nonamedreturns v1.0.6 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gechr/clive v0.4.4
+	github.com/gechr/clive v0.4.5
 	github.com/ghostiam/protogetter v0.3.20 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
