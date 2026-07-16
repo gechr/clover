@@ -40,7 +40,7 @@ func TestRun(t *testing.T) {
 	require.Equal(t,
 		"INF ⬆️ Update applied provider=github location=x/app.txt:2 from=1.2.0 to=1.3.0\n"+
 			"WRN 📛 Skipped provider=github location=x/b.txt:4 reason=\"dep failed\"\n"+
-			"INF 🏁 Run complete changed=1 skipped=1 elapsed=2s\n",
+			"INF 🏁 Run complete changed=1 skipped=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -61,7 +61,7 @@ func TestRunReportsWrittenValue(t *testing.T) {
 	require.Equal(t,
 		"INF ⬆️ Update applied provider=github location=app.txt:1 from=1.20.0 to=1.31.2\n"+
 			"INF ⬆️ Update applied provider=github location=app.txt:3 from=1.0.0 to=2.0.0\n"+
-			"INF 🏁 Run complete changed=2 elapsed=2s\n",
+			"INF 🏁 Run complete changed=2 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -182,7 +182,7 @@ func TestRunReportsBlockedUpdate(t *testing.T) {
 	require.Equal(t,
 		"ERR 🚫 Update blocked provider=github location=ci.yml:1 from=1.0.0 to=2.0.0 "+
 			"error=\"commit abc is not on an allowed branch\"\n"+
-			"INF 🏁 Run complete elapsed=2s\n",
+			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -200,7 +200,7 @@ func TestRunReportsIncompleteVerification(t *testing.T) {
 	require.Equal(t,
 		"ERR ❓ Verification did not complete (update withheld) provider=github "+
 			"location=ci.yml:1 error=\"could not verify: boom\"\n"+
-			"INF 🏁 Run complete elapsed=2s\n",
+			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -217,7 +217,7 @@ func TestRunReportsPinVerification(t *testing.T) {
 	require.Equal(t,
 		"ERR 🔓 Pin does not match upstream provider=github location=ci.yml:1 "+
 			"error=\"pinned aaa but 1.0.0 upstream is bbb\"\n"+
-			"INF 🏁 Run complete elapsed=2s\n",
+			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -235,7 +235,7 @@ func TestRunReportsAttestationRejection(t *testing.T) {
 	require.Equal(t,
 		"ERR 🚫 Attestation verification failed (update withheld) provider=github "+
 			"location=Dockerfile:1 error=\"attestation rejected: digest sha256:bad has no matching attestation\"\n"+
-			"INF 🏁 Run complete elapsed=2s\n",
+			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -256,7 +256,7 @@ func TestRunReportsMovedTag(t *testing.T) {
 	require.Equal(t,
 		"WRN 🔀 Pinned upstream tag has moved (pass `--force` to re-pin if safe) "+
 			"provider=github location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
-			"INF 🏁 Run complete elapsed=2s\n",
+			"INF 🏁 Run complete elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -277,7 +277,7 @@ func TestRunAbbreviatesHashValues(t *testing.T) {
 	require.Equal(
 		t,
 		"INF ⬆️ Update applied provider=github location=ci.yml:1 from=012345…234567 to=fedcba…dcba98\n"+
-			"INF 🏁 Run complete changed=1 elapsed=2s\n",
+			"INF 🏁 Run complete changed=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -294,7 +294,7 @@ func TestRunWideShowsFullHash(t *testing.T) {
 
 	require.Equal(t,
 		"INF ⬆️ Update applied provider=github location=ci.yml:1 from=1.0.0 to="+sha+"\n"+
-			"INF 🏁 Run complete changed=1 elapsed=2s\n",
+			"INF 🏁 Run complete changed=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -308,7 +308,7 @@ func TestRunDryLogsSummaryAtDryLevel(t *testing.T) {
 
 	require.Equal(t,
 		"DRY ⬆️ Update available provider=github location=app.txt:1 from=1.0.0 to=2.0.0\n"+
-			"DRY 🏁 Run complete changed=1 elapsed=2s\n",
+			"DRY 🏁 Run complete changed=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -330,7 +330,7 @@ func TestRunLogsResource(t *testing.T) {
 		t,
 		"INF ⬆️ Update applied provider=github location=ci.yml:1 resource=actions/checkout from=1.0.0 to=2.0.0\n"+
 			"INF ⬆️ Update applied provider=github location=ci.yml:3 from=3.0.0 to=4.0.0\n"+
-			"INF 🏁 Run complete changed=2 elapsed=2s\n",
+			"INF 🏁 Run complete changed=2 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -369,7 +369,7 @@ func TestLint(t *testing.T) {
 
 	require.Equal(t,
 		"ERR ❌ Invalid provider=github location=a.txt:1 error=boom\n"+
-			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
+			"INF 🏁 Lint complete errored=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -388,7 +388,7 @@ func TestRunWideReportsUpToDate(t *testing.T) {
 	require.Equal(t,
 		"INF ⬆️ Update applied provider=github location=app.txt:1 from=1.0.0 to=2.0.0\n"+
 			"DBG 🐞 Already up-to-date provider=github location=app.txt:3 version=1.5.0\n"+
-			"INF 🏁 Run complete changed=1 elapsed=2s\n",
+			"INF 🏁 Run complete changed=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
@@ -404,7 +404,7 @@ func TestLintWideReportsValid(t *testing.T) {
 	require.Equal(t,
 		"ERR ❌ Invalid provider=github location=a.txt:1 error=boom\n"+
 			"INF ✅ Valid provider=github location=b.txt:2\n"+
-			"INF 🏁 Lint complete errored=1 elapsed=2s\n",
+			"INF 🏁 Lint complete errored=1 elapsed=1.5s\n",
 		buf.String(),
 	)
 }
