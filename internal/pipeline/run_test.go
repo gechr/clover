@@ -1917,6 +1917,32 @@ func TestRunPrereleaseOverride(t *testing.T) {
 	require.Equal(t, "2.0.0-rc.1", files[0].Results[0].Resolved, "flag allowed the prerelease")
 }
 
+// TestRunConstraintOverride confirms WithConstraint(false) drops a directive's
+// constraint rule so the newest version wins, while nil leaves it in force.
+func TestRunConstraintOverride(t *testing.T) {
+	provider.Register(fakeProvider{
+		name: "conflag",
+		candidates: []model.Candidate{
+			candidate(t, "1.0.5"),
+			candidate(t, "2.0.0"),
+		},
+	})
+
+	dir := write(t, map[string]string{
+		"app.txt": "# clover: provider=conflag repository=x/y constraint=minor\nversion: 1.0.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.5", files[0].Results[0].Resolved, "constraint holds by default")
+
+	files, err = pipeline.Run(context.Background(), []string{dir},
+		pipeline.WithConstraint(new(false)))
+	require.NoError(t, err)
+	require.True(t, files[0].Results[0].Changed)
+	require.Equal(t, "2.0.0", files[0].Results[0].Resolved, "flag dropped the constraint")
+}
+
 func TestRunUnknownProviderErrors(t *testing.T) {
 	dir := write(t, map[string]string{
 		"app.txt": "# clover: provider=nope repository=x/y\nversion: 1.0.0\n",

@@ -31,7 +31,7 @@ type cmdAnnotate struct {
 	Check    *bool    `            help:"Report annotations that would be added and exit non-zero (do not write)"                    clib:"terse='Check only',group='Options/Mode'"`
 	Force    bool     `            help:"Rewrite an existing annotation when Clover can infer a leaner one"                          clib:"terse='Overwrite existing',group='Options/Selection'"`
 	NoIgnore bool     "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
-	Sidecar  *bool    "            help:\"Generate a sidecar for a comment-less target (`--no-sidecar` proposes inline comments only)\"       clib:\"terse='Sidecars',group='Options/Selection'\"     negatable:\"\""
+	Sidecar  *bool    "            help:\"Propose inline comments only, never generating a sidecar for a comment-less target\"                clib:\"terse='Sidecars',group='Options/Selection',negative\"     negatable:\"\""
 }
 
 // Help returns the detailed blurb shown in `clover annotate --help`.

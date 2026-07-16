@@ -31,15 +31,16 @@ clover run [options] [<path>…]
 | `-t, --tag <tag>`       | Only process directives matching these tags                                             |
 | `--to <version>`        | Pin matched markers to this exact version (implies `--downgrade --force`)               |
 | `-n, --dry-run`         | Resolve and render but write nothing                                                    |
-| `--[no-]cache`          | Reuse cached HTTP responses across runs (`--no-cache` fetches everything fresh)         |
-| `--[no-]deep`           | Follow pagination to fetch every version (more accurate, but slower and more requests)  |
+| `--no-cache`            | Fetch everything fresh, skipping the cross-run [HTTP cache](caching.md)                 |
+| `--deep`                | Follow pagination to fetch every version (more accurate, but slower and more requests)  |
 | `-y, --yes`             | Proceed without confirming a deep lookup                                                |
 | `--offline`             | Resolve from the [HTTP cache](caching.md) alone, making no network requests             |
-| `--[no-]downgrade`      | Allow selecting versions older than the current one                                     |
+| `--downgrade`           | Allow selecting versions older than the current one                                     |
 | `--cooldown <duration>` | Override every directive's [`cooldown`](cooldown.md), e.g. `72h` or `2w` (`0` disables) |
-| `--[no-]prerelease`     | Allow selecting [prerelease](prereleases.md) versions                                   |
-| `--[no-]force`          | Re-pin followed digests even when the version they follow is unchanged                  |
-| `--[no-]verify`         | Verify secure pins against upstream tags (implies `--deep`)                             |
+| `--no-constraint`       | Ignore every directive's [`constraint`](constraints.md) when selecting versions         |
+| `--prerelease`          | Allow selecting [prerelease](prereleases.md) versions                                   |
+| `--force`               | Re-pin followed digests even when the version they follow is unchanged                  |
+| `--verify`              | Verify secure pins against upstream tags (implies `--deep`)                             |
 | `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                    |
 | `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded)      |
 | `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                       |
@@ -77,7 +78,7 @@ clover format [options] [<path>…]
 | ----------------- | ---------------------------------------------------------------------------------- |
 | `--check`         | Report directives that need formatting and exit non-zero without writing           |
 | `-n, --dry-run`   | Report what would be reformatted without writing                                   |
-| `--[no-]prune`    | Remove unknown keys instead of erroring on them                                    |
+| `--prune`         | Remove unknown keys instead of erroring on them                                    |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded) |
 | `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                  |
 | `--no-config`     | Do not load any `.clover.yaml` config                                              |
@@ -98,7 +99,7 @@ clover annotate [options] [<path>…]
 | `-n, --dry-run`   | Preview the proposed annotations without writing                                   |
 | `-w, --write`     | Apply the proposed annotations                                                     |
 | `--force`         | Rewrite an existing annotation into its canonical minimal form                     |
-| `--[no-]sidecar`  | Generate [sidecars](sidecar.md) for comment-less targets (`--no-sidecar` opts out) |
+| `--no-sidecar`    | Propose inline comments only, never generating [sidecars](sidecar.md)              |
 | `--no-ignore`     | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded) |
 | `--config <path>` | Path to a [`.clover.yaml`](configuration.md) file                                  |
 | `--no-config`     | Do not load any `.clover.yaml` config                                              |

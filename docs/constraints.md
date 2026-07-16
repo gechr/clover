@@ -28,6 +28,10 @@ Instead of a keyword, give a semver range. Ranges combine comparators with comma
 FROM redis:7.2.0
 ```
 
+## Ignoring constraints
+
+`clover run --no-constraint` drops every directive's `constraint` for that run, so each marker selects the newest version its other rules allow. Use it to preview what a fully unconstrained run would pick without editing any annotations.
+
 ## Downgrades
 
 Clover never selects an older version than the current one unless you allow it:

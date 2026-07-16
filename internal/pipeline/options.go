@@ -16,6 +16,7 @@ const defaultScanLabel = "Scanning files"
 
 type settings struct {
 	configs          *config.Resolver
+	constraint       *bool
 	cooldown         *time.Duration
 	current          string
 	deep             *bool
@@ -47,6 +48,13 @@ type Option func(*settings)
 // over every root. Without it the scan applies no project config.
 func WithConfig(r *config.Resolver) Option {
 	return func(s *settings) { s.configs = r }
+}
+
+// WithConstraint overrides the per-directive constraint rule for every marker:
+// an explicit false drops each directive's constraint so the newest version
+// wins, while nil (or true) leaves the per-directive rule in force.
+func WithConstraint(allow *bool) Option {
+	return func(s *settings) { s.constraint = allow }
 }
 
 // WithDeep overrides the per-root run.deep default for every marker: a deep
