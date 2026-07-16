@@ -377,7 +377,6 @@ func build(ctx context.Context, roots []string, opts ...Option) (*plan, []scan.F
 type plan struct {
 	checksumSource *checksum.Resolver
 	configs        *config.Resolver
-	constraint     *bool
 	cooldown       *time.Duration
 	deep           *bool
 	disabled       []Result
@@ -387,6 +386,7 @@ type plan struct {
 	force          *bool
 	lines          map[string][]string
 	markers        []Marker
+	noConstraint   bool
 	now            time.Time
 	parseErrors    []Result
 	prerelease     *bool
@@ -469,7 +469,6 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 	checksumClient := httpcache.New()
 	return &plan{
 		configs:        set.configs,
-		constraint:     set.constraint,
 		downgrade:      set.downgrade,
 		checksumSource: checksum.NewResolver(checksumClient),
 		deep:           set.deep,
@@ -478,6 +477,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		force:          set.force,
 		lines:          lines,
 		markers:        markers,
+		noConstraint:   set.noConstraint,
 		now:            set.now,
 		parseErrors:    parseErrors,
 		prerelease:     set.prerelease,
@@ -835,7 +835,7 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// --no-constraint drops the directive's constraint rule: appended after the
 	// compiled options it overwrites the constraint, and a nil constraint
 	// allows every candidate.
-	if p.constraint != nil && !*p.constraint {
+	if p.noConstraint {
 		opts = append(opts, version.WithConstraint(nil))
 	}
 	if d, ok := p.cooldownFor(m, cfg); ok {

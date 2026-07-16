@@ -24,4 +24,4 @@ Cooldown still applies when [tracking floating refs](tracking.md). A digest or c
 
 ## Precedence
 
-Three places can set a cooldown, and they resolve in a fixed order. The `--cooldown` flag on [`run`](commands.md#run) overrides every directive for that invocation, and `--cooldown=0` disables cooldowns outright, which is useful when a fix must ship now. A directive's own `cooldown` key is next, a deliberate per-line choice. The [`run.cooldown`](configuration.md) config default comes last, filling in only for directives that carry no cooldown of their own.
+Three places can set a cooldown, and they resolve in a fixed order. The `--cooldown` flag on [`run`](commands.md#run) overrides every directive for that invocation, and `--no-cooldown` disables cooldowns outright, which is useful when a fix must ship now. A directive's own `cooldown` key is next, a deliberate per-line choice. The [`run.cooldown`](configuration.md) config default comes last, filling in only for directives that carry no cooldown of their own.

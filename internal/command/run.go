@@ -34,25 +34,26 @@ import (
 
 // cmdRun resolves every directive's version and rewrites it in place.
 type cmdRun struct {
-	Paths      []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                                                                     predictor:"path"`
-	Infer      bool         "            help:\"Update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
-	Enable     []string     `            help:"Resolve only these providers, skipping all others"                                         clib:"terse='Enable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                   placeholder:"<provider>"`
-	Disable    []string     `            help:"Skip these providers, resolving all others"                                                clib:"terse='Disable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                  placeholder:"<provider>"`
-	Tags       []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',complete='predictor=tag,comma',group='Options/Selection/3'"                          placeholder:"<tag>"      short:"t" aliases:"tags"`
-	To         string       "            help:\"Pin matched markers to this exact version (implies `--downgrade --force`)\"                clib:\"terse='Pin version',group='Options/Selection/3'\"                                                          placeholder:\"<version>\""
-	Constraint *bool        `            help:"Ignore every directive's constraint when selecting versions"                               clib:"terse='Enable constraints',group='Options/Selection/3',negative"                                                                                              negatable:""`
-	Cooldown   string       `            help:"Override every directive's cooldown (0 to disable)"                                        clib:"terse='Cooldown override',group='Options/Selection/3'"                                                      placeholder:"<duration>"`
-	Downgrade  *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection/3',positive"                                                                                                negatable:""`
-	Prerelease *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection/3',positive"                                                                                               negatable:""`
-	Force      *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection/3',positive"                                                                                                    negatable:""`
-	Cache      *bool        `            help:"Fetch everything fresh, skipping the cross-run HTTP cache"                                 clib:"terse='HTTP cache',group='Options/Lookup',negative"                                                                                                           negatable:""`
-	Deep       *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup',positive"                                                                                                          negatable:""`
-	Offline    bool         `            help:"Resolve from the HTTP cache alone (no network requests)"                                   clib:"terse='Offline',group='Options/Lookup'"`
-	Verify     *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup',positive\""
-	Yes        bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                                                                                           short:"y"`
-	DryRun     bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                                                                             short:"n" aliases:"dry"`
-	NoIgnore   bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
-	Output     *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
+	Paths        []string     `name:"path" help:"Files or directories to scan"                                           arg:"" optional:"" clib:"terse='Paths to scan'"                                                                     predictor:"path"`
+	Infer        bool         "            help:\"Update versions without requiring a `clover:` directive\"                clib:\"terse='Infer markers',group='Options/Selection/1'\""
+	Enable       []string     `            help:"Resolve only these providers, skipping all others"                                         clib:"terse='Enable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                   placeholder:"<provider>"`
+	Disable      []string     `            help:"Skip these providers, resolving all others"                                                clib:"terse='Disable providers',complete='predictor=provider,comma',group='Options/Selection/2'"                  placeholder:"<provider>"`
+	Tags         []string     `name:"tag"  help:"Only process directives matching these tags"                                               clib:"terse='Filter by tags',complete='predictor=tag,comma',group='Options/Selection/3'"                          placeholder:"<tag>"      short:"t" aliases:"tags"`
+	To           string       "            help:\"Pin matched markers to this exact version (implies `--downgrade --force`)\"                clib:\"terse='Pin version',group='Options/Selection/3'\"                                                          placeholder:\"<version>\""
+	Cooldown     string       "            help:\"Override every directive's `cooldown`\"                                                   clib:\"terse='Cooldown override',group='Options/Selection/3'\"                                                    placeholder:\"<duration>\"                                     xor:\"cooldown\""
+	NoCooldown   bool         "            help:\"Ignore every directive's `cooldown`\"                                                     clib:\"terse='No cooldown',group='Options/Selection/3'\"                                                                                                                         xor:\"cooldown\""
+	NoConstraint bool         "            help:\"Ignore every directive's `constraint` when selecting versions\"                           clib:\"terse='No constraint',group='Options/Selection/3'\""
+	Downgrade    *bool        `            help:"Allow selecting versions older than the current one"                                       clib:"terse='Allow downgrades',group='Options/Selection/3',positive"                                                                                                negatable:""`
+	Prerelease   *bool        `            help:"Allow selecting prerelease versions"                                                       clib:"terse='Allow prereleases',group='Options/Selection/3',positive"                                                                                               negatable:""`
+	Force        *bool        `            help:"Re-pin a followed digest even when the version it follows is unchanged"                    clib:"terse='Force re-pin',group='Options/Selection/3',positive"                                                                                                    negatable:""`
+	Cache        *bool        `            help:"Fetch everything fresh (skips the offline HTTP cache)"                                     clib:"terse='HTTP cache',group='Options/Lookup',negative"                                                                                                           negatable:""`
+	Deep         *bool        `            help:"Follow pagination to fetch every version (more accurate, but slower)"                      clib:"terse='Deep lookup',group='Options/Lookup',positive"                                                                                                          negatable:""`
+	Offline      bool         `            help:"Resolve from the HTTP cache alone (no network requests)"                                   clib:"terse='Offline',group='Options/Lookup'"`
+	Verify       *bool        "            help:\"Perform additional verification against upstream tags (implies `--deep`)\"                          negatable:\"\"                                        clib:\"terse='Verify tags',group='Options/Lookup',positive\""
+	Yes          bool         `            help:"Proceed without confirming a deep lookup"                                                  clib:"terse='Assume yes',group='Options/Lookup'"                                                                                           short:"y"`
+	DryRun       bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                                                                             short:"n" aliases:"dry"`
+	NoIgnore     bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
+	Output       *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
 }
 
 // applyTo wires the implications of --to: pinning to one exact version means
@@ -126,6 +127,11 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	}
 
 	c.applyTo()
+	// --no-cooldown is sugar for the zero override; xor keeps it and an
+	// explicit --cooldown from disagreeing.
+	if c.NoCooldown {
+		c.Cooldown = "0"
+	}
 	cooldown, err := cooldownOverride(c.Cooldown)
 	if err != nil {
 		return err
@@ -152,17 +158,17 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	// gate) pass through here.
 	summary, err := mode.Run(ctx, roots(c.Paths), c.DryRun, int(workers),
 		pipeline.WithConfig(configs),
-		pipeline.WithConstraint(c.Constraint),
 		pipeline.WithCooldown(cooldown),
 		pipeline.WithDeep(c.Deep),
-		pipeline.WithInfer(c.Infer),
-		pipeline.WithRequireDirective(!c.Infer),
 		pipeline.WithDowngrade(c.Downgrade),
 		pipeline.WithForce(c.Force),
+		pipeline.WithInfer(c.Infer),
+		pipeline.WithNoConstraint(c.NoConstraint),
 		pipeline.WithNoIgnore(c.NoIgnore),
 		pipeline.WithPrerelease(c.Prerelease),
 		pipeline.WithProviderFilter(providers),
 		pipeline.WithReporter(reporter),
+		pipeline.WithRequireDirective(!c.Infer),
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithTagFilter(filter),
 		pipeline.WithTo(c.To),

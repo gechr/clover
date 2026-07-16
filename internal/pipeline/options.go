@@ -16,7 +16,6 @@ const defaultScanLabel = "Scanning files"
 
 type settings struct {
 	configs          *config.Resolver
-	constraint       *bool
 	cooldown         *time.Duration
 	current          string
 	deep             *bool
@@ -26,6 +25,7 @@ type settings struct {
 	ignoreFiles      []string
 	infer            bool
 	maxSize          int64
+	noConstraint     bool
 	noIgnore         bool
 	now              time.Time
 	prerelease       *bool
@@ -48,13 +48,6 @@ type Option func(*settings)
 // over every root. Without it the scan applies no project config.
 func WithConfig(r *config.Resolver) Option {
 	return func(s *settings) { s.configs = r }
-}
-
-// WithConstraint overrides the per-directive constraint rule for every marker:
-// an explicit false drops each directive's constraint so the newest version
-// wins, while nil (or true) leaves the per-directive rule in force.
-func WithConstraint(allow *bool) Option {
-	return func(s *settings) { s.constraint = allow }
 }
 
 // WithDeep overrides the per-root run.deep default for every marker: a deep
@@ -86,6 +79,12 @@ func WithIgnoreFiles(names ...string) Option {
 
 // WithMaxSize sets the largest file the scan will read.
 func WithMaxSize(n int64) Option { return func(s *settings) { s.maxSize = n } }
+
+// WithNoConstraint drops every directive's constraint rule, so each marker
+// selects the newest version its other rules allow.
+func WithNoConstraint(on bool) Option {
+	return func(s *settings) { s.noConstraint = on }
+}
 
 // WithNoIgnore disables ignore-file pruning (.gitignore) so otherwise-ignored
 // files are scanned. VCS directories stay excluded.

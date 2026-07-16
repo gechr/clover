@@ -36,7 +36,8 @@ clover run [options] [<path>…]
 | `-y, --yes`             | Proceed without confirming a deep lookup                                                |
 | `--offline`             | Resolve from the [HTTP cache](caching.md) alone, making no network requests             |
 | `--downgrade`           | Allow selecting versions older than the current one                                     |
-| `--cooldown <duration>` | Override every directive's [`cooldown`](cooldown.md), e.g. `72h` or `2w` (`0` disables) |
+| `--cooldown <duration>` | Override every directive's [`cooldown`](cooldown.md), e.g. `72h` or `2w`                |
+| `--no-cooldown`         | Ignore every directive's [`cooldown`](cooldown.md)                                      |
 | `--no-constraint`       | Ignore every directive's [`constraint`](constraints.md) when selecting versions         |
 | `--prerelease`          | Allow selecting [prerelease](prereleases.md) versions                                   |
 | `--force`               | Re-pin followed digests even when the version they follow is unchanged                  |

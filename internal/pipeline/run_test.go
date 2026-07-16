@@ -1917,8 +1917,8 @@ func TestRunPrereleaseOverride(t *testing.T) {
 	require.Equal(t, "2.0.0-rc.1", files[0].Results[0].Resolved, "flag allowed the prerelease")
 }
 
-// TestRunConstraintOverride confirms WithConstraint(false) drops a directive's
-// constraint rule so the newest version wins, while nil leaves it in force.
+// TestRunConstraintOverride confirms WithNoConstraint drops a directive's
+// constraint rule so the newest version wins, while unset leaves it in force.
 func TestRunConstraintOverride(t *testing.T) {
 	provider.Register(fakeProvider{
 		name: "conflag",
@@ -1937,7 +1937,7 @@ func TestRunConstraintOverride(t *testing.T) {
 	require.Equal(t, "1.0.5", files[0].Results[0].Resolved, "constraint holds by default")
 
 	files, err = pipeline.Run(context.Background(), []string{dir},
-		pipeline.WithConstraint(new(false)))
+		pipeline.WithNoConstraint(true))
 	require.NoError(t, err)
 	require.True(t, files[0].Results[0].Changed)
 	require.Equal(t, "2.0.0", files[0].Results[0].Resolved, "flag dropped the constraint")
