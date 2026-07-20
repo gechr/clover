@@ -32,7 +32,7 @@ func TestConductorInitLoadsCloverHyperlinkFormat(t *testing.T) {
 	// with Clover's own customizations layered on via ConfigureLog.
 	conductor.New(conductor.App{Name: "clover", ConfigureLog: logger.Configure})
 
-	formats := clog.Default.FieldFormats()
+	formats := clog.Default().FieldFormats()
 	require.Equal(t, "vscode://file{path}", formats.HyperlinkPathFormat)
 	require.Equal(t, "vscode://file{path}:{line}", formats.HyperlinkLineFormat)
 	require.Equal(t, "vscode://file{path}:{line}:{column}", formats.HyperlinkColumnFormat)

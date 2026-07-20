@@ -114,7 +114,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	launch(c.Offline)
 	start := time.Now()
 	ctx := context.Background()
-	reporter := console.New(ctx, clog.Default, console.WithInfer(c.Infer))
+	reporter := console.New(ctx, clog.Default(), console.WithInfer(c.Infer))
 
 	filter, err := tagFilter(c.Tags)
 	if err != nil {
@@ -202,7 +202,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 		reportAuth(ctx, summary)
 	}
 	reportDeep(summary, truncated)
-	report.Run(clog.Default, summary, c.DryRun, detail)
+	report.Run(clog.Default(), summary, c.DryRun, detail)
 	return runErr(summary)
 }
 

@@ -56,7 +56,7 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	}
 	write, check := c.mode(cfg)
 
-	reporter := console.New(ctx, clog.Default)
+	reporter := console.New(ctx, clog.Default())
 	summary, err := mode.Annotate(
 		ctx,
 		roots(c.Paths),
@@ -78,7 +78,7 @@ func (c *cmdAnnotate) Run(configs *config.Resolver, workers parallelism) error {
 	summary.Elapsed = time.Since(start)
 
 	annotateDiscovered(summary)
-	report.Annotate(clog.Default, summary, write)
+	report.Annotate(clog.Default(), summary, write)
 
 	if failed := writeFailures(summary); failed > 0 {
 		return fmt.Errorf("%s could not be written", human.Pluralize(failed, "file", "files"))

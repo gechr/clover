@@ -47,7 +47,7 @@ func (c *cmdFormat) Run(configs *config.Resolver, workers parallelism) error {
 		configs,
 		int(workers),
 		pipeline.WithNoIgnore(c.NoIgnore),
-		pipeline.WithReporter(console.New(ctx, clog.Default)),
+		pipeline.WithReporter(console.New(ctx, clog.Default())),
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithVersion(clive.Current()),
 		pipeline.WithWorkers(int(workers)),
@@ -56,7 +56,7 @@ func (c *cmdFormat) Run(configs *config.Resolver, workers parallelism) error {
 		return err
 	}
 
-	report.Format(clog.Default, summary, dry)
+	report.Format(clog.Default(), summary, dry)
 	// An unknown key fails format like it fails lint and run, so a stale or
 	// mistyped key cannot pass a CI gate; --prune removes them instead, so there
 	// is nothing left to reject.

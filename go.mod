@@ -13,9 +13,9 @@ require (
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.7.7
-	github.com/gechr/clog v0.13.17
+	github.com/gechr/clog v0.14.1
 	github.com/gechr/conductor v0.1.13
-	github.com/gechr/x v0.4.0
+	github.com/gechr/x v0.4.2
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0

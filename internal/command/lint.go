@@ -43,7 +43,7 @@ func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
 	summary, err := mode.Lint(ctx, roots(c.Paths),
 		pipeline.WithConfig(configs),
 		pipeline.WithNoIgnore(c.NoIgnore),
-		pipeline.WithReporter(console.New(ctx, clog.Default)),
+		pipeline.WithReporter(console.New(ctx, clog.Default())),
 		pipeline.WithScanLabel(scanLabelComments),
 		pipeline.WithTagFilter(filter),
 		pipeline.WithVersion(clive.Current()),
@@ -58,7 +58,7 @@ func (c *cmdLint) Run(configs *config.Resolver, workers parallelism) error {
 	if detail == output.GitHub {
 		report.GitHub(os.Stdout, summary, false)
 	} else {
-		report.Lint(clog.Default, summary, detail)
+		report.Lint(clog.Default(), summary, detail)
 	}
 	if !summary.OK() {
 		return failuresError(summary.Errored() + summary.Skipped())
