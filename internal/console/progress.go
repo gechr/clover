@@ -5,6 +5,7 @@ package console
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -191,6 +192,8 @@ func (r *Reporter) Begin(names []string) ([]progress.Task, func()) {
 // line is the single overall progress line. Every marker's terminal event
 // advances its counter; the last one finishes the underlying clog task.
 type line struct {
+	mu sync.Mutex // guards update, which is not safe for concurrent mutation
+
 	update *fx.Update
 	finish func(error)
 	total  int
@@ -206,10 +209,13 @@ func (l *line) Fail(string) { l.advance() }
 func (l *line) Skip(string) { l.advance() }
 
 // advance records one finished marker and refreshes the progress field,
-// finishing the line once every marker has reported.
+// finishing the line once every marker has reported. Markers report from
+// parallel wave goroutines, so the shared update is serialized here.
 func (l *line) advance() {
 	n := int(l.done.Add(1))
+	l.mu.Lock()
 	l.update.Fraction(field.Progress, n, l.total).Send()
+	l.mu.Unlock()
 	if n >= l.total {
 		l.finish(nil)
 	}

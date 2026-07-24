@@ -24,7 +24,7 @@ func TestConductorInitLoadsCloverHyperlinkFormat(t *testing.T) {
 	t.Setenv("CLOVER_HYPERLINK_FORMAT", "vscode")
 	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Cleanup(func() {
-		clog.SetEnvPrefix(clog.DefaultEnvPrefix)
+		clog.SetEnvPrefix("CLOG")
 		clog.SetFieldFormats(clog.DefaultFieldFormats())
 	})
 
