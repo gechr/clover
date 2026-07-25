@@ -49,6 +49,11 @@ func (p *Provider) Color(dark bool) color.Color {
 	return provider.Adapt(dark, "#3C873A", "#6CC24A")
 }
 
+// BareMajor marks a bare single-number pin as major-precision rather than a
+// calendar tag: nodejs.org publishes vX.Y.Z runtimes, never a calendar stamp,
+// so a dotted candidate may replace one.
+func (p *Provider) BareMajor() {}
+
 // Dated marks the listing as date-bearing: every release carries a publication
 // date, so cooldown applies.
 func (p *Provider) Dated() {}

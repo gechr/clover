@@ -45,6 +45,11 @@ func (p *Provider) Color(dark bool) color.Color {
 	return provider.Adapt(dark, "#0E7C90", "#22C0D0")
 }
 
+// BareMajor marks a bare single-number pin as major-precision rather than a
+// calendar tag: the go.dev download index publishes goX.Y.Z toolchains, never a
+// calendar stamp, so a dotted candidate may replace one.
+func (p *Provider) BareMajor() {}
+
 // Keys reports the directive keys the provider accepts. go.dev needs none of its
 // own: the whole listing arrives in one fetch, and per-platform checksum
 // selection is a follower's job via its pattern, not a provider option.

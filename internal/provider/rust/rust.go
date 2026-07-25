@@ -58,6 +58,11 @@ func (p *Provider) Color(dark bool) color.Color {
 	return provider.Adapt(dark, "#8A3E18", "#B0562C")
 }
 
+// BareMajor marks a bare single-number pin as major-precision rather than a
+// calendar tag: static.rust-lang.org publishes X.Y.Z toolchains, never a
+// calendar stamp, so a dotted candidate may replace one.
+func (p *Provider) BareMajor() {}
+
 // Dated marks the listing as date-bearing: every release carries the date its
 // manifest was published under, so cooldown applies.
 func (p *Provider) Dated() {}

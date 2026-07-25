@@ -818,9 +818,15 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// (1.15.0-ent) the include above already scoped to stays selectable.
 	opts = append(opts, version.WithQualifier(version.Qualifier(located.Current())))
 	opts = append(opts, version.WithNow(p.now))
-	// A bare single-number pin in a mise file (node = "24") is a major-precision
-	// pin, not a calendar tag, so dotted candidates stay eligible against it.
-	if match.MiseFile(m.File) {
+	// A bare single-number pin is a major-precision pin, not a calendar tag, so
+	// dotted candidates stay eligible against it. Two independent things can
+	// establish that: the file shape, where a mise tool pin (node = "24") carries
+	// that meaning whatever provider resolves it, and the provider, whose upstream
+	// may never publish a calendar tag at all (see [provider.BareMajorer]). Either
+	// alone is enough, so a bare pin resolves both in a mise file and in the
+	// workflow input or CI variable that spells the same thing.
+	_, bareMajor := prov.(provider.BareMajorer)
+	if match.MiseFile(m.File) || bareMajor {
 		opts = append(opts, version.WithBareMajor(true))
 	}
 	// A CLI override wins over the root's config default, which wins over the

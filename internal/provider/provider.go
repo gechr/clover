@@ -86,6 +86,34 @@ type Anchorer interface {
 	Anchor()
 }
 
+// BareMajorer is an optional capability marking a provider whose versions are
+// always semver-shaped, never calendar stamps. A bare single-number version on a
+// target line is ambiguous - 20 could be a major-precision pin or a calendar tag
+// - and selection's scheme guard defaults to reading it as a calendar tag, so a
+// dotted candidate may not replace it. For a provider that never publishes one,
+// that reading is simply wrong: `node-version: 20` in a workflow means the
+// latest 20.x, and without this capability it matches no candidate at all.
+//
+// It is a property of the upstream's versioning scheme, not of the file, which
+// is why it lives here rather than beside the file-shape rule that grants the
+// same treatment to a mise tool pin (where a bare number carries that meaning
+// whatever provider resolves it).
+//
+// Being provider-global, it can only be true of a single-publisher upstream
+// whose whole listing shares one scheme - a toolchain's own download index. A
+// multi-publisher namespace can never claim it, however conventional its
+// packages are: PyPI carries calendar versions (certifi 2024.2.2, pytz 2024.1)
+// beside semver ones, so a true here would let a dotted candidate replace a
+// genuine calendar tag. Forge tags and OCI tags are per-repository schemes and
+// fail for the same reason. Making a bare pin resolve for one calver-free
+// package of such a registry needs a per-marker directive key, which this
+// capability could never express.
+type BareMajorer interface {
+	// BareMajor marks a bare single-number pin as major-precision; the method body
+	// is empty, its presence is the signal.
+	BareMajor()
+}
+
 // Dater is an optional capability marking a provider whose listing can carry
 // publication dates for at least some resources, so a cooldown may apply. A
 // provider that never dates any candidate omits it, letting clover skip

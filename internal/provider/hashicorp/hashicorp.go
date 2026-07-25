@@ -52,6 +52,11 @@ func (p *Provider) Color(dark bool) color.Color {
 	return provider.Adapt(dark, "#C2367E", "#E070B0")
 }
 
+// BareMajor marks a bare single-number pin as major-precision rather than a
+// calendar tag: releases.hashicorp.com publishes X.Y.Z product releases, never
+// a calendar stamp, so a dotted candidate may replace one.
+func (p *Provider) BareMajor() {}
+
 // RecencyOrdered marks the releases listing as newest-first, so a shallow lookup
 // always holds the latest release; --deep is hinted only when a constrained
 // marker finds no candidate while more pages remained.

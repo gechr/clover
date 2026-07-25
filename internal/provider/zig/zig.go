@@ -45,6 +45,11 @@ func (p *Provider) Color(dark bool) color.Color {
 	return provider.Adapt(dark, "#B87400", "#EC9B12")
 }
 
+// BareMajor marks a bare single-number pin as major-precision rather than a
+// calendar tag: ziglang.org publishes X.Y.Z releases, never a calendar stamp,
+// so a dotted candidate may replace one.
+func (p *Provider) BareMajor() {}
+
 // Dated marks the listing as date-bearing: a tagged release carries a publication
 // date. An entry without one falls to the post-discovery date check.
 func (p *Provider) Dated() {}
