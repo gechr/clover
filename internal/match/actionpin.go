@@ -61,11 +61,10 @@ func (ActionPin) Locate(line string) (Location, error) {
 	}
 	commentStart := end + hash + 1
 
-	tokens := Find(line[commentStart:])
-	if len(tokens) == 0 {
+	token, ok := commentToken(line[commentStart:])
+	if !ok {
 		return nil, errors.New("action pin version comment has no version")
 	}
-	token := tokens[0]
 	token.Span.Start += commentStart
 	token.Span.End += commentStart
 
@@ -77,6 +76,56 @@ func (ActionPin) Locate(line string) (Location, error) {
 		commit:     commit,
 		hasComment: true,
 	}, nil
+}
+
+// commentToken selects the version token in the trailing comment region, the
+// text after the first # following the SHA. That region may hold more than one
+// #-delimited comment - a directive such as `# renovate: …` sitting beside the
+// version - and position alone does not say which is the pin's version: taking
+// the first token would read one out of a leading directive, taking the last
+// would read one out of a trailing note.
+//
+// A comment whose whole body is a single version token is unambiguous, so the
+// first such segment wins wherever it sits. Only when no segment qualifies does
+// it fall back to the first token anywhere in the region, preserving the
+// behaviour for a decorated comment like `# v1.2.3 (pinned)`.
+func commentToken(region string) (Token, bool) {
+	for start := 0; start <= len(region); {
+		seg, next := region[start:], -1
+		if i := strings.IndexByte(seg, '#'); i >= 0 {
+			seg, next = seg[:i], start+i+1
+		}
+		if token, ok := soleToken(seg); ok {
+			token.Span.Start += start
+			token.Span.End += start
+			return token, true
+		}
+		if next < 0 {
+			break
+		}
+		start = next
+	}
+
+	tokens := Find(region)
+	if len(tokens) == 0 {
+		return Token{}, false
+	}
+	return tokens[0], true
+}
+
+// soleToken returns the token when seg is wholly one version token, i.e. only
+// whitespace surrounds it. A segment carrying any other text is prose, not a
+// version comment, so it is not treated as the anchor.
+func soleToken(seg string) (Token, bool) {
+	tokens := Find(seg)
+	if len(tokens) != 1 {
+		return Token{}, false
+	}
+	token := tokens[0]
+	if !xstrings.IsBlank(seg[:token.Span.Start]) || !xstrings.IsBlank(seg[token.Span.End:]) {
+		return Token{}, false
+	}
+	return token, true
 }
 
 // commitSpan locates the @<40-hex> commit SHA of a uses: action reference,

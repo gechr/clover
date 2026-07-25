@@ -192,3 +192,53 @@ func TestForLeavesNonPinToSmart(t *testing.T) {
 		})
 	}
 }
+
+// TestActionPinMultiComment covers a pin whose line carries a directive comment
+// beside the version comment. The version is whichever #-delimited segment holds
+// a version token and nothing else, so it is found and rewritten wherever it
+// sits, and a version-shaped number inside the directive's prose is left alone.
+func TestActionPinMultiComment(t *testing.T) {
+	t.Parallel()
+
+	for name, line := range map[string]string{
+		"version first": "  - uses: actions/checkout@" + oldSHA + " # v4.1.0  # renovate: pin",
+		"version last":  "  - uses: actions/checkout@" + oldSHA + " # renovate: pin  # v4.1.0",
+		"prose version": "  - uses: actions/checkout@" + oldSHA + " # renovate: broken since 2.1.0  # v4.1.0",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			located, err := match.NewActionPin().Locate(line)
+			require.NoError(t, err)
+			require.Equal(t, "v4.1.0", located.Current())
+
+			got, changed, err := located.Render(line, model.Candidate{
+				Version: "4.2.0",
+				Commit:  newSHA,
+			})
+			require.NoError(t, err)
+			require.True(t, changed)
+			require.Contains(t, got, "# v4.2.0")
+			require.NotContains(t, got, "v4.1.0")
+			require.Contains(t, got, "renovate:")
+		})
+	}
+}
+
+// TestActionPinDecoratedComment covers a single comment that decorates the
+// version with prose: no segment is wholly a version token, so the first token
+// in the region still anchors the pin, as it did before multi-comment support.
+func TestActionPinDecoratedComment(t *testing.T) {
+	t.Parallel()
+
+	line := "  - uses: actions/checkout@" + oldSHA + " # v4.1.0 (pinned)"
+
+	located, err := match.NewActionPin().Locate(line)
+	require.NoError(t, err)
+	require.Equal(t, "v4.1.0", located.Current())
+
+	got, changed, err := located.Render(line, model.Candidate{Version: "4.2.0", Commit: newSHA})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "  - uses: actions/checkout@"+newSHA+" # v4.2.0 (pinned)", got)
+}
