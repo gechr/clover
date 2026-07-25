@@ -32,6 +32,7 @@ type Inference struct {
 func (i Inference) Missing() string {
 	switch i.Provider {
 	case constant.ProviderDocker,
+		constant.ProviderGitea,
 		constant.ProviderGithub,
 		constant.ProviderGitlab:
 		if i.Repository == "" {
@@ -110,6 +111,14 @@ func NewTable(path string) Table {
 // catch-all, a follower) is skipped, since it names no provider to infer. It
 // returns ok=false when nothing matches, leaving the marker for the caller to
 // reject.
+//
+// An inference may decline the line by naming no provider, and the walk
+// continues past it. A shape whose provider is not fixed by the route reads it
+// from the file - a pre-commit rev is tracked on whichever forge its repo: URL
+// names - so recognizing the shape and resolving it to a provider are two steps,
+// and only the second can fail. Declining keeps that failure indistinguishable
+// from never having matched, rather than surfacing a provider-less inference
+// that every caller downstream would have to guard against.
 func (t Table) Infer(lines []string, target int) (Inference, bool) {
 	if target < 0 || target >= len(lines) {
 		return Inference{}, false
@@ -123,7 +132,9 @@ func (t Table) Infer(lines []string, target int) (Inference, bool) {
 		if r.when.lineMatch != nil && !r.when.lineMatch.Matches(line) {
 			continue
 		}
-		return r.infer(s), true
+		if inferred := r.infer(s); inferred.Provider != "" {
+			return inferred, true
+		}
 	}
 	return Inference{}, false
 }

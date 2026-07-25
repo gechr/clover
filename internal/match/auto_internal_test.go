@@ -66,18 +66,30 @@ func TestAlternation(t *testing.T) {
 // nonetheless always agree: a route that dispatched one provider and inferred
 // another would resolve a marker against an upstream the line never named.
 //
-// init already asserts the two are present together; this pins the value. Every
-// inference names its provider unconditionally, so an empty line is enough to
-// read it back without depending on a shape.
+// init already asserts a dispatching route carries an inference; this pins the
+// value. A provider-fixed inference names its provider unconditionally, so an
+// empty line is enough to read it back without depending on a shape.
+//
+// A detection-only route is the deliberate exception: it declares no provider
+// because it reads one from the file, so an empty line must leave it declining
+// rather than defaulting to some provider.
 func TestRouteInferenceNamesItsProvider(t *testing.T) {
 	t.Parallel()
 
 	empty := subject{lines: []string{""}, target: 0}
+	detectionOnly := 0
 	for _, r := range routes {
 		if r.infer == nil {
+			continue
+		}
+		if r.when.provider == "" {
+			detectionOnly++
+			require.Empty(t, r.infer(empty).Provider,
+				"a detection-only route must read its provider from the file")
 			continue
 		}
 		require.Equal(t, r.when.provider, r.infer(empty).Provider,
 			"route %q infers a different provider than it dispatches", r.when.provider)
 	}
+	require.NotZero(t, detectionOnly, "the detection-only branch is unexercised")
 }

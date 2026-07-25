@@ -15,22 +15,28 @@ import (
 // init asserts the built-in route table's two structural invariants: every
 // route glob compiles, the guarantee matchPath relies on (every glob constant in
 // this file appears as a route guard, so checking the table covers them all),
-// and a route names a provider exactly when it carries an inference.
+// and a route that dispatches a provider also carries an inference.
 //
 // The second is the one a new route is liable to break. A provider-bearing route
 // with no infer compiles cleanly and dispatches correctly for an explicit
 // provider, but [Table.Infer] skips it, so the shape silently stops being
-// auto-detected - a failure with no error to trace. Should a route ever need to
-// dispatch a provider it must not auto-detect, that intent has to become
-// explicit here rather than being spelled as an omission.
+// auto-detected - a failure with no error to trace.
+//
+// It deliberately does not hold in reverse. A route with an inference but no
+// provider guard is detection-only, which is what a shape whose provider is not
+// fixed needs: a pre-commit rev resolves to whichever forge its repo: URL names,
+// so no single provider could guard it. Such a route constrains nothing extra in
+// [For], and the rewriter it dispatches is reached through the guards it does
+// declare.
 func init() {
 	for _, r := range routes {
 		if r.when.path != "" && !doublestar.ValidatePattern(r.when.path) {
 			panic(fmt.Sprintf("match: invalid built-in route glob %q", r.when.path))
 		}
-		if (r.when.provider != "") != (r.infer != nil) {
+		if r.when.provider != "" && r.infer == nil {
 			panic(fmt.Sprintf(
-				"match: route for provider %q must name a provider and an inference together",
+				"match: route dispatching provider %q has no inference, so the shape "+
+					"it matches would silently stop being auto-detected",
 				r.when.provider,
 			))
 		}
@@ -240,6 +246,12 @@ const cargoGlob = "**/Cargo.toml"
 // each pin a subchart across sibling name, repository, and version fields.
 const helmChartGlob = "**/Chart.yaml"
 
+// preCommitGlob matches a pre-commit configuration, whose repos entries each
+// pin a hook repository across sibling repo and rev fields. Only the default
+// filename is matched: pre-commit reads any file passed to --config, but a
+// rev: elsewhere in a repository is not a hook pin.
+const preCommitGlob = "**/.pre-commit-config.{yaml,yml}"
+
 // terraformGlob matches Terraform configuration files, whose required_version
 // constraint pins the toolchain.
 const terraformGlob = "**/*.tf"
@@ -373,6 +385,25 @@ var routes = []route{
 			provider:  constant.ProviderGitlab,
 		},
 		infer:    inferComponent,
+		rewriter: NewSmart(),
+	},
+	{
+		// A pre-commit hook repository's pin, e.g. `rev: v5.0.0`. The forge is
+		// whichever the entry's sibling repo: URL names, so the route declares no
+		// provider and leaves that to its inference.
+		//
+		// The pattern requires a dotted numeric rev, which is what excludes the
+		// frozen form `pre-commit autoupdate --freeze` writes (a 40-hex commit SHA
+		// carrying its version in a trailing `# frozen: v5.0.0` comment). A commit
+		// SHA holds no dot, so it can never match. That exclusion is load-bearing
+		// rather than incidental: the smart rewriter would find the comment's
+		// version to be the line's only version-shaped token and bump it alone,
+		// leaving the SHA - the part that actually selects the code - untouched.
+		when: conditions{
+			path:      preCommitGlob,
+			lineMatch: mustPattern(`/^\s*rev\s*:\s*["']?v?\d+(\.\d+)+/`),
+		},
+		infer:    inferPreCommitRev,
 		rewriter: NewSmart(),
 	},
 	{
@@ -850,8 +881,11 @@ var routes = []route{
 	},
 	{
 		// A follower projecting a commit or sha256 onto its own line; the hash
-		// rewriter swaps the existing hex token. Followers carry provider=follow,
-		// so this never collides with the provider-gated routes above.
+		// rewriter swaps the existing hex token. A follower carries
+		// provider=follow, which no provider-gated route above accepts. The one
+		// route above that gates on no provider (pre-commit rev) is held off
+		// instead by its line pattern: it demands a dotted numeric version, and a
+		// follower's target line carries the bare hex token this rewriter swaps.
 		when:     conditions{value: constant.ValueCommit},
 		rewriter: NewHash(),
 	},

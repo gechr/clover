@@ -2,6 +2,8 @@
 
 The Gitea provider tracks the tags and releases of a repository on a Gitea or Forgejo forge. One provider serves every instance of the API. The `flavor` key selects which public forge to target: `codeberg` (the default, on [codeberg.org](https://codeberg.org)), `forgejo` (on code.forgejo.org), or `gitea` (on gitea.com).
 
+It is selected explicitly with `provider=gitea`, or [inferred](auto.md) from a [pre-commit](auto.md#recognized-shapes) hook repository hosted on codeberg.org. A hook on one of the other flavors needs the `flavor` key, which inference does not supply, so annotate it explicitly.
+
 ```dockerfile
 # clover: provider=gitea repository=forgejo/forgejo constraint=minor
 FROM codeberg.org/forgejo/forgejo:15.0.3

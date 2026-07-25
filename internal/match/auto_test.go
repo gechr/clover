@@ -959,3 +959,105 @@ func TestInferHelmDependencies(t *testing.T) {
 		})
 	}
 }
+
+func TestInferPreCommitRevs(t *testing.T) {
+	t.Parallel()
+
+	config := []string{
+		"repos:",
+		"- repo: https://github.com/pre-commit/pre-commit-hooks",
+		"  rev: v3.2.0",
+		"  hooks:",
+		"  - id: trailing-whitespace",
+		"-   repo: https://github.com/astral-sh/ruff-pre-commit",
+		"    hooks:",
+		"      - id: ruff",
+		"    rev: v0.9.10",
+		"- repo: https://gitlab.com/group/subgroup/project.git",
+		"  rev: 1.2.0",
+		"- repo: git@github.com:owner/name.git",
+		"  rev: v1.0.0",
+		"- repo: https://codeberg.org/owner/tool",
+		"  rev: v2.1.0",
+		"- repo: local",
+		"  rev: v9.9.9",
+		"- repo: https://git.example.com/owner/tool",
+		"  rev: v1.0.0",
+		"- repo: https://github.com/psf/black",
+		"  rev: 552baf822992936134cbd31a38f69c8cfe7c0f05  # frozen: v22.3.0",
+		"- repo: https://GitHub.com/Owner/Name",
+		"  rev: v1.5.0",
+	}
+
+	tests := []struct {
+		name   string
+		target int
+		want   match.Inference
+		ok     bool
+	}{
+		{
+			name:   "github hook repository",
+			target: 2,
+			want:   match.Inference{Provider: "github", Repository: "pre-commit/pre-commit-hooks"},
+			ok:     true,
+		},
+		{
+			name:   "deeper list indentation with the rev below the hooks",
+			target: 8,
+			want:   match.Inference{Provider: "github", Repository: "astral-sh/ruff-pre-commit"},
+			ok:     true,
+		},
+		{
+			name:   "gitlab subgroup path keeps every segment",
+			target: 10,
+			want:   match.Inference{Provider: "gitlab", Repository: "group/subgroup/project"},
+			ok:     true,
+		},
+		{
+			name:   "scp-like ssh remote",
+			target: 12,
+			want:   match.Inference{Provider: "github", Repository: "owner/name"},
+			ok:     true,
+		},
+		{
+			name:   "codeberg resolves through gitea's default flavor",
+			target: 14,
+			want:   match.Inference{Provider: "gitea", Repository: "owner/tool"},
+			ok:     true,
+		},
+		{
+			name:   "the local pseudo-repository names no forge",
+			target: 16,
+			ok:     false,
+		},
+		{
+			name:   "an unrecognized forge host is declined rather than guessed",
+			target: 18,
+			ok:     false,
+		},
+		{
+			// The smart rewriter would bump the comment's version and leave the SHA
+			// pointing at the old commit, so the route must not claim the line.
+			name:   "a frozen SHA pin is not claimed",
+			target: 20,
+			ok:     false,
+		},
+		{
+			// A hostname is case-insensitive, so the forge lookup folds case.
+			name:   "a mixed-case host reaches the same forge",
+			target: 22,
+			want:   match.Inference{Provider: "github", Repository: "Owner/Name"},
+			ok:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := match.Infer(".pre-commit-config.yaml", config, tt.target)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

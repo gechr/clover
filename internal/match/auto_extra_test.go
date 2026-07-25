@@ -31,6 +31,14 @@ func TestInference_Missing(t *testing.T) {
 			in:   match.Inference{Provider: constant.ProviderGithub, Repository: "owner/repo"},
 			want: "",
 		},
+		"gitea no repository": {
+			in:   match.Inference{Provider: constant.ProviderGitea},
+			want: "reference has no repository",
+		},
+		"gitea complete": {
+			in:   match.Inference{Provider: constant.ProviderGitea, Repository: "owner/tool"},
+			want: "",
+		},
 		"gitlab no repository": {
 			in:   match.Inference{Provider: constant.ProviderGitlab},
 			want: "reference has no repository",
