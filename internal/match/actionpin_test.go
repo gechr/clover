@@ -200,27 +200,39 @@ func TestForLeavesNonPinToSmart(t *testing.T) {
 func TestActionPinMultiComment(t *testing.T) {
 	t.Parallel()
 
-	for name, line := range map[string]string{
-		"version first": "  - uses: actions/checkout@" + oldSHA + " # v4.1.0  # renovate: pin",
-		"version last":  "  - uses: actions/checkout@" + oldSHA + " # renovate: pin  # v4.1.0",
-		"prose version": "  - uses: actions/checkout@" + oldSHA + " # renovate: broken since 2.1.0  # v4.1.0",
-	} {
+	tests := map[string]struct {
+		line string
+		want string
+	}{
+		"version first": {
+			line: "  - uses: actions/checkout@" + oldSHA + " # v4.1.0  # renovate: pin",
+			want: "  - uses: actions/checkout@" + newSHA + " # v4.2.0  # renovate: pin",
+		},
+		"version last": {
+			line: "  - uses: actions/checkout@" + oldSHA + " # renovate: pin  # v4.1.0",
+			want: "  - uses: actions/checkout@" + newSHA + " # renovate: pin  # v4.2.0",
+		},
+		"prose version": {
+			line: "  - uses: actions/checkout@" + oldSHA + " # renovate: broken since 2.1.0  # v4.1.0",
+			want: "  - uses: actions/checkout@" + newSHA + " # renovate: broken since 2.1.0  # v4.2.0",
+		},
+	}
+
+	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			located, err := match.NewActionPin().Locate(line)
+			located, err := match.NewActionPin().Locate(test.line)
 			require.NoError(t, err)
 			require.Equal(t, "v4.1.0", located.Current())
 
-			got, changed, err := located.Render(line, model.Candidate{
+			got, changed, err := located.Render(test.line, model.Candidate{
 				Version: "4.2.0",
 				Commit:  newSHA,
 			})
 			require.NoError(t, err)
 			require.True(t, changed)
-			require.Contains(t, got, "# v4.2.0")
-			require.NotContains(t, got, "v4.1.0")
-			require.Contains(t, got, "renovate:")
+			require.Equal(t, test.want, got)
 		})
 	}
 }
