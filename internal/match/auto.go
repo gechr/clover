@@ -340,12 +340,15 @@ func inferRequirement(s subject) Inference {
 	return Inference{Provider: constant.ProviderPypi, Package: pypiPackage(s.line())}
 }
 
-// inferProviderSource reads the source address of the required_providers entry
-// the target line's version constraint belongs to, which lives on a sibling
-// line of the entry.
-func inferProviderSource(name string) inferFunc {
+// inferRegistrySource reads the source address governing the target line's
+// version constraint, which lives on a sibling line of the enclosing block. Both
+// things a Terraform registry serves are reached the same way: a provider named
+// by a required_providers entry, or a module named by a module block. A version
+// belonging to neither infers no source, so the marker is left unresolved rather
+// than pointed at a registry that never served it.
+func inferRegistrySource(name string) inferFunc {
 	return func(s subject) Inference {
-		return Inference{Provider: name, Source: terraformSource(s.lines, s.target)}
+		return Inference{Provider: name, Source: registrySource(s.lines, s.target)}
 	}
 }
 

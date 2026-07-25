@@ -905,7 +905,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderTerraform,
 		},
-		infer:    inferProviderSource(constant.ProviderTerraform),
+		infer:    inferRegistrySource(constant.ProviderTerraform),
 		rewriter: NewSmart(),
 	},
 	{
@@ -928,7 +928,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderOpentofu,
 		},
-		infer:    inferProviderSource(constant.ProviderOpentofu),
+		infer:    inferRegistrySource(constant.ProviderOpentofu),
 		rewriter: NewSmart(),
 	},
 	{

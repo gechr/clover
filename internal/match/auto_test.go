@@ -828,6 +828,31 @@ func TestInferTerraformProviders(t *testing.T) {
 		`  source  = "terraform-aws-modules/vpc/aws"`,
 		`  version = "5.8.1"`,
 		"}",
+		"",
+		"module \"local\" {",
+		`  source  = "../modules/thing"`,
+		`  version = "1.0.0"`,
+		"}",
+		"",
+		"module \"git\" {",
+		`  source  = "git::https://github.com/org/repo.git?ref=v1.2.3"`,
+		`  version = "1.2.3"`,
+		"}",
+		"",
+		"module \"qualified\" {",
+		`  source  = "app.terraform.io/acme/vpc/aws"`,
+		`  version = "2.0.0"`,
+		"}",
+		"",
+		"module \"shorthand\" {",
+		`  source  = "github.com/hashicorp/example"`,
+		`  version = "3.0.0"`,
+		"}",
+		"",
+		"module \"devregistry\" {",
+		`  source  = "localhost:5000/acme/aws"`,
+		`  version = "4.0.0"`,
+		"}",
 	}
 
 	tests := []struct {
@@ -854,8 +879,51 @@ func TestInferTerraformProviders(t *testing.T) {
 			ok:     false,
 		},
 		{
-			name:   "module version pins a module, not a provider",
+			name:   "module version resolves the module registry address",
 			target: 18,
+			want: match.Inference{
+				Provider: "terraform",
+				Source:   "terraform-aws-modules/vpc/aws",
+			},
+			ok: true,
+		},
+		{
+			// A local module has no registry to resolve against; its version
+			// attribute is inert to Terraform itself.
+			name:   "a local path module names no registry source",
+			target: 23,
+			want:   match.Inference{Provider: "terraform"},
+			ok:     true,
+		},
+		{
+			// A git source carries its own ref, so the registry never served it.
+			name:   "a git-sourced module names no registry source",
+			target: 28,
+			want:   match.Inference{Provider: "terraform"},
+			ok:     true,
+		},
+		{
+			// A host-qualified address needs the host key, which inference does not
+			// supply, so the source is left for an explicit annotation.
+			name:   "a host-qualified module is left explicit",
+			target: 33,
+			want:   match.Inference{Provider: "terraform"},
+			ok:     true,
+		},
+		{
+			// Terraform reads a forge shorthand as a git source. It is three plain
+			// segments like a registry address, so only the dotted first segment
+			// tells them apart - without that it would be annotated and then
+			// rejected by the provider with advice about a marker nobody wrote.
+			name:   "a forge shorthand is a git source, not a registry address",
+			target: 38,
+			want:   match.Inference{Provider: "terraform"},
+			ok:     true,
+		},
+		{
+			// A port colon marks a hostname as surely as a dot does.
+			name:   "a host:port registry address is left explicit",
+			target: 43,
 			want:   match.Inference{Provider: "terraform"},
 			ok:     true,
 		},

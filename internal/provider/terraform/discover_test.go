@@ -207,3 +207,92 @@ func TestDiscoverHTTPError(t *testing.T) {
 		`opentofu: GET https://registry.opentofu.org/v1/providers/acme/missing/versions: {"errors":["Not Found"]} (404 Not Found)`,
 	)
 }
+
+// A module resolves through the modules.v1 service with its target system as a
+// path segment, where a provider uses providers.v1 and stops at the name. The
+// two services are advertised independently, so the discovery document decides
+// which endpoint is reachable.
+func TestDiscoverModuleUsesModulesService(t *testing.T) {
+	t.Parallel()
+
+	var paths []string
+	p := terraform.New(terraform.Terraform, terraform.WithTransport(
+		roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			paths = append(paths, req.URL.Path)
+			body := `{"modules.v1":"/v1/modules/","providers.v1":"/v1/providers/"}`
+			if strings.HasSuffix(req.URL.Path, "/versions") {
+				// The modules service nests versions under one entry per source,
+				// unlike the flat providers listing.
+				body = `{"modules":[{"source":"terraform-aws-modules/vpc/aws",` +
+					`"versions":[{"version":"5.8.0"},{"version":"5.8.1"}]}]}`
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{},
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Request:    req,
+			}, nil
+		}),
+	))
+	r, err := p.Resource(directiveOf(
+		directive.KV{Key: "source", Value: "terraform-aws-modules/vpc/aws"},
+	))
+	require.NoError(t, err)
+
+	got, err := p.Discover(t.Context(), r)
+	require.NoError(t, err)
+	require.Equal(t, []string{"5.8.0", "5.8.1"}, versions(got))
+	require.Equal(
+		t,
+		[]string{
+			"/.well-known/terraform.json",
+			"/v1/modules/terraform-aws-modules/vpc/aws/versions",
+		},
+		paths,
+	)
+}
+
+// A host offering providers.v1 but not modules.v1 cannot serve a module, and the
+// error names the service that is missing rather than the one that is present.
+func TestDiscoverModuleWithoutModulesService(t *testing.T) {
+	t.Parallel()
+
+	p := terraform.New(terraform.Terraform, terraform.WithTransport(
+		roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{},
+				Body:       io.NopCloser(strings.NewReader(`{"providers.v1":"/v1/providers/"}`)),
+				Request:    req,
+			}, nil
+		}),
+	))
+	r, err := p.Resource(directiveOf(
+		directive.KV{Key: "source", Value: "terraform-aws-modules/vpc/aws"},
+		directive.KV{Key: "host", Value: "registry.example.com"},
+	))
+	require.NoError(t, err)
+
+	_, err = p.Discover(t.Context(), r)
+	require.EqualError(t, err,
+		`terraform: host "registry.example.com" does not offer the modules.v1 service`)
+}
+
+// A module's web page carries its target system, where a provider's does not.
+func TestModuleURLAndIdentify(t *testing.T) {
+	t.Parallel()
+
+	p := terraform.New(terraform.Terraform)
+	r, err := p.Resource(directiveOf(
+		directive.KV{Key: "source", Value: "terraform-aws-modules/vpc/aws"},
+	))
+	require.NoError(t, err)
+
+	require.Equal(t,
+		"https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/5.8.1",
+		p.URL(r, model.Candidate{Version: "5.8.1"}))
+
+	id, link := p.Identify(r)
+	require.Equal(t, "terraform-aws-modules/vpc/aws", id)
+	require.Equal(t, "https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws", link)
+}

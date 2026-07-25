@@ -65,17 +65,24 @@ func TestResource(t *testing.T) {
 		{
 			name:    "missing source",
 			pairs:   nil,
-			wantErr: `terraform: "source" must be namespace/name, got ""`,
+			wantErr: `terraform: "source" must be namespace/name or namespace/name/target, got ""`,
 		},
 		{
 			name:    "bare source",
 			pairs:   []directive.KV{{Key: "source", Value: "aws"}},
-			wantErr: `terraform: "source" must be namespace/name, got "aws"`,
+			wantErr: `terraform: "source" must be namespace/name or namespace/name/target, got "aws"`,
 		},
 		{
-			name:    "source with too many segments",
+			// A fully-qualified provider address is three segments like a module
+			// address; the dotted first segment is what tells them apart.
+			name:    "source naming a registry host",
 			pairs:   []directive.KV{{Key: "source", Value: "registry.terraform.io/hashicorp/aws"}},
-			wantErr: `terraform: "source" must be namespace/name, got "registry.terraform.io/hashicorp/aws"`,
+			wantErr: `terraform: "source" names the registry host "registry.terraform.io", which belongs in "host"`,
+		},
+		{
+			name:    "module source with too many segments",
+			pairs:   []directive.KV{{Key: "source", Value: "terraform-aws-modules/vpc/aws/extra"}},
+			wantErr: `terraform: "source" must be namespace/name or namespace/name/target, got "terraform-aws-modules/vpc/aws/extra"`,
 		},
 	}
 

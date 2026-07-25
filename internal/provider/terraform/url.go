@@ -20,25 +20,36 @@ func (p *Provider) URL(r provider.Resource, c model.Candidate) string {
 	if !ok || ref == "" || res.host != p.registry.host {
 		return ""
 	}
+	if res.module() {
+		return fmt.Sprintf(p.registry.module, res.namespace, res.name, res.target, ref)
+	}
 	return fmt.Sprintf(p.registry.web, res.namespace, res.name, ref)
 }
 
-// Identify returns the namespace/name provider and, on a public registry, its
-// web page. A private registry (an explicit host) has no known web UI, so the
-// URL goes empty. The landing page is the version page's format with the
-// trailing version segment dropped.
+// Identify returns the source address and, on a public registry, its web page.
+// A private registry (an explicit host) has no known web UI, so the URL goes
+// empty. The landing page is the version page's format with the trailing
+// version segment dropped.
 func (p *Provider) Identify(r provider.Resource) (string, string) {
 	res, ok := r.(resource)
 	if !ok {
 		return "", ""
 	}
-	id := res.namespace + "/" + res.name
+	id := res.address()
 	if res.host != p.registry.host {
 		return id, ""
 	}
-	home := p.registry.web
-	if i := strings.LastIndex(home, "/"); i >= 0 {
-		home = home[:i]
+	if res.module() {
+		return id, fmt.Sprintf(landing(p.registry.module), res.namespace, res.name, res.target)
 	}
-	return id, fmt.Sprintf(home, res.namespace, res.name)
+	return id, fmt.Sprintf(landing(p.registry.web), res.namespace, res.name)
+}
+
+// landing drops a version page format's trailing version segment, leaving the
+// resource's own page.
+func landing(page string) string {
+	if i := strings.LastIndex(page, "/"); i >= 0 {
+		return page[:i]
+	}
+	return page
 }

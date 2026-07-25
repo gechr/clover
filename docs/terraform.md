@@ -1,6 +1,6 @@
 # Terraform / OpenTofu
 
-The Terraform provider tracks the versions of a Terraform provider (a plugin such as `hashicorp/aws`) from a registry implementing the [provider registry protocol](https://developer.hashicorp.com/terraform/internals/provider-registry-protocol). It is registered twice: `provider=terraform` defaults to [`registry.terraform.io`](https://registry.terraform.io) and `provider=opentofu` defaults to [`registry.opentofu.org`](https://registry.opentofu.org), so an annotation names the ecosystem it belongs to. Both faces are one implementation, and `host` points either at a private registry.
+The Terraform provider tracks the versions of a Terraform provider (a plugin such as `hashicorp/aws`) or a registry module (such as `terraform-aws-modules/vpc/aws`), from a registry implementing the [provider](https://developer.hashicorp.com/terraform/internals/provider-registry-protocol) and [module](https://developer.hashicorp.com/terraform/internals/module-registry-protocol) registry protocols. It is registered twice: `provider=terraform` defaults to [`registry.terraform.io`](https://registry.terraform.io) and `provider=opentofu` defaults to [`registry.opentofu.org`](https://registry.opentofu.org), so an annotation names the ecosystem it belongs to. Both faces are one implementation, and `host` points either at a private registry.
 
 ```hcl
 required_providers {
@@ -12,19 +12,31 @@ required_providers {
 }
 ```
 
+A module is addressed by its third segment, the target system it provisions for:
+
+```hcl
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  # clover: provider=terraform source=terraform-aws-modules/vpc/aws constraint=minor
+  version = "5.8.1"
+}
+```
+
+A provider and a module are told apart by the shape of the address, exactly as Terraform reads it. A fully-qualified provider address (`registry.terraform.io/hashicorp/aws`) also has three segments, so its registry host belongs in `host` rather than `source`.
+
 The version inside the constraint string is the only version-shaped token on the line, so Clover bumps it in place and the operator and precision around it survive. [Auto-detection](auto.md) recognizes a `required_providers` version line on its own, reading the `source` from the enclosing entry, so a bare [`@clover`](auto.md#the-clover-shorthand) (the form `clover annotate` writes) is usually enough. It resolves against the Terraform registry; an OpenTofu repository sets `provider=opentofu` explicitly.
 
 ## Keys
 
-| Key                            | Description                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| `provider`                     | `terraform` or `opentofu`                                                           |
-| `source`                       | The provider's source address as `namespace/name`, e.g. `hashicorp/aws`             |
-| `host`                         | The registry host, defaulting to `registry.terraform.io` or `registry.opentofu.org` |
-| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)           |
-| [`include`](filtering.md)      | Keep only matching versions                                                         |
-| [`exclude`](filtering.md)      | Drop matching versions                                                              |
-| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions (alphas, betas, and release candidates)        |
+| Key                            | Description                                                                                                                                               |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider`                     | `terraform` or `opentofu`                                                                                                                                 |
+| `source`                       | A provider address as `namespace/name` (`hashicorp/aws`), or a module address as `namespace/name/target` (`terraform-aws-modules/vpc/aws`). **Required.** |
+| `host`                         | The registry host, defaulting to `registry.terraform.io` or `registry.opentofu.org`                                                                       |
+| [`constraint`](constraints.md) | How far the version may move (`major`/`minor`/`patch`, or a semver range)                                                                                 |
+| [`include`](filtering.md)      | Keep only matching versions                                                                                                                               |
+| [`exclude`](filtering.md)      | Drop matching versions                                                                                                                                    |
+| [`prerelease`](prereleases.md) | Allow or exclude prerelease versions (alphas, betas, and release candidates)                                                                              |
 
 The registries are public, so the provider needs no authentication. The versions endpoint returns the whole version history in one response and carries no publication dates. Because [`cooldown`](cooldown.md) needs a date to measure age, a marker that sets one is skipped with a warning rather than updated past a gate Clover cannot check. To gate on age, track the provider's GitHub repository instead, where releases carry timestamps.
 

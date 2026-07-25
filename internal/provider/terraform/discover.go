@@ -19,16 +19,39 @@ const wellKnownPath = "/.well-known/terraform.json"
 // reads: the providers.v1 base, either a path on the same host or an absolute
 // URL.
 type discovery struct {
+	Modules   string `json:"modules.v1"`
 	Providers string `json:"providers.v1"`
 }
 
 // versionsResponse is the subset of the versions endpoint's response the
-// provider reads. Each version is a bare semver string; the platforms and
-// protocol lists are irrelevant to version selection.
+// provider reads. Each version is a bare semver string; the platforms, protocol
+// lists, and module dependency graphs are irrelevant to version selection.
+//
+// The two services shape the same answer differently: providers.v1 lists
+// versions at the top level, while modules.v1 nests them under one entry per
+// requested source. Both are decoded into the same struct and flattened by
+// [versionsResponse.versions], since exactly one of the two fields is ever
+// populated.
 type versionsResponse struct {
-	Versions []struct {
-		Version string `json:"version"`
-	} `json:"versions"`
+	Versions []versionEntry `json:"versions"`
+	Modules  []struct {
+		Versions []versionEntry `json:"versions"`
+	} `json:"modules"`
+}
+
+// versionEntry is one published version in either service's listing.
+type versionEntry struct {
+	Version string `json:"version"`
+}
+
+// versions flattens the response to the published version strings, whichever
+// service shaped it.
+func (r versionsResponse) versions() []versionEntry {
+	entries := r.Versions
+	for _, m := range r.Modules {
+		entries = append(entries, m.Versions...)
+	}
+	return entries
 }
 
 // Discover lists candidate versions for a provider source. The versions
@@ -50,8 +73,9 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 		return nil, err
 	}
 
-	candidates := make([]model.Candidate, 0, len(versions.Versions))
-	for _, v := range versions.Versions {
+	entries := versions.versions()
+	candidates := make([]model.Candidate, 0, len(entries))
+	for _, v := range entries {
 		if v.Version == "" {
 			continue
 		}
@@ -60,33 +84,39 @@ func (p *Provider) Discover(ctx context.Context, r provider.Resource) ([]model.C
 	return candidates, nil
 }
 
-// versionsURL resolves the versions endpoint for res: the providers.v1 base
-// from the host's service discovery document, then namespace/name/versions
-// under it. The base is usually a path on the same host but the protocol
-// allows an absolute URL, so it is resolved as a reference.
+// versionsURL resolves the versions endpoint for res: the service base from the
+// host's discovery document, then the source address and versions under it. A
+// module resolves through modules.v1 and a provider through providers.v1, two
+// separate services a registry advertises independently - a host may offer one
+// and not the other. The base is usually a path on the same host but the
+// protocol allows an absolute URL, so it is resolved as a reference.
 func (p *Provider) versionsURL(ctx context.Context, res resource) (string, error) {
 	var doc discovery
 	if err := p.fetch(ctx, "https://"+res.host+wellKnownPath, &doc); err != nil {
 		return "", err
 	}
-	if doc.Providers == "" {
+
+	service, base := "providers.v1", doc.Providers
+	segments := []string{res.namespace, res.name}
+	if res.module() {
+		service, base = "modules.v1", doc.Modules
+		segments = append(segments, res.target)
+	}
+	if base == "" {
 		return "", fmt.Errorf(
-			"%s: host %q does not offer the providers.v1 service",
+			"%s: host %q does not offer the %s service",
 			p.registry.name,
 			res.host,
+			service,
 		)
 	}
-	base, err := url.Parse(doc.Providers)
+
+	ref, err := url.Parse(base)
 	if err != nil {
-		return "", fmt.Errorf(
-			"%s: parse providers.v1 base %q: %w",
-			p.registry.name,
-			doc.Providers,
-			err,
-		)
+		return "", fmt.Errorf("%s: parse %s base %q: %w", p.registry.name, service, base, err)
 	}
 	root := &url.URL{Scheme: "https", Host: res.host}
-	return root.ResolveReference(base).JoinPath(res.namespace, res.name, "versions").String(), nil
+	return root.ResolveReference(ref).JoinPath(append(segments, "versions")...).String(), nil
 }
 
 // fetch downloads and decodes one JSON document.
