@@ -116,3 +116,25 @@ func forgeReference(raw string) (string, string, bool) {
 	}
 	return host, path, true
 }
+
+// inferFrozenRev reads the same reference as [inferPreCommitRev] but declines a
+// forge whose provider cannot peel a tag to a commit, which today means anything
+// but GitHub.
+//
+// Rewriting a frozen rev needs the commit the resolved tag points at. Inferring
+// one where no commit can be resolved would have annotate propose a marker that
+// every later run reports as broken, on a config the user spelled correctly and
+// cannot fix - a standing alarm with no action attached. It is the same refusal
+// a non-default Gitea flavor and a host-qualified Terraform address already make:
+// inference does not manufacture a marker that can never resolve.
+//
+// An explicitly annotated frozen rev on another forge still resolves and fails
+// loudly at render, since that noise was opted into. When another forge's
+// provider learns to peel a tag, widening this test is the whole change.
+func inferFrozenRev(s subject) Inference {
+	inferred := inferPreCommitRev(s)
+	if inferred.Provider != constant.ProviderGithub {
+		return Inference{}
+	}
+	return inferred
+}

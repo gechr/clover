@@ -106,3 +106,102 @@ func TestForgeReference(t *testing.T) {
 		})
 	}
 }
+
+func TestRevCommitSpan(t *testing.T) {
+	t.Parallel()
+
+	const sha = "552baf822992936134cbd31a38f69c8cfe7c0f05"
+
+	tests := []struct {
+		name    string
+		line    string
+		want    string
+		wantErr string
+	}{
+		{
+			name: "frozen rev with a version comment",
+			line: "    rev: " + sha + "  # frozen: 22.3.0",
+			want: sha,
+		},
+		{
+			name: "a quoted scalar",
+			line: `    rev: "` + sha + `"  # frozen: v5.0.0`,
+			want: sha,
+		},
+		{
+			// A space before the colon is unusual but valid YAML, and the key is
+			// still rev.
+			name: "space before the colon",
+			line: "    rev : " + sha,
+			want: sha,
+		},
+		{
+			name:    "a tag rev is not a frozen pin",
+			line:    "    rev: v5.0.0",
+			wantErr: "rev is not pinned by a full 40-character commit SHA",
+		},
+		{
+			name:    "an abbreviated SHA is not a pin",
+			line:    "    rev: 552baf8",
+			wantErr: "rev is not pinned by a full 40-character commit SHA",
+		},
+		{
+			name:    "no rev on the line",
+			line:    "    repo: https://github.com/psf/black",
+			wantErr: "no rev: pin on the line",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			span, end, err := revCommitSpan(tt.line)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, tt.line[span.Start:span.End])
+			require.Equal(t, span.End, end)
+		})
+	}
+}
+
+// A frozen rev is only inferred where the forge can peel a tag to a commit.
+// Elsewhere annotate would propose a marker that every run reports as broken on
+// a config the user cannot fix.
+func TestInferFrozenRevForgeSupport(t *testing.T) {
+	t.Parallel()
+
+	const sha = "552baf822992936134cbd31a38f69c8cfe7c0f05"
+
+	tests := []struct {
+		name string
+		repo string
+		want Inference
+	}{
+		{
+			name: "github peels a tag, so the rev is inferred",
+			repo: "https://github.com/psf/black",
+			want: Inference{Provider: "github", Repository: "psf/black"},
+		},
+		{
+			name: "gitlab cannot, so it is left for explicit annotation",
+			repo: "https://gitlab.com/group/project",
+		},
+		{
+			name: "nor codeberg",
+			repo: "https://codeberg.org/owner/tool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			lines := []string{"repos:", "- repo: " + tt.repo, "  rev: " + sha}
+			require.Equal(t, tt.want, inferFrozenRev(subject{lines: lines, target: 2}))
+		})
+	}
+}

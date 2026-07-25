@@ -285,8 +285,8 @@ github.com/gechr/conductor v0.1.15 h1:4NRYvZdzCiWk6TUu9CNPaMP4MK74X2QbYdnMuxnzdr
 github.com/gechr/conductor v0.1.15/go.mod h1:/DNOXIiUVyFxqdXHhBFr9JFwHS5nA6snfR08+AKYKIM=
 github.com/gechr/gorules v0.0.3 h1:SSDRHWy4xPe+dvE/DTm9N51VC37w9gpecgvH0WbiQVA=
 github.com/gechr/gorules v0.0.3/go.mod h1:aeZZo80Pm0PXgJpX9rvvZeSLqqkeHNyTFfGyprRk74k=
-github.com/gechr/x v0.5.6 h1:sjDU4qp58CX9wBw320xDiHBG6m/hOggK8yt3GSlNM3o=
-github.com/gechr/x v0.5.6/go.mod h1:TqpAnCe+A6MaLfhkxXht+kzA7dwALnugjvlgTR3SAiQ=
+github.com/gechr/x v0.5.7 h1:fZ9VNgQwG5CFuUMccu1NhAlU99+hRHBW96wJ4SjGIf4=
+github.com/gechr/x v0.5.7/go.mod h1:TqpAnCe+A6MaLfhkxXht+kzA7dwALnugjvlgTR3SAiQ=
 github.com/ghostiam/protogetter v0.3.20 h1:oW7OPFit2FxZOpmMRPP9FffU4uUpfeE/rEdE1f+MzD0=
 github.com/ghostiam/protogetter v0.3.20/go.mod h1:FjIu5Yfs6FT391m+Fjp3fbAYJ6rkL/J6ySpZBfnODuI=
 github.com/go-chi/chi/v5 v5.3.0 h1:halUjDxhshgXHMrao5bB8eNBXo/rnzwr8m5m36glehM=

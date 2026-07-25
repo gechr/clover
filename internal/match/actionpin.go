@@ -2,6 +2,7 @@ package match
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/gechr/clover/internal/model"
@@ -13,12 +14,18 @@ import (
 // full SHA, never an abbreviation, so the pin is unambiguous and tamper-evident.
 const shaLen = 40
 
-// ActionPin rewrites a GitHub Actions secure pin, where one resolved candidate
-// drives two spans on the same line:
+// shaLocator finds the commit SHA a pin carries, returning its span and the
+// index just past it, where a trailing version comment is searched for. It is
+// the one thing that differs between the line syntaxes [CommitPin] serves.
+type shaLocator func(line string) (Span, int, error)
+
+// CommitPin rewrites a secure pin whose commit SHA is documented by a trailing
+// version comment, where one resolved candidate drives both spans:
 //
 //	uses: owner/repo@<40-hex-sha>   # v1.2.3
+//	rev: <40-hex-sha>               # frozen: 22.3.0
 //
-// the commit SHA (from Candidate.Commit) and the trailing version comment (from
+// the commit SHA (from Candidate.Commit) and the comment (from
 // Candidate.Version, restyled). The version comment is the current-version
 // anchor - a SHA cannot anchor a semver constraint - so when it is present it
 // fixes the version and its style. A pin with no comment is still a valid target:
@@ -26,10 +33,38 @@ const shaLen = 40
 // per the directive (latest unless a range constrains it) and Render appends a
 // fresh comment, documenting the version the SHA now points at. Render relies on
 // the provider storing the peeled target commit, not an annotated-tag object SHA.
-type ActionPin struct{}
+//
+// The two syntaxes are one rewriter rather than two because they differ only in
+// where the SHA sits and what a synthesized comment reads - never in what is
+// written or from which candidate field. That is why this is parameterized while
+// [DockerPin], which pins a different value from a different field, is separate.
+type CommitPin struct {
+	// locate finds the SHA on the line.
+	locate shaLocator
+	// comment renders the comment body written for a pin that carries none,
+	// after the "# ".
+	comment func(version string) string
+}
 
-// NewActionPin returns the action-pin rewriter (stateless value, like Smart).
-func NewActionPin() ActionPin { return ActionPin{} }
+// NewActionPin returns the rewriter for a GitHub Actions secure pin, whose
+// comment is conventionally the v-prefixed tag.
+func NewActionPin() CommitPin {
+	return CommitPin{locate: commitSpan, comment: defaultVersionStyle}
+}
+
+// NewPreCommitPin returns the rewriter for the frozen rev `pre-commit
+// autoupdate --freeze` writes, whose comment carries the frozen: marker and the
+// tag exactly as the hook repository spells it - hook tags are as often bare
+// (22.3.0) as v-prefixed, so no prefix is imposed.
+func NewPreCommitPin() CommitPin {
+	return CommitPin{
+		locate:  revCommitSpan,
+		comment: func(version string) string { return frozenMarker + " " + version },
+	}
+}
+
+// frozenMarker introduces the version comment on a frozen pre-commit rev.
+const frozenMarker = "frozen:"
 
 // Locate parses the action reference, requiring a full 40-hex SHA after @. A
 // version-shaped token in the trailing comment, when present, anchors the current
@@ -38,8 +73,8 @@ func NewActionPin() ActionPin { return ActionPin{} }
 // each way the line fails to be a SHA pin (no reference, not SHA-pinned, short
 // SHA), and when a comment is present but carries no version - clover will not
 // guess whether a human note like "# pinned" was meant to be a version.
-func (ActionPin) Locate(line string) (Location, error) {
-	commit, end, err := commitSpan(line)
+func (p CommitPin) Locate(line string) (Location, error) {
+	commit, end, err := p.locate(line)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +89,10 @@ func (ActionPin) Locate(line string) (Location, error) {
 		if !xstrings.IsBlank(strings.TrimLeft(line[end:], `"'`)) {
 			return nil, errors.New("action pin has unexpected text after the commit SHA")
 		}
-		return actionPinLocated{
+		return commitPinLocated{
 			securePin: securePin{pinned: line[commit.Start:commit.End]},
 			commit:    commit,
+			comment:   p.comment,
 		}, nil
 	}
 	commentStart := end + hash + 1
@@ -69,11 +105,12 @@ func (ActionPin) Locate(line string) (Location, error) {
 	token.Span.End += commentStart
 
 	semver, _ := version.Parse(token.Core)
-	return actionPinLocated{
+	return commitPinLocated{
 		anchored:   anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
 		securePin:  securePin{pinned: line[commit.Start:commit.End]},
 		token:      token,
 		commit:     commit,
+		comment:    p.comment,
 		hasComment: true,
 	}, nil
 }
@@ -154,15 +191,17 @@ func commitSpan(line string) (Span, int, error) {
 	return Span{Start: start, End: end}, end, nil
 }
 
-// actionPinLocated is a secure action pin: the commit SHA span plus the trailing
-// version-comment token, both rewritten from one candidate. hasComment is false
-// for an undocumented pin, whose comment Render synthesises rather than replaces.
-type actionPinLocated struct {
+// commitPinLocated is a located secure pin: the commit SHA span plus the
+// trailing version-comment token, both rewritten from one candidate. hasComment
+// is false for an undocumented pin, whose comment Render synthesises rather than
+// replaces, using the syntax's own comment renderer.
+type commitPinLocated struct {
 	anchored
 	securePin
 
 	token      Token
 	commit     Span
+	comment    func(version string) string
 	hasComment bool
 }
 
@@ -170,9 +209,9 @@ type actionPinLocated struct {
 // the restyled current version, so the report shows what lands on the line
 // (e.g. v7.0.0) rather than the upstream tag's bare core (e.g. 7). An undocumented
 // pin has no style to preserve, so it gets the default v-prefixed form.
-func (l actionPinLocated) Rendered(candidate model.Candidate) string {
+func (l commitPinLocated) Rendered(candidate model.Candidate) string {
 	if !l.hasComment {
-		return defaultVersionStyle(candidate.Version)
+		return l.comment(candidate.Version)
 	}
 	return restyle(l.token, candidate.Version)
 }
@@ -182,7 +221,7 @@ func (l actionPinLocated) Rendered(candidate model.Candidate) string {
 // version or - for an undocumented pin - appends a fresh one. It errors rather
 // than half-update when the candidate lacks a usable commit or the located spans
 // no longer fit the line.
-func (l actionPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
+func (l commitPinLocated) Render(line string, candidate model.Candidate) (string, bool, error) {
 	if err := requireCommit(candidate); err != nil {
 		return "", false, err
 	}
@@ -201,7 +240,7 @@ func (l actionPinLocated) Render(line string, candidate model.Candidate) (string
 // appendComment rewrites the SHA and adds a "# vX.Y.Z" version comment to a pin
 // that had none, documenting the version run resolved. Trailing whitespace is
 // trimmed first so the comment sits one space after the reference.
-func (l actionPinLocated) appendComment(
+func (l commitPinLocated) appendComment(
 	line string,
 	candidate model.Candidate,
 ) (string, bool, error) {
@@ -210,7 +249,7 @@ func (l actionPinLocated) appendComment(
 		return "", false, errors.New("located commit span no longer fits the line")
 	}
 	updated := line[:commit.Start] + candidate.Commit + line[commit.End:]
-	newLine := strings.TrimRight(updated, " \t") + " # " + defaultVersionStyle(candidate.Version)
+	newLine := strings.TrimRight(updated, " \t") + " # " + l.comment(candidate.Version)
 	return newLine, newLine != line, nil
 }
 
@@ -220,3 +259,43 @@ func (l actionPinLocated) appendComment(
 func defaultVersionStyle(v string) string {
 	return "v" + strings.TrimPrefix(v, "v")
 }
+
+// revCommitSpan locates the commit SHA of a frozen pre-commit rev, returning the
+// SHA span and the index just past it. `pre-commit autoupdate --freeze` writes
+// the SHA as the rev's scalar value, so it is found after the key rather than
+// after an @ separator:
+//
+//	rev: 552baf822992936134cbd31a38f69c8cfe7c0f05  # frozen: 22.3.0
+//
+// An optional quote is stepped over, since a YAML scalar may be quoted. The key
+// is matched with the same tolerance as the route that dispatches here - YAML
+// permits whitespace before the colon and strips it from the key - so a line the
+// route claims is always one this can read. The errors mirror the action
+// locator's, so lint explains each way a line fails to be a frozen pin.
+func revCommitSpan(line string) (Span, int, error) {
+	key := revKey.FindStringIndex(line)
+	if key == nil {
+		return Span{}, 0, errors.New("no rev: pin on the line")
+	}
+
+	start := key[1]
+	for start < len(line) && (line[start] == ' ' || line[start] == '\t') {
+		start++
+	}
+	if start < len(line) && (line[start] == '"' || line[start] == '\'') {
+		start++
+	}
+
+	end := start
+	for end < len(line) && xstrings.IsHexChar(rune(line[end])) {
+		end++
+	}
+	if end-start != shaLen {
+		return Span{}, 0, errors.New("rev is not pinned by a full 40-character commit SHA")
+	}
+	return Span{Start: start, End: end}, end, nil
+}
+
+// revKey matches the rev mapping key and its colon, tolerating the whitespace
+// before it that YAML permits, so this agrees with the route's own pattern.
+var revKey = regexp.MustCompile(`\brev\s*:`)

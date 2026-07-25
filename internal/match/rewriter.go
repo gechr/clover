@@ -28,7 +28,13 @@ import (
 // so no single provider could guard it. Such a route constrains nothing extra in
 // [For], and the rewriter it dispatches is reached through the guards it does
 // declare.
+// It also enforces the table's two positional invariants, which were previously
+// carried by comments. A property that holds only because of where a route sits
+// is invisible to any test of that route alone, and a comment describing it
+// expires the moment someone inserts above it - which is how a follower's
+// dispatch came to be shadowed by a route added far away.
 func init() {
+	seenUnvalued, seenCatchAll := false, false
 	for _, r := range routes {
 		if r.when.path != "" && !doublestar.ValidatePattern(r.when.path) {
 			panic(fmt.Sprintf("match: invalid built-in route glob %q", r.when.path))
@@ -40,6 +46,30 @@ func init() {
 				r.when.provider,
 			))
 		}
+
+		// A follower is identified only by its value, so any route above one can
+		// shadow it by matching the follower's own target line. Keeping every
+		// value-gated route first makes that impossible rather than unlikely.
+		if r.when.value == "" {
+			seenUnvalued = true
+		} else if seenUnvalued {
+			panic(fmt.Sprintf(
+				"match: the value=%q route must precede every route that does not "+
+					"gate on a value, or a follower's target line can be claimed "+
+					"by one of them",
+				r.when.value,
+			))
+		}
+
+		// The catch-all matches everything, so anything after it is unreachable -
+		// dead code that looks live.
+		if seenCatchAll {
+			panic("match: a route follows the empty-condition catch-all, so it can never match")
+		}
+		seenCatchAll = r.when == conditions{}
+	}
+	if !seenCatchAll {
+		panic("match: the route table must end with the empty-condition catch-all")
 	}
 }
 
@@ -285,6 +315,25 @@ var hashicorpProducts = []string{
 // not user configuration (yet).
 var routes = []route{
 	{
+		// A follower projecting a commit or sha256 onto its own line; the hash
+		// rewriter swaps the existing hex token.
+		//
+		// The followers dispatch first, and that ordering is the guard. A follower
+		// is identified by its value, which no other route conditions on, so
+		// nothing below can be shadowed by putting them here - while a follower
+		// placed lower is shadowed by any route whose guards its context happens
+		// to satisfy. That is not hypothetical: a detection-only route matching a
+		// bare hex token in the same file would claim a follower's own target
+		// line. Auto-detection is unaffected either way, since [Table.Infer] skips
+		// routes carrying no inference.
+		when:     conditions{value: constant.ValueCommit},
+		rewriter: NewHash(),
+	},
+	{
+		when:     conditions{value: constant.ValueSha256},
+		rewriter: NewHash(),
+	},
+	{
 		// A digest-pinned workflow container job: uses: docker://img:tag@sha256:… .
 		// The docker:// scheme marks the reference as an image, so it must precede
 		// the action uses: routes.
@@ -394,17 +443,34 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// The frozen form `pre-commit autoupdate --freeze` writes: the rev is a
+		// commit SHA and its tag lives in a trailing comment. It is the secure
+		// spelling of the pin below - immutable where a tag can be moved - so it
+		// is matched first and rewritten as a unit, SHA and comment together.
+		//
+		// Rewriting one needs the commit a resolved tag points at, which only the
+		// github provider supplies, so the inference declines any other forge -
+		// annotating a marker that could never resolve is the alarm nobody can
+		// act on. An explicitly annotated frozen rev elsewhere still fails loudly
+		// at render, naming the missing commit, since that noise was opted into.
+		when: conditions{
+			path:      preCommitGlob,
+			lineMatch: mustPattern(`/^\s*rev\s*:\s*["']?[0-9a-fA-F]{40}\b/`),
+		},
+		infer:    inferFrozenRev,
+		rewriter: NewPreCommitPin(),
+	},
+	{
 		// A pre-commit hook repository's pin, e.g. `rev: v5.0.0`. The forge is
 		// whichever the entry's sibling repo: URL names, so the route declares no
 		// provider and leaves that to its inference.
 		//
-		// The pattern requires a dotted numeric rev, which is what excludes the
-		// frozen form `pre-commit autoupdate --freeze` writes (a 40-hex commit SHA
-		// carrying its version in a trailing `# frozen: v5.0.0` comment). A commit
-		// SHA holds no dot, so it can never match. That exclusion is load-bearing
-		// rather than incidental: the smart rewriter would find the comment's
-		// version to be the line's only version-shaped token and bump it alone,
-		// leaving the SHA - the part that actually selects the code - untouched.
+		// The pattern requires a dotted numeric rev, so a commit SHA - which holds
+		// no dot - can never match. The frozen route above claims those first, and
+		// this exclusion is the standing guard behind it: were a frozen rev to
+		// reach the smart rewriter, the comment's version would be the line's only
+		// version-shaped token, so it would be bumped alone and the SHA - the part
+		// that actually selects the code - left behind.
 		when: conditions{
 			path:      preCommitGlob,
 			lineMatch: mustPattern(`/^\s*rev\s*:\s*["']?v?\d+(\.\d+)+/`),
@@ -968,20 +1034,6 @@ var routes = []route{
 		},
 		infer:    provides(constant.ProviderGo),
 		rewriter: mustFindReplace("go<version>"),
-	},
-	{
-		// A follower projecting a commit or sha256 onto its own line; the hash
-		// rewriter swaps the existing hex token. A follower carries
-		// provider=follow, which no provider-gated route above accepts. The one
-		// route above that gates on no provider (pre-commit rev) is held off
-		// instead by its line pattern: it demands a dotted numeric version, and a
-		// follower's target line carries the bare hex token this rewriter swaps.
-		when:     conditions{value: constant.ValueCommit},
-		rewriter: NewHash(),
-	},
-	{
-		when:     conditions{value: constant.ValueSha256},
-		rewriter: NewHash(),
 	},
 	{rewriter: NewSmart()},
 }

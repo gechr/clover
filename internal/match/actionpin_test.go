@@ -148,7 +148,7 @@ func TestForRoutesSHAPinToActionPin(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			t.Parallel()
 			rw := match.For(match.Context{Path: path, Line: pinLine, Provider: "github"})
-			require.IsType(t, match.ActionPin{}, rw)
+			require.IsType(t, match.CommitPin{}, rw)
 		})
 	}
 }

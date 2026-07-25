@@ -1105,11 +1105,12 @@ func TestPreCommitRevs(t *testing.T) {
 			ok:     false,
 		},
 		{
-			// The smart rewriter would bump the comment's version and leave the SHA
-			// pointing at the old commit, so the route must not claim the line.
-			name:   "a frozen SHA pin is not claimed",
+			// The frozen form is the secure spelling, routed to the pin rewriter
+			// that moves the SHA and its comment together.
+			name:   "a frozen SHA pin resolves like any other rev",
 			target: 20,
-			ok:     false,
+			want:   match.Inference{Provider: "github", Repository: "psf/black"},
+			ok:     true,
 		},
 		{
 			// A hostname is case-insensitive, so the forge lookup folds case.
@@ -1307,4 +1308,50 @@ func TestSetupInputWildcard(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, changed)
 	require.Equal(t, "          terraform_version: 1.14.x", got)
+}
+
+// A frozen rev is rewritten as a unit: the commit SHA and the version comment
+// move together, so the pin never documents a version its SHA does not point at.
+func TestPreCommitFrozenRewrite(t *testing.T) {
+	t.Parallel()
+
+	const (
+		oldSHA = "552baf822992936134cbd31a38f69c8cfe7c0f05"
+		newSHA = "8a1cb1e0e0b0b1b3f2c4d5e6f7a8b9c0d1e2f3a4"
+		line   = "    rev: " + oldSHA + "  # frozen: 22.3.0"
+	)
+
+	rw := match.For(match.Context{
+		Path:     ".pre-commit-config.yaml",
+		Line:     line,
+		Provider: "github",
+	})
+	located, err := rw.Locate(line)
+	require.NoError(t, err)
+	require.Equal(t, "22.3.0", located.Current(), "the comment anchors the current version")
+
+	pinned, ok := located.(match.SecurePin)
+	require.True(t, ok, "a frozen rev pins a value the run can cross-check")
+	require.Equal(t, oldSHA, pinned.Pinned())
+
+	got, changed, err := located.Render(line, model.Candidate{Version: "24.10.0", Commit: newSHA})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "    rev: "+newSHA+"  # frozen: 24.10.0", got,
+		"the SHA and its comment must move together")
+}
+
+// A candidate with no commit cannot re-pin a frozen rev, so rendering fails
+// rather than writing a version the SHA does not point at. Only the github
+// provider peels a tag to a commit, so this is the outcome on other forges.
+func TestPreCommitFrozenRequiresCommit(t *testing.T) {
+	t.Parallel()
+
+	const line = "    rev: 552baf822992936134cbd31a38f69c8cfe7c0f05  # frozen: 22.3.0"
+
+	located, err := match.NewPreCommitPin().Locate(line)
+	require.NoError(t, err)
+
+	_, _, err = located.Render(line, model.Candidate{Version: "24.10.0"})
+	require.EqualError(t, err, `candidate has no full commit SHA to pin, got ""`)
 }

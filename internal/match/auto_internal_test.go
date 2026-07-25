@@ -3,6 +3,7 @@ package match
 import (
 	"testing"
 
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/pattern"
 	"github.com/stretchr/testify/require"
 )
@@ -92,4 +93,64 @@ func TestRouteInference(t *testing.T) {
 			"route %q infers a different provider than it dispatches", r.when.provider)
 	}
 	require.NotZero(t, detectionOnly, "the detection-only branch is unexercised")
+}
+
+// TestToolNameSetsDisjoint enforces what two doc comments assert and nothing
+// checked: the four tool-name sets feeding the mise route alternations name
+// disjoint tools. They are separate routes in a fixed order, so a name in two
+// sets resolves to whichever route is written first - silently, and against the
+// wrong upstream for every user of that tool.
+//
+// The sets are not all generated together: miseGithubTools is hand-curated and
+// unioned into ToolNames, so one hand-added entry colliding with a regenerated
+// ecosystem map is the failure this catches, in the standard gate rather than at
+// the next `go generate`.
+func TestToolNameSetsDisjoint(t *testing.T) {
+	t.Parallel()
+
+	sets := map[string][]string{
+		constant.ProviderGithub: ToolNames(),
+		constant.ProviderPypi:   pypiToolNames(),
+		constant.ProviderNpm:    npmToolNames(),
+		constant.ProviderCrates: cratesToolNames(),
+	}
+
+	owner := map[string]string{}
+	for set, names := range sets {
+		for _, name := range names {
+			previous, duplicated := owner[name]
+			require.False(t, duplicated,
+				"tool %q is in both the %s and %s sets, so whichever route comes "+
+					"first claims it", name, previous, set)
+			owner[name] = set
+		}
+	}
+
+	// A tool a native provider resolves must not also be an ecosystem package:
+	// the routes and toolInference both put the native provider first, so the
+	// ecosystem entry would be permanently unreachable rather than merely
+	// shadowed.
+	for name := range nativeToolProviders {
+		if set := owner[name]; set != "" && set != constant.ProviderGithub {
+			t.Errorf("native tool %q is also in the %s set", name, set)
+		}
+	}
+	// The one documented overlap: rust keeps a github mapping so an explicit
+	// provider=github tool=rust still resolves, while every route and inference
+	// reaches the native provider first. Pinned so the next overlap is a choice.
+	var nativeOnGithub []string
+	for name := range nativeToolProviders {
+		if owner[name] == constant.ProviderGithub {
+			nativeOnGithub = append(nativeOnGithub, name)
+		}
+	}
+	require.Equal(t, []string{"rust"}, nativeOnGithub,
+		"a native tool in the github set must be the documented rust exception")
+
+	// A HashiCorp product is routed by its own mise route, which precedes them
+	// all; an entry in any generated set would be dead and misleading.
+	for _, product := range hashicorpProducts {
+		require.Empty(t, owner[product],
+			"HashiCorp product %q is also in the %s set", product, owner[product])
+	}
 }

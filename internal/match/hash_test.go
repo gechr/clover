@@ -75,3 +75,57 @@ func TestForRoutesFollowerHashes(t *testing.T) {
 		require.IsType(t, match.Hash{}, rw, value)
 	}
 }
+
+// A follower must reach the hash rewriter wherever its target line sits. The
+// dispatch table is ordered, so a route whose guards a follower's context
+// happens to satisfy would shadow it - and a follower's target line is a bare
+// hex token, which is exactly what a secure-pin route matches. Pinning the
+// combination (follower context, a path some route guards, a line some route
+// matches) is what a per-route test cannot see.
+func TestFollowerDispatchIsNotShadowed(t *testing.T) {
+	t.Parallel()
+
+	const sha = "552baf822992936134cbd31a38f69c8cfe7c0f05"
+
+	tests := []struct {
+		name  string
+		path  string
+		line  string
+		value string
+	}{
+		{
+			// The frozen pre-commit route matches a bare hex rev in this very file.
+			name:  "commit follower on a pre-commit rev line",
+			path:  ".pre-commit-config.yaml",
+			line:  "  rev: " + sha,
+			value: "commit",
+		},
+		{
+			name:  "sha256 follower on a pre-commit line",
+			path:  ".pre-commit-config.yaml",
+			line:  "  rev: " + strings.Repeat("a", 64),
+			value: "sha256",
+		},
+		{
+			// A workflow line a uses: route would otherwise claim.
+			name:  "commit follower on a workflow uses: line",
+			path:  ".github/workflows/ci.yml",
+			line:  "      uses: owner/repo@" + sha,
+			value: "commit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rw := match.For(match.Context{
+				Path:     tt.path,
+				Line:     tt.line,
+				Provider: "follow",
+				Value:    tt.value,
+			})
+			require.IsType(t, match.Hash{}, rw)
+		})
+	}
+}

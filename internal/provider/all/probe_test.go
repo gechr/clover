@@ -5,6 +5,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/directive"
+	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/provider/all"
 	"github.com/stretchr/testify/require"
@@ -223,3 +224,82 @@ func probedCapabilities() []string {
 	}
 	return probed
 }
+
+// preCommitForgeHosts mirrors the forge hosts the pre-commit inference in
+// internal/match recognizes. The duplication is deliberate: match cannot import
+// provider (the github provider imports match), so this package - whose role is
+// seeing every provider at once - is the only place the two halves meet.
+var preCommitForgeHosts = map[string]string{
+	"codeberg.org": constant.ProviderGitea,
+	"github.com":   constant.ProviderGithub,
+	"gitlab.com":   constant.ProviderGitlab,
+}
+
+// TestFrozenRevFollowsCommitter ties a detection rule to the capability it
+// depends on. Rewriting a frozen pre-commit rev needs the commit a resolved tag
+// points at, so the inference accepts one only on a forge whose provider
+// implements [provider.Committer] - a decision hardcoded in internal/match,
+// which cannot see the capability without an import cycle.
+//
+// Without this, the day another forge's provider learns to peel a tag, nothing
+// says the inference may now be widened, and frozen revs there stay silently
+// undetected. This fails on that day, naming the forge.
+func TestFrozenRevFollowsCommitter(t *testing.T) {
+	t.Parallel()
+
+	providers := map[string]provider.Provider{}
+	for _, p := range all.New("") {
+		providers[p.Name()] = p
+	}
+
+	for host, name := range preCommitForgeHosts {
+		p, known := providers[host]
+		if !known {
+			p, known = providers[name]
+		}
+		require.True(t, known, "no provider named %q for forge host %q", name, host)
+
+		_, peelsTags := p.(provider.Committer)
+		_, inferred := match.Infer(".pre-commit-config.yaml", []string{
+			"repos:",
+			"- repo: https://" + host + "/owner/tool",
+			"  rev: 552baf822992936134cbd31a38f69c8cfe7c0f05",
+		}, 2)
+
+		require.Equal(t, peelsTags, inferred,
+			"a frozen rev on %s is inferred exactly when %s implements Committer; "+
+				"if %s has just gained it, widen inferFrozenRev in internal/match",
+			host, name, name)
+	}
+}
+
+// TestPreCommitCodebergDefaultFlavor guards a cross-package coupling that is
+// otherwise stated only in a comment. The pre-commit inference maps
+// codeberg.org to the gitea provider and supplies no flavor key, which resolves
+// correctly only because gitea's default flavor is codeberg. Were that default
+// to change, a codeberg-hosted hook would silently resolve against a forge that
+// never published it - the exact failure the flavor refusal avoids by declining
+// the non-default flavors outright.
+func TestPreCommitCodebergDefaultFlavor(t *testing.T) {
+	t.Parallel()
+
+	var gitea provider.Provider
+	for _, p := range all.New("") {
+		if p.Name() == constant.ProviderGitea {
+			gitea = p
+		}
+	}
+	require.NotNil(t, gitea)
+
+	resource, err := gitea.Resource(directive.Directive{Pairs: []directive.KV{
+		{Key: constant.DirectiveRepository, Value: "owner/tool"},
+	}})
+	require.NoError(t, err)
+	require.Equal(t, preCommitCodebergHost+"/owner/tool (tags)", gitea.Describe(resource),
+		"the pre-commit inference sends codeberg.org hooks to gitea with no flavor "+
+			"key, so gitea's default flavor must still be codeberg")
+}
+
+// preCommitCodebergHost is the forge host whose pre-commit hooks rely on gitea's
+// default flavor.
+const preCommitCodebergHost = "codeberg.org"
