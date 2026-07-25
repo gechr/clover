@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/forge/vcs"
 )
 
 // defaultFiles are the per-directory ignore files clover reads, lowest priority
@@ -16,8 +16,9 @@ var defaultFiles = []string{".gitignore"}
 
 // Matcher decides whether a path is ignored by the ignore files governing it,
 // after the manner of ripgrep's ignore handling but owned in-repo. It is bounded
-// by the repository root (resolved via vcs) and caches each directory's parsed
-// patterns, so it is cheap to consult once per scanned entry.
+// by the repository root ([vcs.Resolver], which is also what namespaces id= per
+// repository) and caches each directory's parsed patterns, so it is cheap to
+// consult once per scanned entry.
 type Matcher struct {
 	resolver *vcs.Resolver
 	files    []string
@@ -49,11 +50,11 @@ func (m *Matcher) Ignore(path string, isDir bool) bool {
 		return false
 	}
 
-	abs := path
-	if a, err := filepath.Abs(path); err == nil {
-		abs = a
-	}
-	rel, err := filepath.Rel(root, abs)
+	// The resolver's own Abs, not filepath.Abs: the root it returned has its
+	// symlinks resolved, so a path reaching this repository through one would
+	// not sit under that root and Rel would escape it - silently ignoring
+	// nothing at all.
+	rel, err := filepath.Rel(root, m.resolver.Abs(path))
 	if err != nil {
 		return false
 	}

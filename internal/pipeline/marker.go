@@ -9,7 +9,7 @@ import (
 	"github.com/gechr/clover/internal/infer"
 	"github.com/gechr/clover/internal/match"
 	"github.com/gechr/clover/internal/scan"
-	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/forge/vcs"
 	xslices "github.com/gechr/x/slices"
 )
 

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/forge/vcs"
 	"github.com/gechr/x/set"
 )
 
@@ -57,20 +57,21 @@ func NewResolver(user *Config, explicit string, noConfig bool) *Resolver {
 // root containing dir, or dir itself (absolute) when it is not in a repository.
 // It is the cache key ForDir resolves under, exposed so a caller can group files
 // by the root that governs them.
+// The fallback resolves through the same resolver rather than filepath.Abs, so
+// a root is canonical whether or not it came from a repository - a caller
+// relating a path to it must not have to know which branch produced it.
 func (r *Resolver) Root(dir string) string {
 	if root := r.roots.RootDir(dir); root != "" {
 		return root
 	}
-	if abs, err := filepath.Abs(dir); err == nil {
-		return abs
-	}
-	return dir
+	return r.roots.Abs(dir)
 }
 
 // VCS returns the repository-root resolver config discovery walks, so a scan
 // can share one ancestry cache instead of re-statting the same directories
-// twice. A nil receiver returns a fresh resolver, keeping unconfigured scans
-// working.
+// twice. The same roots namespace id= per repository, which is what keeps the
+// same id in two checkouts from clashing. A nil receiver returns a fresh
+// resolver, keeping unconfigured scans working.
 func (r *Resolver) VCS() *vcs.Resolver {
 	if r == nil {
 		return vcs.NewResolver()

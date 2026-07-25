@@ -33,8 +33,8 @@ import (
 	"github.com/gechr/clover/internal/registry"
 	"github.com/gechr/clover/internal/rule"
 	"github.com/gechr/clover/internal/scan"
-	"github.com/gechr/clover/internal/vcs"
 	"github.com/gechr/clover/internal/version"
+	"github.com/gechr/forge/vcs"
 	"github.com/gechr/x/ptr"
 	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
@@ -280,7 +280,7 @@ func excludedByConfig(configs *config.Resolver, path string, isDir bool) bool {
 	if len(globs) == 0 {
 		return false
 	}
-	rel := relTo(configs.Root(dir), path)
+	rel := relTo(configs.VCS(), configs.Root(dir), path)
 	for _, glob := range globs {
 		if doublestar.ValidatePattern(glob) && doublestar.MatchUnvalidated(glob, rel) {
 			return true
@@ -291,12 +291,14 @@ func excludedByConfig(configs *config.Resolver, path string, isDir bool) bool {
 
 // relTo returns path relative to root in slash form, falling back to path's own
 // slash form when it does not lie under root.
-func relTo(root, path string) string {
-	abs := path
-	if a, err := filepath.Abs(path); err == nil {
-		abs = a
-	}
-	rel, err := filepath.Rel(root, abs)
+//
+// roots.Abs, not filepath.Abs: root came from the same resolver with its
+// symlinks resolved, and filepath.Abs does not resolve them, so a path reaching
+// its repository through a symlink would not lie under the root it resolved to.
+// The fallback would then silently return the whole path and every
+// root-relative glob would stop matching.
+func relTo(roots *vcs.Resolver, root, path string) string {
+	rel, err := filepath.Rel(root, roots.Abs(path))
 	if err != nil {
 		return filepath.ToSlash(path)
 	}
@@ -676,7 +678,7 @@ func (p *plan) scopeFor(m Marker) config.Marker {
 		scope.Path = filepath.ToSlash(m.File)
 		return scope
 	}
-	scope.Path = relTo(p.configs.Root(filepath.Dir(m.File)), m.File)
+	scope.Path = relTo(p.configs.VCS(), p.configs.Root(filepath.Dir(m.File)), m.File)
 	return scope
 }
 

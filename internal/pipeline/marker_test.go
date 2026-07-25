@@ -9,7 +9,7 @@ import (
 	"github.com/gechr/clover/internal/directive"
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/scan"
-	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/forge/vcs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,10 +17,21 @@ func directiveOf(pairs ...directive.KV) directive.Directive {
 	return directive.Directive{Pairs: pairs}
 }
 
+// canonicalTempDir returns a temporary directory with symlinks resolved, which
+// is how [vcs.Resolver] keys a repository root - so an id= namespaced by that
+// root compares equal here. Without it the platform's own symlinked temp path
+// (macOS /tmp -> /private/tmp) defeats the comparison.
+func canonicalTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
+}
+
 func TestMarkers(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
+	root := canonicalTempDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
 	path := filepath.Join(root, "Dockerfile")
 
@@ -73,7 +84,7 @@ func TestMarkers(t *testing.T) {
 func TestMarkersCanonicalizesAliases(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
+	root := canonicalTempDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
 	file := scan.File{
 		Path: filepath.Join(root, "go.mod"),
@@ -377,7 +388,7 @@ func TestMarkersNamespaceIsolatesRepos(t *testing.T) {
 
 	mk := func(t *testing.T) string {
 		t.Helper()
-		root := t.TempDir()
+		root := canonicalTempDir(t)
 		require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
 		file := scan.File{
 			Path:  filepath.Join(root, "Dockerfile"),

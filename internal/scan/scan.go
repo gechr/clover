@@ -13,6 +13,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/log/field"
+	"github.com/gechr/forge/vcs"
 	xfilepath "github.com/gechr/x/filepath"
 	xos "github.com/gechr/x/os"
 	"github.com/gechr/x/set"
@@ -31,8 +32,10 @@ const (
 // stalls a run.
 const defaultMaxSize = 5 << 20 // 5 MiB
 
-// vcsDirs are always skipped during the walk.
-var vcsDirs = set.New(".git", ".jj", ".hg", ".svn")
+// vcsDirs are always skipped during the walk. Built from the markers that
+// delimit a repository rather than re-listing them, so the walk cannot start
+// descending into a metadata directory the resolver already treats as a root.
+var vcsDirs = set.New(vcs.Markers()...)
 
 type scanJob struct {
 	path string

@@ -25,6 +25,8 @@ require (
 	golang.org/x/sync v0.22.0
 )
 
+require github.com/gechr/forge v0.0.2
+
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect
 	4d63.com/gochecknoglobals v0.2.2 // indirect

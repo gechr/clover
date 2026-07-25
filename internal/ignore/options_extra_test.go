@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/ignore"
-	"github.com/gechr/clover/internal/vcs"
+	"github.com/gechr/forge/vcs"
 	"github.com/stretchr/testify/require"
 )
 
