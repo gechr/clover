@@ -246,6 +246,12 @@ const cargoGlob = "**/Cargo.toml"
 // each pin a subchart across sibling name, repository, and version fields.
 const helmChartGlob = "**/Chart.yaml"
 
+// workflowGlob matches any YAML document, the scope of the setup-action version
+// inputs. It is not narrowed to .github/workflows: a composite action's
+// action.yml passes the same inputs to the same actions, and a reusable workflow
+// may live anywhere a caller references it.
+const workflowGlob = "**/*.{yml,yaml}"
+
 // preCommitGlob matches a pre-commit configuration, whose repos entries each
 // pin a hook repository across sibling repo and rev fields. Only the default
 // filename is matched: pre-commit reads any file passed to --config, but a
@@ -404,6 +410,64 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*rev\s*:\s*["']?v?\d+(\.\d+)+/`),
 		},
 		infer:    inferPreCommitRev,
+		rewriter: NewSmart(),
+	},
+	{
+		// The version input of a toolchain setup action: `go-version: '1.24.0'`
+		// under actions/setup-go. The input name alone identifies the toolchain -
+		// no action is so widely mirrored that another meaning is plausible - so
+		// the enclosing step's uses: is not consulted. That also lets the same
+		// pin resolve where it is written as a workflow-level env: value or a CI
+		// variable, which is the same fact spelled elsewhere.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: setupInput("go-version"),
+			provider:  constant.ProviderGo,
+		},
+		infer:    inferSetupInput(provides(constant.ProviderGo)),
+		rewriter: NewSmart(),
+	},
+	{
+		// actions/setup-node. A bare major (node-version: 22) is the common
+		// spelling and resolves through the node provider's BareMajorer.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: setupInput("node-version"),
+			provider:  constant.ProviderNode,
+		},
+		infer:    inferSetupInput(provides(constant.ProviderNode)),
+		rewriter: NewSmart(),
+	},
+	{
+		// actions/setup-python.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: setupInput("python-version"),
+			provider:  constant.ProviderPython,
+		},
+		infer:    inferSetupInput(provides(constant.ProviderPython)),
+		rewriter: NewSmart(),
+	},
+	{
+		// swift-actions/setup-swift.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: setupInput("swift-version"),
+			provider:  constant.ProviderSwift,
+		},
+		infer:    inferSetupInput(provides(constant.ProviderSwift)),
+		rewriter: NewSmart(),
+	},
+	{
+		// hashicorp/setup-terraform, whose input is underscored rather than
+		// hyphenated. The product is terraform itself, as for a required_version
+		// constraint.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: setupInput("terraform_version"),
+			provider:  constant.ProviderHashicorp,
+		},
+		infer:    inferSetupInput(inferTerraformToolchain),
 		rewriter: NewSmart(),
 	},
 	{
@@ -894,6 +958,27 @@ var routes = []route{
 		rewriter: NewHash(),
 	},
 	{rewriter: NewSmart()},
+}
+
+// setupInput builds the line pattern matching a workflow step's version input,
+// e.g. `go-version: '1.24.0'` passed to actions/setup-go. The key is matched
+// exactly, so the sibling input naming a file to read the version from
+// (go-version-file) is never claimed.
+//
+// The value must begin with a digit, optionally quoted or v-prefixed, which is
+// what keeps the pattern to genuine pins. It excludes an expression
+// (${{ matrix.go }}), a key whose value is a block on the following lines, and -
+// the one that matters - a flow list (python-version: ['3.13', '3.14']). A list
+// is a test matrix rather than a toolchain pin: its entries are the versions a
+// project supports, so the oldest is deliberate and bumping it would silently
+// drop support. A single-entry list would otherwise carry exactly one
+// version-shaped token and be indistinguishable from a pin.
+//
+// The leading whitespace anchors the key to a nested mapping - an input under
+// with:, or a CI variable - so a top-level key of the same name in an unrelated
+// document is not a step input.
+func setupInput(key string) *pattern.Pattern {
+	return mustPattern(`/^\s+` + regexp.QuoteMeta(key) + `\s*:\s*["']?v?\d/`)
 }
 
 // alternation joins mise tool names into a well-known-tool route's regex

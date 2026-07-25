@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/match"
+	"github.com/gechr/clover/internal/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1060,4 +1061,182 @@ func TestInferPreCommitRevs(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestInferSetupInputs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		line string
+		want match.Inference
+		ok   bool
+	}{
+		{
+			name: "go toolchain input",
+			line: "          go-version: 1.21",
+			want: match.Inference{Provider: "go"},
+			ok:   true,
+		},
+		{
+			name: "quoted go version",
+			line: `          go-version: "1.24.0"`,
+			want: match.Inference{Provider: "go"},
+			ok:   true,
+		},
+		{
+			name: "bare major node version",
+			line: "          node-version: 22",
+			want: match.Inference{Provider: "node"},
+			ok:   true,
+		},
+		{
+			name: "single-quoted python version",
+			line: "          python-version: '3.13'",
+			want: match.Inference{Provider: "python"},
+			ok:   true,
+		},
+		{
+			name: "swift toolchain input",
+			line: "          swift-version: '6.0.1'",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "underscored terraform input names its product",
+			line: "          terraform_version: 1.11.x",
+			want: match.Inference{Provider: "hashicorp", Product: "terraform"},
+			ok:   true,
+		},
+		{
+			// The sibling input names a file to read the version from, not a version.
+			name: "go-version-file is a different input",
+			line: "          go-version-file: go.mod",
+			ok:   false,
+		},
+		{
+			name: "an expression carries no version to track",
+			line: "          go-version: ${{ env.GO_VERSION }}",
+			ok:   false,
+		},
+		{
+			// A matrix lists the versions a project supports, so its oldest entry is
+			// deliberate; bumping a single-entry list would silently drop support.
+			name: "a flow-list matrix is not a pin",
+			line: "        python-version: ['3.14']",
+			ok:   false,
+		},
+		{
+			name: "a block value leaves nothing on the key's line",
+			line: "        node-version:",
+			ok:   false,
+		},
+		{
+			// The key must be nested; a top-level one is not a step input.
+			name: "an unindented key is not a step input",
+			line: "go-version: 1.21",
+			ok:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := match.Infer(".github/workflows/ci.yml", []string{tt.line}, 0)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// A build matrix lists the versions a project supports, so its oldest entry is
+// deliberate and bumping it would silently drop support. The route's line
+// pattern refuses the flow-list spelling, but an include-style matrix spells the
+// same fact as a plain scalar, indistinguishable from a step input on the line
+// alone - so the inference refuses it by context.
+func TestInferSetupInputsRefuseMatrixEntries(t *testing.T) {
+	t.Parallel()
+
+	workflow := []string{
+		"jobs:",
+		"  test:",
+		"    strategy:",
+		"      matrix:",
+		"        go-version: 1.21",
+		"        include:",
+		"          - toxenv: py39",
+		"            python-version: '3.9'",
+		"    steps:",
+		"      - uses: actions/setup-python@v5",
+		"        with:",
+		"          python-version: '3.14'",
+		"      - uses: actions/setup-go@v6",
+		"        with:",
+		"          go-version: 1.24.0",
+	}
+
+	tests := []struct {
+		name   string
+		target int
+		want   match.Inference
+		ok     bool
+	}{
+		{
+			name:   "a scalar directly under matrix is not a pin",
+			target: 4,
+			ok:     false,
+		},
+		{
+			name:   "an include entry's version is not a pin",
+			target: 7,
+			ok:     false,
+		},
+		{
+			name:   "a step input in the same file still resolves",
+			target: 11,
+			want:   match.Inference{Provider: "python"},
+			ok:     true,
+		},
+		{
+			name:   "and so does one below the matrix",
+			target: 14,
+			want:   match.Inference{Provider: "go"},
+			ok:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := match.Infer(".github/workflows/ci.yml", workflow, tt.target)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// A setup input may carry a wildcard patch (terraform_version: 1.11.x), whose
+// version-shaped token is the 1.11 prefix. Bumping it re-precisions the resolved
+// version onto that token and leaves the wildcard in place, so the constraint
+// keeps its meaning.
+func TestSetupInputWildcardPatchRewrite(t *testing.T) {
+	t.Parallel()
+
+	const line = "          terraform_version: 1.11.x"
+
+	rw := match.For(match.Context{
+		Path:     ".github/workflows/ci.yml",
+		Line:     line,
+		Provider: "hashicorp",
+	})
+	located, err := rw.Locate(line)
+	require.NoError(t, err)
+	require.Equal(t, "1.11", located.Current())
+
+	got, changed, err := located.Render(line, model.Candidate{Version: "1.14.2"})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "          terraform_version: 1.14.x", got)
 }
