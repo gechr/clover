@@ -424,7 +424,7 @@ var routes = []route{
 			lineMatch: setupInput("go-version"),
 			provider:  constant.ProviderGo,
 		},
-		infer:    inferSetupInput(provides(constant.ProviderGo)),
+		infer:    refuseInMatrix(provides(constant.ProviderGo)),
 		rewriter: NewSmart(),
 	},
 	{
@@ -435,7 +435,7 @@ var routes = []route{
 			lineMatch: setupInput("node-version"),
 			provider:  constant.ProviderNode,
 		},
-		infer:    inferSetupInput(provides(constant.ProviderNode)),
+		infer:    refuseInMatrix(provides(constant.ProviderNode)),
 		rewriter: NewSmart(),
 	},
 	{
@@ -445,7 +445,7 @@ var routes = []route{
 			lineMatch: setupInput("python-version"),
 			provider:  constant.ProviderPython,
 		},
-		infer:    inferSetupInput(provides(constant.ProviderPython)),
+		infer:    refuseInMatrix(provides(constant.ProviderPython)),
 		rewriter: NewSmart(),
 	},
 	{
@@ -455,7 +455,7 @@ var routes = []route{
 			lineMatch: setupInput("swift-version"),
 			provider:  constant.ProviderSwift,
 		},
-		infer:    inferSetupInput(provides(constant.ProviderSwift)),
+		infer:    refuseInMatrix(provides(constant.ProviderSwift)),
 		rewriter: NewSmart(),
 	},
 	{
@@ -467,7 +467,33 @@ var routes = []route{
 			lineMatch: setupInput("terraform_version"),
 			provider:  constant.ProviderHashicorp,
 		},
-		infer:    inferSetupInput(inferTerraformToolchain),
+		infer:    refuseInMatrix(inferTerraformToolchain),
+		rewriter: NewSmart(),
+	},
+	{
+		// A Dockerfile build argument naming a tool: ARG GO_VERSION=1.24.0, or the
+		// same as an ENV in either the = or the legacy space-separated spelling.
+		// The tool the name places decides the provider, so the route declares
+		// none and leaves that to its inference, which declines a name it cannot
+		// place.
+		when: conditions{
+			path: dockerfileGlob,
+			lineMatch: mustPattern(
+				`/^\s*(ARG|ENV)\s+[A-Z][A-Z0-9_]*_VERSION\s*[=\s]\s*["']?v?\d/`,
+			),
+		},
+		infer:    inferVersionVariable,
+		rewriter: NewSmart(),
+	},
+	{
+		// The same variable as a YAML mapping value: a workflow env: entry or a
+		// GitLab CI variables: entry. Nested only, so a top-level key is not read
+		// as a variable, and refused inside a matrix like any other pin there.
+		when: conditions{
+			path:      workflowGlob,
+			lineMatch: mustPattern(`/^\s+[A-Z][A-Z0-9_]*_VERSION\s*:\s*["']?v?\d/`),
+		},
+		infer:    refuseInMatrix(inferVersionVariable),
 		rewriter: NewSmart(),
 	},
 	{

@@ -10,12 +10,14 @@ import (
 // Actions (strategy: matrix:) and GitLab CI (parallel: matrix:) spellings.
 const matrixKey = "matrix"
 
-// inferSetupInput wraps a setup input's inference with the one thing its line
+// refuseInMatrix wraps a YAML shape's inference with the one thing its line
 // cannot tell it: whether the pin is a build-matrix entry rather than a
-// toolchain pin.
+// toolchain pin. It guards every version a workflow spells as a mapping value -
+// a setup action's input, a <TOOL>_VERSION variable - since a matrix holds
+// exactly those spellings too.
 //
 // A matrix lists the versions a project supports, so its oldest entry is
-// deliberate and bumping it silently drops support. The route's line pattern
+// deliberate and bumping it silently drops support. A route's line pattern
 // already refuses the flow-list spelling (python-version: ['3.9', '3.14']), but
 // an include-style matrix spells the identical fact as a plain scalar:
 //
@@ -36,7 +38,7 @@ const matrixKey = "matrix"
 // The refusal binds auto-detection alone. An explicit provider marker on a
 // matrix line still dispatches through the smart rewriter, so a user who means
 // a single-entry matrix to track upstream keeps a spelling that works.
-func inferSetupInput(inner inferFunc) inferFunc {
+func refuseInMatrix(inner inferFunc) inferFunc {
 	return func(s subject) Inference {
 		if underMatrix(s.lines, s.target) {
 			return Inference{}

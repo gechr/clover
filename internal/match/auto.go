@@ -399,17 +399,37 @@ func sortedKeys(m map[string]string) []string {
 	return names
 }
 
+// miseEcosystems pairs each generated ecosystem map with the provider whose
+// registry serves it. Both readers below walk this one list, so a fourth
+// ecosystem cannot be added to one and missed by the other.
+var miseEcosystems = []struct {
+	tools    map[string]string
+	provider string
+}{
+	{misePypiTools, constant.ProviderPypi},
+	{miseNpmTools, constant.ProviderNpm},
+	{miseCratesTools, constant.ProviderCrates},
+}
+
 // misePackage returns the ecosystem package a mise tool key installs - the
 // pipx:, npm:, or cargo: backend the generated maps recorded - or "" when the
 // key names no ecosystem tool. A tool resolves to one provider, so it appears in
 // at most one map.
 func misePackage(key string) string {
-	for _, m := range []map[string]string{misePypiTools, miseNpmTools, miseCratesTools} {
-		if pkg, ok := m[key]; ok {
-			return pkg
+	pkg, _ := miseEcosystem(key)
+	return pkg
+}
+
+// miseEcosystem returns both halves of that answer: the package and the provider
+// that resolves it. A route knows its own provider and needs only the package;
+// an inference reading a tool name from a variable has neither.
+func miseEcosystem(key string) (string, string) {
+	for _, e := range miseEcosystems {
+		if pkg, ok := e.tools[key]; ok {
+			return pkg, e.provider
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // miseTool extracts the GitHub source a mise tool key tracks: a curated tool
