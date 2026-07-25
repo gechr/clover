@@ -9,11 +9,12 @@ import (
 
 // terraformSource extracts the source address governing the required_providers
 // version attribute at lines[target], parsing the whole file as HCL and
-// locating the entry whose version expression sits on that line. The line
-// alone names nothing - the source lives on a sibling line of the entry - so
-// this is the one context-aware inference. It returns "" when the file does
-// not parse or the line belongs to no required_providers entry (a module
-// block's version, for instance, pins a module, not a provider).
+// locating the entry whose version expression sits on that line. The line alone
+// names nothing - the source lives on a sibling line of the entry - which is
+// why an inference reads a whole [subject] rather than its target line. It
+// returns "" when the file does not parse or the line belongs to no
+// required_providers entry (a module block's version, for instance, pins a
+// module, not a provider).
 func terraformSource(lines []string, target int) string {
 	file, diags := hclsyntax.ParseConfig(
 		[]byte(strings.Join(lines, "\n")),

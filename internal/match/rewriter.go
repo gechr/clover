@@ -12,13 +12,27 @@ import (
 	"github.com/gechr/clover/internal/version"
 )
 
-// init asserts every built-in route glob compiles, the guarantee matchPath
-// relies on. Every glob constant in this file appears as a route guard, so
-// checking the table covers them all.
+// init asserts the built-in route table's two structural invariants: every
+// route glob compiles, the guarantee matchPath relies on (every glob constant in
+// this file appears as a route guard, so checking the table covers them all),
+// and a route names a provider exactly when it carries an inference.
+//
+// The second is the one a new route is liable to break. A provider-bearing route
+// with no infer compiles cleanly and dispatches correctly for an explicit
+// provider, but [Table.Infer] skips it, so the shape silently stops being
+// auto-detected - a failure with no error to trace. Should a route ever need to
+// dispatch a provider it must not auto-detect, that intent has to become
+// explicit here rather than being spelled as an omission.
 func init() {
 	for _, r := range routes {
 		if r.when.path != "" && !doublestar.ValidatePattern(r.when.path) {
 			panic(fmt.Sprintf("match: invalid built-in route glob %q", r.when.path))
+		}
+		if (r.when.provider != "") != (r.infer != nil) {
+			panic(fmt.Sprintf(
+				"match: route for provider %q must name a provider and an inference together",
+				r.when.provider,
+			))
 		}
 	}
 }
@@ -127,9 +141,14 @@ func matchPath(glob, path string) bool {
 	return doublestar.MatchUnvalidated(glob, path)
 }
 
-// route pairs a guard with the rewriter to use when it matches.
+// route pairs a guard with the rewriter to use when it matches, and with the
+// inference that reads the shape's provider parameters. A route with no infer
+// names no provider to auto-detect: the smart catch-all and the follower routes
+// are dispatch-only, reached by an explicit provider or value rather than by
+// recognizing a shape.
 type route struct {
 	when     conditions
+	infer    inferFunc
 	rewriter Rewriter
 }
 
@@ -258,6 +277,7 @@ var routes = []route{
 			),
 			provider: constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerPin(),
 	},
 	{
@@ -267,6 +287,7 @@ var routes = []route{
 			lineMatch: mustPattern("* uses: *" + dockerScheme + "*"),
 			provider:  constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerTag(),
 	},
 	{
@@ -280,6 +301,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/\s+uses:\s+.+@[0-9a-fA-F]{40}\b/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferAction,
 		rewriter: NewActionPin(),
 	},
 	{
@@ -293,6 +315,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/\s+uses:\s+\S+@v?\d/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferAction,
 		rewriter: NewActionTag(),
 	},
 	{
@@ -304,6 +327,7 @@ var routes = []route{
 			lineMatch: mustPattern("FROM *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerPin(),
 	},
 	{
@@ -313,6 +337,7 @@ var routes = []route{
 			lineMatch: mustPattern("* image: *" + constant.DockerDigestMarker + "*"),
 			provider:  constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerPin(),
 	},
 	{
@@ -324,6 +349,7 @@ var routes = []route{
 			lineMatch: mustPattern("FROM *"),
 			provider:  constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerTag(),
 	},
 	{
@@ -334,6 +360,7 @@ var routes = []route{
 			lineMatch: mustPattern("* image: *"),
 			provider:  constant.ProviderDocker,
 		},
+		infer:    inferImage,
 		rewriter: NewDockerTag(),
 	},
 	{
@@ -345,6 +372,7 @@ var routes = []route{
 			lineMatch: mustPattern("* component: *@*"),
 			provider:  constant.ProviderGitlab,
 		},
+		infer:    inferComponent,
 		rewriter: NewSmart(),
 	},
 	{
@@ -357,6 +385,7 @@ var routes = []route{
 			),
 			provider: constant.ProviderHashicorp,
 		},
+		infer:    inferMiseHashicorp(miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -368,6 +397,7 @@ var routes = []route{
 			),
 			provider: constant.ProviderHashicorp,
 		},
+		infer:    inferMiseHashicorp(toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -378,6 +408,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(node|nodejs)"?\s*=\s*"/`),
 			provider:  constant.ProviderNode,
 		},
+		infer:    provides(constant.ProviderNode),
 		rewriter: NewSmart(),
 	},
 	{
@@ -387,6 +418,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(node|nodejs)\s+\S/`),
 			provider:  constant.ProviderNode,
 		},
+		infer:    provides(constant.ProviderNode),
 		rewriter: NewSmart(),
 	},
 	{
@@ -398,6 +430,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^v?\d+(\.\d+)*\s*$/`),
 			provider:  constant.ProviderNode,
 		},
+		infer:    provides(constant.ProviderNode),
 		rewriter: NewSmart(),
 	},
 	{
@@ -410,6 +443,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(go|golang)"?\s*=\s*"/`),
 			provider:  constant.ProviderGo,
 		},
+		infer:    provides(constant.ProviderGo),
 		rewriter: NewSmart(),
 	},
 	{
@@ -419,6 +453,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(go|golang)\s+\S/`),
 			provider:  constant.ProviderGo,
 		},
+		infer:    provides(constant.ProviderGo),
 		rewriter: NewSmart(),
 	},
 	{
@@ -430,6 +465,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?python"?\s*=\s*"/`),
 			provider:  constant.ProviderPython,
 		},
+		infer:    provides(constant.ProviderPython),
 		rewriter: NewSmart(),
 	},
 	{
@@ -439,6 +475,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*python\s+\S/`),
 			provider:  constant.ProviderPython,
 		},
+		infer:    provides(constant.ProviderPython),
 		rewriter: NewSmart(),
 	},
 	{
@@ -450,6 +487,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\d/`),
 			provider:  constant.ProviderPython,
 		},
+		infer:    provides(constant.ProviderPython),
 		rewriter: NewSmart(),
 	},
 	{
@@ -461,6 +499,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?swift"?\s*=\s*"/`),
 			provider:  constant.ProviderSwift,
 		},
+		infer:    provides(constant.ProviderSwift),
 		rewriter: NewSmart(),
 	},
 	{
@@ -470,6 +509,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*swift\s+\S/`),
 			provider:  constant.ProviderSwift,
 		},
+		infer:    provides(constant.ProviderSwift),
 		rewriter: NewSmart(),
 	},
 	{
@@ -482,6 +522,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\d+(\.\d+)*\s*$/`),
 			provider:  constant.ProviderSwift,
 		},
+		infer:    provides(constant.ProviderSwift),
 		rewriter: NewSmart(),
 	},
 	{
@@ -492,6 +533,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?zig"?\s*=\s*"/`),
 			provider:  constant.ProviderZig,
 		},
+		infer:    provides(constant.ProviderZig),
 		rewriter: NewSmart(),
 	},
 	{
@@ -501,6 +543,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*zig\s+\S/`),
 			provider:  constant.ProviderZig,
 		},
+		infer:    provides(constant.ProviderZig),
 		rewriter: NewSmart(),
 	},
 	{
@@ -512,6 +555,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?rust"?\s*=\s*"/`),
 			provider:  constant.ProviderRust,
 		},
+		infer:    provides(constant.ProviderRust),
 		rewriter: NewSmart(),
 	},
 	{
@@ -521,6 +565,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*rust\s+\S/`),
 			provider:  constant.ProviderRust,
 		},
+		infer:    provides(constant.ProviderRust),
 		rewriter: NewSmart(),
 	},
 	{
@@ -532,6 +577,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*channel\s*=\s*["']\d/`),
 			provider:  constant.ProviderRust,
 		},
+		infer:    provides(constant.ProviderRust),
 		rewriter: NewSmart(),
 	},
 	{
@@ -543,6 +589,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\d+(\.\d+)*\s*$/`),
 			provider:  constant.ProviderRust,
 		},
+		infer:    provides(constant.ProviderRust),
 		rewriter: NewSmart(),
 	},
 	{
@@ -555,6 +602,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*rust-version\s*=\s*['"]/`),
 			provider:  constant.ProviderRust,
 		},
+		infer:    provides(constant.ProviderRust),
 		rewriter: NewSmart(),
 	},
 	{
@@ -566,6 +614,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/target-version\s*=\s*['"]py\d/`),
 			provider:  constant.ProviderPython,
 		},
+		infer:    provides(constant.ProviderPython),
 		rewriter: NewPythonTag(),
 	},
 	{
@@ -580,6 +629,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*requires-python\s*=\s*['"]/`),
 			provider:  constant.ProviderPython,
 		},
+		infer:    provides(constant.ProviderPython),
 		rewriter: NewSmart(),
 	},
 	{
@@ -598,6 +648,7 @@ var routes = []route{
 			),
 			provider: constant.ProviderPypi,
 		},
+		infer:    inferRequirement,
 		rewriter: NewRequirement(),
 	},
 	{
@@ -608,6 +659,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"(github|ubi):[^"]+"\s*=\s*"/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferMiseGithub(miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -618,6 +670,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(github|ubi):\S+\s+\S/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferMiseGithub(toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -629,6 +682,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(` + alternation(ToolNames()) + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferMiseGithub(miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -638,6 +692,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(` + alternation(ToolNames()) + `)\s+\S/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferMiseGithub(toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -649,6 +704,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(` + alternation(pypiToolNames()) + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderPypi,
 		},
+		infer:    inferMisePackage(constant.ProviderPypi, miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -658,6 +714,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(` + alternation(pypiToolNames()) + `)\s+\S/`),
 			provider:  constant.ProviderPypi,
 		},
+		infer:    inferMisePackage(constant.ProviderPypi, toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -669,6 +726,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(` + alternation(npmToolNames()) + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderNpm,
 		},
+		infer:    inferMisePackage(constant.ProviderNpm, miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -678,6 +736,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(` + alternation(npmToolNames()) + `)\s+\S/`),
 			provider:  constant.ProviderNpm,
 		},
+		infer:    inferMisePackage(constant.ProviderNpm, toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -689,6 +748,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*"?(` + alternation(cratesToolNames()) + `)"?\s*=\s*"/`),
 			provider:  constant.ProviderCrates,
 		},
+		infer:    inferMisePackage(constant.ProviderCrates, miseKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -698,6 +758,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*(` + alternation(cratesToolNames()) + `)\s+\S/`),
 			provider:  constant.ProviderCrates,
 		},
+		infer:    inferMisePackage(constant.ProviderCrates, toolVersionsKey),
 		rewriter: NewSmart(),
 	},
 	{
@@ -710,6 +771,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*required_version\s*=\s*"/`),
 			provider:  constant.ProviderHashicorp,
 		},
+		infer:    inferTerraformToolchain,
 		rewriter: NewSmart(),
 	},
 	{
@@ -722,6 +784,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderTerraform,
 		},
+		infer:    inferProviderSource(constant.ProviderTerraform),
 		rewriter: NewSmart(),
 	},
 	{
@@ -733,6 +796,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*required_version\s*=\s*"/`),
 			provider:  constant.ProviderGithub,
 		},
+		infer:    inferTofuToolchain,
 		rewriter: NewSmart(),
 	},
 	{
@@ -743,6 +807,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s*version\s*=\s*"/`),
 			provider:  constant.ProviderOpentofu,
 		},
+		infer:    inferProviderSource(constant.ProviderOpentofu),
 		rewriter: NewSmart(),
 	},
 	{
@@ -755,6 +820,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^\s+version\s*:/`),
 			provider:  constant.ProviderHelm,
 		},
+		infer:    inferHelmDependency,
 		rewriter: NewSmart(),
 	},
 	{
@@ -766,6 +832,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^go\s+\d/`),
 			provider:  constant.ProviderGo,
 		},
+		infer:    provides(constant.ProviderGo),
 		rewriter: NewSmart(),
 	},
 	{
@@ -778,6 +845,7 @@ var routes = []route{
 			lineMatch: mustPattern(`/^toolchain\s+go\d/`),
 			provider:  constant.ProviderGo,
 		},
+		infer:    provides(constant.ProviderGo),
 		rewriter: mustFindReplace("go<version>"),
 	},
 	{

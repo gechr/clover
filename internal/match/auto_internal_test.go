@@ -58,3 +58,26 @@ func TestAlternation(t *testing.T) {
 	require.False(t, p.Matches(`foo = "1.2.3"`))
 	require.False(t, p.Matches(` = "1.2.3"`))
 }
+
+// TestRouteInferenceNamesItsProvider is the drift guard for the deliberate
+// redundancy between a route's provider guard and its inference. The guard
+// serves rewriter dispatch (an explicit provider picks the rewriter) and the
+// inference serves auto-detection, so the two are separate fields that must
+// nonetheless always agree: a route that dispatched one provider and inferred
+// another would resolve a marker against an upstream the line never named.
+//
+// init already asserts the two are present together; this pins the value. Every
+// inference names its provider unconditionally, so an empty line is enough to
+// read it back without depending on a shape.
+func TestRouteInferenceNamesItsProvider(t *testing.T) {
+	t.Parallel()
+
+	empty := subject{lines: []string{""}, target: 0}
+	for _, r := range routes {
+		if r.infer == nil {
+			continue
+		}
+		require.Equal(t, r.when.provider, r.infer(empty).Provider,
+			"route %q infers a different provider than it dispatches", r.when.provider)
+	}
+}

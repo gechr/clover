@@ -57,6 +57,29 @@ func (i Inference) Missing() string {
 	return ""
 }
 
+// subject is what a route's inference reads: the file's lines and the index of
+// the target line within them. Most shapes carry their reference on the target
+// line alone, but some name it on a sibling (a Helm dependency's chart, a
+// Terraform entry's source), so the whole file is in reach.
+//
+// It deliberately does not carry the file's path. The route that matched was
+// already selected by its path guard, so an inference that consulted the path
+// would be re-deciding which shape it is looking at - the guess-chain this
+// dispatch exists to abolish.
+type subject struct {
+	lines  []string
+	target int
+}
+
+// line returns the target line. A subject is only ever built for an in-range
+// target, so the index is always valid.
+func (s subject) line() string { return s.lines[s.target] }
+
+// inferFunc reads the provider parameters the shape a route matched carries.
+// Each route owns its own, so the shape that matched is the shape that is read:
+// no inference re-derives which route it came from by re-testing path globs.
+type inferFunc func(s subject) Inference
+
 // Table is the dispatch table scoped to one file: the routes whose path guard
 // matches the file, computed once so per-line inference never re-evaluates a
 // path glob. Inference is called for every line of every scanned file, and the
@@ -80,53 +103,27 @@ func NewTable(path string) Table {
 
 // Infer resolves the provider for an `auto` marker from its target line
 // (lines[target]), reusing the dispatch routes: the first route whose line
-// matches (ignoring its provider guard, which is the answer) names the
-// provider. It also reads the provider's parameters from the line - the
-// repository from a GitHub Actions pin, the registry and repository from a
-// container image reference - so a bare `provider=auto` needs no further keys.
-// The surrounding lines matter only to the Terraform route, whose source
-// address lives on a sibling line of its block. It returns ok=false when
-// nothing matches, leaving the marker for the caller to reject.
+// matches names the provider through its own inference, which also reads the
+// provider's parameters - the repository from a GitHub Actions pin, the
+// registry and repository from a container image reference - so a bare
+// `provider=auto` needs no further keys. A route with no inference (the smart
+// catch-all, a follower) is skipped, since it names no provider to infer. It
+// returns ok=false when nothing matches, leaving the marker for the caller to
+// reject.
 func (t Table) Infer(lines []string, target int) (Inference, bool) {
 	if target < 0 || target >= len(lines) {
 		return Inference{}, false
 	}
-	line := lines[target]
+	s := subject{lines: lines, target: target}
+	line := s.line()
 	for _, r := range t.routes {
-		c := r.when
-		if c.provider == "" {
-			continue // the smart catch-all infers nothing
-		}
-		if c.lineMatch != nil && !c.lineMatch.Matches(line) {
+		if r.infer == nil {
 			continue
 		}
-		inferred := Inference{Provider: c.provider}
-		switch c.provider {
-		case constant.ProviderGithub:
-			inferred.Repository, inferred.TagPrefix = githubReference(t.path, line)
-		case constant.ProviderDocker:
-			inferred.Registry, inferred.Repository = imageReference(line)
-			inferred.Track = trackedTag(imageToken(line))
-		case constant.ProviderGitlab:
-			inferred.Host, inferred.Repository = componentReference(line)
-		case constant.ProviderHashicorp:
-			inferred.Product = hashicorpProduct(t.path, line)
-		case constant.ProviderPypi:
-			// A mise pipx tool names its package in the generated map; a
-			// requirements or pyproject dependency names it on the line.
-			if MiseFile(t.path) {
-				inferred.Package = misePackage(toolKey(t.path, line))
-			} else {
-				inferred.Package = pypiPackage(line)
-			}
-		case constant.ProviderNpm, constant.ProviderCrates:
-			inferred.Package = misePackage(toolKey(t.path, line))
-		case constant.ProviderTerraform, constant.ProviderOpentofu:
-			inferred.Source = terraformSource(lines, target)
-		case constant.ProviderHelm:
-			inferred.Chart, inferred.Registry = helmDependency(lines, target)
+		if r.when.lineMatch != nil && !r.when.lineMatch.Matches(line) {
+			continue
 		}
-		return inferred, true
+		return r.infer(s), true
 	}
 	return Inference{}, false
 }
@@ -172,28 +169,11 @@ func componentReference(line string) (string, string) {
 // required_version constraint tracks.
 const terraformProduct = "terraform"
 
-// hashicorpProduct names the product a hashicorp-routed line pins: terraform
-// for a required_version constraint in a Terraform file, else the mise tool
-// key, which doubles as the product slug.
-func hashicorpProduct(path, line string) string {
-	if matchPath(terraformGlob, path) {
-		return terraformProduct
-	}
-	return toolKey(path, line)
-}
-
-// toolKey extracts the tool name from a line mise reads: the first
-// whitespace-separated field in a .tool-versions file, else the mise TOML key.
-func toolKey(path, line string) string {
-	if matchPath(toolVersionsGlob, path) {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			return ""
-		}
-		return fields[0]
-	}
-	return miseKey(line)
-}
+// keyFunc extracts a tool name from a line in one of the two formats mise
+// reads. The two differ only in how the key is spelled, so a route pairs its
+// path guard with the matching reader rather than having the reader re-test the
+// path it was already routed by.
+type keyFunc func(line string) string
 
 // miseKey extracts the tool name from a mise configuration line, the quoted or
 // bare TOML key before =, e.g. `terraform = "1.9.8"` -> "terraform".
@@ -203,6 +183,16 @@ func miseKey(line string) string {
 		return ""
 	}
 	return strings.Trim(strings.TrimSpace(key), `"'`)
+}
+
+// toolVersionsKey extracts the tool name from a .tool-versions line, the first
+// whitespace-separated field, e.g. `terraform 1.9.8` -> "terraform".
+func toolVersionsKey(line string) string {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
 }
 
 // pypiPackage extracts the package name from the first dependency specifier
@@ -253,17 +243,107 @@ var miseGithubTools = map[string]githubTool{
 	"rust": {repository: "rust-lang/rust"},
 }
 
-// githubReference extracts the repository a line tracks on GitHub, and the
-// tag-prefix its upstream tags carry: a uses: action reference, a .tofu file's
-// required_version constraint, or a mise tool key.
-func githubReference(path, line string) (string, string) {
-	if repo := actionRepository(line); repo != "" {
-		return repo, ""
+// provides returns an inference naming only the provider, for a shape that
+// carries no parameters of its own - a toolchain pin, whose provider needs
+// nothing beyond the version already on the line.
+func provides(name string) inferFunc {
+	return func(subject) Inference { return Inference{Provider: name} }
+}
+
+// inferImage reads a container image reference: its registry and repository,
+// plus the floating tag a digest pin should keep fresh.
+func inferImage(s subject) Inference {
+	line := s.line()
+	registry, repository := imageReference(line)
+	return Inference{
+		Provider:   constant.ProviderDocker,
+		Registry:   registry,
+		Repository: repository,
+		Track:      trackedTag(imageToken(line)),
 	}
-	if matchPath(tofuGlob, path) {
-		return tofuTool.repository, tofuTool.tagPrefix
+}
+
+// inferAction reads the repository a GitHub Actions uses: reference names.
+func inferAction(s subject) Inference {
+	return Inference{
+		Provider:   constant.ProviderGithub,
+		Repository: actionRepository(s.line()),
 	}
-	return miseTool(path, line)
+}
+
+// inferComponent reads the host and project a GitLab CI/CD component include
+// names.
+func inferComponent(s subject) Inference {
+	host, repository := componentReference(s.line())
+	return Inference{Provider: constant.ProviderGitlab, Host: host, Repository: repository}
+}
+
+// inferTofuToolchain names the OpenTofu source a .tofu file's required_version
+// constraint tracks. The repository is constant: the file's extension is the
+// whole signal, so there is nothing on the line to read.
+func inferTofuToolchain(subject) Inference {
+	return Inference{
+		Provider:   constant.ProviderGithub,
+		Repository: tofuTool.repository,
+		TagPrefix:  tofuTool.tagPrefix,
+	}
+}
+
+// inferTerraformToolchain names the product a Terraform required_version
+// constraint pins, which is always terraform itself.
+func inferTerraformToolchain(subject) Inference {
+	return Inference{Provider: constant.ProviderHashicorp, Product: terraformProduct}
+}
+
+// inferMiseGithub reads the GitHub repository a mise tool key tracks, and the
+// tag prefix its upstream tags wear.
+func inferMiseGithub(key keyFunc) inferFunc {
+	return func(s subject) Inference {
+		repository, tagPrefix := miseTool(key(s.line()))
+		return Inference{
+			Provider:   constant.ProviderGithub,
+			Repository: repository,
+			TagPrefix:  tagPrefix,
+		}
+	}
+}
+
+// inferMiseHashicorp reads the HashiCorp product a mise tool key names; the
+// tool name doubles as the product slug on releases.hashicorp.com.
+func inferMiseHashicorp(key keyFunc) inferFunc {
+	return func(s subject) Inference {
+		return Inference{Provider: constant.ProviderHashicorp, Product: key(s.line())}
+	}
+}
+
+// inferMisePackage reads the ecosystem package a mise tool key installs, for
+// the pypi, npm, and crates routes whose tools name one in the generated maps.
+func inferMisePackage(name string, key keyFunc) inferFunc {
+	return func(s subject) Inference {
+		return Inference{Provider: name, Package: misePackage(key(s.line()))}
+	}
+}
+
+// inferRequirement reads the package a PEP 508 dependency specifier names.
+func inferRequirement(s subject) Inference {
+	return Inference{Provider: constant.ProviderPypi, Package: pypiPackage(s.line())}
+}
+
+// inferProviderSource reads the source address of the required_providers entry
+// the target line's version constraint belongs to, which lives on a sibling
+// line of the entry.
+func inferProviderSource(name string) inferFunc {
+	return func(s subject) Inference {
+		return Inference{Provider: name, Source: terraformSource(s.lines, s.target)}
+	}
+}
+
+// inferHelmDependency reads the chart and repository of the Chart.yaml
+// dependencies entry the target line's version scalar belongs to, both of which
+// live on sibling lines of the entry.
+func inferHelmDependency(s subject) Inference {
+	chart, registry := helmDependency(s.lines, s.target)
+	return Inference{Provider: constant.ProviderHelm, Chart: chart, Registry: registry}
 }
 
 // LookupTool resolves a mise tool name to the GitHub repository whose tags
@@ -326,8 +406,7 @@ func misePackage(key string) string {
 // miseRegistryTools, or a github: or ubi: backend key, e.g.
 // `"ubi:owner/tool" = "1.2.3"` -> "owner/tool", dropping a trailing [option]
 // qualifier. It returns empty strings when the key names no repository.
-func miseTool(path, line string) (string, string) {
-	key := toolKey(path, line)
+func miseTool(key string) (string, string) {
 	if repo, prefix, ok := LookupTool(key); ok {
 		return repo, prefix
 	}
