@@ -22,7 +22,7 @@ func (semverProvider) BareMajor() {}
 // resolves to nothing. Two independent things lift that guard: a mise file, where
 // the shape carries the meaning whatever provider resolves it, and a BareMajorer
 // provider, whose upstream has no calendar tags to guard against.
-func TestRunBareMajorPin(t *testing.T) {
+func TestBareMajorPin(t *testing.T) {
 	t.Run("a BareMajorer resolves a bare pin outside a mise file", func(t *testing.T) {
 		provider.Register(semverProvider{fakeProvider{
 			name:       "semvered",

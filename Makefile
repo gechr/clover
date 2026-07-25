@@ -47,6 +47,14 @@ endif
 test:
 	@$(GO) test -timeout 30s -race ./...
 
+# Resolve one real resource per provider against its actual upstream, checking
+# that each still parses a response it has only ever been shown a fixture of.
+# Deliberately outside `all`: it needs the network, spends real rate limit, and
+# fails when an upstream is down.
+.PHONY: smoke
+smoke:
+	@$(GO) test -tags=live -count=1 -timeout 300s -run 'TestLive' -v ./internal/provider/all/
+
 .PHONY: update
 update:
 	@clover run

@@ -45,13 +45,13 @@ func TestDaterCoversDatedProviders(t *testing.T) {
 	}
 }
 
-// TestBareMajorerCoversSemverProviders is the drift guard for the scheme guard's
-// bare-pin exemption: a provider must declare [provider.BareMajorer] exactly when
-// its upstream versions are always semver-shaped and never calendar stamps. A
+// TestBareMajorers is the drift guard for the scheme guard's bare-pin
+// exemption: a provider must declare [provider.BareMajorer] exactly when its
+// upstream versions are always semver-shaped and never calendar stamps. A
 // provider that wrongly claims it would let a dotted candidate replace a calendar
 // tag; one that wrongly omits it leaves a bare major pin (node-version: 20)
 // matching no candidate at all.
-func TestBareMajorerCoversSemverProviders(t *testing.T) {
+func TestBareMajorers(t *testing.T) {
 	bareMajor := map[string]bool{
 		// Toolchains and products with a guaranteed semver scheme.
 		constant.ProviderGo:        true,

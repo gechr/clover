@@ -212,7 +212,7 @@ func TestDiscoverHTTPError(t *testing.T) {
 // path segment, where a provider uses providers.v1 and stops at the name. The
 // two services are advertised independently, so the discovery document decides
 // which endpoint is reachable.
-func TestDiscoverModuleUsesModulesService(t *testing.T) {
+func TestDiscoverModule(t *testing.T) {
 	t.Parallel()
 
 	var paths []string
@@ -254,7 +254,7 @@ func TestDiscoverModuleUsesModulesService(t *testing.T) {
 
 // A host offering providers.v1 but not modules.v1 cannot serve a module, and the
 // error names the service that is missing rather than the one that is present.
-func TestDiscoverModuleWithoutModulesService(t *testing.T) {
+func TestDiscoverModuleUnsupported(t *testing.T) {
 	t.Parallel()
 
 	p := terraform.New(terraform.Terraform, terraform.WithTransport(
@@ -279,7 +279,7 @@ func TestDiscoverModuleWithoutModulesService(t *testing.T) {
 }
 
 // A module's web page carries its target system, where a provider's does not.
-func TestModuleURLAndIdentify(t *testing.T) {
+func TestModuleURL(t *testing.T) {
 	t.Parallel()
 
 	p := terraform.New(terraform.Terraform)

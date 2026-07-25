@@ -59,8 +59,8 @@ func TestAlternation(t *testing.T) {
 	require.False(t, p.Matches(` = "1.2.3"`))
 }
 
-// TestRouteInferenceNamesItsProvider is the drift guard for the deliberate
-// redundancy between a route's provider guard and its inference. The guard
+// TestRouteInference is the drift guard for the deliberate redundancy between a
+// route's provider guard and its inference. The guard
 // serves rewriter dispatch (an explicit provider picks the rewriter) and the
 // inference serves auto-detection, so the two are separate fields that must
 // nonetheless always agree: a route that dispatched one provider and inferred
@@ -73,7 +73,7 @@ func TestAlternation(t *testing.T) {
 // A detection-only route is the deliberate exception: it declares no provider
 // because it reads one from the file, so an empty line must leave it declining
 // rather than defaulting to some provider.
-func TestRouteInferenceNamesItsProvider(t *testing.T) {
+func TestRouteInference(t *testing.T) {
 	t.Parallel()
 
 	empty := subject{lines: []string{""}, target: 0}

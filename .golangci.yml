@@ -1,4 +1,9 @@
 version: "2"
+run:
+  # The live smoke test sits behind this tag. Linting it needs the tag set, and a
+  # drift detector that had silently stopped compiling would be worse than none.
+  build-tags:
+    - live
 linters:
   default: all
   disable:

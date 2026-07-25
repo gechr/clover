@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInferVersionVariable(t *testing.T) {
+func TestVersionVariables(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -126,7 +126,7 @@ func TestInferVersionVariable(t *testing.T) {
 // name places - and then refused by the rewriter, which will not guess which of
 // two version-shaped tokens the marker meant. The refusal is what makes the
 // permissive inference safe, so the division of labour is pinned here.
-func TestVersionVariableMultiPairEnvIsRefusedAtLocate(t *testing.T) {
+func TestVersionVariableMultiPair(t *testing.T) {
 	t.Parallel()
 
 	const line = "ENV GO_VERSION=1.24.0 NODE_VERSION=22"
@@ -142,7 +142,7 @@ func TestVersionVariableMultiPairEnvIsRefusedAtLocate(t *testing.T) {
 
 // A build matrix may hold a <TOOL>_VERSION variable just as it holds a setup
 // input, and its oldest entry is as deliberate.
-func TestInferVersionVariableRefusesMatrixEntry(t *testing.T) {
+func TestVersionVariableMatrix(t *testing.T) {
 	t.Parallel()
 
 	workflow := []string{

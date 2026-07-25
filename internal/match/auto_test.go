@@ -1029,7 +1029,7 @@ func TestInferHelmDependencies(t *testing.T) {
 	}
 }
 
-func TestInferPreCommitRevs(t *testing.T) {
+func TestPreCommitRevs(t *testing.T) {
 	t.Parallel()
 
 	config := []string{
@@ -1131,7 +1131,7 @@ func TestInferPreCommitRevs(t *testing.T) {
 	}
 }
 
-func TestInferSetupInputs(t *testing.T) {
+func TestSetupInputs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -1223,7 +1223,7 @@ func TestInferSetupInputs(t *testing.T) {
 // pattern refuses the flow-list spelling, but an include-style matrix spells the
 // same fact as a plain scalar, indistinguishable from a step input on the line
 // alone - so the inference refuses it by context.
-func TestInferSetupInputsRefuseMatrixEntries(t *testing.T) {
+func TestSetupInputMatrix(t *testing.T) {
 	t.Parallel()
 
 	workflow := []string{
@@ -1289,7 +1289,7 @@ func TestInferSetupInputsRefuseMatrixEntries(t *testing.T) {
 // version-shaped token is the 1.11 prefix. Bumping it re-precisions the resolved
 // version onto that token and leaves the wildcard in place, so the constraint
 // keeps its meaning.
-func TestSetupInputWildcardPatchRewrite(t *testing.T) {
+func TestSetupInputWildcard(t *testing.T) {
 	t.Parallel()
 
 	const line = "          terraform_version: 1.11.x"
