@@ -93,6 +93,14 @@ func Run(logger *clog.Logger, summary mode.Summary, dryRun bool, detail output.M
 		}
 	})
 
+	// A write failure is file-level, not marker-level, so it surfaces here
+	// rather than in the per-marker loop: the update rendered but never landed.
+	for _, o := range summary.Outcomes {
+		if o.WriteErr != nil {
+			logger.Error().Path(field.Path, o.Path).Err(o.WriteErr).Msg("Write failed")
+		}
+	}
+
 	// Nothing to summarize when no markers were found: the "No Clover comments
 	// found" warning already stands on its own.
 	if empty(summary) {

@@ -192,8 +192,8 @@ func newSettings(opts ...Option) settings {
 		requireDirective: true,
 		scanLabel:        defaultScanLabel,
 	}
-	for _, opt := range opts {
-		opt(&set)
+	for _, o := range opts {
+		o(&set)
 	}
 	if set.workers < 1 {
 		set.workers = 1

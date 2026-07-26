@@ -47,4 +47,6 @@
 
 - [Commands](commands.md)
 
+- [Hooks](hooks.md)
+
 - [Caching](caching.md)

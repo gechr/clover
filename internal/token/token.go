@@ -48,8 +48,8 @@ func New(opts ...Option) (*Store, error) {
 		return nil, fmt.Errorf("token: locate config dir: %w", err)
 	}
 	store := &Store{cache: make(map[string]cachedToken), dir: filepath.Join(dir, service, "hosts")}
-	for _, opt := range opts {
-		opt(store)
+	for _, o := range opts {
+		o(store)
 	}
 	return store, nil
 }

@@ -51,8 +51,8 @@ type Provider struct {
 // shared cache, with no ratelimit wrapper or credentials.
 func New(opts ...Option) *Provider {
 	p := &Provider{userAgent: userAgentFor("")}
-	for _, opt := range opts {
-		opt(p)
+	for _, o := range opts {
+		o(p)
 	}
 	var cacheOpts []httpcache.Option
 	if p.transport != nil {

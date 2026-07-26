@@ -42,6 +42,18 @@ func (s Summary) Errored() int {
 	return s.count(func(r pipeline.Result) bool { return r.Err != nil || r.Verify != nil })
 }
 
+// Written reports the number of files whose rewrite landed on disk. Unlike
+// Changed, which counts rendered differences, this counts completed writes, so
+// it stays zero in a dry run or when every write failed.
+func (s Summary) Written() int {
+	return xslices.CountFunc(s.Outcomes, func(o Outcome) bool { return o.Written })
+}
+
+// WriteFailures reports the number of files whose rewrite failed to land.
+func (s Summary) WriteFailures() int {
+	return xslices.CountFunc(s.Outcomes, func(o Outcome) bool { return o.WriteErr != nil })
+}
+
 // count tallies the markers across every outcome that satisfy pred.
 func (s Summary) count(pred func(pipeline.Result) bool) int {
 	var n int

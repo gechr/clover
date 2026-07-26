@@ -35,8 +35,8 @@ type Verifier struct {
 // New returns a Sigstore bundle verifier.
 func New(opts ...Option) *Verifier {
 	v := &Verifier{}
-	for _, opt := range opts {
-		opt(v)
+	for _, o := range opts {
+		o(v)
 	}
 	return v
 }

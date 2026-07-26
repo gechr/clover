@@ -31,8 +31,8 @@ type Matcher struct {
 // New returns a matcher that resolves repository roots through resolver.
 func New(resolver *vcs.Resolver, opts ...Option) *Matcher {
 	m := &Matcher{resolver: resolver, files: defaultFiles, cache: make(map[string][]pattern)}
-	for _, opt := range opts {
-		opt(m)
+	for _, o := range opts {
+		o(m)
 	}
 	return m
 }

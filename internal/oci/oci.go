@@ -81,8 +81,8 @@ func New(opts ...Option) *Client {
 		rateHeaders: defaultRateHeaders,
 		label:       "oci",
 	}
-	for _, opt := range opts {
-		opt(c)
+	for _, o := range opts {
+		o(c)
 	}
 	return c
 }

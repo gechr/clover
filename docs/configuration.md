@@ -82,6 +82,8 @@ A rule can scope `verify`, `prerelease`, `downgrade`, `deep`, `force`, and `cool
 
 Clover also reads process-wide settings from `CLOVER_*` environment variables. Set `CLOVER_NO_CACHE=1` to disable the cross-run [HTTP cache](caching.md) for a run, overriding `run.cache`. An explicit `--[no-]cache` flag wins over both.
 
+Set `CLOVER_HOOK_SHELL` to change the shell [hook](hooks.md) commands run through (e.g. `CLOVER_HOOK_SHELL=/opt/homebrew/bin/fish`). An explicit `--exec-shell` flag wins over it.
+
 To make file and line hyperlinks open in an editor, set `CLOVER_HYPERLINK_FORMAT` to one of the supported editor presets:
 
 ```bash

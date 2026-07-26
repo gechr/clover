@@ -54,8 +54,8 @@ type Provider struct {
 // helper), so clover piggybacks on credentials docker already stores.
 func New(opts ...Option) *Provider {
 	p := &Provider{keychain: authn.DefaultKeychain, attestor: attest.New()}
-	for _, opt := range opts {
-		opt(p)
+	for _, o := range opts {
+		o(p)
 	}
 	p.client = oci.New(
 		oci.WithTransport(p.transport),

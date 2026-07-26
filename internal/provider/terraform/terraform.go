@@ -72,8 +72,8 @@ type Provider struct {
 // rate-limit headers, so the client is a plain cached one.
 func New(registry Registry, opts ...Option) *Provider {
 	p := &Provider{registry: registry}
-	for _, opt := range opts {
-		opt(p)
+	for _, o := range opts {
+		o(p)
 	}
 	var cacheOpts []httpcache.Option
 	if p.transport != nil {

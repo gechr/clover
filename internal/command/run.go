@@ -10,12 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/kong"
 	"github.com/gechr/clive"
 	"github.com/gechr/clog"
 	"github.com/gechr/clover/internal/auth"
 	"github.com/gechr/clover/internal/config"
 	"github.com/gechr/clover/internal/console"
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/hook"
 	"github.com/gechr/clover/internal/httpcache"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/mode"
@@ -54,6 +56,9 @@ type cmdRun struct {
 	DryRun       bool         `            help:"Resolve and render but write nothing"                                                      clib:"terse='Dry run',group='Options/Dry Run'"                                                                                             short:"n" aliases:"dry"`
 	NoIgnore     bool         "            help:\"Scan files that `.gitignore` would exclude (VCS directories stay excluded)\"                    clib:\"terse='No ignore',group='Options/Scanning'\""
 	Output       *output.Mode "            help:\"Output detail\"                                                                           clib:\"terse='Output detail',default='text',group='Options/Output'\" short:\"o\"                                                                enum:\"text,wide,github\""
+	PreExec      string       `            help:"Run this command before updating (aborts on failure)"                                      clib:"terse='Pre-exec hook',group='Hooks/1',hint='command'"                                                       placeholder:"<command>"`
+	PostExec     string       `            help:"Run this command after updating"                                                           clib:"terse='Post-exec hook',group='Hooks/1',hint='command'"                                                      placeholder:"<command>"`
+	ExecShell    string       `            help:"Run hook commands with this shell"                                                         clib:"terse='Hook shell',group='Hooks/2',hint='command'"                                                          placeholder:"<shell>"                                          default:"/bin/sh" env:"CLOVER_HOOK_SHELL"`
 }
 
 // applyTo wires the implications of --to: pinning to one exact version means
@@ -109,7 +114,11 @@ It exits non-zero when any directive fails to resolve, so it can gate CI.
 
 With ` + "`--infer`," + ` lines auto-detection recognizes are updated even when they carry no directive at all - the zero-annotation mode.
 
-Written directives keep priority, and a ` + "`clover:ignore`" + ` control still opts a line out.`
+Written directives keep priority, and a ` + "`clover:ignore`" + ` control still opts a line out.
+
+With ` + "`--pre-exec`" + ` and ` + "`--post-exec`," + ` it runs a hook command around the update: a failing pre-exec hook aborts the run before any lookup or write, and the post-exec hook runs once the update finished - even when some markers failed, since successful updates may already be on disk. Hooks receive the outcome in ` + "`CLOVER_PHASE`," + ` ` + "`CLOVER_CHANGED`," + ` and ` + "`CLOVER_SUCCESS`;" + ` a dry run skips them entirely.
+
+Hook commands run through ` + "`/bin/sh`" + ` (on Windows, ` + "`cmd.exe`)," + ` unless ` + "`--exec-shell`" + ` names another shell to invoke as ` + "`<shell> -c <command>`."
 }
 
 // Run resolves the markers under the given paths and reports a summary.
@@ -148,6 +157,13 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	if ptr.Deref(c.Deep) && !confirmDeep(c.Yes) {
 		clog.Info().Symbol("🛑").Msg("Deep lookup canceled")
 		return nil
+	}
+
+	// The pre-exec hook runs only once the invocation is valid and confirmed, so
+	// a canceled or misconfigured run triggers no side effects; its failure
+	// aborts before any lookup or write.
+	if err = c.preHook(ctx); err != nil {
+		return err
 	}
 
 	// Collect truncated lookups during the run and report them after, so the
@@ -196,7 +212,7 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	// be noise in a CI log.
 	if detail == output.GitHub {
 		report.GitHub(os.Stdout, summary, c.DryRun)
-		return runErr(summary)
+		return c.finish(ctx, summary)
 	}
 
 	// Offline, the anonymous-access probes would only dial the hosts the run
@@ -206,7 +222,91 @@ func (c *cmdRun) Run(configs *config.Resolver, workers parallelism) error {
 	}
 	reportDeep(summary, truncated)
 	report.Run(clog.Default(), summary, c.DryRun, detail)
-	return runErr(summary)
+	return c.finish(ctx, summary)
+}
+
+// hookPre and hookPost are seams over the hook package, so command tests can
+// observe hook invocations without forking a process.
+var (
+	hookPre  = hook.Pre
+	hookPost = hook.Post
+)
+
+// preHook runs the --pre-exec hook. A dry run previews without side effects, so
+// hooks are skipped entirely.
+func (c *cmdRun) preHook(ctx context.Context) error {
+	if c.PreExec == "" || c.DryRun {
+		return nil
+	}
+	if err := hookPre(ctx, c.ExecShell, c.PreExec); err != nil {
+		return fmt.Errorf("pre-exec hook: %w", err)
+	}
+	return nil
+}
+
+// finish folds the run's exit status together with the --post-exec hook, which
+// runs whenever the run produced a summary - even one with marker failures,
+// since successful updates may already be on disk and still need the hook's
+// follow-up. Neither failure masks the other: when both fail, the hook error is
+// reported here and the marker failures keep their summary line.
+func (c *cmdRun) finish(ctx context.Context, summary mode.Summary) error {
+	err := runErr(summary)
+	hookErr := c.postHook(ctx, summary)
+	switch {
+	case hookErr == nil:
+		return err
+	case err == nil:
+		return hookErr
+	default:
+		clog.Error().Err(hookErr).Msg("Post-exec hook failed")
+		return err
+	}
+}
+
+// postHook runs the --post-exec hook, telling it whether anything changed and
+// whether the run was clean. Changed means a write landed on disk, not merely
+// that a render differed, so a failed write never reports itself as a change.
+// A dry run skips the hook, like the pre-exec hook.
+func (c *cmdRun) postHook(ctx context.Context, summary mode.Summary) error {
+	if c.PostExec == "" || c.DryRun {
+		return nil
+	}
+	if err := hookPost(
+		ctx,
+		c.ExecShell,
+		c.PostExec,
+		summary.Written() > 0,
+		succeeded(summary),
+	); err != nil {
+		return fmt.Errorf("post-exec hook: %w", err)
+	}
+	return nil
+}
+
+// succeeded reports whether the run finished cleanly: no marker failed and
+// every write landed.
+func succeeded(summary mode.Summary) bool {
+	return summary.Errored() == 0 && summary.WriteFailures() == 0
+}
+
+// hookShellEnv overrides the default hook shell; an explicit --exec-shell
+// still wins. It is spelled again in the flag's env tag, which must be a
+// literal.
+const hookShellEnv = "CLOVER_HOOK_SHELL"
+
+// setExecShellDefault overrides the --exec-shell parse default with
+// CLOVER_HOOK_SHELL or the platform shell, so the help and the parsed value
+// name the default that will actually run (/bin/sh, or cmd.exe on Windows)
+// without hard-coding one platform's shell in the tag.
+func setExecShellDefault(parser *kong.Kong) {
+	def := cmp.Or(os.Getenv(hookShellEnv), hook.DefaultShell())
+	for _, node := range parser.Model.Children {
+		for _, flag := range node.Flags {
+			if flag.Name == "exec-shell" {
+				flag.Default = def
+			}
+		}
+	}
 }
 
 // noCacheEnv disables the cross-run HTTP cache when set to any non-empty
@@ -256,15 +356,20 @@ func (e failuresError) Error() string { return fmt.Sprintf("%d failed", int(e)) 
 
 // runErr turns a run summary into the command's exit status: a failed marker
 // makes `clover run` exit non-zero, so a CI step fails when a directive could
-// not be resolved rather than passing on a green-looking log. A skip is not a
-// failure - it is a dependency waiting on a failed producer (already counted) or
-// a warned unknown key run deliberately tolerates - so it does not set the code.
-// The per-marker errors are already reported; this only sets the code.
+// not be resolved rather than passing on a green-looking log. A failed write
+// fails the run the same way - the update rendered but never landed. A skip is
+// not a failure - it is a dependency waiting on a failed producer (already
+// counted) or a warned unknown key run deliberately tolerates - so it does not
+// set the code. The per-marker and per-file errors are already reported; this
+// only sets the code.
 func runErr(summary mode.Summary) error {
-	if summary.Errored() == 0 {
-		return nil
+	if n := summary.Errored(); n > 0 {
+		return failuresError(n)
 	}
-	return failuresError(summary.Errored())
+	if failed := summary.WriteFailures(); failed > 0 {
+		return fmt.Errorf("%s could not be written", human.Pluralize(failed, "file", "files"))
+	}
+	return nil
 }
 
 // reportDeep hints, after a run, that a deeper lookup might help, in two forms

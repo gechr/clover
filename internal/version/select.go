@@ -144,8 +144,8 @@ func SelectReason[T any](
 	opts ...Option,
 ) (T, Reason, bool) {
 	q := query{}
-	for _, opt := range opts {
-		opt(&q)
+	for _, o := range opts {
+		o(&q)
 	}
 	if current != nil {
 		q.currentArity = numericArity(current.Original())

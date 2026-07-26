@@ -1,7 +1,10 @@
 package command
 
 import (
+	"context"
+
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/output"
 )
 
@@ -130,6 +133,38 @@ func RunLint(
 	return c.Run(cfg, parallelism(workers))
 }
 
+// RunOption tweaks the cmdRun a black-box test builds, so rarely-set flags do
+// not widen RunRun's signature at every call site.
+type RunOption func(*cmdRun)
+
+// WithPreExec sets the --pre-exec hook command.
+func WithPreExec(cmd string) RunOption { return func(c *cmdRun) { c.PreExec = cmd } }
+
+// WithPostExec sets the --post-exec hook command.
+func WithPostExec(cmd string) RunOption { return func(c *cmdRun) { c.PostExec = cmd } }
+
+// WithExecShell sets the --exec-shell hook shell override.
+func WithExecShell(shell string) RunOption { return func(c *cmdRun) { c.ExecShell = shell } }
+
+// SetHooks swaps the hook seams and returns a restore func, so command tests
+// can observe hook invocations without forking a process.
+func SetHooks(
+	pre func(ctx context.Context, shell, command string) error,
+	post func(ctx context.Context, shell, command string, changed, success bool) error,
+) func() {
+	prevPre, prevPost := hookPre, hookPost
+	hookPre, hookPost = pre, post
+	return func() { hookPre, hookPost = prevPre, prevPost }
+}
+
+// RunFinish drives (*cmdRun).finish from a black-box test with a crafted
+// summary, so write-failure outcomes are testable without provoking real
+// filesystem errors.
+func RunFinish(postExec string, summary mode.Summary) error {
+	c := &cmdRun{PostExec: postExec}
+	return c.finish(context.Background(), summary)
+}
+
 // RunRun drives (*cmdRun).Run from a black-box test.
 func RunRun(
 	paths []string,
@@ -139,6 +174,7 @@ func RunRun(
 	out *output.Mode,
 	cfg *config.Resolver,
 	workers int,
+	opts ...RunOption,
 ) error {
 	c := &cmdRun{
 		Paths:    paths,
@@ -149,6 +185,9 @@ func RunRun(
 		Tags:     tags,
 		Cooldown: cooldown,
 		Output:   out,
+	}
+	for _, o := range opts {
+		o(c)
 	}
 	return c.Run(cfg, parallelism(workers))
 }

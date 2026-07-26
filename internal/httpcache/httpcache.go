@@ -47,8 +47,8 @@ func New(opts ...Option) *http.Client {
 		errorBackoff:  errorBackoff,
 		maxEntryBytes: maxEntryBytes,
 	}
-	for _, opt := range opts {
-		opt(&cfg)
+	for _, o := range opts {
+		o(&cfg)
 	}
 	return &http.Client{
 		Timeout: cfg.timeout,

@@ -43,8 +43,8 @@ type Provider struct {
 // stored for OCI chart registries.
 func New(opts ...Option) *Provider {
 	p := &Provider{keychain: authn.DefaultKeychain}
-	for _, opt := range opts {
-		opt(p)
+	for _, o := range opts {
+		o(p)
 	}
 	p.client = oci.New(
 		oci.WithTransport(p.transport),

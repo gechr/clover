@@ -40,8 +40,8 @@ type Reporter struct {
 // (typically clog.Default writing to stderr).
 func New(ctx context.Context, logger *clog.Logger, opts ...Option) *Reporter {
 	r := &Reporter{ctx: ctx, logger: logger}
-	for _, opt := range opts {
-		opt(r)
+	for _, o := range opts {
+		o(r)
 	}
 	return r
 }

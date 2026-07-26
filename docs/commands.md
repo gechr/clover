@@ -44,6 +44,9 @@ clover run [options] [<path>…]
 | `--verify`              | Verify secure pins against upstream tags (implies `--deep`)                             |
 | `-o, --output <output>` | Output detail: `text` (default), `wide`, or `github`                                    |
 | `--no-ignore`           | Scan files [`.gitignore`](ignore.md) would exclude (VCS directories stay excluded)      |
+| `--pre-exec <command>`  | Run a [hook](hooks.md) command before updating (a failure aborts the run)               |
+| `--post-exec <command>` | Run a [hook](hooks.md) command after updating, told whether anything changed            |
+| `--exec-shell <shell>`  | Run [hook](hooks.md) commands with this shell instead of the platform default           |
 | `--config <path>`       | Path to a [`.clover.yaml`](configuration.md) file                                       |
 | `--no-config`           | Do not load any `.clover.yaml` config                                                   |
 
@@ -56,6 +59,8 @@ With no paths, Clover scans the current directory. Pass files or directories to 
 `--offline` answers every lookup from the [HTTP cache](caching.md) without touching the network. Cached responses are served even when their freshness has lapsed, since revalidating would need the origin, and a marker whose lookup is not cached fails with an offline error. It implies `--cache`, so the cross-run disk tier is read even where a config disables it, and a recent online run against the same tree is what makes an offline run useful.
 
 `--to` rewrites every matched marker to one explicit version instead of the newest allowed, which makes it the rollback tool. The version is picked from the upstream listing, so digests and checksums still resolve for a release that really exists, and a version the upstream does not publish fails the marker. The pin bypasses each directive's own selection rules ([`constraint`](constraints.md), [`include`/`exclude`](filtering.md), [`prerelease`](prereleases.md), [`cooldown`](cooldown.md), `behind`) and implies `--downgrade` and `--force`, though an explicit flag such as `--no-force` still wins. Every matched marker receives the same version, so combine it with paths, `-t`, or `--enable` to scope the pin. Markers that follow a floating ref (`track=`) or own their line (`manual`) resolve as usual.
+
+`--pre-exec` and `--post-exec` run a command of your choice around the update - a guard check before it, a formatter or notification after it. A failing pre-exec hook aborts the run before any lookup or write, and the post-exec hook learns whether anything changed through the [hook environment](hooks.md). A dry run skips both.
 
 ## `lint`
 

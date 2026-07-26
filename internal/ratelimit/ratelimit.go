@@ -61,8 +61,8 @@ func New(base http.RoundTripper, headers Headers, opts ...Option) *Transport {
 		base = http.DefaultTransport
 	}
 	t := &Transport{base: base, headers: headers, now: time.Now}
-	for _, opt := range opts {
-		opt(t)
+	for _, o := range opts {
+		o(t)
 	}
 	return t
 }

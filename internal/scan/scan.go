@@ -54,8 +54,8 @@ func Scan(ctx context.Context, roots []string, opts ...Option) ([]File, int, err
 		siblings:         new(siblingCache),
 		requireDirective: true,
 	}
-	for _, opt := range opts {
-		opt(&cfg)
+	for _, o := range opts {
+		o(&cfg)
 	}
 	if cfg.workers < 1 {
 		cfg.workers = 1

@@ -91,8 +91,8 @@ type tokenStore interface {
 // token never leaks into a test.
 func New(opts ...Option) *Provider {
 	p := &Provider{}
-	for _, opt := range opts {
-		opt(p)
+	for _, o := range opts {
+		o(p)
 	}
 	if p.store == nil && p.transport == nil {
 		if store, err := token.New(); err == nil {

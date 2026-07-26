@@ -91,6 +91,8 @@ func Run() int {
 		return exitFailure
 	}
 
+	setExecShellDefault(prog.Parser)
+
 	// Completion runs before parsing so it works without a subcommand, which kong
 	// would otherwise demand.
 	kctx, handled, code, err := prog.Parse(os.Args[1:])
