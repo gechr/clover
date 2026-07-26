@@ -97,16 +97,19 @@ func cooldownOverride(raw string) (*time.Duration, error) {
 
 // Help returns the detailed blurb shown in `clover run --help`.
 func (c *cmdRun) Help() string {
-	return "Scans the given paths for `clover:` directives, resolves each one's " +
-		"newest version allowed by its constraint from the upstream source, and " +
-		"rewrites the target line in place. Paths default to the current " +
-		"directory.\n\n" +
-		"Use `--dry-run` to preview the changes without writing, and `--deep` to page " +
-		"through every version when the newest may sit past the first page. Exits " +
-		"non-zero when any directive fails to resolve, so it can gate CI.\n\n" +
-		"With `--infer`, lines auto-detection recognizes are updated even " +
-		"when they carry no directive at all - the zero-annotation mode. Written " +
-		"directives keep priority, and a `clover:ignore` control still opts a line out."
+	return `Scans the given paths for ` + "`clover:`" + ` directives, resolves each one's newest version allowed by its constraint from the upstream source, and rewrites the target line in place.
+
+Paths default to the current directory.
+
+With ` + "`--dry-run`," + ` it previews the changes without writing.
+
+With ` + "`--deep`," + ` it pages through every version when the newest may sit past the first page.
+
+It exits non-zero when any directive fails to resolve, so it can gate CI.
+
+With ` + "`--infer`," + ` lines auto-detection recognizes are updated even when they carry no directive at all - the zero-annotation mode.
+
+Written directives keep priority, and a ` + "`clover:ignore`" + ` control still opts a line out.`
 }
 
 // Run resolves the markers under the given paths and reports a summary.

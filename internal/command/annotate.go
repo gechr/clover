@@ -36,11 +36,21 @@ type cmdAnnotate struct {
 
 // Help returns the detailed blurb shown in `clover annotate --help`.
 func (c *cmdAnnotate) Help() string {
-	return "Adds `@clover` (shorthand for `clover: provider=auto`) above lines Clover can already track. For example, GitHub Actions `uses:` pins and container image references can be annotated automatically. This is the inverse of the auto-detection that later resolves them. " +
-		"Every annotation is verified offline first. Unresolvable lines are left untouched.\n\n" +
-		"It previews by default, listing what it would add. Pass `--dry-run` to request that mode explicitly, `--write` to apply, or `--check` to fail when anything would be annotated.\n\n" +
-		"Existing annotations are untouched unless `--force`, which collapses an inferable one back to `@clover` (preserving every selection rule) and leaves a deliberately explicit directive alone.\n\n" +
-		"A comment-less target (a strict-JSON file, or a pyenv `.python-version`) earns a sidecar instead of an inline comment. Pass `--no-sidecar` (or set `annotate.sidecar: false`) to opt out, leaving such targets untouched."
+	return `Adds ` + "`@clover`" + ` (shorthand for ` + "`clover: provider=auto`" + `) above lines Clover can already track, the inverse of the auto-detection that later resolves them.
+
+For example, GitHub Actions ` + "`uses:`" + ` pins and container image references can be annotated automatically.
+
+Every annotation is verified offline first, so unresolvable lines are left untouched.
+
+It previews by default, listing what it would add.
+
+With ` + "`--dry-run`," + ` it requests that mode explicitly, ` + "`--write`" + ` applies, and ` + "`--check`" + ` fails when anything would be annotated.
+
+Existing annotations are untouched unless ` + "`--force`," + ` which collapses an inferable one back to ` + "`@clover`" + ` (preserving every selection rule) and leaves a deliberately explicit directive alone.
+
+A comment-less target (a strict-JSON file, or a pyenv ` + "`.python-version`" + `) earns a sidecar instead of an inline comment.
+
+Pass ` + "`--no-sidecar`" + ` (or set ` + "`annotate.sidecar: false`" + `) to opt out, leaving such targets untouched.`
 }
 
 // Run previews (or, with --write, applies) the annotations under the paths.

@@ -33,7 +33,11 @@ func updateConfig() brew.Config {
 
 // Help returns the detailed blurb shown in `clover update --help`.
 func (c *cmdUpdate) Help() string {
-	return "Updates Clover in place through Homebrew, the sanctioned update path. With `--check` it only reports whether a newer release is available without installing. Select a channel with `--stable` for the latest tagged release or `--dev` for the latest source build."
+	return `Updates Clover in place through Homebrew.
+
+With ` + "`--check`," + ` it only reports whether a newer release is available without installing.
+
+Select a channel with ` + "`--stable`" + ` for the latest tagged release or ` + "`--dev`" + ` for the latest source build.`
 }
 
 // Run checks for, or installs, the latest Clover via Homebrew.

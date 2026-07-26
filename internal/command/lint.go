@@ -26,7 +26,11 @@ type cmdLint struct {
 
 // Help returns the detailed blurb shown in `clover lint --help`.
 func (c *cmdLint) Help() string {
-	return "Checks that every `clover:` directive under the given paths resolves to a version, without writing any changes. Intended as a CI gate: it exits non-zero when a directive cannot be resolved, catching a broken, mistyped, or unreachable reference before it merges."
+	return `Checks that every ` + "`clover:`" + ` directive under the given paths resolves to a version, without writing any changes.
+
+Intended as a CI gate, it exits non-zero when a directive cannot be resolved.
+
+This catches a broken, mistyped, or unreachable reference before it merges.`
 }
 
 // Run validates the markers under the given paths and fails when any did not.

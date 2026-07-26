@@ -33,10 +33,11 @@ type cmdInit struct {
 
 // Help returns the detailed blurb shown in `clover init --help`.
 func (c *cmdInit) Help() string {
-	return "Scaffolds a starter `.clover.yaml` in the target directory through an " +
-		"interactive wizard: pick the providers you use, review each one's " +
-		"credential status, choose a `required-version` constraint, and select which " +
-		"paths to exclude from scans. Requires an interactive terminal."
+	return `Scaffolds a starter ` + "`.clover.yaml`" + ` in the target directory through an interactive wizard.
+
+The wizard picks the providers you use, reviews each one's credential status, chooses a ` + "`required-version`" + ` constraint, and selects which paths to exclude from scans.
+
+Requires an interactive terminal.`
 }
 
 // Run drives the init wizard: choose providers, report their credential status,
