@@ -3,6 +3,7 @@ package mode
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,6 +23,7 @@ import (
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
 	"github.com/gechr/clover/internal/sidecar"
+	"github.com/gechr/forge/vcs"
 	"github.com/gechr/x/set"
 	xslices "github.com/gechr/x/slices"
 	xsync "github.com/gechr/x/sync"
@@ -88,6 +90,12 @@ type AnnotateChange struct {
 	Resource    string // the tracked resource id, for reporting; empty when none
 	ResourceURL string // the resource's upstream landing page, for the report hyperlink
 	Existing    bool
+
+	// The claim pass reads these; they never leave the package. id and from are
+	// the inferred pairing keys (unnamespaced - the pass namespaces by repository
+	// root itself), and bareLine is the same comment rendered without the id, the
+	// form a producer degrades to when another file already claimed it.
+	id, from, bareLine string
 }
 
 // AnnotateSkip records a recognized annotation candidate that annotate left
@@ -224,9 +232,11 @@ func Annotate(
 	defer verify.Stop()
 
 	// Each file is annotated independently - the per-file work only reads immutable
-	// shared state and writes its own file - so files are processed concurrently,
-	// each result kept at its own index to preserve order. A skipped sidecar file
-	// leaves a nil slot, compacted away below.
+	// shared state - so files are processed concurrently, each result kept at its
+	// own index to preserve order. A skipped sidecar file leaves a nil slot,
+	// compacted away below. Writing waits for the claim pass: which pair keeps its
+	// inferred id depends on every other file, so no file may be written before
+	// all have proposed.
 	results := make([]*AnnotateFile, len(files))
 	var done atomic.Int64
 	xsync.Parallel(parallelism, len(files), func(i int) {
@@ -249,16 +259,25 @@ func Annotate(
 			return
 		}
 		annotated := annotateFile(file, force)
-		if len(annotated.Changes) > 0 && write {
-			lines := applyAnnotations(file.Lines, annotated.Changes)
-			if err := writeFile(file.Path, lines); err != nil {
+		results[i] = &annotated
+	})
+
+	claimAnnotationIDs(files, results)
+
+	if write {
+		xsync.Parallel(parallelism, len(files), func(i int) {
+			annotated := results[i]
+			if annotated == nil || annotated.Sidecar != nil || len(annotated.Changes) == 0 {
+				return
+			}
+			lines := applyAnnotations(files[i].Lines, annotated.Changes)
+			if err := writeFile(files[i].Path, lines); err != nil {
 				annotated.WriteErr = err
 			} else {
 				annotated.Written = true
 			}
-		}
-		results[i] = &annotated
-	})
+		})
+	}
 
 	out := make([]AnnotateFile, 0, len(files))
 	for _, annotated := range results {
@@ -267,6 +286,136 @@ func Annotate(
 		}
 	}
 	return AnnotateSummary{Files: out, Scanned: scanned}, nil
+}
+
+// annotationClaim records who holds an id: the file that claimed it, whether a
+// human wrote it there, and whether several files wrote it (ambiguous, so no
+// proposed follower may bind to it).
+type annotationClaim struct {
+	path      string
+	written   bool
+	ambiguous bool
+}
+
+// claimAnnotationIDs settles, serially and in path order, which proposed changes
+// keep their inferred id - the parallel phase proposes each file blind to the
+// others, and two files pairing the same tool both want `id=go`. Without this
+// pass annotate would write config whose ambiguity the pipeline then has to
+// degrade, and which file won would depend on scheduling.
+//
+// Claims are namespaced by repository root, like the pipeline's own ids, so the
+// same tool paired in two checkouts never contends. The set is seeded with every
+// id already written in a scanned file: a hand-written `id=go` anywhere in the
+// repository outranks every inferred claim, however early the claimant sorts.
+//
+// A producer whose id is taken is annotated in its bare form instead - the
+// version stays tracked, which is what annotate gave that line before pairing
+// existed - and the follower that needed the id is dropped with a reason naming
+// the holder. A follower binds only to a claim its own file holds: pairing is
+// per-file evidence, so a cross-file binding is precisely the guess this pass
+// exists to rule out.
+func claimAnnotationIDs(files []scan.File, results []*AnnotateFile) {
+	resolver := vcs.NewResolver()
+	key := func(path, id string) string { return resolver.Root(path) + "\x00" + id }
+
+	claims := make(map[string]*annotationClaim)
+	for _, f := range files {
+		for _, loc := range f.Found {
+			id, _ := loc.Directive.Get(constant.DirectiveID)
+			if id == "" {
+				continue
+			}
+			k := key(f.Path, id)
+			if held, ok := claims[k]; ok {
+				// A written duplicate - same file or not - is lint's to hard-error,
+				// so no proposed follower may be written against it.
+				held.ambiguous = true
+				continue
+			}
+			claims[k] = &annotationClaim{path: f.Path, written: true}
+		}
+	}
+
+	order := make([]int, len(files))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int {
+		return strings.Compare(files[a].Path, files[b].Path)
+	})
+
+	for _, i := range order {
+		annotated := results[i]
+		if annotated == nil || annotated.Sidecar != nil {
+			continue
+		}
+		path := files[i].Path
+
+		// Ids first, in a pass of their own: a pair's sum line may precede its
+		// version line, and the follower must judge the file's claims as settled.
+		for c := range annotated.Changes {
+			change := &annotated.Changes[c]
+			if change.id == "" {
+				continue
+			}
+			k := key(path, change.id)
+			held, taken := claims[k]
+			if !taken {
+				claims[k] = &annotationClaim{path: path}
+				continue
+			}
+			if held.path != path && change.bareLine != "" {
+				change.Line = change.bareLine
+			}
+			if held.path != path {
+				change.id = ""
+			}
+		}
+
+		kept := annotated.Changes[:0]
+		for _, change := range annotated.Changes {
+			if change.from != "" {
+				k := key(path, change.from)
+				held, taken := claims[k]
+				if !taken {
+					// Nobody holds the id, so this file may: the pairing guarantees
+					// the producer is in this same file, just already annotated (a
+					// bare `@clover` re-infers the id at bind). Dropping here would
+					// leave the sum line untracked while reporting the file fully
+					// annotated - the follower a user writes by hand in exactly this
+					// shape lints clean.
+					claims[k] = &annotationClaim{path: path}
+					held = claims[k]
+				}
+				if held.path != path || held.ambiguous {
+					annotated.Skips = append(annotated.Skips, AnnotateSkip{
+						Line:   change.At,
+						Reason: followerClaimReason(change.from, held),
+					})
+					continue
+				}
+			}
+			kept = append(kept, change)
+		}
+		annotated.Changes = kept
+	}
+}
+
+// followerClaimReason says why a proposed follower was dropped and how to get it
+// back by hand. An unclaimed id is never a reason: the filter claims it for the
+// file instead, so by the time a drop is reported someone else holds the id.
+func followerClaimReason(id string, held *annotationClaim) string {
+	if held.ambiguous {
+		return fmt.Sprintf(
+			"id %q is written more than once - rename one, then pair by hand",
+			id,
+		)
+	}
+	return fmt.Sprintf(
+		"id %q is claimed by %s - write id=/from= by hand to pair with this file's pin",
+		id,
+		held.path,
+	)
 }
 
 // annotateSidecarFile proposes the sidecar for a comment-less target and, with
@@ -398,13 +547,41 @@ func insert(syntax comment.Syntax, i int, line string, inf match.Inference) (Ann
 		return AnnotateChange{}, false
 	}
 	id, url := resourceFor(infer.Directive(inf))
-	return AnnotateChange{
+	change := AnnotateChange{
 		At:          i,
 		Line:        comment,
 		Provider:    inf.Provider,
 		Resource:    id,
 		ResourceURL: url,
-	}, true
+		id:          inf.ID,
+		from:        inf.From,
+	}
+	change.bareLine = bareAlternative(syntax, line, directive.Directive{}, inf)
+	return change, true
+}
+
+// bareAlternative renders the same annotation with the inferred id withheld: the
+// line a producer's change falls back to when the claim pass finds its id taken.
+// Pre-rendering it beside the preferred form keeps the pass a pure selection -
+// no re-rendering, no re-parsing of comment text - so it cannot disagree with
+// what the parallel phase would have written. Empty when the inference publishes
+// no id, or when the fallback fails to render where the original did not.
+func bareAlternative(
+	syntax comment.Syntax,
+	line string,
+	d directive.Directive,
+	inf match.Inference,
+) string {
+	if inf.ID == "" {
+		return ""
+	}
+	inf.ID = ""
+	body := directive.Render(canonicalDirective(d, inf))
+	comment, ok := syntax.Comment(leadingWhitespace(line), body)
+	if !ok {
+		return ""
+	}
+	return comment
 }
 
 // resourceFor derives the tracked resource's id and upstream landing page from a
@@ -443,14 +620,32 @@ func rewrite(
 		return AnnotateChange{}, false
 	}
 	id, url := resourceFor(infer.Directive(inf))
-	return AnnotateChange{
+	change := AnnotateChange{
 		At:          loc.Line,
 		Line:        rendered,
 		Provider:    inf.Provider,
 		Resource:    id,
 		ResourceURL: url,
 		Existing:    true,
-	}, true
+	}
+	// A user-written id is the user's claim, not this change's: leadingPairs
+	// already deferred to it, so only a freshly inferred id enters the claim pass.
+	if !loc.Directive.Has(constant.DirectiveID) {
+		change.id = inf.ID
+	}
+	if !loc.Directive.Has(constant.DirectiveFrom) {
+		change.from = inf.From
+	}
+	if change.id != "" {
+		bare := inf
+		bare.ID = ""
+		if body := directive.Render(canonicalDirective(loc.Directive, bare)); body != "" {
+			if fallback, ok := syntax.Render(line, body); ok {
+				change.bareLine = fallback
+			}
+		}
+	}
+	return change, true
 }
 
 // canonicalDirective returns the minimal directive annotate writes for a

@@ -22,3 +22,5 @@ The first annotation resolves `redis` and publishes it as `id=redis`. The second
 | `value`  | What the follower projects, e.g. the [`version`, `commit`, or `sha256`](checksums.md)                  |
 
 A follower may itself carry an `id`, so values chain across lines, files, and even repositories. Clover resolves producers before the followers that depend on them.
+
+An `id` must be unique within its repository - two markers publishing the same one leave every `from=` ambiguous, so both `lint` and `run` reject a written duplicate rather than letting whichever resolved last win. An id [auto-detection](auto.md) inferred (a `<TOOL>_VERSION` variable paired with its checksum sibling) never contends with one you wrote: the inferred id yields, the line's version stays tracked, and the paired checksum follower is skipped with a reason - write `id=`/`from=` yourself to pin the pairing you meant.

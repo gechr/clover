@@ -16,7 +16,7 @@ import (
 // regression that drops the pointer to `from=` is visible rather than merely
 // still-an-error.
 const producerValueError = `"value" sha256 needs "from" naming the producer it ` +
-	`belongs to; only a follower projects a side value`
+	`belongs to - only a follower projects a side value`
 
 // A side value belongs to a follower, and a producer carrying one used to resolve
 // its own upstream and then splice the resolved *version* over the target's hex -
@@ -39,7 +39,7 @@ func TestValidateProducerRejectsSideValue(t *testing.T) {
 		{
 			name:      "commit on a producer",
 			directive: "# clover: provider=github repository=cli/cli value=commit",
-			wantErr: `"value" commit needs "from" naming the producer it belongs to; ` +
+			wantErr: `"value" commit needs "from" naming the producer it belongs to - ` +
 				`only a follower projects a side value`,
 		},
 	}

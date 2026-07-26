@@ -40,6 +40,16 @@ func (p *plan) validate(ctx context.Context) {
 			p.results[i].Reason = r.Reason
 		}
 	}
+
+	// A follower degraded alongside its manufactured id is a skip, not a failure:
+	// the pairing was Clover's inference, so its retreat must not fail a lint the
+	// user did nothing to earn.
+	for i, reason := range p.idVerdicts.Skips {
+		if p.results[i].Err == nil {
+			p.results[i].Skipped = true
+			p.results[i].Reason = reason
+		}
+	}
 }
 
 // check validates marker i without any network access, returning the first
@@ -47,6 +57,11 @@ func (p *plan) validate(ctx context.Context) {
 func (p *plan) check(i int) error {
 	m := p.markers[i]
 	if err := checkKeys(m); err != nil {
+		return err
+	}
+	// A written duplicate id fails every publisher: which one a follower binds to
+	// is unknowable, and resolving either would guess.
+	if err := p.idVerdicts.Errs[i]; err != nil {
 		return err
 	}
 	if m.TargetErr != nil {
@@ -221,7 +236,7 @@ func checkProducerValue(m Marker) error {
 		return nil
 	}
 	return fmt.Errorf(
-		"%q %s needs %q naming the producer it belongs to; only a follower projects a side value",
+		"%q %s needs %q naming the producer it belongs to - only a follower projects a side value",
 		constant.DirectiveValue,
 		m.Value,
 		constant.DirectiveFrom,

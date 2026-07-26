@@ -388,6 +388,7 @@ type plan struct {
 	force          *bool
 	lines          map[string][]string
 	markers        []Marker
+	idVerdicts     idVerdicts
 	noConstraint   bool
 	now            time.Time
 	parseErrors    []Result
@@ -464,6 +465,12 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 
 	markers = filterProviders(markers, set.providerFilter)
 
+	// Settled before the result slots copy each marker, so a degraded marker's
+	// cleared id is what every later reader sees. It runs after filterProviders,
+	// so a --provider filter that excludes one written duplicate hides the hard
+	// error for that run - accepted, since an unfiltered lint still reports it.
+	verdicts := resolveIDCollisions(markers)
+
 	results := xslices.Map(markers, func(m Marker) Result {
 		return Result{Marker: m, NewLine: targetLine(lines, m)}
 	})
@@ -479,6 +486,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 		force:          set.force,
 		lines:          lines,
 		markers:        markers,
+		idVerdicts:     verdicts,
 		noConstraint:   set.noConstraint,
 		now:            set.now,
 		parseErrors:    parseErrors,
@@ -601,9 +609,15 @@ func (p *plan) resolve(ctx context.Context) {
 	execTasks := make([]exec.Task, len(p.markers))
 	for i, m := range p.markers {
 		task := exec.Task{ID: m.ID, From: m.From, Label: bareID(m.ID), FromLabel: bareID(m.From)}
-		if m.IsFollower() {
+		switch {
+		case p.idVerdicts.Skips[i] != "":
+			// A follower degraded with its manufactured id neither resolves nor
+			// fails: its line is held as-is and the reason says how to opt back in.
+			task.From = "" // its producer degraded; do not wait on that edge
+			task.Run = p.skipper(i, p.idVerdicts.Skips[i])
+		case m.IsFollower():
 			task.Run = p.follower(i)
-		} else {
+		default:
 			task.Run = p.producer(i)
 		}
 		execTasks[i] = task
@@ -646,6 +660,26 @@ func (p *plan) producer(i int) func(context.Context) error {
 		err := p.resolveProducer(ctx, i)
 		p.report(i, err)
 		return err
+	}
+}
+
+// skipper is the task for a marker the collision pre-pass already settled: it
+// records the reason and succeeds, leaving the line untouched. Succeeding (rather
+// than erroring) is what keeps a degraded follower from failing the run over an
+// ambiguity Clover manufactured itself.
+//
+// A skipped follower publishes nothing, so a follower that carried a written id
+// of its own (a chain republish whose pairing was left to inference) leaves its
+// written downstream failing with "producer has not resolved" rather than
+// skipping cleanly. Accepted: the shape needs that unusual marker plus a
+// cross-file collision on the tool id, and the failure still names the missing
+// producer.
+func (p *plan) skipper(i int, reason string) func(context.Context) error {
+	return func(context.Context) error {
+		p.results[i].Skipped = true
+		p.results[i].Reason = reason
+		p.tasks[i].Skip(reason)
+		return nil
 	}
 }
 
@@ -721,6 +755,9 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	// Refused here as well as in validate: a run does not call validate, so a
 	// guard held only there would let the write lint refuses go through.
 	if err := checkProducerValue(m); err != nil {
+		return err
+	}
+	if err := p.idVerdicts.Errs[i]; err != nil {
 		return err
 	}
 
@@ -1489,6 +1526,12 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	m := p.markers[i]
 
 	if err := checkKeys(m); err != nil {
+		return err
+	}
+
+	// A follower republishing under a written duplicate id is as ambiguous as a
+	// producer doing so, and fails on the same terms.
+	if err := p.idVerdicts.Errs[i]; err != nil {
 		return err
 	}
 

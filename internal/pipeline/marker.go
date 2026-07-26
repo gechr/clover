@@ -44,6 +44,13 @@ type Marker struct {
 	Tags      []string // labels for --tags filtering, in source order
 	Sidecar   bool     // the directive came from a YAML sidecar
 	Inferred  bool     // synthesized by run --infer; no written directive exists
+
+	// WrittenID and WrittenFrom record whether the user wrote the key, as opposed
+	// to auto-detection appending it at bind time. Collision handling turns on the
+	// distinction: a duplicated id a human wrote is an ambiguity only they can
+	// resolve, while one Clover manufactured is Clover's to take back.
+	WrittenID   bool
+	WrittenFrom bool
 }
 
 // IsFollower reports whether the marker reuses another marker's result rather
@@ -71,6 +78,11 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		target = -1 // no line to rewrite; validation reports targetErr
 	}
 
+	// Read before inferParams can append either key: what the canonicalized
+	// original carries is what the user wrote.
+	writtenID := d.Has(constant.DirectiveID)
+	writtenFrom := d.Has(constant.DirectiveFrom)
+
 	provider := value(d, constant.DirectiveProvider)
 	switch provider {
 	case "":
@@ -91,6 +103,8 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 	m := marker(file, root, found.Line, target, d, provider)
 	m.TargetErr = targetErr
 	m.Sidecar = found.Sidecar
+	m.WrittenID = writtenID
+	m.WrittenFrom = writtenFrom
 	return m
 }
 
