@@ -427,7 +427,7 @@ func newPlan(files []scan.File, resolver *vcs.Resolver, set settings) *plan {
 			for _, m := range ms {
 				governed[m.Target] = true
 			}
-			ms = append(ms, InferredMarkers(f, governed)...)
+			ms = append(ms, InferredMarkers(f, governed, resolver)...)
 		}
 		bound[i] = ms
 	})
@@ -715,6 +715,12 @@ func (p *plan) resolveProducer(ctx context.Context, i int) error {
 	m := p.markers[i]
 
 	if err := checkKeys(m); err != nil {
+		return err
+	}
+
+	// Refused here as well as in validate: a run does not call validate, so a
+	// guard held only there would let the write lint refuses go through.
+	if err := checkProducerValue(m); err != nil {
 		return err
 	}
 

@@ -70,7 +70,12 @@ func unresolvedReason(path string, inf match.Inference, line string) string {
 			if inf.Track != "" {
 				return match.NewDockerTrack(), nil
 			}
-			return match.For(match.Context{Path: path, Line: line, Provider: inf.Provider}), nil
+			return match.For(match.Context{
+				Path:     path,
+				Line:     line,
+				Provider: inf.Provider,
+				Value:    inf.Value,
+			}), nil
 		})
 }
 
@@ -84,12 +89,18 @@ func Unresolved(
 	line string,
 	rewriter func() (match.Rewriter, error),
 ) string {
-	prov, ok := provider.Get(providerName)
-	if !ok {
-		return "unknown provider"
-	}
-	if _, err := prov.Resource(d); err != nil {
-		return err.Error()
+	// A follower has no provider to build a resource from - it projects the value
+	// another marker resolved - so the resource check is skipped and the rewriter
+	// carries the whole gate. That is the same exemption validation makes for a
+	// follower's keys, kept here so annotate and lint agree about one.
+	if providerName != constant.ProviderFollow {
+		prov, ok := provider.Get(providerName)
+		if !ok {
+			return "unknown provider"
+		}
+		if _, err := prov.Resource(d); err != nil {
+			return err.Error()
+		}
 	}
 	rw, err := rewriter()
 	if err != nil {
@@ -105,7 +116,23 @@ func Unresolved(
 // inferred provider plus every parameter read from the line. It is what the
 // gate validates the provider resource against.
 func Directive(inf match.Inference) directive.Directive {
+	// A follower names no provider - an omitted one is what marks a marker as
+	// following another (see pipeline.bind) - so it renders its edge instead.
+	if inf.Follower() {
+		pairs := []directive.KV{{Key: constant.DirectiveFrom, Value: inf.From}}
+		if inf.Value != "" {
+			pairs = append(pairs, directive.KV{Key: constant.DirectiveValue, Value: inf.Value})
+		}
+		if inf.Pattern != "" {
+			pairs = append(pairs, directive.KV{Key: constant.DirectivePattern, Value: inf.Pattern})
+		}
+		return directive.Directive{Pairs: pairs}
+	}
+
 	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: inf.Provider}}
+	if inf.ID != "" {
+		pairs = append(pairs, directive.KV{Key: constant.DirectiveID, Value: inf.ID})
+	}
 	if inf.Chart != "" {
 		pairs = append(pairs, directive.KV{Key: constant.DirectiveChart, Value: inf.Chart})
 	}

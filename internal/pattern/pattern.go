@@ -36,6 +36,12 @@ const (
 	TokenVersion         Token = "version"
 )
 
+// Placeholder returns the token as it is spelled inside a pattern or a replace
+// template: <version>. Code that builds a template rather than reading one uses
+// it so the angle-bracket spelling stays with the vocabulary above instead of
+// being re-rolled as a literal at every call site.
+func (t Token) Placeholder() string { return "<" + string(t) + ">" }
+
 // Tokens is an ordered list of token names, as a glob find captures them.
 type Tokens []Token
 

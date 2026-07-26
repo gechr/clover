@@ -392,7 +392,7 @@ func forceEligible(d directive.Directive, inferred string) bool {
 // `@clover` comment indented to match the line. ok is false when the file's
 // syntax exposes no comment delimiter.
 func insert(syntax comment.Syntax, i int, line string, inf match.Inference) (AnnotateChange, bool) {
-	body := directive.Render(canonicalDirective(directive.Directive{}, match.Inference{}))
+	body := directive.Render(canonicalDirective(directive.Directive{}, inf))
 	comment, ok := syntax.Comment(leadingWhitespace(line), body)
 	if !ok {
 		return AnnotateChange{}, false
@@ -461,7 +461,7 @@ func rewrite(
 // owned keys is what lets force both shed a redundant explicit value and repair
 // one that has drifted from its line, while every rule key survives.
 func canonicalDirective(d directive.Directive, inf match.Inference) directive.Directive {
-	pairs := []directive.KV{{Key: constant.DirectiveProvider, Value: constant.ProviderAuto}}
+	pairs := leadingPairs(d, inf)
 	for _, kv := range d.Pairs {
 		if inferenceOwns(kv.Key, inf) {
 			continue
@@ -469,6 +469,38 @@ func canonicalDirective(d directive.Directive, inf match.Inference) directive.Di
 		pairs = append(pairs, kv)
 	}
 	return directive.Directive{Pairs: pairs}
+}
+
+// leadingPairs are the keys the canonical directive opens with: the follow edge
+// for a line that projects another marker's value, else provider=auto plus the id
+// a producer publishes under. Only a pairing supplies an id, so an ordinary
+// recognized line still renders as the bare `@clover` shorthand.
+//
+// A key the existing directive already carries is left to it, so force canonicalizes
+// around a user's own id or asset pattern rather than overwriting it with the
+// inferred one.
+func leadingPairs(d directive.Directive, inf match.Inference) []directive.KV {
+	var pairs []directive.KV
+	add := func(key, value string) {
+		if value == "" || d.Has(key) {
+			return
+		}
+		pairs = append(pairs, directive.KV{Key: key, Value: value})
+	}
+	if inf.Follower() {
+		// No provider: an omitted one is what makes a marker a follower, and
+		// provider=auto here would re-infer the line as one anyway.
+		add(constant.DirectiveFrom, inf.From)
+		add(constant.DirectiveValue, inf.Value)
+		add(constant.DirectivePattern, inf.Pattern)
+		return pairs
+	}
+	pairs = append(pairs, directive.KV{
+		Key:   constant.DirectiveProvider,
+		Value: constant.ProviderAuto,
+	})
+	add(constant.DirectiveID, inf.ID)
+	return pairs
 }
 
 // inferenceOwns reports whether auto-detection supplies key for a line inf was

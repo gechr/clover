@@ -3,9 +3,9 @@ package match
 import (
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/gechr/clover/internal/constant"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // versionVarName matches the name of a <TOOL>_VERSION variable, capturing the
@@ -44,12 +44,23 @@ var nativeToolProviders = map[string]string{
 // An unrecognized prefix declines rather than guessing. A variable is named by a
 // human for a human, so a name Clover cannot place is one it has no business
 // resolving against an upstream that may have nothing to do with it.
+//
+// A variable paired with a sibling checksum variable also publishes an id, so
+// that follower has a producer to name. It is set only for a real pairing, so an
+// ordinary version variable still earns the bare `@clover` shorthand.
 func inferVersionVariable(s subject) Inference {
 	match := versionVarName.FindStringSubmatch(s.line())
 	if match == nil {
 		return Inference{}
 	}
-	return toolInference(strings.ReplaceAll(strings.ToLower(match[1]), "_", "-"))
+	inf := toolInference(xstrings.Slug(match[1]))
+	if inf.Provider == "" {
+		return inf
+	}
+	if pair, ok := pairChecksumVar(s); ok {
+		inf.ID = pair.id
+	}
+	return inf
 }
 
 // toolInference resolves a tool name to the provider that tracks it and the

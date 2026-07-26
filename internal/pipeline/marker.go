@@ -88,11 +88,32 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		}
 	}
 
+	m := marker(file, root, found.Line, target, d, provider)
+	m.TargetErr = targetErr
+	m.Sidecar = found.Sidecar
+	return m
+}
+
+// marker builds the Marker for a directive that has already been resolved to a
+// provider, lifting the keys the pipeline reads off the directive rather than
+// re-fetching them at each use.
+//
+// It is shared with the synthetic markers --infer builds, which is not a tidiness
+// point: a marker whose fields were filled in by hand missed the follow edge
+// entirely, so an inferred follower carried `from=go` in its directive and an
+// empty [Marker.From], and failed with `producer "" has not resolved`. Any future
+// key the pipeline promotes to a field is now promoted for both paths at once.
+func marker(
+	file scan.File,
+	root string,
+	line, target int,
+	d directive.Directive,
+	provider string,
+) Marker {
 	return Marker{
 		File:      file.Path,
-		Line:      found.Line,
+		Line:      line,
 		Target:    target,
-		TargetErr: targetErr,
 		Directive: d,
 		Provider:  provider,
 		ID:        namespace(root, value(d, constant.DirectiveID)),
@@ -100,7 +121,6 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 		Value:     value(d, constant.DirectiveValue),
 		Select:    value(d, constant.DirectiveSelect),
 		Tags:      d.CSV(constant.DirectiveTags),
-		Sidecar:   found.Sidecar,
 	}
 }
 
@@ -125,6 +145,14 @@ func inferParams(file scan.File, target int, d directive.Directive) (string, dir
 	d = appendParam(d, constant.DirectiveSource, inferred.Source)
 	d = appendParam(d, constant.RuleTagPrefix, inferred.TagPrefix)
 	d = appendParam(d, constant.DirectiveTrack, inferred.Track)
+	// The follow edge a shape carries instead of an upstream of its own, plus the
+	// id its producer publishes under. Both halves are inferred from the same
+	// pairing, so a `@clover` written by hand over either line resolves as the
+	// annotation Clover would have written there itself.
+	d = appendParam(d, constant.DirectiveID, inferred.ID)
+	d = appendParam(d, constant.DirectiveFrom, inferred.From)
+	d = appendParam(d, constant.DirectiveValue, inferred.Value)
+	d = appendParam(d, constant.DirectivePattern, inferred.Pattern)
 	return inferred.Provider, d
 }
 
@@ -145,7 +173,8 @@ func appendParam(d directive.Directive, key, value string) directive.Directive {
 // ([infer.Recognize]), so a recognized line that would not resolve is skipped
 // silently rather than failing the run; governed lines (a written directive's
 // target) and comment lines are never doubled up.
-func InferredMarkers(file scan.File, governed map[int]bool) []Marker {
+func InferredMarkers(file scan.File, governed map[int]bool, resolver *vcs.Resolver) []Marker {
+	root := resolver.Root(file.Path)
 	syntax := comment.For(file.Path)
 	recognizer := infer.NewRecognizer(file.Path)
 	var markers []Marker
@@ -160,14 +189,9 @@ func InferredMarkers(file scan.File, governed map[int]bool) []Marker {
 			{Key: constant.DirectiveProvider, Value: constant.ProviderAuto},
 		}}
 		provider, d := inferParams(file, i, d)
-		markers = append(markers, Marker{
-			File:      file.Path,
-			Line:      i,
-			Target:    i,
-			Directive: d,
-			Provider:  provider,
-			Inferred:  true,
-		})
+		m := marker(file, root, i, i, d, provider)
+		m.Inferred = true
+		markers = append(markers, m)
 	}
 	return markers
 }

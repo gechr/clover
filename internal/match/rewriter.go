@@ -563,6 +563,41 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
+		// The checksum variable beside one of those: ARG GO_SHA256=<64 hex>, in any
+		// of the suffix spellings. The value is what the route gates on, so a
+		// name-shaped guess never reaches a line holding something else, and the
+		// inference pairs the line with the sibling version variable it follows.
+		//
+		// The rewriter is Smart, not Hash, even though the line holds a hash. Every
+		// legitimate path here carries value=sha256 and is claimed by the follower
+		// routes at the top of this table, and [Table.Infer] never reads the rewriter
+		// at all - so the only marker this field decides is an explicit provider
+		// pointed at a sum line, which is always a mistake. Smart locating nothing
+		// there is the point: Hash would locate the hex and splice the resolved
+		// version over it, turning that mistake into a silently corrupted pin.
+		when: conditions{
+			path: dockerfileGlob,
+			lineMatch: mustPattern(
+				`/^\s*(ARG|ENV)\s+[A-Z][A-Z0-9_]*?_` + checksumVarSuffixes +
+					`\s*[=\s]\s*["']?` + sha256Hex + `\b/`,
+			),
+		},
+		infer:    inferChecksumVariable,
+		rewriter: NewSmart(),
+	},
+	{
+		// The same variable as a YAML mapping value, nested like the version half.
+		when: conditions{
+			path: workflowGlob,
+			lineMatch: mustPattern(
+				`/^\s+[A-Z][A-Z0-9_]*?_` + checksumVarSuffixes +
+					`\s*:\s*["']?` + sha256Hex + `\b/`,
+			),
+		},
+		infer:    refuseInMatrix(inferChecksumVariable),
+		rewriter: NewSmart(),
+	},
+	{
 		// A mise tool pinning a HashiCorp product: terraform = "1.9.8". The tool
 		// name doubles as the product slug on releases.hashicorp.com.
 		when: conditions{

@@ -174,9 +174,13 @@ func trackCapable(prov provider.Provider, name string, needsDigest bool) error {
 }
 
 // checkProducer verifies a producer names a known provider, builds a valid
-// resource, locates an unambiguous version on its target line, and compiles its
-// rule - every step the run does before the one thing it skips, the network.
+// resource, locates an unambiguous version on its target line, compiles its
+// rule, and projects no side value - every step the run does before the one
+// thing it skips, the network.
 func (p *plan) checkProducer(i int, m Marker) error {
+	if err := checkProducerValue(m); err != nil {
+		return err
+	}
 	prov, err := lookupProvider(m.Provider)
 	if err != nil {
 		return err
@@ -195,6 +199,33 @@ func (p *plan) checkProducer(i int, m Marker) error {
 		return err
 	}
 	return nil
+}
+
+// checkProducerValue rejects a side value on a marker that resolves an upstream
+// of its own, which only a follower can project.
+//
+// It is a guard against a silent wrong write, not a limitation being enforced for
+// its own sake. A digest or commit is rendered by the hash rewriter, which splices
+// the candidate's version text, and only [followerCandidate] retypes that text as
+// the projected value. So `provider=docker … value=sha256` over a 64-character
+// digest resolved the newest tag and wrote *the tag* into the digest field - a
+// line that still parses, still looks pinned, and pins nothing.
+//
+// The fix is `from=`, not a second implementation: the guarantee a side value
+// carries - refreshed only when the version it belongs to actually changed, so a
+// re-published artifact cannot move a pin on its own - is the producer/follower
+// edge itself. A marker resolving its own upstream has no prior version to hold
+// against and could not honour it.
+func checkProducerValue(m Marker) error {
+	if m.Value == "" || m.Value == constant.ValueVersion {
+		return nil
+	}
+	return fmt.Errorf(
+		"%q %s needs %q naming the producer it belongs to; only a follower projects a side value",
+		constant.DirectiveValue,
+		m.Value,
+		constant.DirectiveFrom,
+	)
 }
 
 // checkFollower verifies a follower names a producer to follow, requests a

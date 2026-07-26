@@ -12,10 +12,17 @@ import (
 // Inference is what auto-detection resolved for a `provider=auto` marker from
 // its target line: the real provider plus any provider parameters readable from
 // the line. Empty parameter fields mean the line did not carry that detail.
+// A follower is the one shape whose inference names no upstream of its own: it
+// carries From, Value and Pattern instead, and its Provider is
+// [constant.ProviderFollow] so the walk below does not read it as a decline.
+// ID is the mirror of From, set on the producer a follower was paired with.
 type Inference struct {
 	Chart      string
+	From       string
 	Host       string
+	ID         string
 	Package    string
+	Pattern    string
 	Product    string
 	Provider   string
 	Registry   string
@@ -23,7 +30,13 @@ type Inference struct {
 	Source     string
 	TagPrefix  string
 	Track      string
+	Value      string
 }
+
+// Follower reports whether the inference projects another marker's value onto
+// its line rather than resolving an upstream itself, so a caller renders From,
+// Value and Pattern in place of a provider.
+func (i Inference) Follower() bool { return i.Provider == constant.ProviderFollow }
 
 // Missing reports why the inference cannot resolve - a route matched but the
 // line carries no usable reference - or "" when the inference is complete. The
@@ -31,6 +44,19 @@ type Inference struct {
 // node needs nothing beyond the provider itself.
 func (i Inference) Missing() string {
 	switch i.Provider {
+	case constant.ProviderFollow:
+		// A follower reads no upstream, so what it needs is the producer it
+		// projects, the value it projects, and - for a sha256, which is fetched
+		// rather than projected - the asset that sum belongs to.
+		if i.From == "" {
+			return "line names no producer to follow"
+		}
+		if i.Value == "" {
+			return "line names no value to project"
+		}
+		if i.Value == constant.ValueSha256 && i.Pattern == "" {
+			return "no asset filename to source the sum from"
+		}
 	case constant.ProviderDocker,
 		constant.ProviderGitea,
 		constant.ProviderGithub,

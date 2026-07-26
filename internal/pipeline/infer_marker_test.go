@@ -6,6 +6,7 @@ import (
 	"github.com/gechr/clover/internal/pipeline"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/scan"
+	"github.com/gechr/forge/vcs"
 	"github.com/gechr/x/set"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,7 @@ func TestInferredMarkersRecognizesUngovernedLines(t *testing.T) {
 	}
 	governed := map[int]bool{1: true}
 
-	markers := pipeline.InferredMarkers(file, governed)
+	markers := pipeline.InferredMarkers(file, governed, vcs.NewResolver())
 	require.Len(t, markers, 1, "only the ungoverned recognized line yields a marker")
 
 	m := markers[0]
@@ -48,6 +49,47 @@ func TestInferredMarkersSkipsUnresolvable(t *testing.T) {
 		Lines: []string{"  - component: $CI_SERVER_FQDN/org/proj/deploy@3.1.4"},
 	}
 
-	require.Empty(t, pipeline.InferredMarkers(file, nil),
+	require.Empty(t, pipeline.InferredMarkers(file, nil, vcs.NewResolver()),
 		"an incomplete reference is recognized but not synthesized")
+}
+
+// A synthetic marker carries the follow edge its inference read, which a
+// hand-filled Marker literal did not: the directive held `from=go` while
+// [pipeline.Marker].From stayed empty, so an inferred follower failed with
+// `follow: producer "" has not resolved` where the written form resolved. Both
+// paths now share one constructor. The assertion is on the resolved outcome
+// rather than the directive, since the directive was already correct.
+func TestInferredMarkersCarryTheFollowEdge(t *testing.T) {
+	// The producer half resolves through the go provider, which this binary does
+	// not register; without it the version line fails the recognizer's offline
+	// gate and only the follower would be synthesized.
+	provider.Register(fakeProvider{name: "go"})
+
+	file := scan.File{
+		Path: "Dockerfile",
+		Lines: []string{
+			"FROM alpine",
+			"ARG GO_VERSION=1.24.0",
+			"ARG GO_SHA256=0000000000000000000000000000000000000000000000000000000000000000",
+			"RUN curl -fsSLO https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz",
+		},
+	}
+
+	markers := pipeline.InferredMarkers(file, nil, vcs.NewResolver())
+	require.Len(t, markers, 2, "both halves of the pair earn a synthetic marker")
+
+	var producer, follower pipeline.Marker
+	for _, m := range markers {
+		if m.IsFollower() {
+			follower = m
+		} else {
+			producer = m
+		}
+	}
+
+	require.True(t, follower.IsFollower(), "the sum half follows rather than resolving")
+	require.NotEmpty(t, follower.From, "the follower names the producer its pairing found")
+	require.Equal(t, "sha256", follower.Value, "and the value kind it projects")
+	require.Equal(t, producer.ID, follower.From,
+		"the pair's two halves agree on the id, namespaced the same way")
 }
