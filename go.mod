@@ -12,10 +12,10 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.7.11
+	github.com/gechr/clib v0.7.15
 	github.com/gechr/clog v0.15.6
 	github.com/gechr/conductor v0.1.15
-	github.com/gechr/x v0.5.8
+	github.com/gechr/x v0.5.9
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-version v1.9.0
