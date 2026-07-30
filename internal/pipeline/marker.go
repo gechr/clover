@@ -190,10 +190,14 @@ func appendParam(d directive.Directive, key, value string) directive.Directive {
 func InferredMarkers(file scan.File, governed map[int]bool, resolver *vcs.Resolver) []Marker {
 	root := resolver.Root(file.Path)
 	syntax := comment.For(file.Path)
+	// A wholly commented line is a commented-out field or prose, not a live pin,
+	// so it is skipped - unless the file's shape puts its pin in a comment (see
+	// [match.CommentPin]), where the route table claims the one line that counts.
+	skipComments := !match.CommentPin(file.Path)
 	recognizer := infer.NewRecognizer(file.Path)
 	var markers []Marker
 	for i, line := range file.Lines {
-		if governed[i] || file.Ignored.Contains(i) || syntax.IsComment(line) {
+		if governed[i] || file.Ignored.Contains(i) || (skipComments && syntax.IsComment(line)) {
 			continue
 		}
 		if _, reason, ok := recognizer.Recognize(file.Lines, i); !ok || reason != "" {

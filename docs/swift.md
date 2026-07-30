@@ -17,7 +17,20 @@ SWIFT_VERSION: 6.3.3
 | [`exclude`](filtering.md)      | Drop matching versions                                                    |
 | [`cooldown`](cooldown.md)      | Require a minimum age before a version is eligible                        |
 
-The release index is public, so the Swift provider needs no authentication. It is selected explicitly with `provider=swift`, or [inferred](auto.md) from a `swift` pin in a mise configuration, a `.tool-versions` file, or a `.swift-version` file.
+The release index is public, so the Swift provider needs no authentication. It is selected explicitly with `provider=swift`, or [inferred](auto.md) from a `swift` pin in a mise configuration, a `.tool-versions` file, a `.swift-version` file, or a `Package.swift` tools-version declaration.
+
+## Package manifests
+
+A manifest's `swift-tools-version` declaration has to stay at the top: [SwiftPM](https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/) below 6.0 rejects a manifest whose declaration is not the first line, so a directive comment has nowhere to sit above it. A [sidecar](sidecar.md) carries the directive instead, anchored on the declaration so the dependency pins further down the manifest are left alone:
+
+```yaml
+# Package.swift.clover.yaml
+- provider: swift
+  constraint: minor
+  find: /(?i)^\s*\/\/\s*swift-tools-version\s*:\s*(\d+(?:\.\d+){0,2})/
+```
+
+`clover annotate` generates that entry (without the `constraint`), and `clover run --infer` tracks the declaration with no directive at all. The locator is a regex rather than a glob because SwiftPM case-folds the label, so a `// Swift-Tools-Version:` declaration is valid and a case-sensitive glob would miss it; capture group 1 is the version, and the line keeps the precision it is written with, so a two-component `6.0` floor advances to `6.3` rather than to a specific patch. A version-specific `Package@swift-5.9.swift` is left alone: it exists to serve an older toolchain, so bumping its declaration would defeat the manifest.
 
 The index names each release by its bare version (`6.3.3`, or a two-component `5.10` on older lines), matching a bare on-line reference, while the release tag (`swift-6.3.3-RELEASE`) stays upstream and resolves the reported link. Each release carries its publication date, so [`cooldown`](cooldown.md) works: a version is held back until it has aged past the window. The whole release history arrives in one response, so Clover always sees every release and `--deep` has nothing extra to fetch. Snapshot toolchains are moving development builds that never appear in the release index, so only shipped releases are tracked.
 

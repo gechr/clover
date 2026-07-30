@@ -27,9 +27,9 @@ The most common annotation by far is `provider=auto`, which asks Clover to infer
 
 A keyword whose colon is missing or detached ahead of pair-shaped text (`# clover foo=bar`, `# @clover : constraint=minor`) is reported as a malformed directive rather than silently ignored, while a comment that merely leads with the word stays inert.
 
-### Formats without comments
+### Lines that can't carry a comment
 
-A directive is a comment, so a format that has no comment syntax can't host one. Strict JSON is the usual culprit, and plain-text pins like pyenv's `.python-version` share the problem. `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line, so Clover reads their directives from a [**sidecar**](sidecar.md), a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.
+A directive is a comment above its target, so a format with no comment syntax can't host one. Strict JSON is the usual culprit, and plain-text pins like pyenv's `.python-version` share the problem. So does a line that must stay at the top: a `Package.swift` takes comments happily, but [SwiftPM](https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/) below 6.0 rejects a manifest whose `swift-tools-version` declaration is not the first line, so a directive above it would break the manifest. `package.json`, `tsconfig.json`, and the like have nowhere to put a `clover:` line either, so Clover reads their directives from a [**sidecar**](sidecar.md), a `<target>.clover.yaml` file beside the target that carries the same directives as native YAML keys.
 
 [Biome](https://biomejs.dev), for example, ships a `biome.json` whose `$schema` URL can track Biome's releases. A `biome.json.clover.yaml` sidecar locates the line with [`jq`](sidecar.md#locators) and tracks it:
 

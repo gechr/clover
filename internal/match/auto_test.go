@@ -639,6 +639,44 @@ func TestInfer(t *testing.T) {
 			ok:   false,
 		},
 		{
+			name: "package manifest tools-version declaration",
+			path: "Package.swift",
+			line: "// swift-tools-version: 6.0",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "package manifest tools-version without a space",
+			path: "sub/Package.swift",
+			line: "//swift-tools-version:5.9",
+			want: match.Inference{Provider: "swift"},
+			ok:   true,
+		},
+		{
+			name: "version-specific package manifest is not matched",
+			path: "Package@swift-5.9.swift",
+			line: "// swift-tools-version: 5.9",
+			ok:   false,
+		},
+		{
+			name: "tools-version declaration outside a manifest is not matched",
+			path: "Sources/Demo/main.swift",
+			line: "// swift-tools-version: 6.0",
+			ok:   false,
+		},
+		{
+			name: "package manifest dependency pin is not matched",
+			path: "Package.swift",
+			line: `        .package(url: "https://github.com/apple/swift-log", from: "1.5.3"),`,
+			ok:   false,
+		},
+		{
+			name: "xcode language mode is not matched",
+			path: "Demo.xcodeproj/project.pbxproj",
+			line: "\t\t\t\tSWIFT_VERSION = 6.0;",
+			ok:   false,
+		},
+		{
 			name: "node-version pin",
 			path: ".node-version",
 			line: "24.18.0",
@@ -1344,6 +1382,26 @@ func TestPreCommitFrozenRewrite(t *testing.T) {
 // A candidate with no commit cannot re-pin a frozen rev, so rendering fails
 // rather than writing a version the SHA does not point at. Only the github
 // provider peels a tag to a commit, so this is the outcome on other forges.
+// SwiftPM reads the declaration at the top of a manifest and ignores anything
+// below it, so only the topmost one is the pin: a later line spelling the same
+// key is prose about it, and bumping that would edit a sentence.
+func TestInferPackageSwiftTopmostDeclaration(t *testing.T) {
+	t.Parallel()
+
+	manifest := []string{
+		"// swift-tools-version: 6.0",
+		"// swift-tools-version: 5.9 was the floor before the concurrency migration",
+		"import PackageDescription",
+	}
+
+	got, ok := match.Infer("Package.swift", manifest, 0)
+	require.True(t, ok)
+	require.Equal(t, match.Inference{Provider: "swift"}, got)
+
+	_, ok = match.Infer("Package.swift", manifest, 1)
+	require.False(t, ok, "a declaration below the first one is prose, not a pin")
+}
+
 func TestPreCommitFrozenRequiresCommit(t *testing.T) {
 	t.Parallel()
 

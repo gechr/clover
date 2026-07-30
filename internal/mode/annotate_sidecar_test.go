@@ -456,6 +456,103 @@ func TestAnnotateGeneratesSidecarForRustToolchain(t *testing.T) {
 	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
 }
 
+// TestAnnotateGeneratesSidecarForPackageSwift covers the one sidecar target that
+// is not comment-less: a SwiftPM manifest takes comments everywhere, but its
+// tools-version declaration has to stay at the top - SwiftPM below 6.0 rejects
+// one that is not the first line - so a directive above it would break the
+// manifest. The manifest also pins a dependency by version, so the generated
+// entry anchors its find on the declaration rather than the bare placeholder a
+// whole-line pin uses.
+func TestAnnotateGeneratesSidecarForPackageSwift(t *testing.T) {
+	t.Parallel()
+
+	manifest := "// swift-tools-version: 6.0\n" +
+		"import PackageDescription\n" +
+		"let package = Package(\n" +
+		"    name: \"Demo\",\n" +
+		"    dependencies: [\n" +
+		"        .package(url: \"https://github.com/apple/swift-log\", from: \"1.5.3\"),\n" +
+		"    ]\n" +
+		")\n"
+	root := annotateTree(t, map[string]string{"Package.swift": manifest})
+
+	preview := annotate(t, root, false, false)
+	require.Equal(t, 1, preview.Added())
+	sidecarPath := filepath.Join(root, "Package.swift.clover.yaml")
+	require.NoFileExists(t, sidecarPath, "preview never writes the sidecar")
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+	require.Equal(
+		t,
+		generatedSidecar(
+			"- provider: swift\n"+
+				`  find: /(?i)^\s*\/\/\s*swift-tools-version\s*:\s*(\d+(?:\.\d+){0,2})/`+"\n",
+		),
+		readFile(t, sidecarPath),
+	)
+	require.Equal(t, manifest, readFile(t, filepath.Join(root, "Package.swift")),
+		"the manifest itself is never rewritten, so its declaration stays at the top")
+
+	// The generated sidecar must pass its own lint, and a second annotate pass
+	// must add nothing.
+	lint, err := mode.Lint(context.Background(), []string{root})
+	require.NoError(t, err)
+	require.True(t, lint.OK(), "the generated sidecar lints clean")
+	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
+}
+
+// SwiftPM case-folds the tools-version label, so the route claims a mixed-case
+// declaration - and the generated locator has to find the same line, which a
+// glob (compiled case-sensitively) would not. Recognizing a shape annotate can
+// then never locate is the failure this pins down.
+func TestAnnotateGeneratesSidecarForMixedCasePackageSwift(t *testing.T) {
+	t.Parallel()
+
+	manifest := "// Swift-Tools-Version:6.0\nimport PackageDescription\n"
+	root := annotateTree(t, map[string]string{"Package.swift": manifest})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 1, summary.Added())
+	require.Equal(
+		t,
+		generatedSidecar(
+			"- provider: swift\n"+
+				`  find: /(?i)^\s*\/\/\s*swift-tools-version\s*:\s*(\d+(?:\.\d+){0,2})/`+"\n",
+		),
+		readFile(t, filepath.Join(root, "Package.swift.clover.yaml")),
+	)
+
+	lint, err := mode.Lint(context.Background(), []string{root})
+	require.NoError(t, err)
+	require.True(t, lint.OK(), "the generated sidecar locates the mixed-case declaration")
+	require.Equal(t, 0, annotate(t, root, true, false).Added(), "idempotent")
+}
+
+// A find is unambiguous only against the whole file, so a manifest carrying a
+// second declaration-shaped line earns no sidecar at all: only the topmost line
+// is trackable, but the generated locator matches both, and lint rejects that.
+// The line is still trackable without a locator, so `clover run --infer` keeps
+// bumping it.
+func TestAnnotateSidecarSkipsAmbiguousPackageSwift(t *testing.T) {
+	t.Parallel()
+
+	manifest := "// swift-tools-version: 6.0\n" +
+		"// swift-tools-version: 5.5 was the floor before the concurrency migration\n"
+	root := annotateTree(t, map[string]string{"Package.swift": manifest})
+
+	summary := annotate(t, root, true, false)
+	require.Equal(t, 0, summary.Added())
+	require.NoFileExists(t, filepath.Join(root, "Package.swift.clover.yaml"))
+	require.Equal(t, manifest, readFile(t, filepath.Join(root, "Package.swift")))
+	require.Len(t, summary.Files[0].Skips, 1)
+	require.Equal(
+		t,
+		"find matched 2 lines - make it more specific",
+		summary.Files[0].Skips[0].Reason,
+	)
+}
+
 // TestAnnotateSidecarSkipsAmbiguousPythonVersion guards the whole-line locator:
 // two pinned versions would both match the bare find placeholder, so neither
 // earns an entry and both are reported as skips.

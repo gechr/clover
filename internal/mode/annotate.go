@@ -57,16 +57,20 @@ func strictJSON(path string) bool {
 	return strings.EqualFold(filepath.Ext(path), ".json")
 }
 
-// sidecarTarget reports whether path is a comment-less target - one whose
-// directives must live in a sidecar because an inline comment would corrupt it.
+// sidecarTarget reports whether path is a target whose directives must live in a
+// sidecar because an inline comment would corrupt it. Most are comment-less - a
+// strict-JSON file, a whole-line version pin - while a SwiftPM manifest is
+// commentable everywhere except the one line worth tracking: the tools-version
+// declaration has to stay at the top, since SwiftPM below 6.0 rejects one that
+// is not the first line, so a directive above it would break the manifest.
 func sidecarTarget(path string) bool {
 	return strictJSON(path) || match.PythonVersionFile(path) ||
 		match.SwiftVersionFile(path) || match.NodeVersionFile(path) ||
-		match.RustToolchainFile(path)
+		match.RustToolchainFile(path) || match.PackageSwiftFile(path)
 }
 
-// proposeSidecar builds the sidecar proposal for a comment-less target: strict
-// JSON gets the leaf-based generator, a plain-text version pin file the
+// proposeSidecar builds the sidecar proposal for a target whose directive cannot
+// sit inline: strict JSON gets the leaf-based generator, every other shape the
 // line-based one. It must only be called
 // for a [sidecarTarget]. Only the JSON generator takes force - a text entry
 // carries no source keys beyond the provider, so there is no drift to repair.
@@ -203,7 +207,7 @@ func (s AnnotateSummary) count(existing bool) int {
 // collapsing keys inference supplies while preserving every rule key. With write
 // off it reports what it would do and writes nothing; otherwise it rewrites each
 // changed file atomically. With sidecars off it proposes inline comments only,
-// leaving comment-less targets untouched instead of generating sidecars.
+// leaving sidecar targets untouched instead of generating sidecars.
 func Annotate(
 	ctx context.Context,
 	roots []string,
@@ -248,7 +252,7 @@ func Annotate(
 		if scan.IsSidecar(file.Path) {
 			return // never propose inline directives inside a sidecar file
 		}
-		// A comment-less target cannot host an inline comment, so a recognized
+		// A sidecar target cannot host an inline comment, so a recognized
 		// line earns a sidecar entry instead of a comment that would corrupt it.
 		// With sidecars off the target is left untouched - it must not fall
 		// through to the inline path either.
@@ -418,7 +422,7 @@ func followerClaimReason(id string, held *annotationClaim) string {
 	)
 }
 
-// annotateSidecarFile proposes the sidecar for a comment-less target and, with
+// annotateSidecarFile proposes the sidecar for a [sidecarTarget] and, with
 // write, lays it down.
 func annotateSidecarFile(file scan.File, force, write bool) *AnnotateFile {
 	generated, skips := proposeSidecar(file, force)
@@ -822,14 +826,14 @@ func annotateSidecar(file scan.File, force bool) (*AnnotateSidecar, []AnnotateSk
 	return sidecar, skips
 }
 
-// annotateTextSidecar proposes the sidecar for a comment-less plain-text
-// version pin target (a .python-version, .swift-version, .node-version, or
-// rust-toolchain file): each line auto-detection
-// recognizes earns an entry carrying the inferred directive and a whole-line
-// find locator. The line
-// is the version itself, so the find is the bare version placeholder - which
+// annotateTextSidecar proposes the sidecar for a non-JSON target whose directive
+// cannot sit inline (a .python-version, .swift-version, .node-version, or
+// rust-toolchain pin, or a SwiftPM manifest): each line auto-detection recognizes
+// earns an entry carrying the inferred directive and a find locator. A whole-line
+// pin is the version itself, so its find is the bare version placeholder - which
 // also means a second recognized line would make every locator ambiguous, and
-// such a file is skipped.
+// such a file is skipped. A shape holding other version-shaped lines names its
+// target with a more specific find (see [match.SidecarFind]).
 func annotateTextSidecar(file scan.File) (*AnnotateSidecar, []AnnotateSkip) {
 	governed := set.New[int]()
 	for _, loc := range file.Found {
@@ -837,6 +841,12 @@ func annotateTextSidecar(file scan.File) (*AnnotateSidecar, []AnnotateSkip) {
 			governed.Add(loc.Line)
 		}
 	}
+
+	find := versionPlaceholder
+	if shape, ok := match.SidecarFind(file.Path); ok {
+		find = shape
+	}
+	locator := sidecar.NewLocator(file.Lines)
 
 	var fresh []sidecarEntry
 	var skips []AnnotateSkip
@@ -853,10 +863,7 @@ func annotateTextSidecar(file scan.File) (*AnnotateSidecar, []AnnotateSkip) {
 			continue
 		}
 		d := infer.Directive(inf)
-		d.Pairs = append(
-			d.Pairs,
-			directive.KV{Key: constant.DirectiveFind, Value: versionPlaceholder},
-		)
+		d.Pairs = append(d.Pairs, directive.KV{Key: constant.DirectiveFind, Value: find})
 		if reason := sidecarUnresolvedReason(inf, d, line); reason != "" {
 			skips = append(skips, skip(i, reason))
 			continue
@@ -872,6 +879,21 @@ func annotateTextSidecar(file scan.File) (*AnnotateSidecar, []AnnotateSkip) {
 		}
 		return nil, skips
 	}
+
+	// A find is unambiguous only against the whole file, so an entry that clears
+	// the count above can still collide with a line that is not trackable at all:
+	// a manifest comment naming the very key the entry tracks. Resolving each
+	// locator the way a run does keeps the contract that annotate never writes an
+	// entry lint would reject.
+	kept := fresh[:0]
+	for _, e := range fresh {
+		if reason := sidecarLocatorReason(locator, e.directive, e.target); reason != "" {
+			skips = append(skips, skip(e.target, reason))
+			continue
+		}
+		kept = append(kept, e)
+	}
+	fresh = kept
 
 	path, data, found := loadSidecar(file.Path)
 	generated, reason := appendSidecar(fresh, path, data, found)
@@ -988,6 +1010,24 @@ func sidecarUnresolvedReason(inf match.Inference, d directive.Directive, line st
 	return infer.Unresolved(inf.Provider, d, line, func() (match.Rewriter, error) {
 		return sidecarRewriter(inf, d, line)
 	})
+}
+
+// sidecarLocatorReason reports why a generated entry's locator would not select
+// the line it was built for, or "" when it lands exactly there. The locator is
+// resolved with the same code a run uses, which is what keeps the contract that
+// annotate never writes an entry lint would reject: a find is unambiguous only
+// against the whole file, so a second line merely mentioning the tracked key -
+// prose in a manifest, a duplicated pin - is caught here rather than at the next
+// lint.
+func sidecarLocatorReason(locator *sidecar.Locator, d directive.Directive, target int) string {
+	line, err := locator.Locate(d)
+	switch {
+	case err != nil:
+		return err.Error()
+	case line != target:
+		return "find locator selects another line, so it would track the wrong version"
+	}
+	return ""
 }
 
 // sidecarRewriter mirrors the run pipeline's generated-sidecar rewriter choice.

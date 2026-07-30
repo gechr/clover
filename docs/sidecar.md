@@ -1,6 +1,6 @@
 # Sidecars
 
-A `clover:` directive is a comment, so a file with no comment syntax has nowhere to host one. Strict JSON files like `package.json` and `tsconfig.json` are the usual case, and plain-text pins like pyenv's `.python-version` share the problem. A **sidecar** carries the directives out of band instead. It is a YAML file beside the target that names each line to track and how to track it.
+A `clover:` directive is a comment above its target, so a file with no comment syntax has nowhere to host one. Strict JSON files like `package.json` and `tsconfig.json` are the usual case, and plain-text pins like pyenv's `.python-version` share the problem. A line that must stay at the top shares it too: a `Package.swift` is commentable, but [SwiftPM](https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/) below 6.0 rejects a manifest whose `swift-tools-version` declaration is not the first line, so a directive above it would break the manifest. A **sidecar** carries the directives out of band instead. It is a YAML file beside the target that names each line to track and how to track it.
 
 ```yaml
 # tsconfig.json.clover.yaml
@@ -49,7 +49,7 @@ Every key from [Annotations](annotations.md#keys) is valid in a sidecar, plus th
 
 An inline directive governs the line below it (or the first match of its [`target` anchor](annotations.md#anchoring-the-target-line)). A sidecar entry has no such adjacency, so it must name its own target line. Every entry therefore carries a locator, either `jq`, `find`, or both:
 
-- **`find`** is a glob (with `<version>` and other [placeholders](find-replace.md)) or a `/regex/`, matched against the file's lines. It works for **any** comment-less format and selects the one line whose content matches.
+- **`find`** is a glob (with `<version>` and other [placeholders](find-replace.md)) or a `/regex/`, matched against the file's lines. It works for **any** text format and selects the one line whose content matches.
 - **`jq`** is a [jq](https://jqlang.org) path expression (e.g. `.["$schema"]`, `.dependencies.react`) evaluated against the target as JSON. It is JSON-only and **recommended for JSON** because it is robust against the same version string appearing twice, against reformatting, and against a key moving. Clover resolves the path to a line without ever re-serializing the JSON, so the file's formatting and key order are preserved.
 
 They **compose**. When both are present, `jq` selects the line and `find` refines the region within it, which is useful when a version is embedded in a longer string such as a `$schema` URL:
@@ -85,4 +85,4 @@ Clover publishes a [JSON schema](https://raw.githubusercontent.com/gechr/clover/
 
 ## Generating and formatting
 
-A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a comment-less target (a strict-JSON file, or a pyenv `.python-version`) for trackable lines and generates a sidecar, previewing by default and writing with `--write`. Pass `--no-sidecar` to opt out of generation and leave comment-less targets untouched, or set [`annotate.sidecar: false`](configuration.md) to make that the default for a project or globally. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.
+A sidecar can be written by hand, or generated. [`clover annotate`](commands.md) scans a target whose directive cannot sit inline (a strict-JSON file, a pyenv `.python-version`, a `Package.swift`) for trackable lines and generates a sidecar, previewing by default and writing with `--write`. Pass `--no-sidecar` to opt out of generation and leave those targets untouched, or set [`annotate.sidecar: false`](configuration.md) to make that the default for a project or globally. [`clover format`](commands.md) canonicalizes an existing sidecar, sorting each entry's keys into their canonical order while preserving your comments.

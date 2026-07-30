@@ -142,6 +142,42 @@ func TestSwiftVersionFile(t *testing.T) {
 	}
 }
 
+func TestPackageSwiftFile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: "Package.swift", want: true},
+		{path: "sub/Package.swift", want: true},
+		{path: "Package@swift-5.9.swift", want: false},
+		{path: "Package.swift.clover.yaml", want: false},
+		{path: "Sources/Demo/main.swift", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, match.PackageSwiftFile(tt.path))
+			require.Equal(t, tt.want, match.CommentPin(tt.path))
+
+			find, ok := match.SidecarFind(tt.path)
+			require.Equal(t, tt.want, ok)
+			if ok {
+				require.Equal(
+					t,
+					`/(?i)^\s*\/\/\s*swift-tools-version\s*:\s*(\d+(?:\.\d+){0,2})/`,
+					find,
+				)
+			} else {
+				require.Empty(t, find)
+			}
+		})
+	}
+}
+
 func TestNodeVersionFile(t *testing.T) {
 	t.Parallel()
 

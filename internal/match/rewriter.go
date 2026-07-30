@@ -237,6 +237,71 @@ func SwiftVersionFile(path string) bool {
 	return matchPath(swiftVersionGlob, path)
 }
 
+// packageSwiftGlob matches a SwiftPM manifest, whose swift-tools-version
+// declaration floors the toolchain the package builds with. The exact base name
+// is deliberate: a version-specific Package@swift-5.9.swift exists to serve an
+// older toolchain, so bumping its declaration defeats the manifest's purpose.
+const packageSwiftGlob = "**/Package.swift"
+
+// PackageSwiftFile reports whether path is a SwiftPM manifest. The declaration
+// has to stay at the top of the file - SwiftPM below 6.0 rejects one that is not
+// the first line - so a directive comment cannot sit above it and annotate
+// proposes a sidecar instead.
+func PackageSwiftFile(path string) bool {
+	return matchPath(packageSwiftGlob, path)
+}
+
+// CommentPin reports whether path's tracked shape is itself a comment. The
+// --infer scan otherwise skips a wholly commented line, since a version inside
+// one is a commented-out field or prose rather than a live pin; a SwiftPM
+// manifest declares its tools version in a comment, so the route table - which
+// claims that one line and nothing else in the file - is the gate instead.
+func CommentPin(path string) bool {
+	return PackageSwiftFile(path)
+}
+
+// packageSwiftLabel matches a manifest's tools-version key up to the version it
+// declares: case-folded as SwiftPM folds it, and tolerant of the optional spaces
+// it accepts around the colon.
+const packageSwiftLabel = `(?i)^\s*\/\/\s*swift-tools-version\s*:\s*`
+
+// packageSwiftDeclaration matches the declaration line, shared by the route that
+// claims it and the inference that keeps to the topmost one.
+var packageSwiftDeclaration = mustPattern("/" + packageSwiftLabel + `\d/`)
+
+// inferToolsVersion claims a manifest's tools-version declaration, which is the
+// topmost one: SwiftPM reads the declaration at the top of the file, so a later
+// line spelling the same key is prose about the pin rather than the pin itself.
+func inferToolsVersion(s subject) Inference {
+	for i := range s.target {
+		if packageSwiftDeclaration.Matches(s.lines[i]) {
+			return Inference{}
+		}
+	}
+	return Inference{Provider: constant.ProviderSwift}
+}
+
+// packageSwiftFind anchors a generated sidecar entry on the tools-version
+// declaration, since a manifest pins its dependencies by version too and the
+// bare placeholder the whole-line pins use would match more than one line.
+//
+// It is a regex rather than a glob because the label is case-insensitive
+// upstream while a glob compiles to a case-sensitive matcher: a mixed-case
+// declaration the route claims would otherwise be one annotate could recognize
+// and never locate. Capture group 1 is the version, which the rewriter restyles
+// in place, so the line keeps the precision it is written with.
+const packageSwiftFind = "/" + packageSwiftLabel + `(\d+(?:\.\d+){0,2})/`
+
+// SidecarFind reports the find locator a generated sidecar entry for path must
+// name its target line with, and false when the target holds no version-shaped
+// line other than the tracked one, so the bare <version> placeholder suffices.
+func SidecarFind(path string) (string, bool) {
+	if PackageSwiftFile(path) {
+		return packageSwiftFind, true
+	}
+	return "", false
+}
+
 // nodeVersionGlob matches the .node-version and .nvmrc files whose whole line is
 // the pinned runtime version. Neither has a comment syntax, so a marker for one
 // lives in a sidecar or is synthesized by run --infer.
@@ -745,6 +810,20 @@ var routes = []route{
 			provider:  constant.ProviderSwift,
 		},
 		infer:    provides(constant.ProviderSwift),
+		rewriter: NewSmart(),
+	},
+	{
+		// The tools-version declaration SwiftPM requires at the top of a
+		// manifest: // swift-tools-version: 6.0. The key holds no digits, so the
+		// declared version is the line's only version-shaped token and the smart
+		// rewriter anchors on it, preserving the component count a floor is
+		// spelled with - a two-part 6.0 bumps to 6.3, never to 6.3.3.
+		when: conditions{
+			path:      packageSwiftGlob,
+			lineMatch: packageSwiftDeclaration,
+			provider:  constant.ProviderSwift,
+		},
+		infer:    inferToolsVersion,
 		rewriter: NewSmart(),
 	},
 	{
