@@ -14,7 +14,7 @@ require (
 	github.com/cli/oauth v1.2.2
 	github.com/gechr/clib v0.7.16
 	github.com/gechr/clog v0.15.6
-	github.com/gechr/conductor v0.1.15
+	github.com/gechr/conductor v0.1.16
 	github.com/gechr/x v0.5.11
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.21.7
@@ -245,7 +245,7 @@ require (
 	github.com/ryanrolds/sqlclosecheck v0.6.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.1.0 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sashamelentyev/interfacebloat v1.1.0 // indirect
 	github.com/sashamelentyev/usestdlibvars v1.29.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.0 // indirect
