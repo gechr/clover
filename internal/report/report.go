@@ -259,6 +259,7 @@ func Annotate(logger *clog.Logger, summary mode.AnnotateSummary, write bool) {
 		Symbol("🏁").
 		OmitZero(true).
 		Int(field.Added, summary.Added()).
+		Int(field.Scanned, summary.Scanned).
 		Int(field.Updated, summary.Updated()).
 		Duration(field.Elapsed, summary.Elapsed, duration.WithMinimum(elapsedMinimum), duration.WithRound(elapsedRound)).
 		Msg("Annotate complete")

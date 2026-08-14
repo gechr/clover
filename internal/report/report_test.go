@@ -73,7 +73,7 @@ func TestAnnotatePreview(t *testing.T) {
 			{At: 0, Provider: "docker"},
 			{At: 4, Provider: "docker", Existing: true},
 		},
-	}}, Elapsed: 2 * time.Second}
+	}}, Scanned: 9, Elapsed: 2 * time.Second}
 
 	var buf bytes.Buffer
 	report.Annotate(clog.NewWriter(&buf), s, false)
@@ -81,7 +81,7 @@ func TestAnnotatePreview(t *testing.T) {
 	require.Equal(t,
 		"DRY 🚧 Would annotate provider=docker location=Dockerfile:1\n"+
 			"DRY 🚧 Would reannotate provider=docker location=Dockerfile:5\n"+
-			"DRY 🏁 Annotate complete added=1 updated=1 elapsed=2s\n",
+			"DRY 🏁 Annotate complete added=1 scanned=9 updated=1 elapsed=2s\n",
 		buf.String(),
 	)
 }
