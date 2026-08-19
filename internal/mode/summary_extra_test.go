@@ -9,7 +9,7 @@ import (
 )
 
 func outcome(results ...pipeline.Result) mode.Outcome {
-	return mode.Outcome{FileResult: pipeline.FileResult{Results: results}}
+	return mode.Outcome{Results: results}
 }
 
 func TestSummary_Disabled(t *testing.T) {

@@ -44,8 +44,9 @@ func (ActionTag) Locate(line string) (Location, error) {
 
 	semver, _ := version.Parse(token.Core)
 	return actionTagLocated{
-		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		token:    token,
+		raw:    line[token.Span.Start:token.Span.End],
+		semver: semver,
+		token:  token,
 	}, nil
 }
 

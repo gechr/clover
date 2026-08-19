@@ -51,9 +51,7 @@ func TestNoCandidateDeepSelectsTruncatedFailures(t *testing.T) {
 	resolved := pipeline.Result{Truncated: true}
 
 	summary := mode.Summary{Outcomes: []mode.Outcome{{
-		FileResult: pipeline.FileResult{
-			Results: []pipeline.Result{gated, wrapped, notTruncated, otherErr, resolved},
-		},
+		Results: []pipeline.Result{gated, wrapped, notTruncated, otherErr, resolved},
 	}}}
 
 	// Only a truncated no-candidate failure can be rescued by --deep: a

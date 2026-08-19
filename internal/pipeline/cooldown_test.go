@@ -45,11 +45,9 @@ func TestRunCooldownShortCircuitsUndatedProvider(t *testing.T) {
 	t.Run("undated provider skips before discovery", func(t *testing.T) {
 		var calls int
 		provider.Register(countingProvider{
-			fakeProvider: fakeProvider{
-				name:       "undated",
-				candidates: []model.Candidate{candidate(t, "1.3.0")},
-			},
-			calls: &calls,
+			name:       "undated",
+			candidates: []model.Candidate{candidate(t, "1.3.0")},
+			calls:      &calls,
 		})
 
 		dir := write(t, map[string]string{
@@ -67,11 +65,9 @@ func TestRunCooldownShortCircuitsUndatedProvider(t *testing.T) {
 	t.Run("dater fetches then skips on undated candidates", func(t *testing.T) {
 		var calls int
 		provider.Register(datedProvider{countingProvider{
-			fakeProvider: fakeProvider{
-				name:       "dated",
-				candidates: []model.Candidate{candidate(t, "1.3.0")},
-			},
-			calls: &calls,
+			name:       "dated",
+			candidates: []model.Candidate{candidate(t, "1.3.0")},
+			calls:      &calls,
 		}})
 
 		dir := write(t, map[string]string{

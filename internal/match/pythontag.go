@@ -43,9 +43,10 @@ func (PythonTag) Locate(line string) (Location, error) {
 	raw := line[m[0]:m[1]]
 	semver, _ := version.Parse(line[m[2]:m[3]] + "." + line[m[4]:m[5]])
 	return pythonTagLocated{
-		anchored: anchored{raw: raw, semver: semver},
-		start:    m[0],
-		end:      m[1],
+		raw:    raw,
+		semver: semver,
+		start:  m[0],
+		end:    m[1],
 	}, nil
 }
 

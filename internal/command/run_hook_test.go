@@ -130,9 +130,9 @@ func TestRunHooks(t *testing.T) {
 	t.Run("post-exec sees a failed write as unchanged", func(t *testing.T) {
 		calls := stubHooks(t, nil, nil)
 		summary := mode.Summary{Outcomes: []mode.Outcome{{
-			FileResult: pipeline.FileResult{Results: []pipeline.Result{{Changed: true}}},
-			Written:    false,
-			WriteErr:   errors.New("read-only"),
+			Results:  []pipeline.Result{{Changed: true}},
+			Written:  false,
+			WriteErr: errors.New("read-only"),
 		}}}
 		err := command.RunFinish("after", summary)
 		require.EqualError(t, err, "1 file could not be written")
@@ -145,12 +145,12 @@ func TestRunHooks(t *testing.T) {
 		calls := stubHooks(t, nil, nil)
 		summary := mode.Summary{Outcomes: []mode.Outcome{
 			{
-				FileResult: pipeline.FileResult{Results: []pipeline.Result{{Changed: true}}},
-				Written:    true,
+				Results: []pipeline.Result{{Changed: true}},
+				Written: true,
 			},
 			{
-				FileResult: pipeline.FileResult{Results: []pipeline.Result{{Changed: true}}},
-				WriteErr:   errors.New("read-only"),
+				Results:  []pipeline.Result{{Changed: true}},
+				WriteErr: errors.New("read-only"),
 			},
 		}}
 		err := command.RunFinish("after", summary)

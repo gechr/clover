@@ -49,9 +49,10 @@ func (fr FindReplace) Locate(line string) (Location, error) {
 	value := line[fr.anchor(m, 0):fr.anchor(m, 1)]
 	semver, _ := version.Parse(value)
 	return findReplaceLocated{
-		anchored: anchored{raw: value, semver: semver},
-		fr:       fr,
-		match:    m,
+		raw:    value,
+		semver: semver,
+		fr:     fr,
+		match:  m,
 	}, nil
 }
 

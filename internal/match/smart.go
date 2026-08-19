@@ -50,8 +50,9 @@ type smartLocated struct {
 func locatedToken(line string, token Token) smartLocated {
 	semver, _ := version.Parse(token.Core) // nil core only matters to a keyword constraint
 	return smartLocated{
-		anchored: anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		token:    token,
+		raw:    line[token.Span.Start:token.Span.End],
+		semver: semver,
+		token:  token,
 	}
 }
 

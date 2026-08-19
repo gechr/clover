@@ -84,9 +84,8 @@ func TestResolverCachesParsedChecksums(t *testing.T) {
 	resolver := checksum.NewResolver(client)
 	req := checksum.Request{
 		Source: "checksums", URL: "http://x/checksums.txt", Version: "1.0.0",
+		Pattern: "*linux_amd64*",
 	}
-
-	req.Pattern = "*linux_amd64*"
 	got, err := resolver.Resolve(t.Context(), req)
 	require.NoError(t, err)
 	require.Equal(t, sumA, got)

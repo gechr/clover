@@ -19,7 +19,7 @@ import (
 // so the run summary line renders deterministically.
 func summary(results ...pipeline.Result) mode.Summary {
 	return mode.Summary{
-		Outcomes: []mode.Outcome{{FileResult: pipeline.FileResult{Results: results}}},
+		Outcomes: []mode.Outcome{{Results: results}},
 		Elapsed:  1500 * time.Millisecond,
 	}
 }

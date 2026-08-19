@@ -46,8 +46,8 @@ func (Hash) Locate(line string) (Location, error) {
 		return nil, errors.New("no commit or sha256 hash on the target line")
 	case 1:
 		return hashLocated{
-			anchored: anchored{raw: line[spans[0].Start:spans[0].End]},
-			span:     spans[0],
+			raw:  line[spans[0].Start:spans[0].End],
+			span: spans[0],
 		}, nil
 	default:
 		return nil, errors.New("multiple hashes on the line, so the target is ambiguous")

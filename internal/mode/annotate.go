@@ -559,8 +559,8 @@ func insert(syntax comment.Syntax, i int, line string, inf match.Inference) (Ann
 		ResourceURL: url,
 		id:          inf.ID,
 		from:        inf.From,
+		bareLine:    bareAlternative(syntax, line, directive.Directive{}, inf),
 	}
-	change.bareLine = bareAlternative(syntax, line, directive.Directive{}, inf)
 	return change, true
 }
 

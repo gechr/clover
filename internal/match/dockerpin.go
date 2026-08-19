@@ -43,10 +43,11 @@ func (DockerPin) Locate(line string) (Location, error) {
 
 	semver, _ := version.Parse(token.Core)
 	return dockerPinLocated{
-		anchored:  anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		securePin: securePin{pinned: line[digest.Start:digest.End]},
-		token:     token,
-		digest:    digest,
+		raw:    line[token.Span.Start:token.Span.End],
+		semver: semver,
+		pinned: line[digest.Start:digest.End],
+		token:  token,
+		digest: digest,
 	}, nil
 }
 

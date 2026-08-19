@@ -107,7 +107,7 @@ func erroredSummary(errored ...bool) mode.Summary {
 		}
 	}
 	return mode.Summary{Outcomes: []mode.Outcome{{
-		FileResult: pipeline.FileResult{Results: results},
+		Results: results,
 	}}}
 }
 
@@ -135,7 +135,7 @@ func TestUsedProviders(t *testing.T) {
 			return pipeline.Result{Marker: pipeline.Marker{Provider: n}}
 		})
 		return mode.Summary{Outcomes: []mode.Outcome{{
-			FileResult: pipeline.FileResult{Results: results},
+			Results: results,
 		}}}
 	}
 

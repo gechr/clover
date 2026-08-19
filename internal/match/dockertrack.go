@@ -36,10 +36,11 @@ func (DockerTrack) Locate(line string) (Location, error) {
 	}
 
 	return dockerTrackLocated{
-		anchored:  anchored{raw: line[tag.Start:tag.End], semver: nil},
-		securePin: securePin{pinned: line[digest.Start:digest.End]},
-		tag:       tag,
-		digest:    digest,
+		raw:    line[tag.Start:tag.End],
+		semver: nil,
+		pinned: line[digest.Start:digest.End],
+		tag:    tag,
+		digest: digest,
 	}, nil
 }
 

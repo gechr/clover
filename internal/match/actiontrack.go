@@ -36,10 +36,11 @@ func (ActionTrack) Locate(line string) (Location, error) {
 	}
 
 	return actionTrackLocated{
-		anchored:  anchored{raw: line[comment.Start:comment.End], semver: nil},
-		securePin: securePin{pinned: line[commit.Start:commit.End]},
-		comment:   comment,
-		commit:    commit,
+		raw:     line[comment.Start:comment.End],
+		semver:  nil,
+		pinned:  line[commit.Start:commit.End],
+		comment: comment,
+		commit:  commit,
 	}, nil
 }
 

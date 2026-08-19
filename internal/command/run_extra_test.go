@@ -189,7 +189,7 @@ func TestReportDeep(t *testing.T) {
 		Marker:    pipeline.Marker{File: "app.txt", Target: 1},
 	}
 	summary := mode.Summary{Outcomes: []mode.Outcome{{
-		FileResult: pipeline.FileResult{Results: []pipeline.Result{gated}},
+		Results: []pipeline.Result{gated},
 	}}}
 
 	tests := map[string]struct {
@@ -215,10 +215,10 @@ func TestReportAuth(t *testing.T) {
 	provider.Register(authedProvider{name: "authreportanon", err: errTest})
 
 	summary := mode.Summary{Outcomes: []mode.Outcome{{
-		FileResult: pipeline.FileResult{Results: []pipeline.Result{
+		Results: []pipeline.Result{
 			{Marker: pipeline.Marker{Provider: "authreportok"}},
 			{Marker: pipeline.Marker{Provider: "authreportanon"}},
-		}},
+		},
 	}}}
 
 	require.NotPanics(t, func() { command.ReportAuth(context.Background(), summary) })

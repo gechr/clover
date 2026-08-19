@@ -42,11 +42,9 @@ func (memoRecencyProvider) RecencyOrdered() {}
 func TestRunDuplicateLookupsCoalesce(t *testing.T) {
 	var calls atomic.Int32
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{
-			name:       "memodup",
-			candidates: []model.Candidate{candidate(t, "1.3.0")},
-		},
-		calls: &calls,
+		name:       "memodup",
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+		calls:      &calls,
 	})
 
 	dir := write(t, map[string]string{
@@ -68,12 +66,10 @@ func TestRunDuplicateLookupsCoalesce(t *testing.T) {
 func TestRunDifferingHintsDoNotCoalesce(t *testing.T) {
 	var calls atomic.Int32
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{
-			name: "memohint",
-			candidates: []model.Candidate{
-				{Version: "api/v1.5.0"},
-				candidate(t, "1.3.0"),
-			},
+		name: "memohint",
+		candidates: []model.Candidate{
+			{Version: "api/v1.5.0"},
+			candidate(t, "1.3.0"),
 		},
 		calls: &calls,
 	})
@@ -97,10 +93,8 @@ func TestRunDifferingHintsDoNotCoalesce(t *testing.T) {
 func TestRunDiscoveryErrorShared(t *testing.T) {
 	var calls atomic.Int32
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{
-			name: "memoerr",
-			err:  errors.New("upstream unavailable"),
-		},
+		name:  "memoerr",
+		err:   errors.New("upstream unavailable"),
 		calls: &calls,
 	})
 
@@ -155,12 +149,10 @@ func TestRunSharedTruncationReplaysPerMarker(t *testing.T) {
 func TestRunSharedTruncationFeedsBlanketSinkPerMarker(t *testing.T) {
 	var calls atomic.Int32
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{
-			name:       "memoblanket",
-			truncate:   true,
-			candidates: []model.Candidate{candidate(t, "1.3.0")},
-		},
-		calls: &calls,
+		name:       "memoblanket",
+		truncate:   true,
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+		calls:      &calls,
 	})
 
 	dir := write(t, map[string]string{
@@ -197,8 +189,9 @@ func TestRunSharedCandidatesNotMutated(t *testing.T) {
 	}
 	original := slices.Clone(cands)
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{name: "memoimmut", candidates: cands},
-		calls:        &calls,
+		name:       "memoimmut",
+		candidates: cands,
+		calls:      &calls,
 	})
 
 	dir := write(t, map[string]string{
@@ -221,11 +214,9 @@ func TestRunSharedCandidatesNotMutated(t *testing.T) {
 func TestRunFollowerOfCoalescedProducer(t *testing.T) {
 	var calls atomic.Int32
 	provider.Register(memoProvider{
-		fakeProvider: fakeProvider{
-			name:       "memoflw",
-			candidates: []model.Candidate{candidate(t, "1.3.0")},
-		},
-		calls: &calls,
+		name:       "memoflw",
+		candidates: []model.Candidate{candidate(t, "1.3.0")},
+		calls:      &calls,
 	})
 
 	dir := write(t, map[string]string{

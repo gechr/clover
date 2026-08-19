@@ -90,9 +90,9 @@ func (p CommitPin) Locate(line string) (Location, error) {
 			return nil, errors.New("action pin has unexpected text after the commit SHA")
 		}
 		return commitPinLocated{
-			securePin: securePin{pinned: line[commit.Start:commit.End]},
-			commit:    commit,
-			comment:   p.comment,
+			pinned:  line[commit.Start:commit.End],
+			commit:  commit,
+			comment: p.comment,
 		}, nil
 	}
 	commentStart := end + hash + 1
@@ -106,8 +106,9 @@ func (p CommitPin) Locate(line string) (Location, error) {
 
 	semver, _ := version.Parse(token.Core)
 	return commitPinLocated{
-		anchored:   anchored{raw: line[token.Span.Start:token.Span.End], semver: semver},
-		securePin:  securePin{pinned: line[commit.Start:commit.End]},
+		raw:        line[token.Span.Start:token.Span.End],
+		semver:     semver,
+		pinned:     line[commit.Start:commit.End],
 		token:      token,
 		commit:     commit,
 		comment:    p.comment,
