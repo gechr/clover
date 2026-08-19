@@ -1,6 +1,6 @@
 GO         ?= go
 GO_BIN     ?= $(shell $(GO) env GOPATH)/bin
-GO_TOOLS   ?= $(shell $(GO) tool | grep /)
+GO_TOOLS   ?= $(shell $(GO) list tool)
 
 VERSION    ?= $(shell git describe --tags 2>/dev/null || echo 0.0.0-dev)
 BUILDTIME  ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
