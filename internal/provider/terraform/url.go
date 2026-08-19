@@ -48,8 +48,8 @@ func (p *Provider) Identify(r provider.Resource) (string, string) {
 // landing drops a version page format's trailing version segment, leaving the
 // resource's own page.
 func landing(page string) string {
-	if i := strings.LastIndex(page, "/"); i >= 0 {
-		return page[:i]
+	if before, _, ok := strings.CutLast(page, "/"); ok {
+		return before
 	}
 	return page
 }

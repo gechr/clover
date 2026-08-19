@@ -527,8 +527,8 @@ func imageReference(line string) (string, string) {
 		registry = ref[:slash]
 		remainder = ref[slash+1:]
 	}
-	if colon := strings.LastIndexByte(remainder, ':'); colon >= 0 {
-		remainder = remainder[:colon] // drop the tag (the host's port already split off)
+	if before, _, ok := strings.CutLast(remainder, ":"); ok {
+		remainder = before // drop the tag (the host's port already split off)
 	}
 	return registry, remainder
 }
