@@ -11,6 +11,7 @@ linters:
     - err113 # noisy
     - errchkjson # noisy
     - exhaustruct # noisy
+    - exhaustruct_v5 # noisy
     - funcorder # noisy
     - funlen # noisy
     - gochecknoglobals # provider registry and lipgloss styles are globals
