@@ -465,7 +465,7 @@ func TestRevalidationMergesUpdatedHeaders(t *testing.T) {
 	require.Equal(
 		t,
 		`W/"v2"`,
-		resp.Header.Get("Etag"),
+		resp.Header.Get("ETag"),
 		"the 304's validator replaces the stored one",
 	)
 	require.Empty(t, resp.Header.Get("Content-Length"),
