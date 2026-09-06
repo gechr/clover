@@ -21,7 +21,7 @@ require (
 	github.com/gechr/conductor v0.1.17
 	github.com/gechr/forge v0.0.5
 	github.com/gechr/gorules v0.0.3
-	github.com/gechr/x v0.5.19
+	github.com/gechr/x v0.6.0
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.22.0
 	github.com/hashicorp/go-version v1.9.0
