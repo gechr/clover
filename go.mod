@@ -1,7 +1,7 @@
 module github.com/gechr/clover
 
 // @clover
-go 1.27.1
+go 1.27.2
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
@@ -19,13 +19,13 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/cli/go-gh/v2 v2.16.1
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.7.20
+	github.com/gechr/clib v0.7.21
 	github.com/gechr/clive v0.4.11
 	github.com/gechr/clog v0.17.2
 	github.com/gechr/conductor v0.1.18
 	github.com/gechr/forge v0.0.5
 	github.com/gechr/gorules v0.0.3
-	github.com/gechr/x v0.6.1
+	github.com/gechr/x v0.6.2
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.22.1
 	github.com/hashicorp/go-version v1.9.0

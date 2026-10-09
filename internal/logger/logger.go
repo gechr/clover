@@ -5,6 +5,7 @@ package logger
 import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/field/hyperlink"
 	"github.com/gechr/clog/style"
 	"github.com/gechr/clover/internal/log/field"
 	"github.com/gechr/clover/internal/provider"
@@ -26,6 +27,8 @@ func Configure() {
 	clog.SetOmitEmpty(true)
 
 	clog.SetNumberFormat(clog.NumberGrouped)
+
+	clog.SetHyperlinkFallback(hyperlink.FallbackText)
 
 	styles := clog.DefaultStyles()
 	styles.Keys[field.From] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))     // red
