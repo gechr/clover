@@ -6,7 +6,8 @@
 // A tool's backends are interchangeable installers for the same pinned version.
 // A GitHub-shaped backend - aqua:, github:, or ubi:, in any position - is
 // preferred, since GitHub tags are the most universal version source, and the
-// tool maps to that owner/repo under the github provider. A tool with no GitHub
+// tool maps to that owner/repo under the github provider, along with the
+// backend's version_prefix when its tags carry one. A tool with no GitHub
 // backend falls back to its first package-manager backend: pipx: to pypi, npm:
 // to npm, cargo: to crates, mapping to the package that ecosystem installs.
 // Tools backed only by an unsupported ecosystem (core:, asdf:, gem:, ...) are
@@ -16,7 +17,8 @@
 //
 // The output declares one map per provider: miseRegistryTools (github, name to
 // owner/repo), misePypiTools, miseNpmTools, and miseCratesTools (name to
-// package).
+// package), plus miseRegistryTagPrefixes (github, name to tag prefix) for the
+// GitHub tools whose tags carry one.
 //
 // Usage:
 //
@@ -59,11 +61,13 @@ type registryTool struct {
 }
 
 // entry is a resolved registry tool: the Clover provider whose ecosystem
-// carries the tool's versions, and the provider-specific spec the map records -
-// a GitHub owner/repo, or a package name.
+// carries the tool's versions, the provider-specific spec the map records - a
+// GitHub owner/repo, or a package name - and, for a GitHub tool, the prefix its
+// release tags carry ahead of the version.
 type entry struct {
-	provider string
-	spec     string
+	provider  string
+	spec      string
+	tagPrefix string
 }
 
 // backendSpec returns a backend entry's "scheme:spec" string, "" when the
@@ -78,6 +82,29 @@ func backendSpec(backend any) string {
 	default:
 		return ""
 	}
+}
+
+// backendOption returns the named option of a backend entry, "" when it sets
+// none. A table entry carries options in its options table; a string entry
+// carries them as a trailing [key=value,...] qualifier on its spec.
+func backendOption(backend any, key string) string {
+	if b, ok := backend.(map[string]any); ok {
+		options, _ := b["options"].(map[string]any)
+		value, _ := options[key].(string)
+		return value
+	}
+	spec, _ := backend.(string)
+	_, qualifier, ok := strings.Cut(spec, "[")
+	if !ok {
+		return ""
+	}
+	qualifier, _, _ = strings.Cut(qualifier, "]")
+	for option := range strings.SplitSeq(qualifier, ",") {
+		if k, v, ok := strings.Cut(option, "="); ok && strings.TrimSpace(k) == key {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
 
 // githubBackends are the mise backend schemes whose spec is a GitHub
@@ -251,13 +278,13 @@ func read(dir string) (map[string]entry, error) {
 }
 
 // resolve returns the provider and spec the tool's backends prove carry its
-// versions: a GitHub owner/repo from the first github-shaped backend (preferred
-// regardless of list position, since GitHub tags are the most universal version
-// source), else the package name of the first pipx:/npm:/cargo: backend. ok is
-// false when no backend maps to a supported provider.
+// versions: a GitHub owner/repo and tag prefix from the first github-shaped
+// backend (preferred regardless of list position, since GitHub tags are the most
+// universal version source), else the package name of the first pipx:/npm:/cargo:
+// backend. ok is false when no backend maps to a supported provider.
 func resolve(backends []any) (entry, bool) {
-	if repo, ok := repository(backends); ok {
-		return entry{provider: constant.ProviderGithub, spec: repo}, true
+	if repo, prefix, ok := repository(backends); ok {
+		return entry{provider: constant.ProviderGithub, spec: repo, tagPrefix: prefix}, true
 	}
 	for _, backend := range backends {
 		spec := backendSpec(backend)
@@ -285,10 +312,11 @@ func packageName(provider string) *regexp.Regexp {
 }
 
 // repository returns the owner/repo of the tool's first GitHub-shaped backend
-// in list order, ok=false when no backend is GitHub-shaped with a clean
-// two-segment spec (a monorepo sub-path pins versions under tags the bare
-// repository lookup would misread, so it is skipped).
-func repository(backends []any) (string, bool) {
+// in list order and the version_prefix its tags carry (azure-cli-2.67.0 for
+// azure), ok=false when no backend is GitHub-shaped with a clean two-segment
+// spec (a monorepo sub-path pins versions under tags the bare repository lookup
+// would misread, so it is skipped).
+func repository(backends []any) (string, string, bool) {
 	for _, backend := range backends {
 		for _, scheme := range githubBackends {
 			spec, ok := strings.CutPrefix(backendSpec(backend), scheme)
@@ -298,20 +326,26 @@ func repository(backends []any) (string, bool) {
 			spec, _, _ = strings.Cut(spec, "[") // drop a [option] qualifier
 			own, repo, ok := strings.Cut(spec, "/")
 			if ok && owner.MatchString(own) && segment.MatchString(repo) {
-				return own + "/" + repo, true
+				return own + "/" + repo, backendOption(backend, "version_prefix"), true
 			}
 		}
 	}
-	return "", false
+	return "", "", false
 }
 
 // providerMap describes one emitted map: its Go variable, the provider whose
-// tools populate it, and the sentence completing the map's doc comment.
+// tools populate it, the sentence completing the map's doc comment, and the
+// entry field it records. A tool whose field is empty is left out.
 type providerMap struct {
 	name     string
 	provider string
 	values   string
+	value    func(entry) string
 }
+
+// spec and tagPrefix read the entry field a providerMap records.
+func spec(e entry) string      { return e.spec }
+func tagPrefix(e entry) string { return e.tagPrefix }
 
 // providerMaps are the generated maps in file order, github first so the
 // existing lookup path reads an unchanged declaration.
@@ -320,10 +354,17 @@ var providerMaps = []providerMap{
 		"miseRegistryTools",
 		constant.ProviderGithub,
 		"the GitHub repository their default backend tracks",
+		spec,
 	},
-	{"misePypiTools", constant.ProviderPypi, "the PyPI package their pipx backend installs"},
-	{"miseNpmTools", constant.ProviderNpm, "the npm package their npm backend installs"},
-	{"miseCratesTools", constant.ProviderCrates, "the crate their cargo backend installs"},
+	{
+		"miseRegistryTagPrefixes",
+		constant.ProviderGithub,
+		"the prefix their GitHub release tags carry ahead of the version",
+		tagPrefix,
+	},
+	{"misePypiTools", constant.ProviderPypi, "the PyPI package their pipx backend installs", spec},
+	{"miseNpmTools", constant.ProviderNpm, "the npm package their npm backend installs", spec},
+	{"miseCratesTools", constant.ProviderCrates, "the crate their cargo backend installs", spec},
 }
 
 // render emits the generated Go source for the per-provider tool maps,
@@ -353,8 +394,8 @@ func writeMap(b *bytes.Buffer, m providerMap, tools map[string]entry) {
 	)
 	specs := map[string]string{}
 	for name, e := range tools {
-		if e.provider == m.provider {
-			specs[name] = e.spec
+		if value := m.value(e); e.provider == m.provider && value != "" {
+			specs[name] = value
 		}
 	}
 	for _, name := range xmaps.KeysNatural(specs) {

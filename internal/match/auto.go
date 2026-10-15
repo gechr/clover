@@ -258,10 +258,10 @@ type githubTool struct {
 var tofuTool = githubTool{repository: "opentofu/opentofu"}
 
 // miseGithubTools maps curated mise tool names to the GitHub source whose
-// releases they track, taking precedence over the generated registry map for
-// tools whose tags carry a prefix or that the registry routes elsewhere. The
-// long tail of well-known tools lives in miseRegistryTools, generated from the
-// mise registry:
+// releases they track, taking precedence over the generated registry maps for
+// tools whose tags carry a prefix the registry does not declare or that the
+// registry routes elsewhere. The long tail of well-known tools lives in
+// miseRegistryTools, generated from the mise registry:
 //
 //go:generate go run ../tools/genmise
 var miseGithubTools = map[string]githubTool{
@@ -388,13 +388,13 @@ func inferHelmDependency(s subject) Inference {
 
 // LookupTool resolves a mise tool name to the GitHub repository whose tags
 // carry its releases and the tag prefix those tags wear, consulting the
-// curated [miseGithubTools] map then the generated registry map.
+// curated [miseGithubTools] map then the generated registry maps.
 func LookupTool(name string) (string, string, bool) {
 	if tool, found := miseGithubTools[name]; found {
 		return tool.repository, tool.tagPrefix, true
 	}
 	if repo, found := miseRegistryTools[name]; found {
-		return repo, "", true
+		return repo, miseRegistryTagPrefixes[name], true
 	}
 	return "", "", false
 }

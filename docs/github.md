@@ -38,7 +38,7 @@ FROM redis:7.2.0
 RIPGREP_VERSION=14.1.0
 ```
 
-The map also records the tag prefix a curated tool's upstream tags wear, so `tool=erlang` selects among `OTP-` tags without a [`tag-prefix`](filtering.md#tag-prefix) rule of its own. A mistyped name fails validation with the closest known tool as a suggestion. `tool` and `repository` are mutually exclusive, and since the registry maps names to GitHub.com repositories, `tool` cannot combine with `host`.
+The map also records the tag prefix a tool's upstream tags wear, so `tool=erlang` selects among `OTP-` tags without a [`tag-prefix`](filtering.md#tag-prefix) rule of its own. A mistyped name fails validation with the closest known tool as a suggestion. `tool` and `repository` are mutually exclusive, and since the registry maps names to GitHub.com repositories, `tool` cannot combine with `host`.
 
 ## Selecting by asset
 

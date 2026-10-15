@@ -36,6 +36,9 @@ var miseRegistryTools = map[string]string{
 	"foo": "cli/cli",
 }
 
+// miseRegistryTagPrefixes maps mise registry tool names (and aliases) to the prefix their GitHub release tags carry ahead of the version.
+var miseRegistryTagPrefixes = map[string]string{}
+
 // misePypiTools maps mise registry tool names (and aliases) to the PyPI package their pipx backend installs.
 var misePypiTools = map[string]string{}
 

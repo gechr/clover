@@ -864,6 +864,20 @@ var miseRegistryTools = map[string]string{
 	"zprint":                       "kkinnear/zprint",
 }
 
+// miseRegistryTagPrefixes maps mise registry tool names (and aliases) to the prefix their GitHub release tags carry ahead of the version.
+var miseRegistryTagPrefixes = map[string]string{
+	"azure":         "azure-cli-",
+	"azure-cli":     "azure-cli-",
+	"flyway":        "flyway-",
+	"k3kcli":        "v",
+	"libsql-server": "libsql-server-v",
+	"lisette":       "lisette-v",
+	"llama.cpp":     "b",
+	"magika":        "cli/v",
+	"martin":        "martin-v",
+	"mole":          "V",
+}
+
 // misePypiTools maps mise registry tool names (and aliases) to the PyPI package their pipx backend installs.
 var misePypiTools = map[string]string{
 	"ansible":           "ansible",

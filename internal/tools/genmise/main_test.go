@@ -44,12 +44,49 @@ func TestBackendSpec(t *testing.T) {
 	}
 }
 
+func TestBackendOption(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		backend any
+		want    string
+	}{
+		"table option": {
+			backend: map[string]any{
+				"full":    "github:google/magika",
+				"options": map[string]any{"version_prefix": "cli/v"},
+			},
+			want: "cli/v",
+		},
+		"table without options": {backend: map[string]any{"full": "github:owner/repo"}, want: ""},
+		"table option not string": {
+			backend: map[string]any{"options": map[string]any{"version_prefix": 1}},
+			want:    "",
+		},
+		"inline qualifier": {
+			backend: "github:owner/repo[exe=rg, version_prefix=tool-v]",
+			want:    "tool-v",
+		},
+		"inline other option": {backend: "ubi:owner/repo[exe=rg]", want: ""},
+		"no qualifier":        {backend: "github:owner/repo", want: ""},
+		"unsupported kind":    {backend: 42, want: ""},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, backendOption(tt.backend, "version_prefix"))
+		})
+	}
+}
+
 func TestRepository(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
 		backends []any
 		want     string
+		prefix   string
 		ok       bool
 	}{
 		"github backend": {
@@ -86,14 +123,38 @@ func TestRepository(t *testing.T) {
 			want:     "owner/repo",
 			ok:       true,
 		},
+		"table backend version prefix": {
+			backends: []any{
+				map[string]any{
+					"full":    "github:google/magika",
+					"options": map[string]any{"version_prefix": "cli/v"},
+				},
+				"cargo:magika-cli",
+			},
+			want:   "google/magika",
+			prefix: "cli/v",
+			ok:     true,
+		},
+		"inline version prefix": {
+			backends: []any{"github:owner/repo[version_prefix=tool-v]"},
+			want:     "owner/repo",
+			prefix:   "tool-v",
+			ok:       true,
+		},
+		"prefix read from the chosen backend only": {
+			backends: []any{"aqua:owner/repo", "github:owner/repo[version_prefix=tool-v]"},
+			want:     "owner/repo",
+			ok:       true,
+		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			repo, ok := repository(tt.backends)
+			repo, prefix, ok := repository(tt.backends)
 			require.Equal(t, tt.ok, ok)
 			require.Equal(t, tt.want, repo)
+			require.Equal(t, tt.prefix, prefix)
 		})
 	}
 }
@@ -109,7 +170,7 @@ func TestRender(t *testing.T) {
 	t.Parallel()
 
 	out, err := render(map[string]entry{
-		"zebra":    {provider: constant.ProviderGithub, spec: "z/zebra"},
+		"zebra":    {provider: constant.ProviderGithub, spec: "z/zebra", tagPrefix: "zebra-v"},
 		"apple":    {provider: constant.ProviderGithub, spec: "a/apple"},
 		"black":    {provider: constant.ProviderPypi, spec: "black"},
 		"prettier": {provider: constant.ProviderNpm, spec: "@scope/prettier"},
@@ -127,6 +188,11 @@ package match
 var miseRegistryTools = map[string]string{
 	"apple": "a/apple",
 	"zebra": "z/zebra",
+}
+
+// miseRegistryTagPrefixes maps mise registry tool names (and aliases) to the prefix their GitHub release tags carry ahead of the version.
+var miseRegistryTagPrefixes = map[string]string{
+	"zebra": "zebra-v",
 }
 
 // misePypiTools maps mise registry tool names (and aliases) to the PyPI package their pipx backend installs.

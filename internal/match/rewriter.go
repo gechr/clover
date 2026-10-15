@@ -1041,9 +1041,9 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
-		// A mise tool whose only backend is a cargo: crate: magika = "1.2.3"
-		// installs cargo:magika-cli. The names come from the generated
-		// miseCratesTools map.
+		// A mise tool whose only backend is a cargo: crate: tool = "1.2.3"
+		// installs the crate the generated miseCratesTools map records for
+		// that name.
 		when: conditions{
 			path:      miseGlob,
 			lineMatch: mustPattern(`/^\s*"?(` + alternation(cratesToolNames()) + `)"?\s*=\s*"/`),
@@ -1053,7 +1053,7 @@ var routes = []route{
 		rewriter: NewSmart(),
 	},
 	{
-		// The same cargo tool pinned in .tool-versions: magika 1.2.3.
+		// The same cargo tool pinned in .tool-versions: tool 1.2.3.
 		when: conditions{
 			path:      toolVersionsGlob,
 			lineMatch: mustPattern(`/^\s*(` + alternation(cratesToolNames()) + `)\s+\S/`),

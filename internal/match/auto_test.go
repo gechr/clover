@@ -334,11 +334,15 @@ func TestInfer(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "mise cargo tool infers crates",
+			name: "mise registry tool carries its tag prefix",
 			path: ".mise.toml",
-			line: `magika = "0.6.2"`,
-			want: match.Inference{Provider: "crates", Package: "magika-cli"},
-			ok:   true,
+			line: `magika = "1.0.2"`,
+			want: match.Inference{
+				Provider:   "github",
+				Repository: "google/magika",
+				TagPrefix:  "cli/v",
+			},
+			ok: true,
 		},
 		{
 			name: "mise mixed-backend tool still infers github",
@@ -790,7 +794,7 @@ func TestInfer(t *testing.T) {
 // of its HCL block.
 // TestLookupTool pins the tool-name resolution the github provider's tool key
 // and auto-detection share: curated names carry their tag prefix, generated
-// registry names resolve bare.
+// registry names carry the version_prefix their backend declares.
 func TestLookupTool(t *testing.T) {
 	t.Parallel()
 
@@ -824,6 +828,13 @@ func TestLookupTool(t *testing.T) {
 			name:       "generated registry name",
 			tool:       "ripgrep",
 			repository: "BurntSushi/ripgrep",
+			ok:         true,
+		},
+		{
+			name:       "generated registry name with a tag prefix",
+			tool:       "magika",
+			repository: "google/magika",
+			tagPrefix:  "cli/v",
 			ok:         true,
 		},
 		{name: "unknown name", tool: "java"},
