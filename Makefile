@@ -56,7 +56,7 @@ smoke:
 	@$(GO) test -tags=live -count=1 -timeout 300s -run 'TestLive' -v ./internal/provider/all/
 
 .PHONY: update
-update:
+update: gen
 	@clover run
 	@$(GO) get $(GO_TOOLS) $(shell $(GO) list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all)
 	@$(GO) mod tidy

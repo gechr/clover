@@ -15,11 +15,11 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.16.1
 	github.com/atotto/clipboard v0.1.4
-	github.com/bmatcuk/doublestar/v4 v4.10.2
+	github.com/bmatcuk/doublestar/v4 v4.10.3
 	github.com/cli/browser v1.3.0
-	github.com/cli/go-gh/v2 v2.16.1
+	github.com/cli/go-gh/v2 v2.16.2
 	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.7.21
+	github.com/gechr/clib v0.8.0
 	github.com/gechr/clive v0.4.11
 	github.com/gechr/clog v0.17.2
 	github.com/gechr/conductor v0.1.18
@@ -37,7 +37,7 @@ require (
 	github.com/sigstore/sigstore-go v1.3.0
 	github.com/stretchr/testify v1.12.1
 	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
