@@ -1,7 +1,7 @@
 module github.com/gechr/clover
 
 // @clover
-go 1.27.2
+go 1.27.3
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
@@ -17,15 +17,15 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/bmatcuk/doublestar/v4 v4.10.3
 	github.com/cli/browser v1.3.0
-	github.com/cli/go-gh/v2 v2.16.2
-	github.com/cli/oauth v1.2.2
-	github.com/gechr/clib v0.8.1
-	github.com/gechr/clive v0.4.12
-	github.com/gechr/clog v0.17.3
-	github.com/gechr/conductor v0.1.19
-	github.com/gechr/forge v0.0.6
+	github.com/cli/go-gh/v2 v2.17.0
+	github.com/cli/oauth v1.3.0
+	github.com/gechr/clib v0.8.2
+	github.com/gechr/clive v0.4.13
+	github.com/gechr/clog v0.17.4
+	github.com/gechr/conductor v0.1.20
+	github.com/gechr/forge v0.0.7
 	github.com/gechr/gorules v0.0.4
-	github.com/gechr/x v0.6.3
+	github.com/gechr/x v0.6.4
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-containerregistry v0.22.1
 	github.com/hashicorp/go-version v1.9.0
@@ -276,7 +276,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tetafro/godot v1.5.6 // indirect
 	github.com/theupdateframework/go-tuf/v2 v2.4.2 // indirect
-	github.com/thlib/go-timezone-local v0.0.8 // indirect
+	github.com/thlib/go-timezone-local v0.0.9 // indirect
 	github.com/timakin/bodyclose v0.0.0-20260723120731-857993a2939c // indirect
 	github.com/timonwong/loggercheck v0.13.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.13.0 // indirect
