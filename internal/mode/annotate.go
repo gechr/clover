@@ -91,7 +91,7 @@ type AnnotateChange struct {
 	At          int
 	Line        string
 	Provider    string
-	Resource    string // the tracked resource id, for reporting; empty when none
+	Resource    string // the tracked resource id (a follower's producer's), for reporting; empty when none
 	ResourceURL string // the resource's upstream landing page, for the report hyperlink
 	Existing    bool
 
@@ -456,13 +456,33 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	// directive so force can rewrite the comment above it.
 	governed := set.New[int]()
 	existing := map[int]scan.Located{}
+	existingIndex := map[int]int{} // target line to the file.Found index of existing's entry
+
+	// A follower tracks no upstream of its own, so its change reports the
+	// resource of the producer it follows. That producer is whatever the file
+	// will hold once annotated: its existing directives as a run binds them,
+	// overlaid with the rewrites and insertions proposed below. Its producer may
+	// sit below it (a sum line above its version line), so followers are
+	// resolved after the walk.
+	//
+	// Each directive is its own entry - existing ones at their file.Found index,
+	// a rewrite replacing only its own, an insert appended - never keyed by the
+	// line it governs: two directives may govern one line (offset=, target=), and
+	// both still publish their ids.
+	entries := make([]effectiveDirective, 0, len(file.Found))
 	for _, loc := range file.Found {
+		entries = append(entries, effectiveOf(file, resolvedTarget(file, loc), loc.Directive))
+	}
+	type follower struct{ change, entry int }
+	var followers []follower
+	for idx, loc := range file.Found {
 		if loc.Sidecar {
 			governed.Add(loc.Line) // the sidecar already rewrites this line; never re-annotate it
 			continue
 		}
 		governed.Add(loc.Line, loc.Line+1)
 		existing[loc.Line+1] = loc
+		existingIndex[loc.Line+1] = idx
 	}
 
 	for i, line := range file.Lines {
@@ -505,6 +525,11 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 				continue
 			}
 			if change, ok := rewrite(syntax, file.Lines[loc.Line], loc, inf); ok {
+				idx := existingIndex[i]
+				entries[idx] = effectiveOf(
+					file, resolvedTarget(file, loc), canonicalDirective(loc.Directive, inf),
+				)
+				followers = append(followers, follower{len(annotated.Changes), idx})
 				annotated.Changes = append(annotated.Changes, change)
 			}
 			continue
@@ -513,12 +538,72 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			continue
 		}
 		if change, ok := insert(syntax, i, line, inf); ok {
+			entries = append(entries,
+				effectiveOf(file, i, canonicalDirective(directive.Directive{}, inf)))
+			followers = append(followers, follower{len(annotated.Changes), len(entries) - 1})
 			annotated.Changes = append(annotated.Changes, change)
 		} else {
 			annotated.Skips = append(annotated.Skips, skip(i, "comment syntax unavailable"))
 		}
 	}
+
+	publishers := map[string][]effectiveDirective{}
+	for _, e := range entries {
+		if id, _ := e.directive.Get(constant.DirectiveID); id != "" {
+			publishers[id] = append(publishers[id], e)
+		}
+	}
+	for _, f := range followers {
+		if e := entries[f.entry]; e.provider == constant.ProviderFollow {
+			change := &annotated.Changes[f.change]
+			change.Resource, change.ResourceURL = followedResource(e, publishers)
+		}
+	}
 	return annotated
+}
+
+// effectiveDirective is a directive as a run binds it: the provider it resolves
+// to (follow for an omitted one) and its parameters, inferred ones included.
+type effectiveDirective struct {
+	provider  string
+	directive directive.Directive
+}
+
+// resolvedTarget is the line loc's directive governs, or -1 when its target does
+// not resolve - the line a run binds it to, where it still publishes its id.
+func resolvedTarget(file scan.File, loc scan.Located) int {
+	target, err := loc.Target(file.Lines)
+	if err != nil {
+		return -1
+	}
+	return target
+}
+
+// effectiveOf binds d to line target of file the way a run would.
+func effectiveOf(file scan.File, target int, d directive.Directive) effectiveDirective {
+	provider, d := pipeline.Effective(file, target, d)
+	return effectiveDirective{provider: provider, directive: d}
+}
+
+// followedResource walks follower e's chain through publishers - the file's
+// directives by the id each publishes - to the producer at its end, returning
+// that producer's resource. It is empty for a broken or cyclic chain, and for a
+// hop whose id several directives publish, which the claim pass or lint rejects
+// and annotate must not guess between.
+func followedResource(
+	e effectiveDirective,
+	publishers map[string][]effectiveDirective,
+) (string, string) {
+	seen := set.New[string]()
+	for e.provider == constant.ProviderFollow {
+		from, _ := e.directive.Get(constant.DirectiveFrom)
+		if from == "" || seen.Contains(from) || len(publishers[from]) != 1 {
+			return "", ""
+		}
+		seen.Add(from)
+		e = publishers[from][0]
+	}
+	return resourceOf(e.provider, e.directive)
 }
 
 // skip builds a target-line diagnostic.
@@ -594,6 +679,12 @@ func bareAlternative(
 // unknown, the directive does not validate, or the provider names no resource.
 func resourceFor(d directive.Directive) (string, string) {
 	name, _ := d.Get(constant.DirectiveProvider)
+	return resourceOf(name, d)
+}
+
+// resourceOf is [resourceFor] for a directive whose provider is resolved apart
+// from its provider key - provider=auto bound to the provider its line infers.
+func resourceOf(name string, d directive.Directive) (string, string) {
 	prov, ok := provider.Get(name)
 	if !ok {
 		return "", ""

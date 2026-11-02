@@ -129,6 +129,72 @@ func TestValidatePopulatesResource(t *testing.T) {
 	require.Equal(t, "https://example.test/x/y", files[0].Results[0].ResourceURL)
 }
 
+// TestValidateFollowerReportsProducerResource confirms a lint names a
+// follower's resource as its producer's, matching what a run reports, and leaves
+// it empty when the follower's source does not exist.
+func TestValidateFollowerReportsProducerResource(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:        "vfollowres",
+		resource:    "x/y",
+		resourceURL: "https://example.test/x/y",
+	})
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=vfollowres repository=x/y id=app\nversion: 1.2.0\n" +
+			"# clover: from=app value=version\nfollower: 1.2.0\n" +
+			"# clover: from=missing value=version\norphan: 1.2.0\n",
+	})
+
+	files, err := pipeline.Validate(context.Background(), []string{dir})
+	require.NoError(t, err)
+	results := files[0].Results
+	require.Len(t, results, 3)
+	require.Equal(t, "x/y", results[1].Resource)
+	require.Equal(t, "https://example.test/x/y", results[1].ResourceURL)
+	require.Empty(t, results[2].Resource)
+}
+
+// TestValidateFollowerResourceRefusesAmbiguousIDs confirms a follower names no
+// resource when any hop of its chain reads an id several markers publish - lint
+// fails the duplicates without cascading to the follower, so the lookup itself
+// must refuse to pick one.
+func TestValidateFollowerResourceRefusesAmbiguousIDs(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:        "vambiguousres",
+		resource:    "x/y",
+		resourceURL: "https://example.test/x/y",
+	})
+	tests := []struct {
+		name  string
+		lines string
+	}{
+		{
+			name: "duplicate producer",
+			lines: "# clover: provider=vambiguousres repository=x/y id=app\nversion: 1.2.0\n" +
+				"# clover: provider=vambiguousres repository=x/y id=app\nversion: 1.2.0\n",
+		},
+		{
+			name: "duplicate intermediate follower",
+			lines: "# clover: provider=vambiguousres repository=x/y id=lead\nversion: 1.2.0\n" +
+				"# clover: from=lead value=version id=app\nmid: 1.2.0\n" +
+				"# clover: from=lead value=version id=app\nmid: 1.2.0\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := write(t, map[string]string{
+				"a.txt": tt.lines + "# clover: from=app value=version\nfollower: 1.2.0\n",
+			})
+
+			files, err := pipeline.Validate(context.Background(), []string{dir})
+			require.NoError(t, err)
+			results := files[0].Results
+			follower := results[len(results)-1]
+			require.Empty(t, follower.Resource)
+			require.Empty(t, follower.ResourceURL)
+		})
+	}
+}
+
 func TestValidateStaysOffline(t *testing.T) {
 	// fakeProvider with an error set would surface only if Discover were called;
 	// validation never calls it, so a clean marker validates regardless.

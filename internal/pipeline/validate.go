@@ -71,7 +71,7 @@ func (p *plan) check(i int) error {
 		return p.checkTrack(i, m)
 	}
 	if m.IsFollower() {
-		return p.checkFollower(m)
+		return p.checkFollower(i, m)
 	}
 	return p.checkProducer(i, m)
 }
@@ -245,13 +245,14 @@ func checkProducerValue(m Marker) error {
 
 // checkFollower verifies a follower names a producer to follow, requests a
 // supported value, and has a target line to rewrite.
-func (p *plan) checkFollower(m Marker) error {
+func (p *plan) checkFollower(i int, m Marker) error {
 	if m.From == "" {
 		return fmt.Errorf(
 			"a follower needs %q naming the producer to follow",
 			constant.DirectiveFrom,
 		)
 	}
+	p.results[i].Resource, p.results[i].ResourceURL = p.followedResource(m)
 	switch m.Value {
 	case "", constant.ValueVersion, constant.ValueCommit:
 	case constant.ValueSha256:

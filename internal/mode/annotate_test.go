@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clover/internal/config"
+	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/mode"
 	"github.com/gechr/clover/internal/progress"
 	"github.com/gechr/clover/internal/provider"
@@ -249,6 +250,159 @@ func TestAnnotateReportsResource(t *testing.T) {
 	require.Equal(t, "github", change.Provider)
 	require.Equal(t, "actions/checkout", change.Resource)
 	require.Equal(t, "https://github.com/actions/checkout", change.ResourceURL)
+}
+
+// TestAnnotateReportsFollowerResource confirms a paired checksum line, which
+// tracks no upstream of its own, reports the resource of the version line it
+// follows - including when the sum line sits above the version line, so the
+// producer is only seen after the follower's change was proposed. Serial for
+// the same reason as [TestAnnotateReportsResource].
+func TestAnnotateReportsFollowerResource(t *testing.T) {
+	provider.Register(github.New())
+
+	const sum = "5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7"
+	const step = "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n" +
+		"          curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
+		"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n" +
+		"          echo \"${HCLEDIT_SHA256}  hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\" | sha256sum -c\n"
+	for name, env := range map[string]string{
+		"version first": "  HCLEDIT_VERSION: \"0.2.18\"\n  HCLEDIT_SHA256: \"" + sum + "\"\n",
+		"sum first":     "  HCLEDIT_SHA256: \"" + sum + "\"\n  HCLEDIT_VERSION: \"0.2.18\"\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := annotateTree(t, map[string]string{
+				".github/workflows/ci.yaml": "env:\n" + env + step,
+			})
+
+			summary := annotate(t, root, false, false)
+			require.Len(t, summary.Files, 1)
+			changes := summary.Files[0].Changes
+			require.Len(t, changes, 2)
+			for _, change := range changes {
+				require.Equal(t, "minamijoyo/hcledit", change.Resource, change.Line)
+				require.Equal(t, "https://github.com/minamijoyo/hcledit", change.ResourceURL)
+			}
+		})
+	}
+}
+
+// TestAnnotateFollowerResourceHonorsWrittenProducer confirms a follower's
+// resource is read from its producer's directive as a run binds it, not from
+// what the producer's line infers: a written repository wins, and a written id
+// other than the inferred one publishes only that id, so a follower reading the
+// inferred id has no producer to name. Serial for the same reason as
+// [TestAnnotateReportsResource].
+func TestAnnotateFollowerResourceHonorsWrittenProducer(t *testing.T) {
+	provider.Register(github.New())
+
+	const tail = "  HCLEDIT_VERSION: \"0.2.18\"\n" +
+		"  HCLEDIT_SHA256: \"5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7\"\n" +
+		"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n" +
+		"          curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
+		"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n" +
+		"          echo \"${HCLEDIT_SHA256}  hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\" | sha256sum -c\n"
+	tests := []struct {
+		name     string
+		producer string
+		resource string
+		url      string
+	}{
+		{
+			name:     "written repository",
+			producer: "provider=github repository=explicit/project id=hcledit",
+			resource: "explicit/project",
+			url:      "https://github.com/explicit/project",
+		},
+		{
+			name:     "written id differs from inferred",
+			producer: "provider=github repository=minamijoyo/hcledit id=other",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := annotateTree(t, map[string]string{
+				".github/workflows/ci.yaml": "env:\n  # clover: " + tt.producer + "\n" + tail,
+			})
+
+			summary := annotate(t, root, false, false)
+			require.Len(t, summary.Files, 1)
+			changes := summary.Files[0].Changes
+			require.Len(t, changes, 1)
+			require.Equal(t, constant.ProviderFollow, changes[0].Provider)
+			require.Equal(t, tt.resource, changes[0].Resource)
+			require.Equal(t, tt.url, changes[0].ResourceURL)
+		})
+	}
+}
+
+// TestAnnotateFollowerResourceRefusesAmbiguousID confirms a follower names no
+// resource when its id has several publishers in the file. A hand-written id
+// in the same file does not make the claim pass drop the follower - the file
+// holds the claim either way - so the lookup itself must refuse to pick one.
+// Serial for the same reason as [TestAnnotateReportsResource].
+func TestAnnotateFollowerResourceRefusesAmbiguousID(t *testing.T) {
+	provider.Register(github.New())
+
+	root := annotateTree(t, map[string]string{
+		".github/workflows/ci.yaml": "env:\n" +
+			"  HCLEDIT_VERSION: \"0.2.18\"\n" +
+			"  HCLEDIT_SHA256: \"5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7\"\n" +
+			"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
+			"      # clover: provider=github repository=actions/checkout id=hcledit\n" +
+			"      - uses: actions/checkout@v4\n" +
+			"      - run: |\n" +
+			"          curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
+			"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n" +
+			"          echo \"${HCLEDIT_SHA256}  hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\" | sha256sum -c\n",
+	})
+
+	summary := annotate(t, root, false, false)
+	require.Len(t, summary.Files, 1)
+	var followers int
+	for _, change := range summary.Files[0].Changes {
+		if change.Provider != constant.ProviderFollow {
+			continue
+		}
+		followers++
+		require.Empty(t, change.Resource)
+		require.Empty(t, change.ResourceURL)
+	}
+	require.Equal(t, 1, followers)
+}
+
+// TestAnnotateFollowerResourceSharedTarget confirms two directives governing
+// the same line - one reaching it through offset= - both count as publishers of
+// their id, so a force-rewritten follower reading that id names no resource
+// rather than whichever directive a per-line lookup kept. Serial for the same
+// reason as [TestAnnotateReportsResource].
+func TestAnnotateFollowerResourceSharedTarget(t *testing.T) {
+	provider.Register(github.New())
+
+	root := annotateTree(t, map[string]string{
+		".github/workflows/ci.yaml": "env:\n" +
+			"  # clover: provider=github repository=first/project id=hcledit offset=2\n" +
+			"  # clover: provider=github repository=second/project id=hcledit\n" +
+			"  HCLEDIT_VERSION: \"0.2.18\"\n" +
+			"  # clover: provider=auto from=hcledit value=sha256\n" +
+			"  HCLEDIT_SHA256: \"5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7\"\n" +
+			"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n" +
+			"          curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
+			"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n" +
+			"          echo \"${HCLEDIT_SHA256}  hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\" | sha256sum -c\n",
+	})
+
+	summary := annotate(t, root, false, true)
+	require.Len(t, summary.Files, 1)
+	var followers int
+	for _, change := range summary.Files[0].Changes {
+		if change.Provider != constant.ProviderFollow {
+			continue
+		}
+		followers++
+		require.Empty(t, change.Resource)
+		require.Empty(t, change.ResourceURL)
+	}
+	require.Equal(t, 1, followers)
 }
 
 func TestAnnotateInsertsForTagPinnedUses(t *testing.T) {

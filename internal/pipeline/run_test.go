@@ -1788,6 +1788,33 @@ func TestRunFollower(t *testing.T) {
 	require.Equal(t, "follower: 2.0.0", files[1].Results[0].NewLine)
 }
 
+// TestRunFollowerReportsProducerResource confirms a follower, which tracks no
+// upstream of its own, reports the resource of the producer at the end of its
+// chain - through an intermediate follower that republishes under its own id.
+func TestRunFollowerReportsProducerResource(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:        "leadres",
+		candidates:  []model.Candidate{candidate(t, "2.0.0")},
+		resource:    "x/y",
+		resourceURL: "https://example.test/x/y",
+	})
+
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=leadres repository=x/y id=app\nlead: 1.0.0\n",
+		"b.txt": "# clover: from=app value=version id=mid\nmid: 1.0.0\n",
+		"c.txt": "# clover: from=mid value=version\ntail: 1.0.0\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 3)
+	for _, f := range files {
+		require.NoError(t, f.Results[0].Err)
+		require.Equal(t, "x/y", f.Results[0].Resource, f.Path)
+		require.Equal(t, "https://example.test/x/y", f.Results[0].ResourceURL, f.Path)
+	}
+}
+
 // TestRunToPinsExactVersion confirms WithTo rewrites the marker to the named
 // version even when it is older than the current one and the directive's rules
 // would have rejected it, and that a pin missing upstream fails with the

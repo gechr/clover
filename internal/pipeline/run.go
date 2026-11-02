@@ -113,8 +113,8 @@ type Result struct {
 
 	// Resource is a compact identifier for the tracked resource (a repo, image,
 	// or package, e.g. actions/checkout), when the provider supplies one. The
-	// report logs it as resource=; empty for followers and providers without the
-	// capability.
+	// report logs it as resource=; a follower reports the resource of the
+	// producer it follows. Empty for providers without the capability.
 	Resource string
 
 	// ResourceURL is the upstream landing page for Resource (e.g. a repository's
@@ -516,9 +516,13 @@ func filterProviders(markers []Marker, filter provider.Filter) []Marker {
 			byID[m.ID] = m
 		}
 	}
+	lookup := func(id string) (Marker, bool) {
+		m, ok := byID[id]
+		return m, ok
+	}
 	kept := make([]Marker, 0, len(markers))
 	for _, m := range markers {
-		if filter.Match(terminalProvider(m, byID)) {
+		if filter.Match(terminalProvider(m, lookup)) {
 			kept = append(kept, m)
 		}
 	}
@@ -530,20 +534,56 @@ func filterProviders(markers []Marker, filter provider.Filter) []Marker {
 // chain returns the follow pseudo-provider, which no enable/disable name
 // matches, so such a marker is dropped under --enable and kept under --disable
 // for resolution to report the missing source.
-func terminalProvider(m Marker, byID map[string]Marker) string {
+func terminalProvider(m Marker, lookup func(id string) (Marker, bool)) string {
+	src, ok := terminalMarker(m, lookup)
+	if !ok {
+		return constant.ProviderFollow
+	}
+	return src.Provider
+}
+
+// terminalMarker walks a marker's follow chain, looking each hop's from= up by
+// id, to the producer that resolves from an upstream provider. A producer is its
+// own terminal; ok is false for a broken or cyclic chain.
+func terminalMarker(m Marker, lookup func(id string) (Marker, bool)) (Marker, bool) {
 	seen := map[string]bool{}
 	for m.IsFollower() {
 		if m.From == "" || seen[m.From] {
-			return constant.ProviderFollow
+			return Marker{}, false
 		}
 		seen[m.From] = true
-		src, ok := byID[m.From]
+		src, ok := lookup(m.From)
 		if !ok {
-			return constant.ProviderFollow
+			return Marker{}, false
 		}
 		m = src
 	}
-	return m.Provider
+	return m, true
+}
+
+// followedResource returns the compact id and landing page of the resource at
+// the end of follower m's chain. A follower tracks no upstream of its own, so it
+// reports the producer's - the sum line beside a version pin names the same
+// repository the pin does. Empty when the chain cannot be walked or the
+// producer's resource cannot be identified.
+//
+// Every hop must name exactly one publisher. Lint does not cascade a duplicate
+// id's failure to the follower reading it, so without this a follower would
+// report whichever duplicate happened to come first.
+func (p *plan) followedResource(m Marker) (string, string) {
+	src, ok := terminalMarker(m, p.soleMarkerByID)
+	if !ok {
+		return "", ""
+	}
+	prov, err := lookupProvider(src.Provider)
+	if err != nil {
+		return "", ""
+	}
+	resource, err := prov.Resource(src.Directive)
+	if err != nil {
+		return "", ""
+	}
+	return identifyResource(prov, resource)
 }
 
 // disabledState interprets a directive's disabled key: disabled=false (or absent)
@@ -1534,6 +1574,7 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 	if err := p.idVerdicts.Errs[i]; err != nil {
 		return err
 	}
+	p.results[i].Resource, p.results[i].ResourceURL = p.followedResource(m)
 
 	// A track= marker carries no provider, so it lands here misclassified as a
 	// follower; its preconditions reject it with the actionable error.
@@ -1661,6 +1702,20 @@ func unpinnedDigest(s string) bool {
 func (p *plan) producerAnchored(from string) bool {
 	m, ok := p.markerByID(from)
 	return ok && m.Provider == constant.ProviderManual
+}
+
+// soleMarkerByID finds the one marker whose follow-edge ID matches id; ok is
+// false when none does or several do.
+func (p *plan) soleMarkerByID(id string) (Marker, bool) {
+	var found Marker
+	n := 0
+	for _, m := range p.markers {
+		if m.ID == id {
+			found = m
+			n++
+		}
+	}
+	return found, n == 1
 }
 
 // markerByID finds the marker whose follow-edge ID matches id.

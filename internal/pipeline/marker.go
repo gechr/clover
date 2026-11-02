@@ -83,6 +83,27 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 	writtenID := d.Has(constant.DirectiveID)
 	writtenFrom := d.Has(constant.DirectiveFrom)
 
+	provider, d := effective(file, target, d)
+	m := marker(file, root, found.Line, target, d, provider)
+	m.TargetErr = targetErr
+	m.Sidecar = found.Sidecar
+	m.WrittenID = writtenID
+	m.WrittenFrom = writtenFrom
+	return m
+}
+
+// Effective returns the provider and directive a directive binds to when it
+// governs line target of file - the resolution a run applies, so a caller
+// outside the pipeline (annotate's report) reads the same upstream a run would.
+// An omitted provider means follow, provider=auto takes every parameter it does
+// not write from the target line, and a written key always wins.
+func Effective(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
+	return effective(file, target, directive.CanonicalizeAliases(d))
+}
+
+// effective is [Effective] over a directive whose aliases are already
+// canonicalized.
+func effective(file scan.File, target int, d directive.Directive) (string, directive.Directive) {
 	provider := value(d, constant.DirectiveProvider)
 	switch provider {
 	case "":
@@ -92,20 +113,14 @@ func bind(file scan.File, root string, found scan.Located) Marker {
 	}
 
 	// A tool key's upstream tags may carry a prefix (erlang tags OTP-27.2), so
-	// bind appends the rule the tool map records, unless the directive pins its
+	// the rule the tool map records is appended, unless the directive pins its
 	// own. The provider itself only resolves the repository.
 	if provider == constant.ProviderGithub {
 		if _, prefix, ok := match.LookupTool(value(d, constant.DirectiveTool)); ok {
 			d = appendParam(d, constant.RuleTagPrefix, prefix)
 		}
 	}
-
-	m := marker(file, root, found.Line, target, d, provider)
-	m.TargetErr = targetErr
-	m.Sidecar = found.Sidecar
-	m.WrittenID = writtenID
-	m.WrittenFrom = writtenFrom
-	return m
+	return provider, d
 }
 
 // marker builds the Marker for a directive that has already been resolved to a
