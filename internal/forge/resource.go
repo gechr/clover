@@ -17,6 +17,17 @@ const (
 	SourceReleases = "releases"
 )
 
+// Provider reports whether name is one of the forge providers - github,
+// gitlab, gitea - whose markers take the source key and whose releases, unlike
+// their tags, carry assets.
+func Provider(name string) bool {
+	switch name {
+	case constant.ProviderGithub, constant.ProviderGitlab, constant.ProviderGitea:
+		return true
+	}
+	return false
+}
+
 // OwnerName parses the required repository key as owner/name, framing errors
 // with the provider label.
 func OwnerName(label string, d directive.Directive) (string, string, error) {

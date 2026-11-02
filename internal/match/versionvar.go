@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/gechr/clover/internal/constant"
+	"github.com/gechr/clover/internal/forge"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -47,7 +48,9 @@ var nativeToolProviders = map[string]string{
 //
 // A variable paired with a sibling checksum variable also publishes an id, so
 // that follower has a producer to name. It is set only for a real pairing, so an
-// ordinary version variable still earns the bare `@clover` shorthand.
+// ordinary version variable still earns the bare `@clover` shorthand. A paired
+// forge producer also reads releases: the sum hashes a release asset, and a tag
+// listing - the forge default - names none for the follower's pattern to match.
 func inferVersionVariable(s subject) Inference {
 	match := versionVarName.FindStringSubmatch(s.line())
 	if match == nil {
@@ -59,6 +62,9 @@ func inferVersionVariable(s subject) Inference {
 	}
 	if pair, ok := pairChecksumVar(s); ok {
 		inf.ID = pair.id
+		if forge.Provider(inf.Provider) {
+			inf.Source = forge.SourceReleases
+		}
 	}
 	return inf
 }

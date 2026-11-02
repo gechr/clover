@@ -1598,6 +1598,12 @@ func (p *plan) resolveFollower(ctx context.Context, i int) error {
 		return p.holdFollower(i, m, line, located)
 	}
 
+	// Refused here as well as in validate, as for a producer's value: a run does
+	// not call validate, and the fetch would otherwise fail with only "no asset
+	// matched".
+	if err = p.checkAssetSource(m); err != nil {
+		return err
+	}
 	resolved, err := p.followValue(ctx, m)
 	if err != nil {
 		return err

@@ -1815,6 +1815,29 @@ func TestRunFollowerReportsProducerResource(t *testing.T) {
 	}
 }
 
+// TestRunSha256FollowerNeedsReleaseAssets confirms a run refuses a sha256
+// follower of a forge producer reading tags before fetching anything, with the
+// actionable error lint gives, rather than failing to match an asset in a list
+// tags never populate.
+func TestRunSha256FollowerNeedsReleaseAssets(t *testing.T) {
+	provider.Register(fakeProvider{
+		name:       "github",
+		candidates: []model.Candidate{candidate(t, "2.0.0")},
+	})
+
+	dir := write(t, map[string]string{
+		"a.txt": "# clover: provider=github repository=x/y id=app\nversion: 1.0.0\n" +
+			"# clover: from=app value=sha256 pattern=app_<version>.tar.gz\n" +
+			"sum: 0000000000000000000000000000000000000000000000000000000000000000\n",
+	})
+
+	files, err := pipeline.Run(context.Background(), []string{dir}, pipeline.WithForce(new(true)))
+	require.NoError(t, err)
+	require.Len(t, files[0].Results, 2)
+	require.NoError(t, files[0].Results[0].Err)
+	require.EqualError(t, files[0].Results[1].Err, assetSourceErr)
+}
+
 // TestRunToPinsExactVersion confirms WithTo rewrites the marker to the named
 // version even when it is older than the current one and the directive's rules
 // would have rejected it, and that a pin missing upstream fails with the

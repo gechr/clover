@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clover/internal/constant"
 	"github.com/gechr/clover/internal/exec"
+	"github.com/gechr/clover/internal/forge"
 	"github.com/gechr/clover/internal/provider"
 	"github.com/gechr/clover/internal/rule"
 	xslices "github.com/gechr/x/slices"
@@ -259,6 +260,9 @@ func (p *plan) checkFollower(i int, m Marker) error {
 		if err := checkSha256(m); err != nil {
 			return err
 		}
+		if err := p.checkAssetSource(m); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown value %q", m.Value)
 	}
@@ -267,6 +271,50 @@ func (p *plan) checkFollower(i int, m Marker) error {
 		return err
 	}
 	return nil
+}
+
+// checkAssetSource rejects a value=sha256 follower that needs the producer's
+// release assets when that producer is a forge reading tags. A tag carries no
+// assets, so the follower would match pattern= against an empty list and fail
+// at run time with no hint why. Only a published checksums file, fetched from
+// a sha256-url under the auto or checksums source, does without assets; digest,
+// download and verify read the asset itself whatever the URL. A chain is judged
+// by its terminal producer, whose candidate every hop republishes; one that
+// cannot be walked is left to the follow-edge checks to report.
+func (p *plan) checkAssetSource(m Marker) error {
+	if m.Value != constant.ValueSha256 {
+		return nil
+	}
+	mode, _ := m.Directive.Get(constant.DirectiveSha256Source)
+	fileCapable := mode == "" || mode == constant.Sha256Auto || mode == constant.Sha256Checksums
+	if fileCapable && m.Directive.Has(constant.DirectiveSha256URL) {
+		return nil
+	}
+	src, ok := terminalMarker(m, p.soleMarkerByID)
+	if !ok || !forge.Provider(src.Provider) {
+		return nil
+	}
+	// An invalid source is the producer's own error, reported on its line.
+	if source, err := forge.Source(src.Provider, src.Directive); err == nil &&
+		source == forge.SourceTags {
+		return assetSourceError(fileCapable)
+	}
+	return nil
+}
+
+// assetSourceError says a sha256 follower's producer reads tags, offering a
+// sha256-url as the alternative only where one can stand in for the assets.
+func assetSourceError(fileCapable bool) error {
+	remedy := fmt.Sprintf("set %s=%s on the producer", forge.KeySource, forge.SourceReleases)
+	if fileCapable {
+		remedy += fmt.Sprintf(", or give %q", constant.DirectiveSha256URL)
+	}
+	return fmt.Errorf(
+		"%q %s needs release assets, but its producer reads tags, which carry none - %s",
+		constant.DirectiveValue,
+		constant.ValueSha256,
+		remedy,
+	)
 }
 
 // checkSha256 validates a value=sha256 follower offline: the source must be

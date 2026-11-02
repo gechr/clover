@@ -14,6 +14,19 @@ const sum = "0000000000000000000000000000000000000000000000000000000000000000"
 // Dockerfile fetches it with.
 const goDownload = "RUN curl -fsSLO https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
 
+// hcleditPair is a workflow whose HCLEDIT_VERSION/HCLEDIT_SHA256 env values
+// pair, for a tool released from GitHub rather than a native toolchain.
+var hcleditPair = []string{
+	"env:",
+	`  HCLEDIT_VERSION: "0.2.18"`,
+	`  HCLEDIT_SHA256: "` + sum + `"`,
+	"jobs:",
+	"  build:",
+	"    steps:",
+	`      - run: curl -fsSLO "https://github.com/minamijoyo/hcledit/releases/download/` +
+		`v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz"`,
+}
+
 func TestInferChecksumVariable(t *testing.T) {
 	t.Parallel()
 
@@ -57,6 +70,35 @@ func TestInferChecksumVariable(t *testing.T) {
 			target: 0,
 			want:   match.Inference{Provider: "go", ID: "go"},
 			ok:     true,
+		},
+		{
+			// A forge producer's default tag listing names no assets, so the pairing
+			// that gives it an id also points it at releases, whose assets the sum
+			// line's pattern selects from.
+			name:   "a paired forge producer reads releases",
+			path:   ".github/workflows/ci.yaml",
+			lines:  hcleditPair,
+			target: 1,
+			want: match.Inference{
+				Provider:   "github",
+				Repository: "minamijoyo/hcledit",
+				ID:         "hcledit",
+				Source:     "releases",
+			},
+			ok: true,
+		},
+		{
+			name:   "the sum half of a forge pair is an ordinary follower",
+			path:   ".github/workflows/ci.yaml",
+			lines:  hcleditPair,
+			target: 2,
+			want: match.Inference{
+				Provider: "follow",
+				From:     "hcledit",
+				Value:    "sha256",
+				Pattern:  "hcledit_<version>_linux_amd64.tar.gz",
+			},
+			ok: true,
 		},
 		{
 			name: "every suffix spelling is claimed",
@@ -291,6 +333,11 @@ func TestVersionVariableWithoutChecksumPublishesNoID(t *testing.T) {
 	got, ok := match.Infer("Dockerfile", []string{"ARG GO_VERSION=1.24.0"}, 0)
 	require.True(t, ok)
 	require.Equal(t, match.Inference{Provider: "go"}, got)
+
+	// Nor does an unpaired forge pin change source: it keeps the tag default.
+	got, ok = match.Infer(".github/workflows/ci.yaml", hcleditPair[:2], 1)
+	require.True(t, ok)
+	require.Equal(t, match.Inference{Provider: "github", Repository: "minamijoyo/hcledit"}, got)
 }
 
 // The rewriter a checksum-variable line dispatches, which is the one thing the

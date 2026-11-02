@@ -2,6 +2,7 @@ package pipeline_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/gechr/clover/internal/model"
@@ -193,6 +194,165 @@ func TestValidateFollowerResourceRefusesAmbiguousIDs(t *testing.T) {
 			require.Empty(t, follower.ResourceURL)
 		})
 	}
+}
+
+// assetSourceErr is the error a value=sha256 follower earns when it would pick
+// its sum from the release assets of a forge producer that reads tags.
+const assetSourceErr = `"value" sha256 needs release assets, but its producer reads tags, ` +
+	`which carry none - set source=releases on the producer, or give "sha256-url"`
+
+// sha256Follower is a follower picking its sum from the asset app's producer
+// publishes, matched by pattern.
+const sha256Follower = "# clover: from=app value=sha256 pattern=app_<version>.tar.gz\n" +
+	"sum: 0000000000000000000000000000000000000000000000000000000000000000\n"
+
+// assetModeErr is the same error for a source that reads the asset itself
+// (digest, download, verify), where a sha256-url cannot stand in for it.
+const assetModeErr = `"value" sha256 needs release assets, but its producer reads tags, ` +
+	`which carry none - set source=releases on the producer`
+
+// TestValidateSha256FollowerNeedsReleaseAssets confirms lint refuses a sha256
+// follower whose forge producer reads tags - which carry no assets for its
+// pattern to match - and accepts the shapes that do have a sum to find: a
+// producer reading releases, an explicit sha256-url, or a non-forge producer.
+// A chain is judged by its terminal producer.
+func TestValidateSha256FollowerNeedsReleaseAssets(t *testing.T) {
+	provider.Register(fakeProvider{name: "github"})
+	provider.Register(fakeProvider{name: "vassetsrc"})
+
+	tests := []struct {
+		name     string
+		producer string
+		follower string
+		want     string
+	}{
+		{
+			name:     "forge producer on the tag default",
+			producer: "provider=github repository=x/y id=app",
+			follower: sha256Follower,
+			want:     assetSourceErr,
+		},
+		{
+			name:     "forge producer reading tags explicitly",
+			producer: "provider=github repository=x/y source=tags id=app",
+			follower: sha256Follower,
+			want:     assetSourceErr,
+		},
+		{
+			name:     "forge producer reading releases",
+			producer: "provider=github repository=x/y source=releases id=app",
+			follower: sha256Follower,
+		},
+		{
+			name:     "explicit sha256-url",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("", true),
+		},
+		{
+			name:     "sha256-url under the auto source",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("auto", true),
+		},
+		{
+			name:     "sha256-url under the checksums source",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("checksums", true),
+		},
+		{
+			name:     "sha256-url cannot stand in for the digest source",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("digest", true),
+			want:     assetModeErr,
+		},
+		{
+			name:     "sha256-url cannot stand in for the download source",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("download", true),
+			want:     assetModeErr,
+		},
+		{
+			name:     "sha256-url cannot stand in for the verify source",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("verify", true),
+			want:     assetModeErr,
+		},
+		{
+			name:     "checksums source without a url",
+			producer: "provider=github repository=x/y id=app",
+			follower: withSource("checksums", false),
+			want:     assetSourceErr,
+		},
+		{
+			name:     "non-forge producer",
+			producer: "provider=vassetsrc repository=x/y id=app",
+			follower: sha256Follower,
+		},
+		{
+			name:     "chain to a forge producer reading tags",
+			producer: "provider=github repository=x/y id=lead\nversion: 1.2.0\n# clover: from=lead value=version id=app",
+			follower: sha256Follower,
+			want:     assetSourceErr,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := write(t, map[string]string{
+				"a.txt": "# clover: " + tt.producer + "\nversion: 1.2.0\n" + tt.follower,
+			})
+
+			files, err := pipeline.Validate(context.Background(), []string{dir})
+			require.NoError(t, err)
+			results := files[0].Results
+			got := results[len(results)-1].Err
+			if tt.want == "" {
+				require.NoError(t, got)
+				return
+			}
+			require.EqualError(t, got, tt.want)
+		})
+	}
+}
+
+// withSource returns follower with sha256-source=source (when set) and a
+// sha256-url (when url) spliced in ahead of its pattern.
+func withSource(source string, url bool) string {
+	var keys string
+	if source != "" {
+		keys += "sha256-source=" + source + " "
+	}
+	if url {
+		keys += "sha256-url=https://example.test/sums "
+	}
+	return strings.Replace(sha256Follower, "pattern=", keys+"pattern=", 1)
+}
+
+// TestValidatePairedForgeProducerReadsReleases confirms the user-facing promise
+// end to end through bind: an annotated `@clover: id=hcledit` producer of a
+// workflow checksum pair - which writes no source - binds to releases, so its
+// sha256 follower lints clean with no edit to the annotation.
+func TestValidatePairedForgeProducerReadsReleases(t *testing.T) {
+	provider.Register(fakeProvider{name: "github"})
+
+	dir := write(t, map[string]string{
+		".github/workflows/ci.yml": "env:\n" +
+			"  # @clover: id=hcledit\n" +
+			"  HCLEDIT_VERSION: \"0.2.18\"\n" +
+			"  # clover: from=hcledit value=sha256 pattern=hcledit_<version>_linux_amd64.tar.gz\n" +
+			"  HCLEDIT_SHA256: \"5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7\"\n" +
+			"jobs:\n  build:\n    steps:\n" +
+			"      - run: curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
+			"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n",
+	})
+
+	files, err := pipeline.Validate(context.Background(), []string{dir})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	results := files[0].Results
+	require.Len(t, results, 2)
+	require.Equal(t, "github", results[0].Marker.Provider)
+	source, _ := results[0].Marker.Directive.Get("source")
+	require.Equal(t, "releases", source)
+	require.NoError(t, results[1].Err)
 }
 
 func TestValidateStaysOffline(t *testing.T) {
