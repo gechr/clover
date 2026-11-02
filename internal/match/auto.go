@@ -257,13 +257,17 @@ type githubTool struct {
 // the mise tofu tool and a .tofu file's required_version constraint.
 var tofuTool = githubTool{repository: "opentofu/opentofu"}
 
+// The mise* registry maps (miseRegistryTools and its per-ecosystem siblings)
+// are generated from the mise registry, merged with the local registry for
+// tools mise does not carry; generation fails once mise adds one of those.
+//
+//go:generate go run ../tools/genmise -local ../tools/genmise/registry
+
 // miseGithubTools maps curated mise tool names to the GitHub source whose
 // releases they track, taking precedence over the generated registry maps for
 // tools whose tags carry a prefix the registry does not declare or that the
-// registry routes elsewhere. The long tail of well-known tools lives in
-// miseRegistryTools, generated from the mise registry:
-//
-//go:generate go run ../tools/genmise -local ../tools/genmise/registry
+// registry routes elsewhere. The long tail of well-known tools lives in the
+// generated miseRegistryTools.
 var miseGithubTools = map[string]githubTool{
 	"opentofu": tofuTool,
 	"tofu":     tofuTool,
