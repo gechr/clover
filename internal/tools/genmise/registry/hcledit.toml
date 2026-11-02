@@ -1,0 +1,3 @@
+# Absent from the mise registry. Generation fails once mise adds it, at which
+# point this file should be deleted.
+backends = ["github:minamijoyo/hcledit"]

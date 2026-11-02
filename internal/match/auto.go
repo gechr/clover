@@ -263,7 +263,7 @@ var tofuTool = githubTool{repository: "opentofu/opentofu"}
 // registry routes elsewhere. The long tail of well-known tools lives in
 // miseRegistryTools, generated from the mise registry:
 //
-//go:generate go run ../tools/genmise
+//go:generate go run ../tools/genmise -local ../tools/genmise/registry
 var miseGithubTools = map[string]githubTool{
 	"opentofu": tofuTool,
 	"tofu":     tofuTool,

@@ -22,16 +22,23 @@
 //
 // Usage:
 //
-//	go run ./internal/tools/genmise [-src <mise-checkout>] [-ref <branch>] [-o <file>]
+//	go run ./internal/tools/genmise [-src <mise-checkout>] [-local <dir>] [-ref <branch>] [-o <file>]
 //
 // Without -src the mise repository is shallow-cloned to a temporary directory
 // at the -ref branch (main by default), and the header records the commit the
 // map was generated from.
+//
+// With -local, the TOMLs in that directory - the same format as mise's own
+// registry - are merged in for tools mise does not carry. Such an entry exists
+// only to fill that gap, so generation fails once mise declares the name or one
+// of its aliases: the failure says the entry is no longer ours to maintain and
+// should be deleted, rather than letting it silently shadow mise's.
 package main
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"go/format"
@@ -50,6 +57,11 @@ import (
 
 // miseRepo is the upstream repository a depth-1 clone fetches the registry from.
 const miseRepo = "https://github.com/jdx/mise"
+
+// errNoRegistry reports a registry directory holding no tool files. It is fatal
+// for the mise checkout but not for the local registry, which empties once mise
+// has caught up with every tool it carried.
+var errNoRegistry = errors.New("no registry files")
 
 // registryTool is the subset of a mise registry entry the generator reads.
 // Backends decodes loosely: an entry is usually a plain "scheme:spec" string,
@@ -148,20 +160,21 @@ var npmPackage = regexp.MustCompile(`^(@[A-Za-z0-9._-]+/)?[A-Za-z0-9._-]+$`)
 
 func main() {
 	src := flag.String("src", "", "path to a mise checkout (cloned to a temp dir when omitted)")
+	local := flag.String("local", "", "directory of registry TOMLs for tools mise does not carry")
 	ref := flag.String("ref", "main", "mise ref to generate from, recorded in the header")
 	out := flag.String("o", "zz_generated.miseregistry.go", "output file")
 	flag.Parse()
 	log.SetFlags(0)
 
-	if err := run(context.Background(), *src, *ref, *out); err != nil {
+	if err := run(context.Background(), *src, *local, *ref, *out); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// run generates the map from the checkout at src (cloning one when empty) and
-// writes it to out. It is main's body, split out so its defers run before the
-// fatal-exit error handling.
-func run(ctx context.Context, src, ref, out string) error {
+// run generates the map from the checkout at src (cloning one when empty),
+// merged with the local registry when local is set, and writes it to out. It is
+// main's body, split out so its defers run before the fatal-exit error handling.
+func run(ctx context.Context, src, local, ref, out string) error {
 	if src == "" {
 		clone, cleanup, err := cloneMise(ctx, ref)
 		if err != nil {
@@ -171,9 +184,18 @@ func run(ctx context.Context, src, ref, out string) error {
 		src = clone
 	}
 
-	tools, err := read(filepath.Join(src, "registry"))
+	tools, declared, err := read(filepath.Join(src, "registry"))
 	if err != nil {
 		return err
+	}
+	if local != "" {
+		localTools, localDeclared, readErr := read(local)
+		if readErr != nil && !errors.Is(readErr, errNoRegistry) {
+			return readErr
+		}
+		if err = merge(tools, declared, localTools, localDeclared); err != nil {
+			return err
+		}
 	}
 	source, err := render(tools, describe(ctx, src, ref))
 	if err != nil {
@@ -239,29 +261,35 @@ func describe(ctx context.Context, src, ref string) string {
 }
 
 // read parses every registry TOML under dir and returns the tool-name (and
-// alias) to resolved-entry map.
-func read(dir string) (map[string]entry, error) {
+// alias) to resolved-entry map, along with every name and alias the files
+// declare - resolvable or not - mapped to the file declaring it.
+func read(dir string) (map[string]entry, map[string]string, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.toml"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no registry files under %q", dir)
+		return nil, nil, fmt.Errorf("%w under %q", errNoRegistry, dir)
 	}
 
 	tools := map[string]entry{}
+	declared := map[string]string{}
 	for _, file := range files {
 		name := strings.TrimSuffix(filepath.Base(file), ".toml")
-		if slices.Contains(curated, name) {
-			continue
-		}
 		data, err := os.ReadFile(file)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		var tool registryTool
 		if err := toml.Unmarshal(data, &tool); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", file, err)
+			return nil, nil, fmt.Errorf("parse %s: %w", file, err)
+		}
+		declared[name] = file
+		for _, alias := range tool.Aliases {
+			declared[alias] = file
+		}
+		if slices.Contains(curated, name) {
+			continue
 		}
 		resolved, ok := resolve(tool.Backends)
 		if !ok {
@@ -274,7 +302,31 @@ func read(dir string) (map[string]entry, error) {
 			}
 		}
 	}
-	return tools, nil
+	return tools, declared, nil
+}
+
+// merge folds the local registry's tools into the mise ones. A local entry
+// exists only because mise lacks the tool, so one whose name or alias mise now
+// declares fails, telling the maintainer to delete it; so does one that resolves
+// to nothing, being curated or backed only by an unsupported ecosystem.
+func merge(tools map[string]entry, declared map[string]string,
+	localTools map[string]entry, localDeclared map[string]string,
+) error {
+	for _, name := range xmaps.KeysNatural(localDeclared) {
+		file := localDeclared[name]
+		if miseFile, ok := declared[name]; ok {
+			return fmt.Errorf(
+				"%s: mise now declares %q (%s); delete the local entry",
+				file, name, filepath.Base(miseFile),
+			)
+		}
+		resolved, ok := localTools[name]
+		if !ok {
+			return fmt.Errorf("%s: %q is curated or has no supported backend", file, name)
+		}
+		tools[name] = resolved
+	}
+	return nil
 }
 
 // resolve returns the provider and spec the tool's backends prove carry its

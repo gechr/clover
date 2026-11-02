@@ -285,7 +285,7 @@ func TestRead(t *testing.T) {
 	t.Run("empty dir errors", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		_, err := read(dir)
+		_, _, err := read(dir)
 		require.EqualError(t, err, `no registry files under "`+dir+`"`)
 	})
 
@@ -294,7 +294,7 @@ func TestRead(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "bad.toml")
 		require.NoError(t, os.WriteFile(path, []byte("backends = ["), 0o600))
-		_, err := read(dir)
+		_, _, err := read(dir)
 		require.EqualError(
 			t,
 			err,
@@ -327,7 +327,7 @@ func TestRead(t *testing.T) {
 				"backends = [\"gem:gofmt\"]\n",
 			) // unsupported ecosystem, skipped
 
-			tools, err := read(dir)
+			tools, _, err := read(dir)
 			require.NoError(t, err)
 			require.Equal(t, map[string]entry{
 				"ripgrep": {provider: constant.ProviderGithub, spec: "BurntSushi/ripgrep"},
@@ -346,7 +346,7 @@ func TestReadOutputRenders(t *testing.T) {
 		filepath.Join(dir, "gh.toml"),
 		[]byte("backends = [\"github:cli/cli\"]\n"), 0o600))
 
-	tools, err := read(dir)
+	tools, _, err := read(dir)
 	require.NoError(t, err)
 	out, err := render(tools, "main")
 	require.NoError(t, err)

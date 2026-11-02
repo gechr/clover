@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,7 +22,7 @@ func TestRunWritesMap(t *testing.T) {
 		[]byte("backends = [\"github:cli/cli\"]\n"), 0o600))
 
 	out := filepath.Join(t.TempDir(), "gen.go")
-	require.NoError(t, run(t.Context(), src, "main", out))
+	require.NoError(t, run(t.Context(), src, "", "main", out))
 
 	got, err := os.ReadFile(out)
 	require.NoError(t, err)
@@ -64,11 +66,11 @@ func TestRunSkipsWhenOnlyRefChanged(t *testing.T) {
 		[]byte("backends = [\"github:cli/cli\"]\n"), 0o600))
 
 	out := filepath.Join(t.TempDir(), "gen.go")
-	require.NoError(t, run(t.Context(), src, "main", out))
+	require.NoError(t, run(t.Context(), src, "", "main", out))
 	first, err := os.ReadFile(out)
 	require.NoError(t, err)
 
-	require.NoError(t, run(t.Context(), src, "other", out))
+	require.NoError(t, run(t.Context(), src, "", "other", out))
 	second, err := os.ReadFile(out)
 	require.NoError(t, err)
 
@@ -82,6 +84,120 @@ func TestRunMissingRegistry(t *testing.T) {
 
 	src := t.TempDir()
 	out := filepath.Join(t.TempDir(), "gen.go")
-	err := run(t.Context(), src, "main", out)
+	err := run(t.Context(), src, "", "main", out)
 	require.EqualError(t, err, `no registry files under "`+filepath.Join(src, "registry")+`"`)
+}
+
+// writeRegistry seeds dir with one TOML per name-body pair.
+func writeRegistry(t *testing.T, dir string, files map[string]string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o750))
+	for name, body := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600))
+	}
+}
+
+// TestRunMergesLocal confirms a local registry tool mise lacks lands in the
+// generated map beside the mise ones.
+func TestRunMergesLocal(t *testing.T) {
+	t.Parallel()
+
+	src := t.TempDir()
+	writeRegistry(t, filepath.Join(src, "registry"), map[string]string{
+		"foo.toml": "backends = [\"github:cli/cli\"]\n",
+	})
+	local := t.TempDir()
+	writeRegistry(t, local, map[string]string{
+		"hcledit.toml": "backends = [\"github:minamijoyo/hcledit\"]\n",
+	})
+
+	out := filepath.Join(t.TempDir(), "gen.go")
+	require.NoError(t, run(t.Context(), src, local, "main", out))
+
+	got, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.True(t, bytes.Contains(got, []byte("\t\"foo\":     \"cli/cli\",\n")))
+	require.True(t, bytes.Contains(got, []byte("\t\"hcledit\": \"minamijoyo/hcledit\",\n")))
+}
+
+// TestRunEmptyLocal confirms an emptied local registry - every tool since
+// adopted by mise - is not an error.
+func TestRunEmptyLocal(t *testing.T) {
+	t.Parallel()
+
+	src := t.TempDir()
+	writeRegistry(t, filepath.Join(src, "registry"), map[string]string{
+		"foo.toml": "backends = [\"github:cli/cli\"]\n",
+	})
+	out := filepath.Join(t.TempDir(), "gen.go")
+	require.NoError(t, run(t.Context(), src, t.TempDir(), "main", out))
+}
+
+// TestRunLocalAdoptedByMise confirms generation fails, without writing, once
+// mise declares a local tool's name or alias, so the stale entry is deleted.
+func TestRunLocalAdoptedByMise(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		mise  map[string]string
+		local map[string]string
+		want  string
+	}{
+		{
+			name: "by name",
+			mise: map[string]string{"hcledit.toml": "backends = [\"aqua:minamijoyo/hcledit\"]\n"},
+			local: map[string]string{
+				"hcledit.toml": "backends = [\"github:minamijoyo/hcledit\"]\n",
+			},
+			want: `%s: mise now declares "hcledit" (hcledit.toml); delete the local entry`,
+		},
+		{
+			name: "by mise alias",
+			mise: map[string]string{
+				"hcl-edit.toml": "backends = [\"aqua:minamijoyo/hcledit\"]\naliases = [\"hcledit\"]\n",
+			},
+			local: map[string]string{
+				"hcledit.toml": "backends = [\"github:minamijoyo/hcledit\"]\n",
+			},
+			want: `%s: mise now declares "hcledit" (hcl-edit.toml); delete the local entry`,
+		},
+		{
+			name: "by local alias",
+			mise: map[string]string{"he.toml": "backends = [\"gem:he\"]\n"},
+			local: map[string]string{
+				"hcledit.toml": "backends = [\"github:minamijoyo/hcledit\"]\naliases = [\"he\"]\n",
+			},
+			want: `%s: mise now declares "he" (he.toml); delete the local entry`,
+		},
+		{
+			name:  "unresolvable",
+			mise:  map[string]string{"foo.toml": "backends = [\"github:cli/cli\"]\n"},
+			local: map[string]string{"hcledit.toml": "backends = [\"gem:hcledit\"]\n"},
+			want:  `%s: "hcledit" is curated or has no supported backend`,
+		},
+		{
+			name: "curated",
+			mise: map[string]string{"foo.toml": "backends = [\"github:cli/cli\"]\n"},
+			local: map[string]string{
+				"hcledit.toml": "backends = [\"github:a/b\"]\naliases = [\"go\"]\n",
+			},
+			want: `%s: "go" is curated or has no supported backend`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			src := t.TempDir()
+			writeRegistry(t, filepath.Join(src, "registry"), tt.mise)
+			local := t.TempDir()
+			writeRegistry(t, local, tt.local)
+
+			out := filepath.Join(t.TempDir(), "gen.go")
+			err := run(t.Context(), src, local, "main", out)
+			require.EqualError(t, err, fmt.Sprintf(tt.want, filepath.Join(local, "hcledit.toml")))
+			require.NoFileExists(t, out)
+		})
+	}
 }
