@@ -335,41 +335,6 @@ func TestAnnotateFollowerResourceHonorsWrittenProducer(t *testing.T) {
 	}
 }
 
-// TestAnnotateFollowerResourceRefusesAmbiguousID confirms a follower names no
-// resource when its id has several publishers in the file. A hand-written id
-// in the same file does not make the claim pass drop the follower - the file
-// holds the claim either way - so the lookup itself must refuse to pick one.
-// Serial for the same reason as [TestAnnotateReportsResource].
-func TestAnnotateFollowerResourceRefusesAmbiguousID(t *testing.T) {
-	provider.Register(github.New())
-
-	root := annotateTree(t, map[string]string{
-		".github/workflows/ci.yaml": "env:\n" +
-			"  HCLEDIT_VERSION: \"0.2.18\"\n" +
-			"  HCLEDIT_SHA256: \"5974db4486a7e7ecbcbce8b96cb77051419575858d0fc97d73af536b18baabe7\"\n" +
-			"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
-			"      # clover: provider=github repository=actions/checkout id=hcledit\n" +
-			"      - uses: actions/checkout@v4\n" +
-			"      - run: |\n" +
-			"          curl -fsSLO \"https://github.com/minamijoyo/hcledit/releases/download/" +
-			"v${HCLEDIT_VERSION}/hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\"\n" +
-			"          echo \"${HCLEDIT_SHA256}  hcledit_${HCLEDIT_VERSION}_linux_amd64.tar.gz\" | sha256sum -c\n",
-	})
-
-	summary := annotate(t, root, false, false)
-	require.Len(t, summary.Files, 1)
-	var followers int
-	for _, change := range summary.Files[0].Changes {
-		if change.Provider != constant.ProviderFollow {
-			continue
-		}
-		followers++
-		require.Empty(t, change.Resource)
-		require.Empty(t, change.ResourceURL)
-	}
-	require.Equal(t, 1, followers)
-}
-
 // TestAnnotateFollowerResourceSharedTarget confirms two directives governing
 // the same line - one reaching it through offset= - both count as publishers of
 // their id, so a force-rewritten follower reading that id names no resource

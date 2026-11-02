@@ -1,6 +1,7 @@
 package mode_test
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func claimSkips(skips []mode.AnnotateSkip) []string {
 }
 
 // claimReason is the reason a dropped follower carries, naming the file that
-// holds the id it needed.
+// holds the id it needed - and, for a written id, the line it governs.
 func claimReason(holder string) string {
 	return `id "go" is claimed by ` + holder +
 		` - write id=/from= by hand to pair with this file's pin`
@@ -89,7 +90,7 @@ func TestAnnotateSeedsClaimsFromWrittenIDs(t *testing.T) {
 	require.Len(t, first.Changes, 1, "the written id wins, so only the version pin lands")
 	require.Equal(t, "# @clover", first.Changes[0].Line)
 	require.Equal(t,
-		[]string{claimReason(filepath.Join(root, "z/Dockerfile"))},
+		[]string{claimReason(filepath.Join(root, "z/Dockerfile") + ":3")},
 		claimSkips(first.Skips))
 }
 
@@ -186,4 +187,55 @@ func TestAnnotateKeepsFollowerForSameFileWrittenID(t *testing.T) {
 	require.Equal(t, followerComment, summary.Files[0].Changes[0].Line)
 	require.Empty(t, claimSkips(summary.Files[0].Skips),
 		"no claim skip for a same-file pairing")
+}
+
+// unrelatedGoID is a hand-written directive publishing `id=go` over a pin that
+// has nothing to do with the Go toolchain - the id [pairDockerfile]'s pairing
+// infers for its version line.
+const unrelatedGoID = "# clover: provider=node id=go\nARG NODE_VERSION=22.0.0\n"
+
+// A hand-written id outranks an inferred claim in the claimant's own file too:
+// the version line is annotated bare rather than duplicating the id, and the
+// follower - whose pairing names that version line, not the unrelated one the
+// id is written on - is dropped rather than bound to the wrong upstream. What
+// annotate writes must lint clean, and a second pass must not bring the
+// follower back now that its producer is already annotated.
+func TestAnnotateSameFileWrittenIDOutranksInferredClaim(t *testing.T) {
+	root := annotateTree(t, map[string]string{
+		"Dockerfile": "FROM alpine\n" + unrelatedGoID +
+			strings.TrimPrefix(pairDockerfile, "FROM alpine\n"),
+	})
+	holder := filepath.Join(root, "Dockerfile") + ":3"
+
+	summary := annotate(t, root, true, false)
+	require.Len(t, summary.Files, 1)
+	require.Len(t, summary.Files[0].Changes, 1, "only the version pin lands")
+	require.Equal(t, "# @clover", summary.Files[0].Changes[0].Line, "bare, not id=go")
+	require.Equal(t, []string{claimReason(holder)}, claimSkips(summary.Files[0].Skips))
+
+	lint, err := mode.Lint(context.Background(), []string{root})
+	require.NoError(t, err)
+	require.True(t, lint.OK(), "what annotate wrote lints clean")
+
+	again := annotate(t, root, false, false)
+	require.Zero(t, again.Total(), "the second pass proposes nothing")
+	require.Equal(t, []string{claimReason(holder)}, claimSkips(again.Files[0].Skips))
+}
+
+// The already-annotated form of the same file: a bare `@clover` version line
+// beside an unrelated written `id=go`. The follower's pairing names the bare
+// line, so the written id is not its producer and the follower is dropped.
+func TestAnnotateDropsFollowerForUnrelatedSameFileWrittenID(t *testing.T) {
+	root := annotateTree(t, map[string]string{
+		"Dockerfile": "FROM alpine\n" + unrelatedGoID +
+			"# @clover\n" +
+			strings.TrimPrefix(pairDockerfile, "FROM alpine\n"),
+	})
+
+	summary := annotate(t, root, false, false)
+	require.Len(t, summary.Files, 1)
+	require.Empty(t, summary.Files[0].Changes)
+	require.Equal(t,
+		[]string{claimReason(filepath.Join(root, "Dockerfile") + ":3")},
+		claimSkips(summary.Files[0].Skips))
 }

@@ -100,6 +100,11 @@ type AnnotateChange struct {
 	// root itself), and bareLine is the same comment rendered without the id, the
 	// form a producer degrades to when another file already claimed it.
 	id, from, bareLine string
+
+	// producerLine is the target line of the version pin a follower's pairing
+	// names as its producer, or -1 when no single line in the file publishes
+	// from. A written id binds the follower only when it governs that line.
+	producerLine int
 }
 
 // AnnotateSkip records a recognized annotation candidate that annotate left
@@ -293,10 +298,11 @@ func Annotate(
 }
 
 // annotationClaim records who holds an id: the file that claimed it, whether a
-// human wrote it there, and whether several files wrote it (ambiguous, so no
-// proposed follower may bind to it).
+// human wrote it there and on which target line, and whether several files
+// wrote it (ambiguous, so no proposed follower may bind to it).
 type annotationClaim struct {
 	path      string
+	line      int
 	written   bool
 	ambiguous bool
 }
@@ -312,12 +318,14 @@ type annotationClaim struct {
 // id already written in a scanned file: a hand-written `id=go` anywhere in the
 // repository outranks every inferred claim, however early the claimant sorts.
 //
-// A producer whose id is taken is annotated in its bare form instead - the
-// version stays tracked, which is what annotate gave that line before pairing
-// existed - and the follower that needed the id is dropped with a reason naming
-// the holder. A follower binds only to a claim its own file holds: pairing is
-// per-file evidence, so a cross-file binding is precisely the guess this pass
-// exists to rule out.
+// A producer whose id is taken - by another file, or by a written id in its own
+// - is annotated in its bare form instead: the version stays tracked, which is
+// what annotate gave that line before pairing existed, and the follower that
+// needed the id is dropped with a reason naming the holder. A follower binds
+// only to a claim its own file holds: pairing is per-file evidence, so a
+// cross-file binding is precisely the guess this pass exists to rule out. A
+// written id in its own file binds it only when written on the version line its
+// pairing names; anywhere else it belongs to an unrelated directive.
 func claimAnnotationIDs(files []scan.File, results []*AnnotateFile) {
 	resolver := vcs.NewResolver()
 	key := func(path, id string) string { return resolver.Root(path) + "\x00" + id }
@@ -336,7 +344,11 @@ func claimAnnotationIDs(files []scan.File, results []*AnnotateFile) {
 				held.ambiguous = true
 				continue
 			}
-			claims[k] = &annotationClaim{path: f.Path, written: true}
+			claims[k] = &annotationClaim{
+				path:    f.Path,
+				line:    resolvedTarget(f, loc),
+				written: true,
+			}
 		}
 	}
 
@@ -368,10 +380,12 @@ func claimAnnotationIDs(files []scan.File, results []*AnnotateFile) {
 				claims[k] = &annotationClaim{path: path}
 				continue
 			}
-			if held.path != path && change.bareLine != "" {
-				change.Line = change.bareLine
-			}
-			if held.path != path {
+			// Another file's claim, or a written one anywhere: change.id is only ever
+			// inferred, so a written holder is always some other directive.
+			if held.path != path || held.written {
+				if change.bareLine != "" {
+					change.Line = change.bareLine
+				}
 				change.id = ""
 			}
 		}
@@ -391,7 +405,11 @@ func claimAnnotationIDs(files []scan.File, results []*AnnotateFile) {
 					claims[k] = &annotationClaim{path: path}
 					held = claims[k]
 				}
-				if held.path != path || held.ambiguous {
+				// A written id in this file binds the follower only when it governs the
+				// line its pairing names; on any other line it is an unrelated
+				// directive's id, and the follower would bind to the wrong upstream.
+				unrelated := held.written && held.line != change.producerLine
+				if held.path != path || held.ambiguous || unrelated {
 					annotated.Skips = append(annotated.Skips, AnnotateSkip{
 						Line:   change.At,
 						Reason: followerClaimReason(change.from, held),
@@ -415,10 +433,14 @@ func followerClaimReason(id string, held *annotationClaim) string {
 			id,
 		)
 	}
+	holder := held.path
+	if held.written {
+		holder = fmt.Sprintf("%s:%d", held.path, held.line+1)
+	}
 	return fmt.Sprintf(
 		"id %q is claimed by %s - write id=/from= by hand to pair with this file's pin",
 		id,
-		held.path,
+		holder,
 	)
 }
 
@@ -475,6 +497,11 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 	}
 	type follower struct{ change, entry int }
 	var followers []follower
+
+	// paired maps each id a recognized line infers to that line, so a follower
+	// can tell its own producer's written id from an unrelated one; -1 marks an
+	// id several lines infer.
+	paired := map[string]int{}
 	for idx, loc := range file.Found {
 		if loc.Sidecar {
 			governed.Add(loc.Line) // the sidecar already rewrites this line; never re-annotate it
@@ -513,6 +540,13 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			annotated.Skips = append(annotated.Skips, skip(i, reason))
 			continue
 		}
+		if inf.ID != "" && !inf.Follower() {
+			if _, seen := paired[inf.ID]; seen {
+				paired[inf.ID] = -1
+			} else {
+				paired[inf.ID] = i
+			}
+		}
 
 		if loc, bound := existing[i]; bound {
 			annotated.Annotated++
@@ -544,6 +578,14 @@ func annotateFile(file scan.File, force bool) AnnotateFile {
 			annotated.Changes = append(annotated.Changes, change)
 		} else {
 			annotated.Skips = append(annotated.Skips, skip(i, "comment syntax unavailable"))
+		}
+	}
+
+	for c := range annotated.Changes {
+		change := &annotated.Changes[c]
+		change.producerLine = -1
+		if line, ok := paired[change.from]; ok && change.from != "" {
+			change.producerLine = line
 		}
 	}
 
