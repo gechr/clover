@@ -69,6 +69,28 @@ func TestFileFallback(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+// TestFileFallbackReplacesSymlink confirms a symlink planted at a token's path
+// is replaced, so the token is never written outside the store directory.
+func TestFileFallbackReplacesSymlink(t *testing.T) {
+	keyring.MockInitWithError(keyring.ErrNotFound)
+
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside")
+	require.NoError(t, os.WriteFile(outside, []byte("original"), 0o644))
+	require.NoError(t, os.Symlink(outside, filepath.Join(dir, "github.com")))
+	store, err := token.New(token.WithDir(dir))
+	require.NoError(t, err)
+
+	require.NoError(t, store.Set("github.com", "gho_fallback"))
+
+	got, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	require.Equal(t, "original", string(got), "token written through the symlink")
+	info, err := os.Lstat(filepath.Join(dir, "github.com"))
+	require.NoError(t, err)
+	require.True(t, info.Mode().IsRegular(), "symlink replaced by the token file")
+}
+
 // TestKeyringWinsOverFile confirms the keyring is consulted before the file
 // fallback, so a stale fallback file never shadows the real credential.
 func TestKeyringWinsOverFile(t *testing.T) {

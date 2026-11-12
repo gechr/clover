@@ -90,7 +90,13 @@ func (s *Store) Set(host, token string) error {
 	if err := xos.EnsureDir(s.dir, dirPerm); err != nil {
 		return fmt.Errorf("token: create store dir: %w", err)
 	}
-	if err := xos.AtomicWrite(s.path(host), []byte(token), filePerm); err != nil {
+	// Replace a symlink rather than follow it, so the token stays in s.dir.
+	if err := xos.AtomicWrite(
+		s.path(host),
+		[]byte(token),
+		filePerm,
+		xos.WithNoFollow(),
+	); err != nil {
 		return fmt.Errorf("token: write token file: %w", err)
 	}
 	s.cacheSet(host, token, true)

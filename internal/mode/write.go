@@ -17,6 +17,9 @@ func writeSidecar(s *AnnotateSidecar) error {
 // with; an existing file keeps its own mode.
 const defaultFileMode = os.FileMode(0o644)
 
+// Both writers replace a symlink at path rather than write through it, since a
+// link could lead outside the scanned tree (see the scan package).
+
 // writeNew atomically writes data to path, preserving the file's mode when it
 // already exists and defaulting a freshly created one to defaultFileMode. Unlike
 // writeFile it tolerates a missing path, since a sidecar may be created for the
@@ -26,7 +29,7 @@ func writeNew(path string, data []byte) error {
 	if info, err := os.Stat(path); err == nil {
 		perm = info.Mode().Perm()
 	}
-	return xos.AtomicWrite(path, data, perm)
+	return xos.AtomicWrite(path, data, perm, xos.WithNoFollow())
 }
 
 // writeFile atomically replaces path's contents with lines joined by newlines,
@@ -39,5 +42,10 @@ func writeFile(path string, lines []string) error {
 	if err != nil {
 		return fmt.Errorf("stat %s: %w", path, err)
 	}
-	return xos.AtomicWrite(path, []byte(strings.Join(lines, "\n")), info.Mode().Perm())
+	return xos.AtomicWrite(
+		path,
+		[]byte(strings.Join(lines, "\n")),
+		info.Mode().Perm(),
+		xos.WithNoFollow(),
+	)
 }
